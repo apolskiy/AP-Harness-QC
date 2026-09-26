@@ -1,0 +1,217 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Finding out before the consumer does.
+#
+# Specified by docs/design/ci_pipeline.md sections 3B and 3C.
+#
+# THIS IS THE FAN-OUT THE SPLIT EXISTS FOR. A harness change is verified here
+# against this repository's own preconditions. Those prove the instrument works;
+# they say nothing about whether a case set pinning this harness still passes.
+#
+# Split, that question is answerable: a harness candidate runs against every
+# case repository declaring compatibility with it, which is how a library learns
+# it broke a consumer before the consumer does.
+#
+# IT FIRES FROM A GREEN GATE, NOT FROM A PUSH. Fanning out from a commit whose
+# own gate failed spends a consumer's CI to discover that a harness we already
+# know is broken is broken. That matters most on the stabilization branch, which
+# is red by design while it is being stabilized, and it is the same rule the
+# consumer applies in the other direction under section 3C.
+name: regress-consumers-on-merge
+
+on:
+  workflow_run:
+    workflows: [gate-on-change]
+    types: [completed]
+    branches: [main, stabilization]
+  schedule:
+    # 04:45 UTC Monday. THE WEEKLY RUN EXISTS FOR THE SAME REASON THE LIVE ONE
+    # DOES: a consumer can break without this repository changing, because a
+    # case set moves on its own. A detector firing only on our merges would miss
+    # that entirely.
+    - cron: "45 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: consumers-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  # The registry is read once and turned into a matrix, so adding a consumer is
+  # an entry in config/consumers.yaml rather than a change here.
+  enumerate:
+    name: read the consumer registry
+    runs-on: ubuntu-latest
+    # A gate that did not conclude success says nothing was established about
+    # this commit, so there is nothing to fan out from. The schedule and a
+    # manual dispatch carry no workflow_run payload and are unaffected.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    outputs:
+      consumers: ${{ steps.read.outputs.consumers }}
+      harness_sha: ${{ steps.read.outputs.harness_sha }}
+      harness_branch: ${{ steps.read.outputs.harness_branch }}
+    steps:
+      # THE COMMIT, NOT THE BRANCH. A workflow_run payload names the commit its
+      # gate actually passed on, and the branch may already have moved past it.
+      # Checking out the branch here would fan out from a commit no gate has
+      # seen, which is the window section 3C.2 closes on the consumer side.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install PyYAML
+        run: python -m pip install --quiet "pyyaml>=6.0,<7.0"
+      - name: Build the matrix
+        id: read
+        shell: bash
+        env:
+          HARNESS_BRANCH: >-
+            ${{ github.event.workflow_run.head_branch || github.ref_name }}
+          HARNESS_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          python - <<'PYTHON' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          import pathlib
+          import yaml
+
+          branch = os.environ["HARNESS_BRANCH"]
+          registry = yaml.safe_load(
+              pathlib.Path("config/consumers.yaml").read_text(encoding="utf-8")
+          )
+
+          # The pairing is resolved HERE rather than in the matrix expression,
+          # because a harness branch with no entry falls back to default_ref and
+          # a workflow expression cannot express that without naming branches.
+          entries = []
+          for entry in registry.get("consumers") or []:
+              mapping = entry.get("refs") or {}
+              entry["ref"] = mapping.get(branch, entry.get("default_ref", "main"))
+              entries.append(entry)
+
+          print(f"consumers={json.dumps(entries)}")
+          print(f"harness_branch={branch}")
+          print(f"harness_sha={os.environ['HARNESS_SHA']}")
+          PYTHON
+
+  verify:
+    name: verify ${{ matrix.consumer.name }} (${{ matrix.consumer.ref }})
+    needs: enumerate
+    if: needs.enumerate.outputs.consumers != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      # One consumer failing says nothing about the others, and cancelling the
+      # rest would discard the answer for every consumer that was fine.
+      fail-fast: false
+      matrix:
+        consumer: ${{ fromJson(needs.enumerate.outputs.consumers) }}
+    steps:
+      - name: Check out this harness candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.enumerate.outputs.harness_sha }}
+          path: harness
+
+      # A CONSUMER THAT CANNOT BE REACHED IS A HARNESS EVENT. A private
+      # repository, a deleted branch or a rate-limited clone says nothing about
+      # whether this harness is sound, so the step records it and continues.
+      #
+      # A paired branch that does not exist yet is the ordinary case here: a
+      # consumer need not carry a stabilization branch merely because we do.
+      - name: Check out the consumer
+        id: fetch
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ matrix.consumer.repository }}
+          ref: ${{ matrix.consumer.ref }}
+          path: consumer
+
+      - name: Report an unreachable consumer
+        if: steps.fetch.outcome != 'success'
+        shell: bash
+        run: |
+          {
+            echo "## ${{ matrix.consumer.name }}: unreachable"
+            echo ""
+            echo "QC_HARNESS_DEPENDENCY_UNMET: could not check out"
+            echo "${{ matrix.consumer.repository }} at ${{ matrix.consumer.ref }},"
+            echo "paired with harness ${{ needs.enumerate.outputs.harness_branch }}."
+            echo ""
+            echo "A paired branch that does not exist yet is ordinary: a consumer"
+            echo "need not carry a stabilization branch because we do."
+            echo ""
+            echo "This is a HARNESS event, not a finding about the harness under"
+            echo "test. Nothing was measured for this consumer, and no other"
+            echo "consumer's result is affected."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-python@v5
+        if: steps.fetch.outcome == 'success'
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install the consumer against THIS harness
+        if: steps.fetch.outcome == 'success'
+        shell: bash
+        run: |
+          # The candidate replaces whatever the consumer pins. That substitution
+          # is the entire experiment: the consumer's own cases, run against the
+          # harness as it stands here rather than as it stands on the ref the
+          # consumer declared.
+          python -m pip install --quiet --editable ./harness
+          python -m pip install --quiet --no-deps --editable ./consumer
+
+      - name: Run the consumer's deterministic gates
+        if: steps.fetch.outcome == 'success'
+        working-directory: consumer
+        run: ${{ matrix.consumer.command }} --junitxml=reports/junit_consumer.xml
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.fetch.outcome == 'success'
+        with:
+          name: mqc-reports-consumer-${{ matrix.consumer.name }}-none-replay
+          path: consumer/reports/
+          retention-days: 90
+
+  # A CONSUMER FAILURE DOES NOT BLOCK THIS REPOSITORY'S MERGE. By the time this
+  # runs, the merge has happened. What it produces is the earliest possible
+  # notice that a consumer needs attention, which is strictly more than the
+  # consumer would have had.
+  #
+  # Treating it as a blocker would also invert the dependency: a case repository
+  # could hold the harness hostage by carrying a failing case, and the harness
+  # could not release the fix for it.
+  report:
+    name: report
+    needs: [enumerate, verify]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarise
+        shell: bash
+        run: |
+          {
+            echo "## Consumer fan-out: ${{ needs.verify.result }}"
+            echo ""
+            echo "Harness branch: ${{ needs.enumerate.outputs.harness_branch }}"
+            echo "Harness commit: ${{ needs.enumerate.outputs.harness_sha }}"
+            echo ""
+            echo "A failure here is NOT a merge blocker for this repository. The"
+            echo "merge has already happened; this is the earliest notice that a"
+            echo "consumer needs attention."
+            echo ""
+            echo "Treating it as a blocker would invert the dependency: a case"
+            echo "repository carrying a failing case could stop the harness"
+            echo "releasing the fix for it."
+          } >> "$GITHUB_STEP_SUMMARY"

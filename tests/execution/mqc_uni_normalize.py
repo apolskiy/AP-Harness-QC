@@ -1,0 +1,239 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+"""Unit preconditions for the canonical shapes Tier 3 receives.
+
+Covers `MQC_EXE_UNI_10204` through `10213` and `10218`, inventoried in
+``docs/design/tier2_execution.md`` section 10.1.
+
+**These shapes are the whole boundary.** A vendor object reaching Tier 3 would
+make the judge depend on which provider produced the output it is judging, so
+every case here asserts that the canonical form carries what it must and
+nothing it must not.
+
+A failure here is our defect, so the module carries no priority marker, per
+``framework-rules.md`` section 3.3.
+"""
+
+from typing import Any
+import dataclasses
+
+import pytest
+
+from execution.normalize import (
+    NormalizedResponse,
+    ToolCall,
+    registered_execution_modes,
+    registered_finish_reasons,
+)
+
+pytestmark = pytest.mark.unit
+
+
+def _response(**overrides: object) -> NormalizedResponse:
+    """Build a canonical response, with overrides over a valid base.
+
+    Args:
+        **overrides (object): Fields to replace.
+
+    Returns:
+        NormalizedResponse: The built record.
+    """
+    payload: dict[str, object] = {
+        "case_id": "MQC_TASK_alpha::MQC_RULE_grounding",
+        "engine": "gemini",
+        "mode": "replay",
+        "requested_model": "gemini-flash-latest",
+        "resolved_model": "gemini-flash-latest",
+        "text": "Rewritten summary.",
+        "output_tokens": 42,
+        "duration_ms": 310,
+        "finish_reason": "stop",
+        "raw_reference": "fixtures/gemini/alpha/grounding/0.json",
+    }
+    payload.update(overrides)
+    return NormalizedResponse(**payload)
+
+
+class TestMQCToolCallShape:
+    """Tool-call intent, captured in one shape whatever the provider sent."""
+
+    def MQC_EXE_UNI_10205_parses_tool_arguments_supplied_as_json_string(self) -> None:
+        """A provider sending arguments as text must not leak that upward.
+
+        Returns:
+            None
+        """
+        call = ToolCall.from_provider("search", '{"query": "grounding"}', sequence=0)
+        assert call.arguments == {"query": "grounding"}
+        assert isinstance(call.arguments, dict)
+
+    def MQC_EXE_UNI_10206_parses_tool_arguments_supplied_as_object(self) -> None:
+        """A provider sending a mapping produces the identical shape.
+
+        The two cases exist as a pair deliberately: the point is not that each
+        works, but that Tier 3 cannot tell which provider it was talking to.
+
+        Returns:
+            None
+        """
+        from_text = ToolCall.from_provider("search", '{"query": "grounding"}', sequence=0)
+        from_object = ToolCall.from_provider("search", {"query": "grounding"}, sequence=0)
+        assert from_text == from_object
+
+    @pytest.mark.parametrize("supplied", ["{not json", '"a string"', "[1, 2]", "42"])
+    def MQC_EXE_UNI_10207_malformed_tool_arguments_map_to_model_finding_not_harness(
+        self, supplied: Any
+    ) -> None:
+        """The provider transported correctly; the model emitted bad JSON.
+
+        This is the boundary rule at the one place it is easiest to get
+        backwards. A harness code here would record our infrastructure as
+        broken and hide a genuine finding about the model.
+
+        Args:
+            supplied (str): Text that is not a JSON object.
+
+        Returns:
+            None
+        """
+        with pytest.raises(ValueError, match="QC_LLM_SCHEMA_VIOLATION"):
+            ToolCall.from_provider("search", supplied, sequence=0)
+
+    def MQC_EXE_UNI_10210_preserves_tool_call_sequence_order(self) -> None:
+        """Order within the response is carried, not inferred later.
+
+        Returns:
+            None
+        """
+        calls = [
+            ToolCall.from_provider(name, {}, sequence=index)
+            for index, name in enumerate(["search", "fetch", "summarise"])
+        ]
+        assert [call.sequence for call in calls] == [0, 1, 2]
+        assert [call.tool_name for call in sorted(calls, key=lambda entry: entry.sequence)] == [
+            "search", "fetch", "summarise"
+        ]
+
+    def MQC_EXE_UNI_10242_call_id_is_optional_because_providers_differ(self) -> None:
+        """An absent provider identifier stays absent rather than inventing one.
+
+        Returns:
+            None
+        """
+        assert ToolCall.from_provider("search", {}, sequence=0).call_id is None
+        assert ToolCall.from_provider("search", {}, 0, call_id="c1").call_id == "c1"
+
+
+class TestMQCNormalizedResponseShape:
+    """The one record that crosses into Tier 3."""
+
+    def MQC_EXE_UNI_10204_rejects_response_missing_required_canonical_field(self) -> None:
+        """A record Tier 3 could not interpret is refused on construction.
+
+        Validation lives on the record rather than at the boundary because
+        every adapter builds one, and a check inside one adapter would not
+        constrain the others.
+
+        Built from a mapping rather than a literal call, which is how an
+        adapter assembles one from a provider response, and which keeps the
+        omission a runtime condition rather than a static one.
+
+        Returns:
+            None
+        """
+        incomplete = {"case_id": "MQC_TASK_a::MQC_RULE_b", "engine": "gemini"}
+        with pytest.raises(TypeError):
+            NormalizedResponse(**incomplete)
+
+    @pytest.mark.parametrize("mode", ["cached", "dry-run", "", "LIVE"])
+    def MQC_EXE_UNI_10243_mode_outside_the_registered_set_is_rejected(self, mode: str) -> None:
+        """A replayed result must never be mistaken for an observation (A6).
+
+        Args:
+            mode (str): A mode that is neither live nor replay.
+
+        Returns:
+            None
+        """
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            _response(mode=mode)
+
+    def MQC_EXE_UNI_10244_finish_reason_outside_the_registered_set_is_rejected(self) -> None:
+        """Providers spell one outcome differently, so the set is closed.
+
+        Leaving the vocabulary open would make a downstream comparison of
+        truncation rates a comparison of vendor spellings.
+
+        Returns:
+            None
+        """
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            _response(finish_reason="max_tokens")
+        assert registered_finish_reasons() >= {"stop", "length", "tool_calls"}
+        assert registered_execution_modes() == {"live", "replay"}
+
+    def MQC_EXE_UNI_10209_returns_empty_tool_call_list_when_none_present(self) -> None:
+        """No tool calls is an empty list, never absent or null.
+
+        Returns:
+            None
+        """
+        assert not _response().tool_calls
+
+    def MQC_EXE_UNI_10211_records_resolved_model_version_not_requested(self) -> None:
+        """Both are carried, and the resolved one is what a score attaches to.
+
+        Returns:
+            None
+        """
+        response = _response(
+            requested_model="gemini-flash-latest", resolved_model="gemini-flash-002"
+        )
+        assert response.requested_model == "gemini-flash-latest"
+        assert response.resolved_model == "gemini-flash-002"
+
+    def MQC_EXE_UNI_10213_records_both_when_resolved_differs_from_requested(self) -> None:
+        """A floated alias is the signal, not an error.
+
+        Aliases move, and a score change across a run where this is true has an
+        explanation that a score change without it does not.
+
+        Returns:
+            None
+        """
+        assert _response(
+            requested_model="gemini-flash-latest", resolved_model="gemini-flash-002"
+        ).model_alias_floated is True
+        assert _response().model_alias_floated is False
+
+    def MQC_EXE_UNI_10218_no_vendor_type_appears_in_normalized_output(self) -> None:
+        """Every field is a built-in type or a record this module defines.
+
+        Asserted structurally rather than by inspecting one adapter's output,
+        so a future adapter cannot pass by being the one nobody checked.
+
+        Returns:
+            None
+        """
+        permitted = {str, int, list, dict, type(None), ToolCall}
+        response = _response(
+            tool_calls=[ToolCall.from_provider("search", {"query": "x"}, sequence=0)]
+        )
+        for record_field in dataclasses.fields(response):
+            value = getattr(response, record_field.name)
+            assert type(value) in permitted
+            if isinstance(value, list):
+                assert all(type(entry) in permitted for entry in value)
+
+    def MQC_EXE_UNI_10245_raw_reference_is_a_pointer_not_a_payload(self) -> None:
+        """Carrying the vendor object forward would defeat the boundary.
+
+        Discarding it entirely would make a normalization defect
+        undiagnosable, which is why a pointer is kept and the object is not.
+
+        Returns:
+            None
+        """
+        reference = _response().raw_reference
+        assert isinstance(reference, str)
+        assert reference

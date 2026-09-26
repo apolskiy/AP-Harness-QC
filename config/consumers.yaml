@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Case repositories that pin this harness.
+#
+# THIS IS A REGISTRY, NOT A HARDCODED LIST. Adding a consumer is an entry here,
+# which is A12 applied to CI: the fan-out runs across whatever this file names,
+# and gains a consumer without a workflow change.
+#
+# WHAT THE FAN-OUT BUYS. A harness change is verified against this repository's
+# own preconditions, which prove the instrument works and say nothing about
+# whether a case set that pins it still passes. Split, that question is
+# answerable before the consumer asks it.
+#
+# A CONSUMER THAT CANNOT BE REACHED IS A HARNESS EVENT, never a red suite. A
+# private repository, a deleted branch or a rate-limited clone says nothing
+# about whether this harness is sound. It is recorded and reported, and the
+# reporting job does not fail the run, on the same reasoning that makes a probe
+# failure a QC_HARNESS_* event rather than a model finding.
+consumers:
+  - name: AP-Model-QC
+    repository: apolskiy/AP-Model-QC
+
+    # THE PAIRING IS PER BRANCH, because a run is defined by a pair of refs and
+    # not by either one alone. ci_pipeline.md section 3C holds the topology: a
+    # harness branch is tested against the case branch that pairs with it, so
+    # stabilization work on one side is verified against stabilization work on
+    # the other rather than against a main that has not received it yet.
+    #
+    # The key is the branch of THIS repository that was pushed. The value is the
+    # ref of the consumer to check out.
+    refs:
+      main: main
+      stabilization: stabilization
+
+    # Used when a harness branch has no entry above, which is every feature
+    # branch. A feature branch is verified against the consumer's main: that is
+    # what the change will meet on merge, and it is the pairing a feature branch
+    # is trying to establish is still sound.
+    default_ref: main
+
+    # Deterministic gates only. The fan-out never spends provider quota: it
+    # answers whether the harness still works for this consumer, and a live run
+    # would answer a different question at a price.
+    command: pytest -m "unit or system" --mode replay

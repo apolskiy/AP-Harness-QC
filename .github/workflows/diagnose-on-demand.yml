@@ -1,0 +1,218 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Runnable, never counted, never silent.
+#
+# Specified by docs/design/ci_pipeline.md section 6.
+#
+# THIS RUN CARRIES NO VERDICT AND GATES NOTHING. It is excluded from the durable
+# record by THREE INDEPENDENT MECHANISMS, because any one of them alone fails in
+# a way the others cover:
+#
+#   1. An artifact name the collector pattern does not match. Structural
+#      separation alone fails the day someone widens the pattern.
+#   2. Row marking: run_context ci_debug with gated false. Marking alone fails
+#      if nobody filters on it.
+#   3. No status check reported, so branch protection never sees it.
+#
+# A green result here means the work is ready to be OFFERED, never that it is
+# ready to merge. A reviewer, or the operator a week later, can read a
+# diagnostic green as a suite green, and a notification makes that more likely
+# rather than less, because it arrives looking like every other build
+# notification.
+name: diagnose-on-demand
+
+on:
+  workflow_dispatch:
+    inputs:
+      code_ref:
+        description: "Harness and test code. Defaults to the dispatching branch"
+        required: false
+        default: ""
+        type: string
+      fixture_ref:
+        description: "Recorded responses. Defaults to whatever code_ref is"
+        required: false
+        default: ""
+        type: string
+      engine:
+        description: "Engine to run against"
+        required: false
+        default: gemini
+        type: choice
+        options: [gemini, openai, claude]
+      mode:
+        description: "live or replay"
+        required: false
+        default: replay
+        type: choice
+        options: [replay, live]
+      selection:
+        description: "Optional pytest -m expression, empty for the full suite"
+        required: false
+        default: ""
+        type: string
+
+# The run name carries the branch and the diagnostic marker, so the Actions list
+# is unambiguous before anything is opened.
+run-name: "DIAGNOSTIC (no verdict) on ${{ inputs.code_ref || github.ref_name }}"
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  diagnose:
+    name: diagnose
+    # May name a single platform. The both-platforms rule binds gate-on-change
+    # and evaluate-live-weekly; it does not bind this workflow, which yields no
+    # verdict either way.
+    runs-on: ubuntu-latest
+    # Named because section 6.4 specifies two diagnostic combinations that run
+    # live. A1's boundary is TRIGGER TRUST, not workflow count: this workflow is
+    # manual-dispatch only, which cannot be fired from a fork or by a pull
+    # request. The environment is also where the spending control belongs, since
+    # its protection rules apply to whichever workflow names it.
+    #
+    # Naming it does NOT make this run gated. Gating derives from selection
+    # mode, precondition execution and run context, none of which a credential
+    # touches.
+    environment: live
+    steps:
+      # TWO REFS, NOT A ROLLBACK. Separating them is what makes attribution
+      # possible: holding the recorded responses fixed and varying only the
+      # harness isolates our own scoring, parsing and assertion changes
+      # completely. If the current harness scores a checkpoint's responses
+      # differently than it did then, nothing about the model is involved.
+      - name: Check out the code ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.code_ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve the code ref to a commit
+        id: code
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Fixtures are committed, so a checkpoint's fixtures come with its code by
+      # default and the two-ref form costs nothing when it is not used.
+      - name: Overlay fixtures from a different ref
+        id: fixtures
+        if: inputs.fixture_ref != '' && inputs.fixture_ref != inputs.code_ref
+        shell: bash
+        run: |
+          git fetch origin "${{ inputs.fixture_ref }}" --depth=1
+          git checkout FETCH_HEAD -- tests/fixtures/replay/
+          echo "sha=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+          echo "diverged=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+
+      - name: Run the selected cases
+        id: run
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          # The exit status is pytest's own. A diagnostic run uses NONE of the
+          # verdict codes, because it computes no verdict, and borrowing one
+          # would make a diagnostic green indistinguishable from a gated one at
+          # exactly the moment a reader is least likely to check.
+          marker="${{ inputs.selection }}"
+          if [ -z "${marker}" ]; then
+            marker="unit or system or evaluator or tool or sec"
+          fi
+          pytest -m "${marker}" \
+            --engine "${{ inputs.engine }}" \
+            --mode "${{ inputs.mode }}" \
+            --out-dir diagnostic-artifacts/ \
+            --junitxml=diagnostic-artifacts/junit.xml \
+            --alluredir=diagnostic-artifacts/allure-results
+
+      - name: Count the cases that ran
+        id: counts
+        if: always()
+        shell: bash
+        run: |
+          total=$(grep -o 'tests="[0-9]*"' diagnostic-artifacts/junit.xml | head -1 | tr -dc '0-9')
+          echo "cases=${total:-0}" >> "$GITHUB_OUTPUT"
+
+      # EXCLUSION MECHANISM 1: the name does not begin with mqc-reports-, so
+      # exclusion does not depend on a negative match, which is the kind of
+      # pattern that breaks quietly when someone edits it.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scratch-diagnose-${{ github.run_id }}
+          path: diagnostic-artifacts/
+          retention-days: 14
+
+      # The summary OPENS BY SAYING WHAT THE RUN IS NOT, then says what it was,
+      # then the results.
+      - name: Write the diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Diagnostic run"
+            echo ""
+            echo "**This run is diagnostic. It carries no verdict and gates nothing.**"
+            echo "A green result means the work is ready to be offered, never that it"
+            echo "is ready to merge. Open a pull request and let gate-on-change.yml"
+            echo "gate it under the ordinary rules."
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Workflow | ${{ github.workflow }} |"
+            echo "| Job | diagnose |"
+            echo "| Run number | ${{ github.run_number }} |"
+            echo "| Run identifier | ${{ github.run_id }} |"
+            echo "| Code ref | ${{ inputs.code_ref || github.ref_name }} (${{ steps.code.outputs.sha }}) |"
+            echo "| Fixture ref | ${{ steps.fixtures.outputs.sha || steps.code.outputs.sha }} |"
+            echo "| Refs diverged | ${{ steps.fixtures.outputs.diverged || 'false' }} |"
+            echo "| Mode | ${{ inputs.mode }} |"
+            echo "| Engine | ${{ inputs.engine }} |"
+            echo "| Selection | ${{ inputs.selection || 'full suite' }} |"
+            echo "| Cases | ${{ steps.counts.outputs.cases }} |"
+            echo "| Result | ${{ steps.run.outcome }} |"
+            echo ""
+            if [ "${{ steps.fixtures.outputs.diverged }}" = "true" ]; then
+              echo "### Refs diverge"
+              echo ""
+              echo "A changed request hash is the ANSWER this diagnostic was asking, not"
+              echo "a fault: it says request composition moved between the two"
+              echo "checkpoints. Stale fixtures are reported per case and the run"
+              echo "continues."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # EXCLUSION FROM THE RECORD IS NOT EXCLUSION FROM NOTIFICATION. A developer
+  # needs to know when a debug run starts passing, because that is the moment
+  # the work can be offered. Silence would make the workflow useless for the one
+  # purpose it has.
+  notify:
+    name: notify
+    needs: diagnose
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce the transition
+        shell: bash
+        run: |
+          {
+            echo "## Diagnostic result: ${{ needs.diagnose.result }}"
+            echo ""
+            echo "This notification announces readiness to OPEN A PULL REQUEST,"
+            echo "never readiness to merge. No status check was reported and"
+            echo "nothing downstream will record this run."
+          } >> "$GITHUB_STEP_SUMMARY"

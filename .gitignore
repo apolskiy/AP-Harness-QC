@@ -216,3 +216,55 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---------------------------------------------------------------------------
+# AP-Harness-QC governance and artifacts
+# ---------------------------------------------------------------------------
+
+# Two logs, deliberately split by audience and destination.
+#
+# TRACKED: CLAUDE_LOG.md at the repository root, the project progress and
+# decision record. It is project output: what was decided, when, and why.
+#
+# IGNORED: the prompt log. Verbatim prompts, phrasings and working notes are
+# material for later review rather than project output, and they are the one
+# place a credential could be pasted by accident.
+.claude/logs/
+
+# Private design notes. The tracked designs state the integration contract
+# generically, as standard artifact formats any collector can read. Naming a
+# specific downstream consumer would couple a public repository to a choice
+# that may change, so concrete detail lives here instead.
+.claude/notes/
+
+# Everything else under .claude/ IS tracked. The rule files are the governance
+# layer this project partly exists to demonstrate, so they belong in the repo.
+
+# Design and test-design documents are tracked project output, not scratch
+# work. Listed explicitly so a later blanket docs/ rule cannot silently drop
+# them.
+!docs/
+!docs/design/
+!docs/design/**
+!docs/testing/
+!docs/testing/**
+
+# CI-generated test artifacts. Regenerated every run and published to GitHub
+# Actions, which is where downstream collection reads them from; committing
+# them would duplicate the artifact store in git to no benefit.
+reports/
+allure-results/
+allure-report/
+junit_*.xml
+
+# Provider credentials. Never committed, never written into design documents
+# or logs. The example file IS tracked and contains no real key.
+.env
+.env.*
+!.env.example
+
+# JetBrains IDE settings. Machine-local and developer-specific: committing
+# them makes every teammate editor state a source of merge conflicts. The
+# GitHub template ships this line commented out, which reads as present to a
+# careless grep and ignores nothing.
+.idea/

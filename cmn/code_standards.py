@@ -1,0 +1,440 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+"""The code-style rules that no linter checks, as functions over a tree.
+
+Extracted 2026-09-23, when the rules had to apply to two repositories rather
+than one.
+
+**Pylint checks none of these.** It has no opinion on whether an annotation is
+present, on which annotation semantics a module selects, or on whether a file
+says what licence it carries. Each rule stood in ``code-style.md`` while being
+enforced by nothing, and the annotation rule in particular stood there from the
+project's first commit while 597 test callables violated it.
+
+**They are parameterised by root and licence rather than duplicated.** A case
+repository is MIT and the harness is Apache-2.0, which is the only difference
+between the two enforcements. Copying the checkers to state that one difference
+would be two implementations of one rule, and the copy would drift in the
+direction of whichever repository was edited less often.
+
+``.pylintrc`` remains the enforcement for naming, line length and the rest. This
+module is deliberately only the part pylint cannot express.
+"""
+
+import ast
+import re
+from pathlib import Path
+from typing import Final
+
+import yaml
+
+# Not this project's source, so not this project's conventions to enforce.
+COPYRIGHT_TAG: Final[str] = "SPDX-FileCopyrightText:"
+
+# `logs` holds untracked working output, including the prompt log, which
+# is never committed because it is the one place a credential could be
+# pasted. The header rule binds tracked files.
+SKIPPED_TREES: Final[frozenset[str]] = frozenset(
+    {"venv", ".venv", "build", "dist", "__pycache__", ".git",
+     "node_modules", "logs"}
+)
+
+
+def python_sources(root: Path) -> list[Path]:
+    """Return every Python file a repository owns.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[Path]: Sorted source paths, excluding vendored and generated
+        trees. **Sorted** so a failure message names files in a stable order
+        and a diff of two runs is readable.
+    """
+    return [
+        source
+        for source in sorted(root.rglob("*.py"))
+        if not any(part in SKIPPED_TREES for part in source.parts)
+    ]
+
+
+def annotation_gaps(root: Path) -> list[str]:
+    """Return every parameter and return type that carries no annotation.
+
+    **Test code is held to this identically.** A test callable is a function
+    like any other, and its fixtures are its parameters.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per gap, each naming file, line and callable.
+    """
+    gaps: list[str] = []
+    for source in python_sources(root):
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            where = f"{source.relative_to(root).as_posix()}:{node.lineno} {node.name}"
+            if node.returns is None:
+                gaps.append(f"{where} has no return annotation")
+            arguments = node.args
+            declared = (
+                list(arguments.posonlyargs)
+                + list(arguments.args)
+                + list(arguments.kwonlyargs)
+                + [entry for entry in (arguments.vararg, arguments.kwarg) if entry]
+            )
+            gaps.extend(
+                f"{where} parameter {entry.arg} has no annotation"
+                for entry in declared
+                if entry.arg not in {"self", "cls"} and entry.annotation is None
+            )
+    return gaps
+
+
+def future_annotation_imports(root: Path) -> list[str]:
+    """Return every module selecting PEP 563 stringized annotations.
+
+    Python 3.14 implements PEP 649, so annotations are already evaluated lazily
+    and the import buys nothing. What it does instead is select PEP 563, which
+    turns every annotation into a string and removes
+    ``annotationlib.Format.VALUE``.
+
+    **Parsed, never matched as a substring.** A file describing the rule names
+    the import in a string literal, and a substring check reports itself. That
+    over-reporting is what trains a check away on its second run.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: Relative paths of the offending modules.
+    """
+    offending: list[str] = []
+    for source in python_sources(root):
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+            if (
+                isinstance(node, ast.ImportFrom)
+                and node.module == "__future__"
+                and any(alias.name == "annotations" for alias in node.names)
+            ):
+                offending.append(source.relative_to(root).as_posix())
+    return offending
+
+
+def header_problems(root: Path, licence: str) -> list[str]:
+    """Return every file whose SPDX header is absent, misplaced or wrong.
+
+    **Position is checked, not only presence.** The header sits above the
+    module docstring, because a docstring must remain the first statement or
+    ``__doc__`` is empty, and this project reads module docstrings as
+    specification prose. A header pasted inside one would satisfy a presence
+    check while silently emptying the documentation.
+
+    Args:
+        root (Path): The repository root.
+        licence (str): The SPDX identifier this repository's files must
+            declare. **Named rather than accepting any valid tag**, which is
+            the entire point: code from one repository installs into another
+            under a different licence, so a file separated from its repository
+            has to carry its own correct answer.
+
+    Returns:
+        list[str]: One entry per problem.
+    """
+    expected = f"# SPDX-License-Identifier: {licence}"
+    problems: list[str] = []
+
+    for source in python_sources(root):
+        content = source.read_text(encoding="utf-8")
+        opening = content.splitlines()[:2]
+        relative = source.relative_to(root).as_posix()
+
+        if len(opening) < 2:
+            problems.append(f"{relative} is too short to carry a header")
+            continue
+        if not opening[0].startswith("# SPDX-FileCopyrightText:"):
+            problems.append(f"{relative} has no copyright line at the top")
+        if opening[1] != expected:
+            problems.append(f"{relative} does not declare {licence}")
+
+        # The docstring must still be the first statement. Parsing settles that
+        # rather than counting lines.
+        if ast.get_docstring(ast.parse(content)) is None:
+            problems.append(f"{relative} lost its module docstring")
+
+    return problems
+
+
+# How each format writes a comment. The header says the same two things in all
+# of them; only the syntax differs, and each is the syntax that format's
+# readers already expect.
+MARKUP_STYLES: Final[dict[str, tuple[str, str, str]]] = {
+    ".md": ("<!--", "", "-->"),
+    ".yaml": ("", "# ", ""),
+    ".yml": ("", "# ", ""),
+}
+
+# The licence text itself. A file stating its own terms needs no tag pointing
+# at itself.
+LICENCE_FILES: Final[frozenset[str]] = frozenset({"LICENSE", "NOTICE"})
+
+
+def markup_sources(root: Path) -> list[Path]:
+    """Return every tracked document and data file.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[Path]: Sorted markdown and YAML paths, excluding vendored trees
+        and the licence files themselves.
+    """
+    found: list[Path] = []
+    for suffix in sorted(MARKUP_STYLES):
+        found.extend(
+            source
+            for source in root.rglob(f"*{suffix}")
+            if not any(part in SKIPPED_TREES for part in source.parts)
+            and source.stem not in LICENCE_FILES
+        )
+    return sorted(found)
+
+
+def markup_header_problems(root: Path, licence: str) -> list[str]:
+    """Return every document or data file whose SPDX header is absent or wrong.
+
+    **A separate check from** :func:`header_problems` **rather than a widening
+    of it.** A Python file must carry the header above its module docstring,
+    because a docstring must remain the first statement or ``__doc__`` is
+    empty. Markdown and YAML have no such constraint, so the two checks assert
+    different things and folding them together would give one check two shapes.
+
+    Args:
+        root (Path): The repository root.
+        licence (str): The SPDX identifier this repository's files declare.
+
+    Returns:
+        list[str]: One entry per problem.
+    """
+    problems: list[str] = []
+
+    for source in markup_sources(root):
+        opener, prefix, _ = MARKUP_STYLES[source.suffix]
+        head = source.read_text(encoding="utf-8").splitlines()[:4]
+        relative = source.relative_to(root).as_posix()
+
+        if opener and (not head or head[0].strip() != opener):
+            problems.append(f"{relative} does not open with {opener}")
+            continue
+
+        body = head[1:] if opener else head
+        wanted = f"{prefix}SPDX-License-Identifier: {licence}"
+        if not any(line.strip().startswith(f"{prefix}{COPYRIGHT_TAG}") for line in body):
+            problems.append(f"{relative} has no copyright line")
+        if not any(line.rstrip() == wanted for line in body):
+            problems.append(f"{relative} does not declare {licence}")
+
+    return problems
+
+
+# The runbook, relative to a repository root. One per repository, because the
+# harness names no consumer and the workflows differ anyway.
+RUNBOOK: Final[str] = "docs/running_jobs.md"
+
+# A documented dispatch, as the runbook spells it.
+_DISPATCH = re.compile(r"gh workflow run\s+(\S+\.yml)")
+
+# An input named on that command line. GitHub rejects an undeclared one, and
+# the reader concludes the procedure is broken rather than the page.
+_FIELD = re.compile(r"--field\s+([A-Za-z_][A-Za-z0-9_-]*)=")
+
+
+def runbook_problems(root: Path) -> list[str]:
+    """Report every documented dispatch that would be rejected.
+
+    **Prose is checked because a reader who believes a page stops looking.**
+    The failure is silent at authoring time and lands on whoever follows the
+    procedure, which is the person least able to tell a wrong page from a
+    broken workflow.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per problem, naming the command and what is wrong
+        with it. An empty list means every documented dispatch would be
+        accepted. **A missing runbook is not a problem here**, because whether
+        a repository carries one is a separate question from whether the one it
+        carries is correct.
+    """
+    runbook = root / RUNBOOK
+    if not runbook.is_file():
+        return []
+
+    problems: list[str] = []
+    for command in _dispatch_commands(runbook.read_text(encoding="utf-8")):
+        workflow = _DISPATCH.search(command)
+        if workflow is None:
+            continue
+        definition = root / ".github" / "workflows" / workflow.group(1)
+        if not definition.is_file():
+            problems.append(
+                f"{RUNBOOK} dispatches {workflow.group(1)}, which does not exist"
+            )
+            continue
+        declared = _declared_inputs(definition)
+        for field in _FIELD.findall(command):
+            if field not in declared:
+                problems.append(
+                    f"{RUNBOOK} passes --field {field} to {workflow.group(1)}, "
+                    f"which declares {sorted(declared)}"
+                )
+    return problems
+
+
+def _dispatch_commands(text: str) -> list[str]:
+    """Return every fenced line that dispatches a workflow.
+
+    Args:
+        text (str): The runbook source.
+
+    Returns:
+        list[str]: The command lines. **Fenced blocks only**, so prose naming a
+        workflow in passing is not read as a command somebody could run.
+    """
+    commands: list[str] = []
+    fenced = False
+    for line in text.splitlines():
+        if line.startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced and "gh workflow run" in line:
+            commands.append(line)
+    return commands
+
+
+def _declared_inputs(definition: Path) -> set[str]:
+    """Return the dispatch inputs a workflow declares.
+
+    Args:
+        definition (Path): The workflow file.
+
+    Returns:
+        set[str]: Every declared input name, empty when the workflow takes
+        none.
+    """
+    parsed = yaml.safe_load(definition.read_text(encoding="utf-8"))
+    # PyYAML reads the bare key `on` as the boolean True, so both spellings
+    # have to be tried. This is the one place the quirk is load-bearing.
+    triggers = parsed.get(True) or parsed.get("on") or {}
+    dispatch = triggers.get("workflow_dispatch") or {}
+    return set((dispatch.get("inputs") or {}).keys())
+
+
+# The calls that read or write a file and must say in which encoding. `open`
+# is the builtin; the other two are Path methods, matched by attribute name
+# because Tier-crossing would be the only way to know the receiver is a Path.
+_ENCODED_CALLS: Final[frozenset[str]] = frozenset(
+    {"open", "read_text", "write_text"}
+)
+
+# Binary modes carry no encoding and must not declare one. A call passing "rb"
+# or "wb" is correct precisely by omitting it.
+_BINARY_MODES: Final[frozenset[str]] = frozenset({"rb", "wb", "ab", "r+b", "w+b", "xb"})
+
+
+def encoding_gaps(root: Path) -> list[str]:
+    """Report every file read or write that declares no encoding.
+
+    **Parsed, not matched.** A regex for ``open(`` cannot tell a call from the
+    word in a docstring, and this project has already corrected one scanner
+    that could not tell a definition from a definition inside a string.
+
+    **This rule fails more quietly than any other here.** A missing encoding
+    raises nothing: it reads ``cp1252`` on Windows and ``utf-8`` on Linux, so
+    the same commit yields different values on the two platforms CI runs, and
+    both runs report success.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per call, naming the file and line. Empty when
+        every call declares an encoding or opens in a binary mode, which
+        carries none and must not claim one.
+    """
+    problems: list[str] = []
+    for source in python_sources(root):
+        try:
+            tree = ast.parse(source.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = _called_name(node)
+            if name not in _ENCODED_CALLS:
+                continue
+            if _is_binary_open(node) or _declares_encoding(node):
+                continue
+            problems.append(
+                f"{source.relative_to(root).as_posix()}:{node.lineno} calls "
+                f"{name} without an encoding, which reads cp1252 on Windows "
+                f"and utf-8 on Linux and raises nothing either way"
+            )
+    return problems
+
+
+def _called_name(node: ast.Call) -> str:
+    """Return the name of the function a call invokes.
+
+    Args:
+        node (ast.Call): The call.
+
+    Returns:
+        str: The bare name, or the attribute for a method call, empty when
+        neither applies.
+    """
+    if isinstance(node.func, ast.Name):
+        return node.func.id
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr
+    return ""
+
+
+def _declares_encoding(node: ast.Call) -> bool:
+    """Report whether a call passes an encoding.
+
+    Args:
+        node (ast.Call): The call.
+
+    Returns:
+        bool: True when an ``encoding`` keyword is present, whatever its
+        value. **The value is not checked here**: ``utf-8-sig`` is correct at
+        ingest, and a checker insisting on one spelling would report the
+        deliberate choice as a defect.
+    """
+    return any(keyword.arg == "encoding" for keyword in node.keywords)
+
+
+def _is_binary_open(node: ast.Call) -> bool:
+    """Report whether a call opens a file in binary mode.
+
+    Args:
+        node (ast.Call): The call.
+
+    Returns:
+        bool: True when a literal binary mode is supplied, positionally or by
+        keyword. A binary handle carries no encoding and declaring one raises.
+    """
+    modes = list(node.args[1:2])
+    modes.extend(
+        keyword.value for keyword in node.keywords if keyword.arg == "mode"
+    )
+    return any(
+        isinstance(mode, ast.Constant) and mode.value in _BINARY_MODES
+        for mode in modes
+    )

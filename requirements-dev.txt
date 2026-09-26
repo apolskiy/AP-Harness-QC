@@ -1,0 +1,14 @@
+# GENERATED FROM pyproject.toml. Do not edit by hand.
+#
+# Regenerate with:  python tools/generate_requirements.py
+# Checked by:       MQC_CMN_UNI_11108
+#
+# Everything the seven CI gates need, on top of the runtime dependencies.
+# This is what `pip install --editable ".[dev]"` installs, and what CI uses.
+
+-r requirements.txt
+
+pytest>=9.1,<10.0
+allure-pytest>=2.13,<3.0
+pylint>=3.3,<4.0
+pytest-randomly>=3.15,<5.0

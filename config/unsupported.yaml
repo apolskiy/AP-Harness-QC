@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Declared (case, engine) pairs that cannot run, with the reason each cannot.
+#
+# A declared capability gap is NOT an environmental failure. These pairs are
+# excluded from the skip denominator entirely (A13), because leaving them in
+# would trip the skip ceiling for a reason that is not a defect.
+#
+# Every entry carries a reason. An undeclared reason makes the exclusion
+# unauditable, and an unauditable exclusion is how a real failure gets parked
+# here and forgotten.
+#
+# Empty at present: all three registered adapters declare tool calling and
+# structured output, so no pair is currently unsupported. The file exists
+# because an absent file and an empty one must mean the same thing, and
+# MQC_CMN_UNI_10119 asserts the exclusion against a populated list.
+unsupported: []

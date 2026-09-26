@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Quarantined cases, each with a reason and an EXPIRY DATE.
+#
+# A quarantined case is excluded from the pass-rate denominator and never
+# deleted from the suite. It still runs and it is listed in the report.
+#
+# THE EXPIRY IS THE POINT. Without it, quarantine becomes where failures go to
+# be forgotten, and the 90% pass floor stops meaning anything because
+# everything inconvenient has left the denominator. An expired entry fails the
+# run under V5, which forces the decision to be made again rather than to lapse
+# into permanence.
+#
+# Empty at present. The file exists so that an absent file and an empty one
+# mean the same thing to cmn/config.py.
+quarantine: []

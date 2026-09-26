@@ -1,0 +1,148 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# The whole suite on one branch, on demand, gated.
+#
+# Specified by docs/design/ci_pipeline.md section 3A.
+#
+# WHAT THE GATE DELIBERATELY DOES NOT DO. gate-on-change.yml scopes a pull
+# request run to what the change can affect, which is the right trade for
+# something running on every push and leaves a real question unanswered: is this
+# branch sound IN FULL, not merely unbroken where it was touched?
+#
+# THIS RUN IS GATED. It carries run_context ci, supplies no filter and therefore
+# derives selection_mode full, so the verdict it produces is the real one. A
+# developer running it before opening a pull request learns what the merge run
+# would say, a day earlier.
+name: regress-harness-on-branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or commit to regress. Defaults to the dispatching ref"
+        required: false
+        default: ""
+        type: string
+
+run-name: "Full regression on ${{ inputs.ref || github.ref_name }}"
+
+# NOT cancel-in-progress. A regression is asked for deliberately, and cancelling
+# one because a second was requested discards the answer somebody was waiting
+# for. The gate cancels superseded runs because a newer commit makes an older
+# gate result irrelevant; that reasoning does not carry here, where two runs may
+# be deliberately comparing two refs.
+concurrency:
+  group: regress-${{ inputs.ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  # Gate 1. Blocks everything, as it does in the gate workflow.
+  lint:
+    name: lint (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - name: Gate 1, static analysis and naming
+        run: python -m pylint ingestion/ execution/ evaluation/ cmn/ tests/ tools/ conftest.py --rcfile=.pylintrc
+      - name: Lint workflow definitions
+        if: runner.os == 'Linux'
+        uses: raven-actions/actionlint@v2
+
+  # Gates 2 through 6 in one job per platform and engine. UNLIKE THE GATE, there
+  # is no selection step and no --priority: a regression that filtered anything
+  # would answer a narrower question than the one it was asked.
+  regress:
+    name: regress (${{ matrix.engine }}, ${{ matrix.os }})
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        engine: [gemini, openai, claude]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+
+      - name: Gate 2, unit preconditions
+        run: pytest -m unit --junitxml=reports/junit_mqc_unit.xml --alluredir=reports/allure-results
+      - name: Gate 3, system preconditions
+        if: always()
+        run: pytest -m system --mode replay --junitxml=reports/junit_mqc_system.xml --alluredir=reports/allure-results
+      - name: Gate 4, evaluator
+        if: always()
+        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
+      - name: Gate 5, tool-use compliance
+        if: always()
+        run: pytest -m tool --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
+      - name: Gate 6, model security
+        if: always()
+        run: pytest -m sec --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          # Carries the collector prefix, because this run IS part of the
+          # durable record. That is the difference from a diagnostic run.
+          name: mqc-reports-regress-${{ matrix.engine }}-replay-${{ matrix.os }}
+          path: reports/
+          retention-days: 90
+
+  verdict:
+    name: verdict
+    needs: regress
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mqc-reports-*
+          path: collected/
+      - name: Compute the verdict
+        shell: bash
+        run: |
+          set +e
+          python -m cmn.verdict_tool collected/results.json
+          code=$?
+          set -e
+          {
+            echo "## Full regression on ${{ inputs.ref || github.ref_name }}"
+            echo ""
+            echo "Selection: full, unscoped. This verdict is the real one, and is"
+            echo "what the merge run will say if nothing changes."
+            echo ""
+            echo "Exit code: ${code}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "${code}"

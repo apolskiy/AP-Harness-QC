@@ -1,0 +1,236 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+"""What a branch may be called, how long it may live, and where it may merge.
+
+Covers ``MQC_CMN_UNI_11144`` through ``11148``, inventoried in
+``docs/design/cmn_verdict_and_cli.md`` section 10.23 and specified by
+``docs/design/ci_pipeline.md`` section 3C.6.
+
+**Every case here runs offline against synthetic input**, because the policy is
+pure functions over a name, a base, a date and a set of merge records. Nothing
+reads git and nothing reads a clock.
+
+A failure here is our defect, so the module carries no priority marker.
+"""
+
+from datetime import date, timedelta
+
+import pytest
+
+from cmn.branch_policy import (
+    CYCLE_REFERENT,
+    MergeRecord,
+    parse_branch,
+    back_merge_problems,
+    name_problems,
+    referent_problems,
+    route_problems,
+    staleness,
+    staleness_problems,
+)
+
+pytestmark = pytest.mark.unit
+
+# A branch cut on this day, used wherever the date itself is not the subject.
+_CUT = date(2026, 9, 1)
+
+
+class TestMQCBranchNaming:
+    """A date says when, and a referent says what."""
+
+    def MQC_CMN_UNI_11144_a_branch_name_outside_the_grammar_is_reported(self) -> None:
+        """A name is the only place a branch says what it is.
+
+        **`main` is exempt**, being the master branch rather than a working
+        one, and the case asserts that explicitly: an exemption nobody checks
+        is an exemption that disappears the first time the grammar is
+        tightened.
+
+        Returns:
+            None
+        """
+        assert not name_problems("main")
+        assert not name_problems("stabilization-MQC-1234-09-24-2026")
+        assert not name_problems("expand-10428-09-24-2026")
+        assert not name_problems("extend-v1.2.0-09-24-2026")
+
+        # No date at all, which is the form this rule replaced.
+        assert name_problems("stabilization")
+        # A kind outside the registry.
+        assert name_problems("feature-MQC-1234-09-24-2026")
+        # A stamp that is shaped like a date and is not one.
+        assert name_problems("expand-MQC-1234-13-45-2026")
+        # A TRANSPOSED STAMP IS REFUSED, NOT REINTERPRETED. The 24th of
+        # September written DD-MM has 24 in the month slot, and reading it as
+        # any date at all would read it as one its author did not mean.
+        assert name_problems("expand-MQC-1234-24-09-2026")
+        # A DATE AND NOTHING ELSE, for a WORKING branch. It says when and
+        # never which work, and each of these holds exactly one unit of it.
+        # The integration kind is the one exception and 11152 covers it.
+        assert name_problems("expand-09-24-2026")
+        assert name_problems("extend-09-24-2026")
+        assert name_problems("debug-09-24-2026")
+
+    def MQC_CMN_UNI_11145_a_referent_of_no_registered_kind_is_reported(self) -> None:
+        """Free text is not a referent, however descriptive it reads.
+
+        The registry is a registry in the sense ``testing-standards.md`` uses
+        for layer tokens, so this asserts the boundary rather than the
+        contents: a referent matching no kind is reported, whatever it says.
+
+        Returns:
+            None
+        """
+        assert name_problems("expand-tool-corpus-09-24-2026")
+        assert name_problems("expand-fix-the-thing-09-24-2026")
+
+        # A case identifier is checked for existence, and only that kind is.
+        known = frozenset({"10428"})
+        assert not referent_problems("expand-10428-09-24-2026", known)
+        assert referent_problems("expand-19999-09-24-2026", known)
+
+        # A ticket is never resolved, so an unknown one is not a problem here.
+        assert not referent_problems("expand-MQC-9999-09-24-2026", known)
+        # A name that does not parse is reported once, by name_problems.
+        assert not referent_problems("expand-nonsense-09-24-2026", known)
+
+
+class TestMQCBranchStaleness:
+    """The date is a ceiling, and a ceiling is tested at its bounds."""
+
+    def MQC_CMN_UNI_11146_staleness_is_silent_then_warned_then_red_at_its_bounds(
+        self,
+    ) -> None:
+        """Off-by-one at a boundary is the likeliest defect in any gate.
+
+        Each threshold is asserted **at** the value rather than near it, on
+        both sides. A staleness ceiling that fires a day late is a ceiling
+        nobody notices is wrong.
+
+        Returns:
+            None
+        """
+        name = "stabilization-MQC-1234-09-01-2026"
+
+        def band(days: int) -> str:
+            """Return the band a given age falls in.
+
+            Args:
+                days (int): Days since the branch was cut.
+
+            Returns:
+                str: The band name.
+            """
+            measured = staleness(name, _CUT + timedelta(days=days))
+            assert measured is not None
+            assert measured.days == days
+            return measured.band
+
+        assert band(0) == "silent"
+        assert band(13) == "silent"
+        assert band(14) == "warn"
+        assert band(29) == "warn"
+        assert band(30) == "stale"
+
+        # Only the last band blocks, and it is the only one that reports.
+        assert not staleness_problems(name, date(2026, 9, 30))
+        assert staleness_problems(name, date(2026, 10, 1))
+
+        # main has no stamp, so it is never stale.
+        assert staleness("main", date(2027, 1, 1)) is None
+
+
+class TestMQCBranchRoute:
+    """One route into main, and main merged into nothing."""
+
+    def MQC_CMN_UNI_11147_a_development_branch_targeting_main_is_reported(
+        self,
+    ) -> None:
+        """A second route is a route around the integration test.
+
+        Returns:
+            None
+        """
+        assert not route_problems("stabilization-MQC-1234-09-24-2026", "main")
+        assert not route_problems(
+            "expand-10428-09-24-2026", "stabilization-MQC-1234-09-24-2026"
+        )
+
+        assert route_problems("expand-10428-09-24-2026", "main")
+        assert route_problems("extend-MQC-1234-09-24-2026", "main")
+        assert route_problems("debug-10428-09-24-2026", "main")
+
+        # main is merged into nothing, whatever the target.
+        assert route_problems("main", "stabilization-MQC-1234-09-24-2026")
+
+    def MQC_CMN_UNI_11148_a_merge_bringing_main_into_a_branch_is_reported(
+        self,
+    ) -> None:
+        """The shape of the merge decides, never its message.
+
+        **Succession must pass without being named as an exception.** It
+        merges the stale branch into a new one, and the stale branch carries
+        the unmerged work that is the reason it existed, so ``main`` does not
+        contain it. A back-merge is the opposite shape.
+
+        Returns:
+            None
+        """
+        back_merge = MergeRecord("abc1234", "main", True)
+        succession = MergeRecord("def5678", "stabilization-MQC-1-08-01-2026", False)
+
+        assert back_merge_problems([succession]) == []
+        assert back_merge_problems([back_merge])
+        assert len(back_merge_problems([back_merge, succession, back_merge])) == 2
+        assert back_merge_problems([]) == []
+
+
+class TestMQCIntegrationBranchNaming:
+    """An integration branch holds a cycle, and the stamp names it."""
+
+    def MQC_CMN_UNI_11152_an_integration_branch_may_omit_its_referent(self) -> None:
+        """Forcing a referent on a cycle produces a false one.
+
+        A stabilization branch collects whatever merged in one cycle, so any
+        single referent names one of its tickets and **asserts something untrue
+        about the rest**. A name that asserts something false is worse than one
+        that asserts less.
+
+        **This is the positive half.** `11144` holds the negative half, that
+        every working kind must still name its work, and the two are separate
+        identifiers because a grammar could satisfy either without the other.
+
+        Returns:
+            None
+        """
+        bare = "stabilization-09-24-2026"
+
+        assert not name_problems(bare)
+        parsed = parse_branch(bare)
+        assert parsed is not None
+        assert parsed.kind == "stabilization"
+        assert parsed.cut_on == date(2026, 9, 24)
+
+        # THE CYCLE IS THE REFERENT, recorded as such rather than as an
+        # absence, because the stamp is the identity and not a timestamp on it.
+        assert parsed.referent is None
+        assert parsed.referent_kind == CYCLE_REFERENT
+
+        # A REAL REFERENT IS STILL PERMITTED. What was removed is the
+        # obligation to invent one, not the ability to give one.
+        named = parse_branch("stabilization-v1.2.0-09-24-2026")
+        assert named is not None
+        assert named.referent == "v1.2.0"
+        assert named.referent_kind == "release"
+
+        # EVERYTHING ELSE ABOUT IT STILL APPLIES. A bare-stamp branch is
+        # staleness-checked and route-checked like any other, or the omission
+        # would have bought an exemption nobody asked for.
+        assert staleness_problems(bare, date(2026, 11, 1))
+        assert not staleness_problems(bare, date(2026, 9, 25))
+        assert not route_problems(bare, "main")
+        assert route_problems("expand-10428-09-24-2026", "main")
+
+        # AND A BARE STAMP IS NOT A CASE REFERENT, so nothing resolves it
+        # against an inventory.
+        assert not referent_problems(bare, frozenset())

@@ -1,0 +1,182 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Re-running exactly what failed.
+#
+# Specified by docs/design/ci_pipeline.md section 6A.
+#
+# diagnose-on-demand.yml selects by MARKER EXPRESSION, which answers "run the
+# security suite" and cannot answer "run these four tests". A triage loop needs
+# the second: a run fails, and the question is why THOSE cases failed, not what
+# an entire layer does.
+#
+# THIS RUN YIELDS NO VERDICT AND REFUSES TO PRETEND OTHERWISE. A hand-typed set
+# of identifiers is the definition of a manual selection, so the three
+# independent exclusions apply unchanged: an artifact name the collector does
+# not match, row marking carrying run_context ci_debug with gated false, and no
+# status check reported.
+name: debug-failures-on-demand
+
+on:
+  workflow_dispatch:
+    inputs:
+      tests:
+        description: "Test identifiers or nodeids, one per line or comma separated"
+        required: true
+        type: string
+      repeat:
+        description: "How many times to run them. Above 1 distinguishes a flake"
+        required: false
+        default: "1"
+        type: string
+      ref:
+        description: "Branch, tag or commit. Defaults to the dispatching ref"
+        required: false
+        default: ""
+        type: string
+      engine:
+        description: "Engine to run against"
+        required: false
+        default: gemini
+        type: choice
+        options: [gemini, openai, claude]
+      mode:
+        description: "live or replay"
+        required: false
+        default: replay
+        type: choice
+        options: [replay, live]
+
+run-name: "DEBUG (no verdict) on ${{ inputs.ref || github.ref_name }}"
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  debug:
+    name: debug
+    runs-on: ubuntu-latest
+    # Named only because mode may be live. Gating derives from selection mode,
+    # precondition execution and run context, none of which a credential
+    # touches, so this run stays ungated whatever the environment grants.
+    environment: live
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+
+      # THE IDENTIFIERS ARE VALIDATED BEFORE ANYTHING RUNS. A mistyped
+      # identifier selects nothing and pytest exits cleanly having run zero
+      # tests, which reads exactly like a run where everything passed. That is
+      # the failure this step exists to prevent.
+      - name: Resolve and validate the requested tests
+        id: resolve
+        shell: bash
+        run: |
+          python - <<'PYTHON' >> "$GITHUB_OUTPUT"
+          import os
+          import re
+          import subprocess
+          import sys
+
+          requested = [
+              entry.strip()
+              for entry in re.split(r"[,\n]", os.environ["REQUESTED"])
+              if entry.strip()
+          ]
+          if not requested:
+              print("::error::no test identifiers were supplied")
+              sys.exit(1)
+
+          collected = subprocess.run(
+              [sys.executable, "-m", "pytest", "--collect-only", "-q"],
+              capture_output=True, text=True, check=False, shell=False,
+          ).stdout
+
+          unmatched = [name for name in requested if name not in collected]
+          if unmatched:
+              print("::error::these identifiers matched no collected test: "
+                    + ", ".join(unmatched))
+              sys.exit(1)
+
+          # -k takes an expression; joining with `or` selects the union.
+          print("expression=" + " or ".join(requested))
+          print(f"count={len(requested)}")
+          PYTHON
+        env:
+          REQUESTED: ${{ inputs.tests }}
+
+      # REPEAT IS WHAT SEPARATES A FLAKE FROM A FAILURE. One re-run tells you it
+      # still fails, which you knew. Ten tell you whether it fails consistently,
+      # and that is the distinction triage turns on.
+      - name: Run the selected tests
+        id: run
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          passes=0
+          attempts="${{ inputs.repeat }}"
+          for attempt in $(seq 1 "${attempts}"); do
+            echo "::group::attempt ${attempt} of ${attempts}"
+            if pytest -k "${{ steps.resolve.outputs.expression }}" \
+                 --engine "${{ inputs.engine }}" \
+                 --mode "${{ inputs.mode }}" \
+                 --out-dir debug-artifacts/ \
+                 --junitxml="debug-artifacts/junit-${attempt}.xml"; then
+              passes=$((passes + 1))
+            fi
+            echo "::endgroup::"
+          done
+          echo "passes=${passes}" >> "$GITHUB_OUTPUT"
+          echo "attempts=${attempts}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          # Does not begin with the collector prefix, so exclusion does not
+          # depend on a negative match.
+          name: scratch-debug-${{ github.run_id }}
+          path: debug-artifacts/
+          retention-days: 14
+
+      # THE SUMMARY REPORTS THE PASS COUNT RATHER THAN A VERDICT, because a test
+      # that passed six times in ten has not passed. Reporting green because the
+      # last attempt succeeded is precisely the reading this workflow prevents.
+      - name: Write the debug summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Debug run"
+            echo ""
+            echo "**This run is diagnostic. It carries no verdict and gates nothing.**"
+            echo "A hand-typed selection yields no verdict, whatever its result."
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Ref | ${{ inputs.ref || github.ref_name }} |"
+            echo "| Tests requested | ${{ steps.resolve.outputs.count }} |"
+            echo "| Attempts | ${{ steps.run.outputs.attempts }} |"
+            echo "| Attempts fully passing | ${{ steps.run.outputs.passes }} |"
+            echo "| Mode | ${{ inputs.mode }} |"
+            echo "| Engine | ${{ inputs.engine }} |"
+            echo ""
+            if [ "${{ steps.run.outputs.passes }}" != "${{ steps.run.outputs.attempts }}" ] \
+               && [ "${{ steps.run.outputs.passes }}" != "0" ]; then
+              echo "### Intermittent"
+              echo ""
+              echo "Some attempts passed and some did not. A test that passed six"
+              echo "times in ten has not passed, and this is the shape a flake"
+              echo "takes. Raise the repeat count before concluding anything."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

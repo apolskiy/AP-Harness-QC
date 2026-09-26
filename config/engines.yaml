@@ -1,0 +1,75 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# The engine roster. Adding an engine is an entry here, never a module (B8).
+#
+# Credentials are NEVER in this file. They are read from the environment at
+# runtime and redacted from every log and artifact, and cmn/config.py refuses
+# to load a file carrying a credential-shaped key at all.
+#
+# Spacing is per engine because free-tier ceilings differ. It interacts with
+# the observation count: three observations per case triples request volume
+# against the same ceiling, so the two are configured together rather than
+# independently.
+engines:
+  gemini:
+    # RETIRED 2026-09-25. gemini-2.5-flash is still listed by the API and
+    # 404s on use: no longer available to new users (A3.1). Pinned rather
+    # than -latest, because A8 records the resolved identifier and an alias
+    # moving under a baseline defeats that.
+    model: gemini-3.8-flash
+    # 4.0s, AND A FAILED ATTEMPT TO WIDEN IT IS WHY THIS COMMENT EXISTS.
+    # Recording met QC_HARNESS_RATE_LIMIT on most cases, and 4.0s is 15
+    # requests a minute, so the pace looked like the cause. It was not:
+    # widening to 6.0s produced ZERO additional successes, and the provider's
+    # own message says "you exceeded your current quota, please check your plan
+    # and billing details".
+    #
+    # THAT IS A PLAN LIMIT, NOT A RATE. Both surface as 429, and section 8.6
+    # calls both environmental, but within that level they have different
+    # remedies: a rate is answered by pacing and a plan quota is answered by
+    # waiting for the reset or raising the tier. Pacing was the wrong remedy
+    # and the evidence said so within one run.
+    #
+    # SO THIS VALUE IS UNCHANGED AND UNVALIDATED. Nothing here has ever
+    # measured a per-minute ceiling, because the plan quota is reached first
+    # and masks it.
+    spacing_sec: 4.0
+    observations: 3
+    timeout_ms: 60000
+  openai:
+    model: gpt-4.1
+    spacing_sec: 1.0
+    observations: 3
+    timeout_ms: 60000
+  claude:
+    model: claude-opus-5-5
+    spacing_sec: 1.0
+    observations: 3
+    timeout_ms: 60000
+
+# WHICH ENGINE GRADES. A3 decided this on 2026-09-19 and no file named it until
+# 2026-09-23, so the decision lived in prose while JudgeBinding defaulted to
+# unbound and a run recorded no_judge_configured.
+#
+# THE INTERFACE STAYS OPEN, which is why this is a named default rather than a
+# constant in evaluation/. Any engine in the roster above that declares the
+# structured_output capability may judge; there is deliberately no list of
+# permitted judge engines to keep in step with the adapters.
+#
+# Precedence: --judge-engine, then this entry, then the built-in gemini.
+#
+# Gemini judging Gemini relocates the self-preference confound rather than
+# removing it (A3). It is a stated limitation, and the day a second key exists
+# cross-judging is a change to this line rather than to any module.
+judge:
+  engine: gemini
+  # OPTIONAL, AND ABSENT MEANS THE ROSTER ENTRY for the engine above, which is
+  # what every configuration relied on before a judge model could be named.
+  #
+  # NAMED HERE IT BECOMES ITS OWN PROBE SUBJECT. The probe walks the roster, and
+  # a judge model that differs from every candidate model is not in the roster:
+  # detection would work only while the judge happened to share a model with a
+  # candidate, which is a coincidence rather than a property. Re-pointing the
+  # judge registers as a version change and dispatches a live run, because a
+  # different judge is a different instrument.
+  model: gemini-3.8-flash

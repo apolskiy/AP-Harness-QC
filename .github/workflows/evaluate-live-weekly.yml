@@ -1,0 +1,166 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# The only workflow that spends.
+#
+# Specified by docs/design/ci_pipeline.md section 5.
+#
+# THE WEEKLY RUN IS UNCONDITIONAL because a version string is not a guarantee.
+# Providers revise a model behind a stable identifier, so the nightly probe
+# reporting no change is evidence rather than proof. This is the same structure
+# as change-scoped pull request runs backstopped by a full run on merge: a cheap
+# detector is only safe when something unconditional stands behind it.
+name: evaluate-live-weekly
+
+on:
+  schedule:
+    # 03:30 UTC Sunday. The cadence in the filename is this one: it fires
+    # whether or not anything else works.
+    - cron: "30 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: "Single engine to evaluate, empty for all"
+        required: false
+        default: ""
+        type: string
+      reason:
+        description: "Why this run was dispatched"
+        required: false
+        default: "manual"
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  evaluate:
+    name: evaluate (${{ matrix.engine }}, ${{ matrix.mode }})
+    # Ubuntu only. PLATFORM COVERAGE TESTS THE HARNESS, NOT THE MODEL: a second
+    # platform here doubles quota consumption and learns nothing new about the
+    # model, while gate-on-change.yml has already established that our code
+    # behaves identically on both.
+    runs-on: ubuntu-latest
+    environment: live
+    strategy:
+      fail-fast: false
+      # max-parallel ORDERS LEGS WITHIN A RUN. It is not interchangeable with
+      # concurrency: a concurrency group holds exactly one pending job, so
+      # placing legs in one makes them contend for a single waiting slot and the
+      # losers surface as cancelled, which reads as failure.
+      max-parallel: 1
+      matrix:
+        include:
+          # Live: free tier, serving as both judge and candidate, per A3.
+          - engine: gemini
+            mode: live
+          # Replay: no key provisioned, per A3. --engine and --mode stay
+          # ORTHOGONAL, so provisioning a key later is a configuration change
+          # and not a refactor.
+          - engine: openai
+            mode: replay
+          - engine: claude
+            mode: replay
+    # concurrency PREVENTS OVERLAP BETWEEN RUNS. Keyed on engine AND mode so a
+    # replay leg never waits on a live one, since they contend for nothing.
+    concurrency:
+      group: live-${{ matrix.engine }}-${{ matrix.mode }}
+      # Unlike gate-on-change.yml. A cancelled live run has already spent its
+      # quota and leaves a partial record.
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+
+      - name: Skip engines not selected by this dispatch
+        id: selection
+        env:
+          REQUESTED: ${{ inputs.engine }}
+        shell: bash
+        run: |
+          if [ -n "${REQUESTED}" ] && [ "${REQUESTED}" != "${{ matrix.engine }}" ]; then
+            echo "run_leg=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_leg=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gate 4, evaluator
+        if: steps.selection.outputs.run_leg == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
+
+      - name: Gate 5, tool-use compliance
+        if: always() && steps.selection.outputs.run_leg == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: pytest -m tool --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
+
+      - name: Gate 6, model security
+        if: always() && steps.selection.outputs.run_leg == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: pytest -m sec --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.selection.outputs.run_leg == 'true'
+        with:
+          # The collector pattern anchors on mqc-reports-. The name must stay
+          # stable across runs: renaming a published artifact breaks downstream
+          # history, and nothing downstream can tell a rename from a gap.
+          name: mqc-reports-graded-${{ matrix.engine }}-${{ matrix.mode }}
+          path: reports/
+          retention-days: 90
+
+  verdict:
+    name: verdict
+    needs: evaluate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mqc-reports-*
+          path: collected/
+      # RED HERE IS AN ALERT, NOT A BLOCK. On a scheduled live run, red means
+      # the model regressed; on a pull request against frozen fixtures, it means
+      # our code changed a frozen outcome. The verdict function does not know
+      # which it is running in, and that is deliberate: putting CI topology into
+      # a pure computation would couple them.
+      - name: Compute the verdict
+        shell: bash
+        run: |
+          set +e
+          python -m cmn.verdict_tool collected/results.json
+          code=$?
+          set -e
+          {
+            echo "## Weekly live evaluation"
+            echo ""
+            echo "Reason: ${{ inputs.reason || 'weekly schedule' }}"
+            echo ""
+            echo "A red verdict here is an ALERT, not a merge block: it says the model"
+            echo "moved, which is the finding this run exists to produce."
+            echo ""
+            echo "Exit code: ${code}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "${code}"

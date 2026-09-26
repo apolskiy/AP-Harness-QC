@@ -1,0 +1,222 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Everything deterministic. No quota, no credential, no environment.
+#
+# Specified by docs/design/ci_pipeline.md section 3. This file names no secret
+# and no environment, which is the STRUCTURAL half of A1: a secret held in an
+# environment is unreachable from a workflow that does not name it, so there is
+# no conditional to get wrong and no path by which a pull request from a fork
+# reaches one.
+name: gate-on-change
+
+on:
+  push:
+  pull_request:
+  # A maintainer can run the full suite on a branch without opening a pull
+  # request. A manual dispatch here is GATED: it carries run_context ci,
+  # supplies no filter, and therefore derives selection_mode full. Design
+  # section 3.5 gives the reason that differs from a diagnostic run.
+  workflow_dispatch:
+
+# Superseded pull request runs are cancelled. Safe here because nothing in this
+# workflow spends quota or writes anything a later run depends on. This is the
+# OPPOSITE of evaluate-live-weekly.yml, where a cancelled run has already spent
+# its quota and leaves a partial record.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  # Gate 1. Blocks everything: a naming violation is a build failure, not a
+  # warning. actionlint covers the YAML, which pytest never collects and
+  # pylint is never run against.
+  lint:
+    name: lint (${{ matrix.os }})
+    strategy:
+      # One platform's failure must not cancel the other, or a pass on one
+      # masks a failure on the other.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The default depth of 1 makes the selection diff fail or return
+          # nothing, and an empty result is indistinguishable from "nothing
+          # changed", which would select no tests at all.
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - name: Gate 1, static analysis and naming
+        run: python -m pylint ingestion/ execution/ evaluation/ cmn/ tests/ conftest.py --rcfile=.pylintrc
+      - name: Lint workflow definitions
+        if: runner.os == 'Linux'
+        uses: raven-actions/actionlint@v2
+
+  # Gate 2. Ungraded precondition: 100% pass, zero skips. A unit test has
+  # nothing external to block it, so a skip means something is broken.
+  unit:
+    name: unit (${{ matrix.os }})
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - name: Gate 2, unit preconditions
+        run: pytest -m unit --junitxml=reports/junit_mqc_unit.xml --alluredir=reports/allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mqc-reports-unit-none-replay-${{ matrix.os }}
+          path: reports/
+          retention-days: 90
+
+  # Gate 3. Replay mode always: a precondition that can flake is not a
+  # precondition, so it never runs live here.
+  system:
+    name: system (${{ matrix.os }})
+    needs: unit
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - name: Gate 3, system preconditions
+        run: pytest -m system --mode replay --junitxml=reports/junit_mqc_system.xml --alluredir=reports/allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mqc-reports-system-none-replay-${{ matrix.os }}
+          path: reports/
+          retention-days: 90
+
+  # Gates 4, 5 and 6 as THREE STEPS, not one command. Combining them would emit
+  # one JUnit file where framework-rules.md section 1 requires three, and would
+  # erase the separation that makes SEC its own suite. SEC is exempt from the
+  # distribution ceilings precisely so security coverage never competes with
+  # functional coverage for a budget, and a merged result set makes that
+  # exemption unverifiable from the artifacts alone.
+  #
+  # Every engine, because replay is free. Restricting it to one would discard
+  # coverage for nothing, and a run naming no engine would emit the defaulted
+  # engine warning every time, training readers to ignore the one signal that
+  # says a record is not what it appears to be.
+  graded:
+    name: graded (${{ matrix.engine }}, ${{ matrix.os }})
+    needs: system
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        engine: [gemini, openai, claude]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - name: Gate 4, evaluator
+        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
+      - name: Gate 5, tool-use compliance
+        if: always()
+        run: pytest -m tool --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
+      - name: Gate 6, model security
+        if: always()
+        run: pytest -m sec --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mqc-reports-graded-${{ matrix.engine }}-replay-${{ matrix.os }}
+          path: reports/
+          retention-days: 90
+
+  # Gate 7. Computes the verdict from the emitted artifacts rather than in
+  # process, so a verdict stays recomputable from stored artifacts without
+  # re-running anything.
+  #
+  # The step reports the exit CODE, not only success or failure. 3 and 4 must
+  # not collapse into 1, or CI reads "the harness is broken" as "the model
+  # underperformed", inverting the attribution the whole design protects.
+  verdict:
+    name: verdict
+    needs: graded
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mqc-reports-*
+          path: collected/
+      - name: Gate 7, compute the verdict
+        shell: bash
+        run: |
+          set +e
+          python -m cmn.verdict_tool collected/results.json
+          code=$?
+          set -e
+          {
+            echo "## Verdict"
+            echo ""
+            case "${code}" in
+              0) echo "Green. Every rule satisfied." ;;
+              1) echo "Red. One or more verdict rules breached." ;;
+              2) echo "Configuration defect: the tool was invoked wrongly." ;;
+              3) echo "Precondition failure. Nothing was measured, so this is NOT a model finding." ;;
+              4) echo "Refused. No verdict was computable from this artifact." ;;
+              *) echo "Unrecognised exit code ${code}." ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "${code}"

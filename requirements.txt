@@ -1,0 +1,18 @@
+# GENERATED FROM pyproject.toml. Do not edit by hand.
+#
+# Regenerate with:  python tools/generate_requirements.py
+# Checked by:       MQC_CMN_UNI_11108
+#
+# pyproject.toml is the single declaration (DESIGN.md section 5.0.1). This file
+# exists because tooling expects it, not because it is a second source of truth.
+#
+# Ranges, not pins. An unpinned harness measures a moving target: a parser
+# upgrade that changes how a sentence is counted would read as a model
+# regression, which is the attribution failure this project exists to avoid.
+# Ranges allow patch releases and nothing wider.
+
+pyyaml>=6.0,<7.0
+anthropic>=0.120,<1.0
+openai>=2.22,<3.0
+google-genai>=2.25,<3.0
+httpx>=0.28,<1.0

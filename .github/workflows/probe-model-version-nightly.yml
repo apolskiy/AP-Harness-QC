@@ -1,0 +1,119 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# A change detector, not a test run.
+#
+# Specified by docs/design/ci_pipeline.md section 4. For each registered engine
+# it resolves the model version the adapter would use and compares it against
+# the recorded baseline. Nothing is evaluated and no case executes.
+#
+# WHY IT IS WORTH HAVING: detecting a provider's model change on the morning it
+# happens costs a metadata call. A nightly full live run mostly re-measures an
+# unchanged model at full price.
+#
+# The larger reason is attribution. A regression surfacing the morning after a
+# recorded version change is attributable to that change; the same regression in
+# a weekly run covers seven days of candidate causes.
+name: probe-model-version-nightly
+
+on:
+  schedule:
+    # 02:15 UTC. Off the hour, because scheduled runs cluster on the hour and a
+    # queued run is a late run.
+    - cron: "15 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  probe:
+    name: probe model versions
+    runs-on: ubuntu-latest
+    # Secrets live in an environment, which makes them unreachable from any
+    # workflow that does not name it. That is A1 made structural rather than
+    # conventional.
+    environment: live
+    outputs:
+      changed_engines: ${{ steps.probe.outputs.changed_engines }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      # From pyproject.toml, the single declaration. requirements.txt is
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # fails the run when the two disagree.
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+
+      - name: Resolve each engine version against its baseline
+        id: probe
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          python -m execution.preflight --baseline config/model_baseline.json \
+            --output "$GITHUB_OUTPUT"
+
+      # A changed version writes the new baseline so the change dispatches ONCE
+      # rather than every night until someone edits the file by hand.
+      - name: Record the new baseline
+        if: steps.probe.outputs.changed_engines != ''
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/model_baseline.json
+          git commit -m "Record model version change: ${{ steps.probe.outputs.changed_engines }}"
+          git push
+
+  # A change dispatches the live suite for THAT ENGINE ONLY. A version move on
+  # one provider says nothing about the others, and dispatching all three would
+  # spend quota to re-measure two unchanged models.
+  dispatch:
+    name: dispatch live evaluation
+    needs: probe
+    if: needs.probe.outputs.changed_engines != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch the changed engines
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANGED: ${{ needs.probe.outputs.changed_engines }}
+        shell: bash
+        run: |
+          for engine in ${CHANGED//,/ }; do
+            gh workflow run evaluate-live-weekly.yml \
+              --repo "${{ github.repository }}" \
+              --field engine="${engine}" \
+              --field reason="model version changed"
+          done
+
+  # A PROBE FAILURE IS NOT A TEST FAILURE. It means the detector is broken,
+  # which is our defect, and the weekly run still covers the period regardless.
+  # Treating it as a red suite would be the same category error the
+  # QC_HARNESS_* family exists to prevent, so this job records the event and
+  # dispatches nothing.
+  report-probe-failure:
+    name: report probe failure
+    needs: probe
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record a harness event
+        shell: bash
+        run: |
+          {
+            echo "## Probe failed"
+            echo ""
+            echo "QC_HARNESS_VERSION_UNAVAILABLE: the version probe could not resolve"
+            echo "one or more engines."
+            echo ""
+            echo "This is a HARNESS event, not a model finding. No live run was"
+            echo "dispatched: a broken detector is not evidence of a model change, and"
+            echo "the unconditional weekly run covers the period regardless."
+          } >> "$GITHUB_STEP_SUMMARY"

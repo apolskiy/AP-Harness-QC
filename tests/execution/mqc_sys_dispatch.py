@@ -1,0 +1,226 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+"""System preconditions for engine routing, mode selection and one shared shape.
+
+Covers `MQC_EXE_SYS_20101` through `20105`, inventoried in
+``docs/design/tier2_execution.md`` section 10.2.
+
+**Replay mode, as Gate 3 requires.** A precondition that can flake is not a
+precondition, so nothing here reaches a provider. What is exercised is the
+wiring: which adapter a name selects, whether a mode changes what runs, and
+whether three genuinely different providers arrive at one record.
+
+A failure here is our defect, so the module carries no priority marker, per
+``framework-rules.md`` section 3.3.
+"""
+
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from execution.adapters.registry import adapter_for, registered_engines
+from execution.dispatch import DispatchPlan, DispatchSession, dispatch_case
+from execution.normalize import NormalizedResponse
+from execution.replay import FixtureKey, hash_request, record_fixture
+from tests.execution.provider_doubles import ADAPTER_DOUBLES
+from ingestion.schemas import EvaluationCase
+
+pytestmark = pytest.mark.system
+
+_ENGINES = registered_engines()
+
+
+def _record_for(engine: str, case: Any, root: Any, observations: int = 1) -> None:
+    """Record one engine's fixtures for a case, from that provider's shape.
+
+    The double is provider-shaped and passes through that provider's adapter,
+    so what lands in the store is a normalized record produced the way a live
+    run would produce it.
+
+    Args:
+        engine (str): Which engine to record for.
+        case (Any): The case being recorded.
+        root (Any): The fixture root.
+        observations (int): How many observations to store (A4).
+
+    Returns:
+        None
+    """
+    adapter = adapter_for(engine)()
+    request = adapter.compose_request(case)
+    for index in range(observations):
+        double = ADAPTER_DOUBLES[engine].response(text=f"Answer {index}.")
+        normalized = adapter.normalize_response(double, case.case_id)
+        record_fixture(
+            root,
+            FixtureKey(case.case_id, engine, index),
+            hash_request(request),
+            normalized.as_mapping(),
+            normalized.resolved_model,
+        )
+
+
+@pytest.fixture(name="replay_plan")
+def fixture_replay_plan(tmp_path: Any) -> DispatchPlan:
+    """Return a replay plan rooted in a temporary fixture store.
+
+    Args:
+        tmp_path (Any): pytest's temporary directory.
+
+    Returns:
+        DispatchPlan: A replay plan, which spends no quota.
+    """
+    return DispatchPlan(mode="replay", fixture_root=tmp_path)
+
+
+class TestMQCDispatchPipeline:
+    """The wiring between a case, an engine name and a normalized record."""
+
+    def MQC_EXE_SYS_20101_dispatches_one_request_per_case_with_no_loop(
+        self,
+        minimal_case: EvaluationCase,
+        replay_plan: DispatchPlan,
+        tmp_path: Path,
+        monkeypatch: Any,
+    ) -> None:
+        """One case, one request (A9). A tool call is intent, never a second turn.
+
+        Args:
+            minimal_case (Any): The case to dispatch.
+            replay_plan (DispatchPlan): A replay plan.
+            tmp_path (Any): pytest's temporary directory.
+            monkeypatch (Any): pytest's patcher.
+
+        Returns:
+            None
+        """
+        engine = _ENGINES[0]
+        _record_for(engine, minimal_case, tmp_path)
+
+        dispatched: list[Any] = []
+        adapter_class = adapter_for(engine)
+        monkeypatch.setattr(
+            adapter_class, "dispatch",
+            lambda _self, request: dispatched.append(request),
+        )
+
+        outcome = dispatch_case(minimal_case, engine, replay_plan, DispatchSession())
+        assert outcome.measured is True
+        assert not dispatched
+
+    @pytest.mark.base
+    def MQC_EXE_SYS_20102_every_adapter_produces_identical_canonical_shape(
+        self, minimal_case: EvaluationCase, replay_plan: DispatchPlan, tmp_path: Path
+    ) -> None:
+        """Foundational. This is where the abstraction claim is actually tested.
+
+        A provider-agnostic interface carrying only plain text proves nothing.
+        One normalising genuinely different tool-call, finish-reason and error
+        shapes is a real abstraction, and every downstream evaluator result
+        depends on it: without it the judge would be comparing responses that
+        were never made comparable.
+
+        **The floor counts protocols, not engines**, which is what the claim
+        was always about. It read `len(_ENGINES) == 3` and broke the day a
+        fourth engine registered, having asserted a population size where it
+        meant a diversity of request shapes. Adding Grok added an engine and no
+        new shape, because it serves a protocol already covered
+        (design section 3.5), and the restated floor says so.
+
+        Args:
+            minimal_case (Any): The case to dispatch.
+            replay_plan (DispatchPlan): A replay plan.
+            tmp_path (Any): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        shapes = set()
+        engines_seen = []
+        for engine in _ENGINES:
+            _record_for(engine, minimal_case, tmp_path)
+            outcome = dispatch_case(minimal_case, engine, replay_plan, DispatchSession())
+            assert isinstance(outcome.response, NormalizedResponse)
+            shapes.add(tuple(sorted(outcome.response.as_mapping())))
+            engines_seen.append(outcome.response.engine)
+
+        # DISTINCT COMPOSITION FUNCTIONS ARE DISTINCT PROTOCOLS. Engines
+        # sharing one inherit the same function object, so this counts real
+        # shape diversity rather than roster size.
+        protocols = {adapter_for(engine).compose_request for engine in _ENGINES}
+        assert len(protocols) >= 3, (
+            f"only {len(protocols)} request protocol(s) are registered, so "
+            f"normalizing them to one shape establishes little"
+        )
+        assert len(shapes) == 1
+        assert sorted(engines_seen) == sorted(_ENGINES)
+
+    def MQC_EXE_SYS_20103_engine_selection_routes_to_declared_adapter(
+        self, minimal_case: EvaluationCase, replay_plan: DispatchPlan, tmp_path: Path
+    ) -> None:
+        """The name in the record is the name that was asked for.
+
+        A run whose results were attributed to the wrong provider would be
+        worse than a failed run, because nothing about it would look wrong.
+
+        Args:
+            minimal_case (Any): The case to dispatch.
+            replay_plan (DispatchPlan): A replay plan.
+            tmp_path (Any): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        for engine in _ENGINES:
+            _record_for(engine, minimal_case, tmp_path)
+            outcome = dispatch_case(minimal_case, engine, replay_plan, DispatchSession())
+            assert outcome.engine == engine
+            assert outcome.response.engine == engine
+
+    def MQC_EXE_SYS_20104_unknown_engine_name_is_rejected(
+        self,
+        minimal_case: EvaluationCase,
+        replay_plan: DispatchPlan,
+    ) -> None:
+        """An unregistered name fails by name rather than defaulting to one.
+
+        Defaulting would run the whole suite against a provider nobody chose.
+
+        Args:
+            minimal_case (Any): The case to dispatch.
+            replay_plan (DispatchPlan): A replay plan.
+
+        Returns:
+            None
+        """
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR") as caught:
+            dispatch_case(minimal_case, "not_an_engine", replay_plan, DispatchSession())
+        assert "not_an_engine" in str(caught.value)
+
+    def MQC_EXE_SYS_20105_mode_flag_selects_live_or_replay_independently_of_engine(
+        self, minimal_case: EvaluationCase, tmp_path: Path
+    ) -> None:
+        """Every engine supports every mode, and the record says which was used.
+
+        A replayed result must never be mistaken for an observation (A6), and
+        the two dimensions have to stay independent or a mode would silently
+        imply an engine.
+
+        Args:
+            minimal_case (Any): The case to dispatch.
+            tmp_path (Any): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        replay = DispatchPlan(mode="replay", fixture_root=tmp_path)
+        for engine in _ENGINES:
+            _record_for(engine, minimal_case, tmp_path)
+            outcome = dispatch_case(minimal_case, engine, replay, DispatchSession())
+            assert outcome.mode == "replay"
+            assert outcome.response.mode == "replay"
+
+        live = DispatchPlan(mode="live", fixture_root=tmp_path)
+        assert live.mode == "live"
+        assert live.fixture_root == replay.fixture_root

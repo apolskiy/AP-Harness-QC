@@ -1,0 +1,12 @@
+AP-Harness-QC
+Copyright 2026 Aleksandr Polskiy
+
+This product includes software developed by Aleksandr Polskiy.
+
+Licensed under the Apache License, Version 2.0. See LICENSE for the full text.
+
+---
+
+This repository holds the harness only. The evaluation cases it runs live in a
+separate repository under the MIT License, and consume this one as a dependency
+rather than containing it. See DESIGN.md section 5.1 for the split boundary.

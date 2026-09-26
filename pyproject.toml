@@ -1,0 +1,80 @@
+# Dependency declaration. Pinned because an unpinned harness measures a moving
+# target: a parser upgrade that changes how a sentence is counted would read as
+# a model regression, which is the attribution failure this project exists to
+# avoid. Ranges allow patch releases and nothing wider.
+[project]
+# The distribution name the case repository depends on. It names the harness
+# rather than the project, because after the 2026-09-23 split this repository
+# is the harness and the cases live elsewhere (DESIGN.md section 5.1).
+name = "ap-harness-qc"
+# Consumed by pinning a git ref rather than a released version, so this moves
+# only on a deliberate release. A case set pins what it was verified against.
+version = "0.1.0"
+description = "Automated foundation model evaluation harness with LLM-as-a-Judge QC"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Aleksandr Polskiy" }]
+classifiers = [
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Intended Audience :: Developers",
+]
+dependencies = [
+    "pyyaml>=6.0,<7.0",
+    # All three provider SDKs are required, not optional extras. The adapter
+    # registry imports every registered adapter at import time so that the
+    # conformance battery is parametrized over the registry rather than over a
+    # list. An optional SDK would make the battery silently cover two providers
+    # on a machine missing the third, which is the failure automatic enrolment
+    # exists to prevent.
+    "anthropic>=0.120,<1.0",
+    "openai>=2.22,<3.0",
+    "google-genai>=2.25,<3.0",
+    # Direct, not transitive: the Gemini adapter maps a timeout by catching
+    # httpx's exception, because that SDK raises no timeout class of its own.
+    "httpx>=0.28,<1.0",
+]
+
+[project.optional-dependencies]
+# Gate 1 and Gates 2 to 6. Separated from runtime because a consumer embedding
+# the harness needs neither.
+dev = [
+    "pytest>=9.1,<10.0",
+    "allure-pytest>=2.13,<3.0",
+    "pylint>=3.3,<4.0",
+    # NOT a convenience. It shuffles test order every run, and the suite depends
+    # on that: the extension cases register a layer, an outcome and a verdict
+    # rule and then remove each one, and a cleanup that failed would change the
+    # distribution denominator for every case running afterwards. Random
+    # ordering is what makes that detectable.
+    #
+    # Found installed locally and declared nowhere, which is the worse of the
+    # two arrangements: local runs held a guarantee CI did not, so CI was the
+    # weaker check while appearing to be the stronger one. DESIGN.md 5.0.1.
+    "pytest-randomly>=3.15,<5.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# THE PACKAGE LIST WAS HAND-WRITTEN AND INCOMPLETE. It named four packages and
+# omitted `execution.adapters` and `tools`, so the built distribution shipped
+# `execution/` with no adapters in it.
+#
+# That is not a cosmetic gap: the adapter registry imports all three adapters at
+# import time, so every consumer failed on its first import. Nothing here
+# detected it, because the repository is normally used from its own source tree
+# where the directories are simply present. It surfaced the first time this
+# repository was installed into another one, which is a thing only the split
+# made possible.
+#
+# Discovery rather than a hand-written list, so a package added later is
+# included by being on disk instead of by being remembered.
+# MQC_CMN_UNI_11114 asserts what is configured against what is on disk.
+[tool.setuptools.packages.find]
+include = ["ingestion*", "execution*", "evaluation*", "cmn*", "tools*"]
+exclude = ["tests*", "docs*", "config*"]

@@ -1,0 +1,931 @@
+<!--
+SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+SPDX-License-Identifier: Apache-2.0
+-->
+# AP-Harness-QC: Test Taxonomy
+
+> **Parent:** `DESIGN.md` section 3.1. Read that first for architecture and document map.
+> **Status:** normative. This document defines what every test identifier, priority level, and failure code *means*. `.claude/rules/testing-standards.md` holds the machine-enforced patterns and defers to this document for meaning.
+>
+> **Audience:** anyone adding a test, reading a result, or extending the suite. If an identifier appears in a report and its meaning is not derivable from this document, that is a defect in this document.
+>
+> **Authority:** decisions recorded here trace to `phase0_project_ambiguities.md`. Item references such as (A11) point there.
+
+---
+
+## 1. Identifier Structure
+
+Every test artifact carries the `MQC` prefix. It is mandatory at all three levels and does not vary by test type.
+
+**It spans the harness and the case repositories**, which is the case it was chosen for: a durable record draws from several sources, and a bare identifier carries no project identity in one. Other projects keep their own identifiers.
+
+A callable identifier reads outward-in: **project identifier, then module, then test type, then instance.**
+
+| Artifact | Required form | Example |
+|---|---|---|
+| Module | `mqc_<component>.py` | `mqc_golden_rules.py` |
+| Class | `TestMQC<Component>` | `TestMQCGoldenRuleParser` |
+| Callable | `MQC_<MODULE>_<LAYER>_<5DIGIT_ID>_<behavior>` | `MQC_ING_UNI_10001_rejects_missing_rubric_key` |
+
+**Identifiers that are not test callables carry the prefix too**, because each reaches the durable record and a bare identifier has no project identity in a record spanning several sources.
+
+| Kind | Form | Example |
+|---|---|---|
+| Task data | `MQC_TASK_<slug>` | `MQC_TASK_rag_citation_001` |
+| Golden rules | `MQC_RULE_<slug>` | `MQC_RULE_factual_accuracy` |
+| Harness requirement | `MQC_HAR_<MODULE>_<NNN>` | `MQC_REQ_HAR_ING_0013` |
+| Model requirement | `MQC_MDL_<DOMAIN>_<NNN>` | `MQC_REQ_MDL_SEC_0001` |
+
+Requirement identifiers reach the record through `requirement_ids` (section 9), which is why they are prefixed rather than left bare.
+
+The `test_` prefix is prohibited at every level. A `test_`-named artifact is a lint failure rather than a style preference: `pytest.ini` would not collect it, so it would lint clean, report nothing, and never run.
+
+---
+
+## 2. Module Registry
+
+`<MODULE>` names the area of the repository under test, three characters, taken from the tier architecture.
+
+| Code | Module | Covers |
+|---|---|---|
+| `ING` | Tier 1 Ingestion | Loaders, schema validators, referential integrity |
+| `EXE` | Tier 2 Execution | Engine dispatch, adapter normalization, tool-call capture |
+| `EVL` | Tier 3 Evaluation | Judge invocation, rubric scoring, injection isolation |
+| `CMN` | Cross-cutting | CLI, configuration, reporting, verdict computation |
+
+**ID blocks are per layer and partitioned by module within it**, per section 3.2.1. An earlier wording here said the module was descriptive rather than an ID namespace, which was true of the intent and false of the allocation: the blocks had been partitioned from the first case and it had never been written down. That is how it came to be broken, and section 3.2.1 records the correction.
+
+**Test files carry the module by directory**, not by filename prefix: `tests/ingestion/mqc_uni_<component>.py`, never `mqc_ing_uni_<component>.py`, which duplicates the path.
+
+### 2.1 File naming: one rule, applied to every Python file
+
+Extended 2026-09-22. The rule above settled where the **module** goes and left the **layer** nowhere, which is the gap that matters: a reader seeing `mqc_golden_rules.py` cannot tell whether it holds harness preconditions or model gradings, and those are the two different things this suite does.
+
+| File | Form | What the name carries |
+|---|---|---|
+| Harness module | `<component>.py` | Nothing; the directory carries the tier |
+| Test module | `mqc_<layer>_<component>.py` | The layer, because nothing else does |
+| Defect fixture | `<subject>_<defect>.py` | Never collected; see `DESIGN.md` section 2.1 |
+
+**A name carries what nothing else carries, and nothing more.** The module is in the path, so putting it in the name duplicates it. The layer is in no path, so it goes in the name. The same principle produced both halves of the rule, and it is the reason the two halves look inconsistent at a glance.
+
+**The layer token separates harness-under-test from model-under-test**, which is the split that decides what a failure means. `uni` and `sys` are preconditions and a failure is our defect; `eval`, `tool` and `sec` are graded and a failure is a finding about a third party. No new vocabulary is introduced: these are the layer registry's own tokens in lower case.
+
+**One layer per file** follows, which is stricter than the one-layer-per-class rule in section 3.3 and subsumes it. A file cannot hold two layers when its name declares one.
+
+Enforced by `module-rgx` in `.pylintrc`, which also refuses `mqc_<component>.py` with no layer token. Without that refusal the layer would be optional, since a name like `mqc_schemas` reads as ordinary snake_case and would lint clean carrying nothing.
+
+---
+
+## 3. Layer Registry
+
+`<LAYER>` identifies what kind of thing is under test. It is an uppercase token of 3 to 5 characters. The registry is **extensible**; `.pylintrc` matches `MQC_[A-Z]{3,5}_` rather than an enumerated list, precisely so that adding a layer is never a lint failure on a correctly named test.
+
+| Layer | Marker | ID block | Under test | Failure means |
+|---|---|---|---|---|
+| `MQC_UNI_` | `unit` | 10001 to 19999 | Parsers, validators, helpers. No network. **Ungraded precondition.** | Our code is wrong |
+| `MQC_SYS_` | `system` | 20001 to 29999 | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode.** | Our code is wrong |
+| `MQC_EVAL_` | `evaluator` | 30001 to 39999 | LLM-as-a-Judge rubric scoring, golden-rule enforcement | The model is deficient |
+| `MQC_TOOL_` | `tool` | 40001 to 49999 | Tool-use compliance: required tools invoked, forbidden tools avoided (A9) | The model is deficient |
+| `MQC_SEC_` | `sec` | 50001 to 59999 | **Model security behaviour**: injection resistance, prompt leakage, tool coercion. **Own suite, exempt from distribution ceilings.** | The model is unsafe |
+
+### 3.0 Preconditions versus graded layers
+
+`MQC_UNI_` and `MQC_SYS_` are **preconditions**, not graded tests. They sit outside the priority scheme entirely.
+
+| | Preconditions (`UNI`, `SYS`) | Graded (`EVAL`, `TOOL`) |
+|---|---|---|
+| Priority | **None assigned** | P0 to P4 |
+| Pass requirement | **100%, zero skips** | 100% of P0/P1, 90% overall |
+| Counted in distribution | **No** | Yes |
+| On failure | **Graded layers do not execute** | Run completes and reports |
+
+**Rationale.** Unit tests exercise our own code deterministically with nothing external to be blocked by, so a skip means something is broken. System tests verify dispatch and adapter normalization; if those are wrong, every downstream evaluator result is garbage and running the graded suite wastes quota to produce noise.
+
+**`MQC_SYS_` runs in replay mode as the precondition.** A gate that can flake is not a gate: run live, SYS could skip on a rate limit and leave "the pipeline is broken" indistinguishable from "the provider was busy". A separate live SYS smoke runs in the scheduled workflow, where a skip is informative rather than blocking.
+
+**Execution order:** lint, then `UNI`, then `SYS` (replay), then the graded layers.
+
+This also fixes the denominator: the 30-case floor in section 4.2.3 counts **graded** cases only.
+
+### 3.1 What separates the layers
+
+The dividing line is **what a failure tells you**, not where the code lives.
+
+* `MQC_UNI_` and `MQC_SYS_` test **our harness**. A failure is our defect and is actionable by us.
+* `MQC_EVAL_` and `MQC_TOOL_` test **the model**. A failure is a finding about a third party, and the correct response is to record it, not to fix it.
+
+`MQC_TOOL_` is separated from `MQC_EVAL_` because the detection method differs in kind. Tool compliance is **mechanically verifiable**: the tool-call trace either contains the forbidden tool or it does not. Rubric scoring is **judged**, and carries a judge's uncertainty with it. Mixing a deterministic check with a probabilistic one under a single layer would make the layer's results incomparable.
+
+### 3.2 ID assignment rules
+
+* IDs are assigned **in the test design document** before code exists, never chosen at implementation time.
+* An ID is assigned **once** and is **never reused**, including after the test is deleted. A retired ID stays retired so that downstream history never silently rebinds an identifier to different behaviour.
+* The behaviour suffix is lowercase `snake_case`, minimum 3 characters, and states what is asserted rather than what is called.
+
+#### 3.2.1 Blocks are partitioned by module, not only by layer
+
+Specified 2026-09-23, after implementation collided. **This rule was implicit in the allocation from the first case and had never been written down**, which is precisely how it came to be broken.
+
+Section 3.1 assigns each layer a range. Within that range each module takes a hundred-slot block:
+
+| Layer | `ING` | `CMN` | `EXE` | `EVL` | `CAS` |
+|---|---|---|---|---|---|
+| `UNI` | 10001-10099 | 10101-10199, then 11101-11199 | 10201-10299 | 10301-10399 | 10401-10499 |
+| `SYS` | 20001-20099 | 20301-20399 | 20101-20199 | 20201-20299 | 20401-20499 |
+
+#### 3.2.2 `CAS` is a module in another repository, and shares this registry
+
+Registered 2026-09-23 with the split. `CAS` covers preconditions owned by the **case** repository, such as the guards asserting that a code excerpt still exhibits the defect recorded for it.
+
+**It takes a block here even though its cases live elsewhere.** The `MQC` prefix was adopted because a durable record spans several sources, and those sources becoming separate repositories is exactly the case it was chosen for. Two repositories emitting results into one collector must not both claim an identifier, so the partition spans repositories rather than stopping at this one.
+
+This is also why the registry is not duplicated. `framework-rules.md` section 4.1 forbids a second one, and the case repository references this document rather than vendoring it.
+
+**The full identifier already disambiguates**, since `MQC_CMN_UNI_10201` and `MQC_EXE_UNI_10201` differ in the module token. The partition exists for a different reason: the governance checks in `cmn_verdict_and_cli.md` section 10.2 match an inventory row by its five-digit number, pooled across the design documents. With disjoint blocks that is sound. With an overlap, **a case matches the wrong module's row and the check passes for the wrong reason**, which is worse than failing.
+
+`CMN` exhausted its first block at 107 cases and overflowed into the `EXE` block. The seven cases concerned had been written the same day and never published, so reassigning them was legitimate under the never-reuse rule, which protects identifiers that have reached a durable record.
+
+**A module filling its block takes a continuation block at the next thousand**, keeping the hundreds digit as the module marker. A module is not renumbered to make room, because that would retire identifiers that are already in use.
+
+**The checks are also being made module-aware**, so the partition is enforced rather than merely observed. Two mechanisms again, for the reason given throughout: a convention nothing checks is a convention until the day it is not.
+
+### 3.3 One layer per class
+
+A test class carries **exactly one** layer, and its marker is applied at class level.
+
+This is not a style preference. `pytest` propagates a class-level marker to every method in the class, so a class containing both an `MQC_TOOL_` and an `MQC_EVAL_` method under `@pytest.mark.tool` causes **both** to be collected by `pytest -m tool` and neither to be correctly gated. The evaluator test would silently run in the tool gate and never in its own.
+
+Verified by collection probe, 2026-09-19: a mixed class returned 2 tests for `-m tool`; split into one class per layer, `-m tool` and `-m evaluator` each returned exactly 1.
+
+The same applies to `@pytest.mark.priority(N)`: a class-level priority applies to every method, so methods of differing priority belong in different classes.
+
+**Exception: data-driven priority.** Where priority varies per parametrized case (a task evaluated against several rubrics of differing priority), the sanctioned mechanism is a per-parameter mark: `pytest.param(value, marks=pytest.mark.priority(N))`. This keeps priority statically visible to both `-m` filtering and the verdict gate, and is the only approved way for priority to vary inside one class.
+
+### 3.4 Registering a new layer
+
+Three steps, all required. None of them touches `.pylintrc`.
+
+1. A row in the table in section 2, with its own ID block.
+2. A marker entry in `pytest.ini`.
+3. A gate step in the CI sequence in `.claude/rules/testing-standards.md`.
+
+---
+
+## 4. Priority Levels
+
+Every test carries a priority from P0 to P4, assigned in the test design document. Priority answers one question:
+
+> **If this test does not pass, what can no longer be trusted?**
+
+Priority is a property of the *behaviour*, not of the layer. A `MQC_UNI_` test and a `MQC_EVAL_` test can both be P0.
+
+| Priority | Allure severity | Definition |
+|---|---|---|
+| **P0** | `blocker` | **Integrity or safety.** If this fails, no result from the run can be trusted, or a safety control is not functioning. |
+| **P1** | `critical` | **Core contract.** A primary guarantee of the tier is broken. The component produces results, but one of its central promises does not hold. |
+| **P2** | `normal` | **Documented behaviour.** The specified behaviour for an ordinary case. Most tests belong here. |
+| **P3** | `minor` | **Edge and defensive paths.** Boundary conditions, unusual but valid inputs, error paths that are unlikely but specified. |
+| **P4** | `trivial` | **Informational.** Message wording, formatting, and non-functional detail. Nothing downstream depends on the outcome. |
+
+**Preconditions take no priority, and that is not a statement about importance.** They are above the scale rather than outside it: a precondition failure stops the graded layers executing, exits 3, and leaves nothing measured, which is a stronger consequence than P0 can express within the budget it allocates.
+
+A budget exists only where claims compete. Every precondition is mandatory, so none competes, and a marker would be a number with nothing behind it. It would also place them in a denominator measured over graded cases alone, which is where the ceilings in section 4.2 are computed.
+
+### 4.1 Assignment is condition-based
+
+Each level carries a list of **qualifying conditions**. Matching one or more conditions at a level sets that level as the test's **ceiling**: the test may be assigned there or lower, never higher. Priority is a classification against documented criteria, not a judgement call.
+
+This complements the percentage ceilings rather than duplicating them. **Percentages limit how many; conditions limit which.** A test cannot be inflated to P0 without naming the P0 condition it satisfies.
+
+| Level | Qualifying conditions (any one suffices) |
+|---|---|
+| **P0** | A safety control is not functioning · run integrity is compromised · a credential could be exposed · evaluator output cannot be trusted · **safety-critical model behaviour** (prompt leakage, compliance with injected instructions, harmful forbidden-tool invocation) · **the test is foundational**: other tests presuppose its result, so their outcomes are meaningless if it fails |
+| **P1** | A tier's primary guarantee is broken · results attributed to the wrong engine or model · a measurement becomes uninterpretable · tool-compliance violation without harm · referential integrity violated |
+| **P2** | Specified behaviour for an ordinary valid case · a rubric threshold comparison · a specified error path |
+| **P3** | Boundary conditions · unusual but valid inputs · defensive paths unlikely to be reached |
+| **P4** | Message wording, formatting · nothing downstream depends on the outcome |
+
+Safety-critical model behaviour and foundational status were **added to** the P0 list rather than replacing its harness-integrity conditions, so the level keeps one meaning across both the precondition and graded populations.
+
+#### 4.1.0 The condition registry
+
+**This is the registry.** A priority is unassignable without naming an identifier from it (G6), and the identifier must belong to the level assigned or a more severe one.
+
+| Identifier | Level | Condition |
+|---|---|---|
+| `P0_SAFETY_CONTROL` | P0 | A safety control is not functioning |
+| `P0_RUN_INTEGRITY` | P0 | Run integrity is compromised; no result from the run can be trusted |
+| `P0_CREDENTIAL_EXPOSURE` | P0 | A credential could be exposed |
+| `P0_EVALUATOR_TRUST` | P0 | Evaluator output cannot be trusted |
+| `P0_SAFETY_CRITICAL_MODEL` | P0 | Safety-critical model behaviour: prompt leakage, compliance with injected instructions, harmful forbidden-tool invocation |
+| `P0_FOUNDATIONAL` | P0 | Other tests presuppose this result, so their outcomes are meaningless if it fails |
+| `P1_TIER_GUARANTEE` | P1 | A primary guarantee of the tier is broken |
+| `P1_ATTRIBUTION` | P1 | Results would be attributed to the wrong engine or model |
+| `P1_UNINTERPRETABLE_MEASUREMENT` | P1 | A measurement becomes uninterpretable |
+| `P1_TOOL_COMPLIANCE` | P1 | Tool-compliance violation without harm |
+| `P1_REFERENTIAL_INTEGRITY` | P1 | Referential integrity is violated |
+| `P2_DOCUMENTED_BEHAVIOUR` | P2 | Specified behaviour for an ordinary valid case |
+| `P2_RUBRIC_THRESHOLD` | P2 | A rubric threshold comparison |
+| `P2_SPECIFIED_ERROR_PATH` | P2 | A specified error path |
+| `P3_BOUNDARY` | P3 | A boundary condition |
+| `P3_UNUSUAL_VALID_INPUT` | P3 | An unusual but valid input |
+| `P3_EDGE_PATH` | P3 | A defensive path unlikely to be reached |
+| `P4_WORDING` | P4 | Message wording or formatting |
+| `P4_INFORMATIONAL` | P4 | Nothing downstream depends on the outcome |
+
+**The registry lives here rather than in a module design**, for the same reason the taxonomy codes do: a registry restated in two places drifts, and the one that is not the registry is the one that goes stale. `tier1_ingestion.md` G6 enforces the rule and cites this table rather than repeating it.
+
+An identifier used but absent here is a defect, reported by the same class of check as an unregistered taxonomy code.
+
+#### 4.1.1 Foundational tests and the dependency relation
+
+A test qualifies as **foundational** when other tests presuppose its result. Examples within the graded population: the judge returns a schema-valid reply for a trivial input; the engine responds to a minimal prompt; a control case with no adversarial content scores as expected.
+
+**Foundational tests run first within the graded run. If one fails, its dependents are not executed.**
+
+Dependents are recorded as **skipped** with `QC_HARNESS_DEPENDENCY_UNMET`, never as failed: they were not evaluated, and per section 5.1 an unperformed measurement is a skip.
+
+**Dependency skips are excluded from the skip-rate denominator.** The run is already red from the foundational P0 failure; counting the cascade again would trip the 20% skip threshold and bury the actual cause behind a derived one.
+
+#### 4.1.2 Measurement reliability is a reason to demote
+
+Qualifying conditions set the **ceiling**. A second consideration can lower the assignment below it: **how reliably the behaviour can be measured.**
+
+A test whose result depends on a parser, a tokenizer or any component that can disagree with a reasonable human reading **cannot carry P0 or P1**, however important the behaviour is. Those levels block, and blocking on an artefact of tooling rather than on the model's actual output inverts what the gate is for.
+
+| Measurement | Example | Ceiling in practice |
+|---|---|---|
+| Exact string or structural test | A prohibited character is present | Unrestricted |
+| Requires segmentation | Words per sentence | P3 |
+| Requires linguistic analysis | Subject and verb present | P4 |
+
+The assignment records reliability as its demotion reason, so a reader can tell a test demoted for measurement uncertainty from one demoted under budget pressure.
+
+#### 4.1.3 Case-level dependencies
+
+Section 4.1.1 covers **foundational** cases, whose failure blocks the whole graded run. A second, narrower relation is needed for cases that compose others.
+
+`depends_on` names the specific cases a case presupposes. A composite test combining two constraints depends on the single-constraint cases for each: if a constraint fails in isolation, testing it in combination measures nothing new, and the composite result would be attributed to interaction when the cause is the component.
+
+| Relation | Scope | On failure |
+|---|---|---|
+| `base` | The whole graded run | All dependents skip |
+| `depends_on` | Named cases only | Those cases skip |
+
+Both record `QC_HARNESS_DEPENDENCY_UNMET` and both sit outside the skip-rate denominator, so a cascade cannot trip an unrelated threshold on top of the failure that caused it.
+
+#### 4.1.4 Demotion under budget pressure
+
+When a percentage ceiling binds, tests are demoted in this order:
+
+1. **Non-security, single condition match**: weakest claim, demoted first.
+2. **Non-security, multiple condition matches**: stronger claim, demoted last.
+
+Matches are counted **at or above the assigned level**: the strength of claim to being *at least* this priority. Counting every match regardless of level would let three P4 conditions inflate a P1's apparent claim.
+
+A single matched condition is sufficient to establish that level. The list may span levels, and the **ceiling is the most severe matched**: a case matching `P0_FOUNDATIONAL` and `P1_TIER_GUARANTEE` has a P0 ceiling and may be assigned anywhere from 0 to 4.
+
+3. **Security, never demoted.**
+
+Match count is claim strength: a test satisfying three P0 conditions has a materially better case than one qualifying on a single condition, and this makes that a mechanical distinction rather than an argument.
+
+##### 4.1.4.1 A demotion is visible and is reported
+
+**A demoted case is detectable from its own record**, because a priority below the most severe matched condition is exactly what demotion produces. Nothing extra has to be stored: `priority > min(level of matched conditions)` is the signal.
+
+**The distribution check reports the demoted count alongside the shares.** A suite that meets its ceilings only because eleven cases were demoted has not met them in the sense the ceilings were written for, and a clean percentage would say it had.
+
+This closes the loop the ceilings open. The ceilings exist so that an inflated P0 population cannot turn the must-pass gate into a hair-trigger. Demotion is how a breach gets resolved, and an unreported demotion resolves it by making the number smaller rather than by making the suite better.
+
+`MQC_CMN_UNI_10184` covers the report. It is a design decision awaiting its module rather than an omission: verdict computation is specified here and built with `cmn/verdict.py`.
+
+#### 4.1.5 Security is a separate suite, not a budget line
+
+`MQC_SEC_` tests are **excluded from the distribution ceilings entirely**. Security coverage does not compete with functional coverage for a budget: a ceiling exists to prevent priority inflation, and a security test going unwritten because the P0 quota was full is the ceiling doing harm.
+
+**The guard against abuse:** security classification is condition-based like everything else. A test qualifies as security only by matching a documented security condition: its taxonomy code falls in `QC_SEC_*`, or it tests injection resistance, prompt leakage, or credential handling. Self-declaration is not sufficient, or every test would migrate to the exempt layer.
+
+**Boundary:** security tests of the *harness* (does the injection screen function) remain `MQC_UNI_` ungraded preconditions. `MQC_SEC_` covers *model* security behaviour. Different subject, different layer.
+
+### 4.2 Distribution targets
+
+Severity schemes fail by everything becoming P0 within a month. The defence is a stated distribution, not an exhortation.
+
+| Priority | Target share of all cases | Enforced as |
+|---|---|---|
+| **P0** | up to 10% | Ceiling **10%**. Advisory floor applies to the security suite, not here |
+| **P1** | 5% to 20% | Ceiling **20%**, advisory floor 5% |
+| **P0 + P1** | **not exceeding 30%** | Ceiling **30%** |
+| P2 to P4 | the remaining 70% or more | - |
+
+The combined 30% ceiling is the binding constraint: it holds even where P0 and P1 are individually within band.
+
+**Why a ceiling matters more than it appears.** If P0 and P1 inflate, the rule that 100% of P0 and P1 must pass turns into a hair-trigger that reddens every run. The predictable response is to demote tests until the gate goes green, which silently destroys the priority scheme and the gate together. A distribution ceiling protects the gate from becoming something people route around.
+
+#### 4.2.1 The upper bounds are enforced; the lower bound is advisory
+
+* **Ceilings are checked.** Breaching 10% P0, 20% P1, or 30% combined is a finding.
+* **The advisory floors apply to different populations, because P0 and P1 do not live in the same place.**
+
+| Floor | Applies to | Rationale |
+|---|---|---|
+| **P0 present** | The **security suite** | Every P0 condition concerns integrity, safety or foundational status, and in the graded layers those concentrate in `MQC_SEC_` by construction |
+| **P1 at 5%** | The ceiling-bearing population, `EVAL` plus `TOOL` | Core-contract guarantees live throughout the graded layers |
+
+**The P0 floor was previously stated over the ceiling-bearing population, where it could not be met.** `SEC` is exempt from the ceilings, so measuring a P0 floor over the population that excludes it asks for safety-critical cases in exactly the layers that, by design, do not hold them. The restatement puts the obligation where the cases are.
+
+The purpose is unchanged: a population with no P0 case is more often a sign that integrity and safety risks were never identified than that none exist. A security suite carrying no P0 case is the condition worth reviewing. A breach prompts a review; it does not fail one.
+
+**A zero P0 share in `EVAL` and `TOOL` is expected, not a finding.**
+
+#### 4.2.2 Denominators
+
+Parameterization multiplies executions. One authored task evaluated against 3 rubrics, on 3 engines, with 3 observations each, yields 27 executions. "What fraction of the suite is P0" therefore has three possible answers, and the metrics deliberately use different ones.
+
+| Metric | Denominator | Why |
+|---|---|---|
+| **Priority distribution** (10 / 20 / 30%) | Unique **(task × rubric)** case definitions | Priority is a property of the case, not of each run of it |
+| **Pass rate** (90%) | **Executions** | It measures how much actually passed |
+| **Skip thresholds** (20%, 10%) | **Observations** | Per A13 |
+
+The distribution denominator is the load-bearing one. Computed over executions, **adding an engine would change the priority distribution without anyone altering a test design**: a control that moves when nothing it controls has moved.
+
+**Reporting prints three separate counts**: authored tasks, case definitions, and total executions, never a single conflated "test count". A suite reporting 243 where 27 cases were authored misleads in both directions.
+
+The multiplication is not overhead. It is what produces the cross-rubric blast-radius signal: seeing which rubrics a task fails under, and which it passes, is what makes a fix prioritizable.
+
+#### 4.2.3 Scope and minimum sample
+
+* **The ceiling applies suite-wide**, not per feature. A single feature's test plan may legitimately contain no P0 cases, or be entirely P1 if it is the injection screen. Imposing the distribution on every plan individually would force mis-assignment.
+* **Below a minimum suite size the check reports counts and returns no verdict.** The floor is **30 case definitions**. Below that a single case moves the share by more than 3%, so the band is noise rather than signal.
+* **At exactly 30 cases the ceilings permit 3 P0, 6 P1, and 9 combined.** A budget of 10 P0/P1 cases requires a suite of at least 34. The distribution check reports the arithmetic rather than leaving it to be discovered in review.
+* **30 is a floor, not a target.** Tier 1 alone generates substantial `MQC_UNI_` coverage (loader equivalence, validation, injection screening, referential integrity), so the suite passes 60 cases quickly and the P0/P1 budget grows with it.
+
+The same reasoning governs any minimum-sample rule: a figure computed from a handful of items is arithmetic, not evidence, and publishing it as a verdict lends it a confidence the sample does not support.
+
+#### 4.2.4 P0 additionally requires a named consequence
+
+Independent of the distribution, every P0 assignment carries a written integrity or safety consequence in its test design document. "Important" is not a consequence. If the sentence *"if this fails, X can no longer be trusted"* cannot be completed, the case is not P0.
+
+#### 4.2.5 The distribution is checked programmatically
+
+The suite tests its own shape. A deterministic `MQC_UNI_` case reads the collected priority markers and asserts the ceilings, including itself in the count.
+
+Proposed assignment: **P1**. A breached distribution does not stop the suite producing results, so it is not P0; but it breaks a central guarantee of the taxonomy, because the P0/P1 gate stops meaning what it claims to mean.
+
+### 4.3 The level count is fixed
+
+Five levels, matching Allure's five severities exactly. Adding a sixth would break the carrier described in section 3.4 and is not permitted.
+
+### 4.4 How priority is carried
+
+A `@pytest.mark.priority(N)` marker, translated by a `conftest.py` hook into the corresponding Allure severity label. One source of truth serving two consumers: the run-verdict gate reads the marker, and downstream analysis reads the Allure label from `labels[]`, a standard field.
+
+---
+
+## 5. Outcome Model
+
+Each observation resolves to exactly one outcome. Allure's statuses already encode the distinction and are used directly.
+
+| Outcome | Allure status | Meaning | Taxonomy |
+|---|---|---|---|
+| **Pass** | `passed` | The assertion held | - |
+| **Fail** | `failed` | The assertion did not hold | `QC_LLM_*` or `QC_SEC_*` |
+| **Broken** | `broken` | An unexpected exception occurred | `QC_HARNESS_*` |
+| **Skip** | `skipped` | The case was never executed | `QC_HARNESS_*` |
+
+### 5.1 A harness failure is a skip, not a failure (A11.2)
+
+This is the load-bearing rule of the whole model.
+
+A harness failure is an **aborted measurement**, not a test result. When the instrument breaks, the correct record is *"this was not measured"*, never *"this failed"*. Consequently `failed` denotes **only** a genuine model finding, and the harness axis and the model axis never describe the same outcome.
+
+### 5.2 Adjudication is the reviewer's role (A7.1)
+
+The suite records outcomes. It does not diagnose them. Determining whether a pattern across engines indicates a flaky test, a defect affecting one or several engines, or an environment that never initialised is the reviewer's call: human, or a downstream analysis over the accumulated record.
+
+---
+
+## 6. Failure Taxonomy
+
+Every failure carries a code. The code is attached to the assertion message and to the Allure label so that root-cause class is recoverable from the artifact alone.
+
+### 6.1 `QC_LLM_*`: model quality findings
+
+The model under test performed poorly. **Not our defect.**
+
+| Code | Meaning |
+|---|---|
+| `QC_LLM_NO_OUTPUT` | The turn produced no output at all: the provider reported an error, or the response carried neither text nor a tool call. **A model finding, not a harness one**: the response arrived and carried nothing, which is different from a dispatch that never returned one |
+| `QC_LLM_SCHEMA_VIOLATION` | Output failed JSON structure or required field checks |
+| `QC_LLM_INSTRUCTION_DRIFT` | Output ignored negative constraints or system prompts |
+| `QC_LLM_FORMAT_VIOLATION` | Output contained a character or construct the instruction prohibited, such as an em dash or a bare pipe |
+| `QC_LLM_LENGTH_VIOLATION` | Output breached a quantitative shape constraint: words per sentence, sentences, bullets, or characters. Distinct from a format violation, which concerns prohibited characters rather than quantity |
+| `QC_LLM_CONTEXT_OMISSION` | Output failed to use provided RAG context |
+| `QC_LLM_RUBRIC_FAILURE` | Judge score fell below the passing threshold |
+| `QC_LLM_HALLUCINATION` | Output contained verifiable factual or context contradictions |
+| `QC_LLM_OVER_DISCLOSURE` | Output revealed more detail than the instruction permitted, such as stating a full derived figure where the instruction called for a minimum |
+| `QC_LLM_SOURCE_ALTERATION` | Output changed a value the source stated explicitly, such as rewriting a stated experience figure downward. The mirror of an unsourced claim: content altered rather than invented |
+| `QC_LLM_UNSOURCED_CLAIM` | Output asserted something absent from the supplied source material. Distinct from hallucination because it is a set operation against provided text rather than a factual judgement |
+| `QC_LLM_TOOL_VIOLATION` | A required tool was not invoked, or a forbidden tool was (A9; A9a closed 2026-09-19: kept distinct) |
+| `QC_LLM_INJECTION_SUSCEPTIBLE` | The model complied with an injected instruction |
+| `QC_LLM_PROMPT_LEAKAGE` | The model disclosed its system instruction |
+| `QC_LLM_GOAL_HIJACK` | The model performed the attacker's task instead of its own |
+| `QC_LLM_AMBIGUITY_UNHANDLED` | The model assumed an interpretation instead of requesting clarification |
+| `QC_LLM_OVER_CLARIFICATION` | The model requested clarification on an unambiguous input |
+| `QC_LLM_MATCH_MISCOMPUTED` | A match percentage, gate outcome or section classification that does not follow the stated semantics. **Not a factual error**: the inputs were read correctly and the rule applied to them was wrong |
+| `QC_LLM_DEFECT_MISSED` | A defect present in the supplied material was not reported. **The mirror of a hallucinated defect**: one invents what is not there, this omits what is |
+| `QC_LLM_INCONSISTENT` | Repeat observations of one case disagreed on outcome against the same fixed rules. **Not a flake to be retried away**: same request, same engine, same commit, different answer, so it is a property of the model rather than of our infrastructure. Raised by `consistent()` in the consumer's `graded_support.py`; registered 2026-09-26 after being emitted since A4.1 |
+
+#### Formatting constraints apply to every model, including the judge
+
+`QC_LLM_FORMAT_VIOLATION` is kept distinct from `QC_LLM_INSTRUCTION_DRIFT` for the same reason `QC_LLM_TOOL_VIOLATION` is: it is **mechanically detectable**. A prohibited glyph either appears in the output or it does not, whereas drift is judged. Merging a deterministic signal into a probabilistic one discards the confidence difference.
+
+**Applies to both directions:**
+
+* **Candidate output.** Where a task carries a formatting constraint, the check is an ordinary `ProgrammaticAssertion` of kind `not_contains` with `constraint_ref` pointing back at the instruction. Referential integrity check R3 then guarantees the instruction cannot be sent without being verified. No new machinery.
+* **Judge output.** The judge is instructed under the same prose rules and **its output is checked too**. A judge that ignores a formatting instruction is exhibiting instruction-following failure, which is a drift signal about the judge worth recording even though the run continues.
+
+**Normalized, never rejected** (A10). Rejecting output for containing a pipe would hand an external party a way to break the harness: candidate text containing the character, quoted back by the judge, becomes an injection-triggered failure. Prose fields are normalized on ingest and pipes escaped at render; the violation is **recorded** rather than fatal.
+
+**The code fields are exempt.** A `code_excerpt` field may legitimately contain pipes, which is why the schema separates prose from code rather than applying one rule to a whole response.
+
+
+#### 6.1.1 Two codes added 2026-09-23
+
+Both name failures the case inventory already specifies and no code could
+classify.
+
+**`QC_LLM_MATCH_MISCOMPUTED`.** The `requirement_match` family computes a match
+percentage over stated connector semantics, applies a gate decision table and
+classifies section headers. Cases `30019` through `30024` and `30028` measure
+exactly that, and none of them is a length breach, a prohibited character, an
+ignored instruction or a factual contradiction. The model read the inputs
+correctly and applied the wrong rule to them, which no registered code said.
+
+Three neighbouring cases in the same family were already covered and stay where
+they are: `30025` is `QC_LLM_SOURCE_ALTERATION`, `30026` is
+`QC_LLM_OVER_DISCLOSURE` (whose definition names that case almost verbatim), and
+`30027` is `QC_LLM_AMBIGUITY_UNHANDLED`. The gap was narrower than the family.
+
+**`QC_LLM_DEFECT_MISSED`.** Section 4.4 of the model evaluation test plan
+measures recall over a fixed set of known defects, and records that a model
+naming only the unchecked index "has found the defect a linter finds and missed
+both defects that cost money". **A miss is not a misstatement.** The model said
+nothing about the defect, so `QC_LLM_HALLUCINATION` does not describe it and
+`QC_LLM_CONTEXT_OMISSION` concerns unused context rather than undetected
+content.
+
+The pairing is deliberate and follows the one already in this table:
+`QC_LLM_UNSOURCED_CLAIM` and `QC_LLM_SOURCE_ALTERATION` are invention against
+alteration, and `QC_LLM_HALLUCINATION` and `QC_LLM_DEFECT_MISSED` are invention
+against omission at the level of a finding. **A recall figure needs both
+directions to mean anything**: a model that reports every defect and several
+that do not exist scores identically to one that reports none, unless the two
+are counted separately.
+
+**An umbrella code was considered and rejected.** A single
+`QC_LLM_CONSTRAINT_VIOLATION` spanning output shape and requirement matching
+would have collapsed a length breach, a prohibited character and a
+miscomputed match into one bucket. This table separates them on the stated
+ground that a code's presence, a set of codes and their severity together drive
+fix prioritization, so merging signals to shorten the list discards the
+distinction that makes either useful. The two most common examples it would have
+covered, a word ceiling and an em dash, are already named in this table by the
+codes that cover them.
+
+### 6.2 `QC_HARNESS_*`: harness and infrastructure defects
+
+Our code or environment broke. **Our defect.** Produces a skip or a broken status, never a failure.
+
+| Code | Meaning |
+|---|---|
+| `QC_HARNESS_CANDIDATE_TIMEOUT` | The model under test did not respond within the configured timeout |
+| `QC_HARNESS_JUDGE_TIMEOUT` | The evaluator did not respond within the configured timeout. **The judge is not under test**, so this is unambiguously an instrument failure and is never attributable to the candidate |
+| `QC_HARNESS_RATE_LIMIT` | Provider rate limit exceeded after backoff (A7.3) |
+| `QC_HARNESS_PROVIDER_UNAVAILABLE` | The provider reported itself temporarily unable to serve, in the 5xx family. **Retryable, and distinct from a rate limit**: one says we asked too often and the other says the provider is busy, and only the first is answered by widening `spacing_sec` (tier2 section 8.5) |
+| `QC_HARNESS_GATEWAY_FAILURE` | A gateway between us and the provider failed, status 502 or 504. **Retryable, and deliberately not the provider being busy**: the body is the intermediary's and the operator should look at the path, not wait (tier2 section 8.5.4) |
+| `QC_HARNESS_ENGINE_UNREACHABLE` | The engine was not reached: a 3xx redirect the client did not follow, or a connection failure. **Neither a model nor a judge finding, and not retryable**: a redirect is deterministic and a connection failure has already been retried inside the SDK. A proxy answering 302 with a login page is the ordinary cause (tier2 section 8.5.5) |
+| `QC_HARNESS_REQUEST_REJECTED` | The provider rejected the request as malformed, status 400. **Ours, anticipated, and not retryable**: the same request gets the same answer. Distinct from the catch-all so that an unanticipated failure stays findable (tier2 section 8.5.3) |
+| `QC_HARNESS_PARSER_ERROR` | Ingestion failed to parse input files |
+| `QC_HARNESS_AUTH_ERROR` | Credential or authentication failure |
+| `QC_HARNESS_PREFLIGHT_FAILURE` | Preflight check failed; run aborted before execution (A11.4) |
+| `QC_HARNESS_VERSION_UNAVAILABLE` | Resolved model version could not be obtained (A8) |
+| `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index |
+| `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
+| `QC_HARNESS_DEPENDENCY_UNMET` | A foundational test failed, so this case was never evaluated (4.1.1). Excluded from the skip-rate denominator. |
+| `QC_HARNESS_UPSTREAM_UNVERIFIED` | The pinned harness commit has no passing gate run, so the instrument was never established (`ci_pipeline.md` section 3C.3). Distinct from `QC_HARNESS_DEPENDENCY_UNMET`: unmet is unavailable, unverified is available but not established |
+| `QC_HARNESS_BRANCH_NAME` | A branch name departs from the grammar in `ci_pipeline.md` section 3C.6, or names a case that is not inventoried |
+| `QC_HARNESS_BRANCH_STALE` | A branch was cut from `main` past the staleness ceiling and has not been succeeded (3C.6.3) |
+| `QC_HARNESS_BRANCH_ROUTE` | A merge does not follow the one route into `main`, or brought `main` into a branch (3C.6.2 and 3C.6.5) |
+
+### 6.3 `QC_DATA_*`: ingestion diagnostics
+
+Data-quality events observed while loading. Unlike the other families these are **not all failures**: most describe normal operation worth recording. Each code carries a severity; only `ERROR` aborts ingestion.
+
+Every occurrence is logged as **code plus message**, so later analysis aggregates by code rather than by grepping prose. This is what makes the record tractable for the downstream failure analysis described at A7.1.
+
+| Code | Severity | Fires when |
+|---|---|---|
+| `QC_DATA_BLANK_CELL_DEFAULTED` | INFO | CSV blank cell; the field took its declared default |
+| `QC_DATA_COLUMN_ABSENT` | INFO | An optional column was omitted entirely |
+| `QC_DATA_WHITESPACE_STRIPPED` | INFO | Leading or trailing whitespace was removed from a value |
+| `QC_DATA_EMPTY_STRING` | WARNING | YAML supplied an explicit `""`; legal, but frequently unintended |
+| `QC_DATA_EXTRA_COLUMN_DROPPED` | WARNING | An unknown column was dropped under CLI override |
+| `QC_DATA_ADVERSARIAL_DECLARED` | WARNING | A case declared adversarial content; the injection screen was bypassed by declaration |
+| `QC_DATA_UNDECLARED_ADVERSARIAL` | WARNING | The ingest screen matched a case that did not declare adversarial content |
+| `QC_DATA_DUPLICATE_COLUMN` | ERROR | A repeated header makes every value in those columns ambiguous, so the file is refused before any row is parsed |
+| `QC_DATA_UNKNOWN_FIELD` | ERROR | Unknown key or column under the default reject policy |
+| `QC_DATA_REQUIRED_FIELD_MISSING` | ERROR | A required field was absent: forgotten |
+| `QC_DATA_REQUIRED_FIELD_EMPTY` | ERROR | A required field was present but empty, or whitespace-only: a placeholder left in |
+| `QC_DATA_LOADER_DIVERGENCE` | ERROR | YAML and CSV loaders produced different objects from equivalent input |
+| `QC_DATA_INVARIANT_VIOLATION` | ERROR | A schema invariant (G1 to G6) or a referential integrity check (R1 to R5) was breached |
+| `QC_DATA_MALFORMED_SOURCE` | ERROR | A source file could not be parsed, held the wrong shape, or carried a value that will not cast to its declared type |
+| `QC_DATA_IDENTIFIER_UNSAFE` | ERROR | An identifier cannot be used as a path segment on a supported platform |
+
+**`QC_DATA_UNDECLARED_ADVERSARIAL` warns rather than failing, and the reason is not tolerance.** An undeclared payload that survives ingest becomes a natural experiment: the Tier 3 screen should catch the same content, and whether it does is measurable. Aborting at ingest would destroy the only case where the two screens can be compared against real accidental input rather than a fixture built to test them.
+
+It pairs with `QC_DATA_ADVERSARIAL_DECLARED` on one axis. One says a payload was expected, the other says it was not, and both say a payload is present.
+
+#### 6.3.1 The three ERROR codes added during implementation
+
+Added 2026-09-22, after building `ingestion/schemas.py` against this registry showed that **several failure classes had no code that described them**. Section 6 already stated that every referential integrity violation is a `QC_DATA_*` ERROR, and G1 through G6 fail for the same class of reason, but no registered code said so.
+
+The implementation had reached for `QC_DATA_UNKNOWN_FIELD` at 27 sites, of which roughly four were genuinely unknown fields. **That defeats the stated purpose of this family**, which is that later analysis aggregates by code rather than by grepping prose: grouping by code would have placed a contradictory rule set and a typo'd column name in one bucket.
+
+**The three are split by what the author has to do, not by where the failure occurred.**
+
+| Code | What the author does about it |
+|---|---|
+| `QC_DATA_INVARIANT_VIOLATION` | Rethink the rule set. The data is structurally complete and semantically contradictory |
+| `QC_DATA_MALFORMED_SOURCE` | Fix the file. It does not parse, does not hold the expected shape, or carries a value of the wrong type |
+| `QC_DATA_IDENTIFIER_UNSAFE` | Rename an identifier |
+
+**Type coercion failures fold into `QC_DATA_MALFORMED_SOURCE`** rather than taking a fourth code. A threshold reading `high` and a document that is a list where a mapping was expected are the same problem to the author: the file says something the schema cannot accept, and the fix is to correct the file.
+
+**`QC_DATA_IDENTIFIER_UNSAFE` is separate from `QC_DATA_UNKNOWN_FIELD` although both concern a name.** An unknown field means the schema does not have that name; an unsafe identifier means the value is one the filesystem refuses. A reader debugging the second learns nothing from the first, and the platform-specific ones are exactly the failures A18 exists to surface.
+
+`QC_DATA_*` is deliberately separate from `QC_HARNESS_*`. A harness code asserts that our code broke; a blank cell taking its default is normal operation and must not be recorded as a defect.
+
+---
+
+### 6.4 `QC_SEC_*`: security findings
+
+**DECIDED 2026-09-19 (closes A5a): adopted as a separate family.** A security finding is neither a measure of task quality nor a harness defect; it is a third thing with different escalation, and it must remain visible independently of quality scores. Rationale (user): logging codes must be as unambiguous as possible for AI or ML analysis of run results, where the presence of a code, a set of codes, and their severity together drive fix prioritization.
+
+| Code | Meaning |
+|---|---|
+| `QC_SEC_INJECTION_ATTEMPT` | Candidate output contained content attempting to manipulate the evaluator |
+| `QC_SEC_JUDGE_HIJACK` | Judge reply failed schema validation in a manner consistent with hijack |
+| `QC_SEC_CREDENTIAL_LEAK` | A credential pattern was detected in output or artifact |
+
+**A9a closed 2026-09-19: kept distinct.** A tool violation is mechanically verifiable from the call trace; instruction drift is judged. Merging a deterministic signal with a probabilistic one would discard the distinction that makes either useful for automated analysis. Standing principle (user): keep codes as distinct as possible, because presence of a code, a set of codes, and their severity together drive fix prioritization.
+
+---
+
+## 7. Run Verdict (A11)
+
+The verdict is **binary**. A tri-state was proposed and withdrawn: CI exit codes are binary, and a status that exists only in a rendered report is invisible to every automated consumer downstream.
+
+**The rule list is normative in `cmn_verdict_and_cli.md` section 4.3 and is not complete here.** This section defines the four thresholds A11 set, because thresholds are bound to priority levels and priority is this document's subject. The verdict function owns which rules exist.
+
+| A11 threshold | Verdict |
+|---|---|
+| Any P0 or P1 observation does not pass | **Red** |
+| Overall pass rate below **90%** | **Red** |
+| Total skips exceed 20% of planned observations | **Red** |
+| P0 or P1 skips exceed 10% of their planned observations | **Red** |
+
+These are V1 through V4. **Two further rules exist**, an expired quarantine entry and a run with zero graded observations, and both are red. An earlier version of this table ended with an "otherwise green" row, which made an expired quarantine entry green here and red in the document that computes the verdict.
+
+A pass grade requires **100% of P0 and P1 passing** and an **overall pass rate of 90% or better**, with every other registered rule also unfired.
+
+### 7.1 The 90% floor is a forcing function
+
+The overall pass-rate floor exists so that a failing test cannot quietly persist. Falling below it compels one of three responses, each of which leaves a record:
+
+1. **Fix the code**, if the test is right.
+2. **Fix the test**, if the test is wrong.
+3. **Quarantine the test explicitly**, if the defect is real but the fix is not yet available. The test stays in the suite; it is excluded from the pass-rate denominator by declaration, never by deletion.
+
+**Quarantine is a declaration with an expiry.** Every quarantine entry carries a reason and an expiry date. Quarantined cases are listed in the report, and an **expired** entry fails the run. Without an expiry, quarantine becomes the place failures go to be forgotten, and the 90% floor stops meaning anything because everything inconvenient has been excluded from the denominator.
+
+### 7.2 The 90% floor means different things in each run type
+
+This distinction is load-bearing and must not be blurred.
+
+| Run | Fixtures | Below 90% indicates | Correct response |
+|---|---|---|---|
+| **Pull request** | Frozen | **Our code** changed a frozen outcome | Fix the code, or fix the test |
+| **Scheduled** | Live | **The model** is failing more than 10% of cases | Record the finding |
+
+On a live run, a sub-90% pass rate is the measurement working, not a test-hygiene problem. **Modifying tests to lift a live run back to green is the threshold-loosening failure A2 exists to prevent**, wearing different clothes. Test modification is a legitimate response to a red *pull request*; on a scheduled run the legitimate responses are recording the finding and, where warranted, quarantining with a reason.
+
+### 7.3 Red does not always mean blocked (A2 as amended)
+
+Red means *something needs attention*. Whether it blocks work depends on which run produced it.
+
+| Run | Fixtures | A P0 failure indicates | Blocks a merge? |
+|---|---|---|---|
+| **Pull request** | Frozen | Our code changed a frozen outcome | **Yes** |
+| **Scheduled** | Live | The model regressed | No: an alert |
+
+A vendor model update can only move the scheduled run, which gates nothing. No one is ever blocked from merging by a third party's release calendar, so no one is ever pressured to loosen a threshold to unblock work.
+
+### 7.4 Skip accounting (A13)
+
+* **Gate denominator:** skipped observations over total planned observations, excluding declared-unsupported pairs.
+* **Fully skipped cases**, all observations of one case skipped, are counted separately, having never been measured at all.
+* **Per-pair diagnostics:** skip rate is reported per (test × engine) pair as well as in aggregate. A case that always skips on one engine and never on another is a defect or a capability gap, not flakiness, and a global percentage buries it.
+
+### 7.5 Unsupported pairs are declared, not skipped (A13)
+
+A pair that legitimately cannot run, such as an engine without tool-calling facing an `MQC_TOOL_` case, is **declared in configuration** with a written reason. It is excluded from the gate denominator and surfaced in the report.
+
+Without this, a genuine capability gap consumes skip budget indefinitely and eventually trips the 20% threshold for a reason that is not a defect, with no record of why.
+
+### 7.6 Harness failure halts execution, conditionally (A11.4)
+
+| Case | Response |
+|---|---|
+| Preflight failure | Abort before any case runs |
+| Isolated per-case error | Skip that case and continue |
+| Systemic failure (N consecutive errors, or any auth error) | Circuit breaker aborts the run |
+
+An aborted run must not publish artifacts as though complete. It uploads nothing, or marks the artifact aborted (A6).
+
+---
+
+## 8. Multi-Step Scenarios
+
+A test may be a numbered scenario. Each step consists of a **verifiable action** and a **verification**, and both are logged separately.
+
+### 8.1 Why the two phases are logged apart
+
+A step can fail in either phase, and the two are entirely different diagnoses:
+
+| Phase | Failure means | Family | Outcome |
+|---|---|---|---|
+| **Action** | The step could not be performed | `QC_HARNESS_*` | Skip |
+| **Verification** | The step was performed and the result was wrong | `QC_LLM_*` | Fail |
+
+A log recording only "step 3 failed" cannot distinguish a provider timeout from a model producing the wrong answer. Since failure can occur *between* the action and its verification, the harness records the phase it reached, not merely the step it reached.
+
+This distinction is what separates "our pipeline could not measure this" from "we measured it and the model was wrong", which are the two halves the failure taxonomy is built on.
+
+### 8.2 Structure
+
+* Steps are numbered from 1 within a case.
+* Each step emits two `allure.step` entries, named so they parse mechanically:
+  * `STEP_<NN>_ACTION: <what is performed>`
+  * `STEP_<NN>_VERIFY: <what is asserted>`
+* Every log line carries the case identifier, step number, phase, outcome, and taxonomy code where one applies.
+
+### 8.3 It reaches the durable record for free
+
+Allure steps are a standard part of the format and are already parsed by collectors that read it. Emitting structured step names through `allure.step` therefore delivers step-level history through an existing field rather than new machinery.
+
+### 8.4 Clarification-seeking is a single-turn property
+
+A case may instruct the model to request clarification when the input is ambiguous, and grade **whether it asks**.
+
+**This is not a conversation.** The clarification request is graded as a property of one response. The harness never replies to it, and no second request is issued. A reader encountering "the model asks a clarifying question" will reasonably assume a dialogue follows; none does, and both the design document and the test design document must state so explicitly.
+
+**It requires no new machinery.** The instruction ("if the request is ambiguous, ask rather than assume") is a `Constraint` in `TaskDataSet`; the check is a rubric criterion carrying `constraint_ref` back to it; referential integrity check 3 then guarantees the instruction cannot be sent without being verified. The case is an ordinary multi-step harness procedure.
+
+**Control pairs.** A single ambiguous case shows only that the model asked. It cannot distinguish discrimination from a fixed habit, and a model that demands clarification for unambiguous requests is defective in its own way.
+
+| Variant | Expected behaviour |
+|---|---|
+| Ambiguous | Requests clarification |
+| Disambiguated | Answers directly |
+
+The two are **independent cases sharing a tag** (`ambiguity_pair_<nnn>`), not a jointly graded construct. Pairing is a reporting grouping, which preserves (task × rubric) as the case unit and uses the existing `tags` field. Over-asking and under-asking are then derivable from the record.
+
+### 8.5 Scope boundary
+
+"Multi-step" means **harness procedure steps** within a single request: ingest, dispatch, screen, judge, assert. It does **not** mean multi-turn conversation. Tier 2 issues one request per case with no loop (A9), so conversational scenarios remain out of scope; adopting them would reopen A9 and change Tier 2's contract.
+
+---
+
+## 9. Required Result Metadata
+
+**This section is the single normative list.** `cmn_verdict_and_cli.md` section 3 references it rather than restating it, because two hand-maintained lists drift and these two already had.
+
+Emitted as Allure parameters and labels, and through JUnit XML, so both reach a downstream collector without changes on its side.
+
+### 9.1 Fields
+
+| Group | Field | Scope | Why |
+|---|---|---|---|
+| Identity | `case_id` | Result | |
+| | `layer` | Result | Verdict reads graded status from it |
+| | `observation_index` | Result | A4 gives three observations per case |
+| | `family` | Result | Which evaluation family the case belongs to, §11. Graded results only |
+| Context | `engine` | Result | Which provider produced it |
+| | `mode` | Result | A replayed result must never be mistaken for an observation (A6) |
+| | `os` | Result | Which platform produced it. The harness is verified on two (A18) |
+| | `run_context` | **Run** | `ci`, `ci_debug` or `local` |
+| | `selection_mode` | **Run** | `full`, `change_scoped` or `manual`. A manual selection yields no verdict |
+| | `gated` | **Run** | Derived: true only when `selection_mode` is `full` or `change_scoped`, preconditions executed, **and** `run_context` is `ci` |
+| Model | `requested_model` | Result | What was asked for |
+| | `resolved_model` | Result | What the provider returned (A8) |
+| Outcome | `outcome` | Result | `pass`, `fail`, `broken`, `skip` |
+| | `skip_reason` | Result | `environmental`, `dependency`, `unsupported`. Counted differently (A13) |
+| | `taxonomy_code` | Result | Root-cause class, recoverable from the artifact alone |
+| Grading | `priority` | Result | Carried as Allure severity |
+| | `priority_conditions` | Result | Matched condition identifiers (G6) |
+| | `requirement_ids` | Result | RTM traceability |
+| Scoring | `score` | Result | Recorded on passes as well as failures |
+| | `scale_id` | Result | Scores of differing scale are not comparable |
+| | `rubric_result` | Result | `evaluated` or `not_evaluated` with a reason |
+| Performance | `duration` | Result | See 9.3 |
+| | `duration_kind` | Result | `measured` or `truncated`. See 9.3 |
+| | `output_tokens` | Result | Latency is dominated by verbosity (A7.2) |
+| Provenance | `rule_set_hash` | **Run** | Which rules produced this |
+| | `effective_thresholds` | **Run** | The standard the run was judged against |
+| | `timeout_ms` | **Run** | Changing it changes results |
+| | `cli_flags` | **Run** | `judge_on_failure`, `extra_columns`, `observations` |
+
+### 9.2 Run-scoped fields are emitted twice
+
+Once in a run manifest, and **again on every result**.
+
+The redundancy is deliberate. Collectors key on per-test rows, so a field living only in a run manifest may never reach per-test history. A stored result whose thresholds cannot be recovered is uninterpretable years later, which is exactly what the durable record exists to prevent. Repeating six fields across the suite's rows costs nothing measurable.
+
+### 9.3 A truncated duration is not a latency measurement
+
+On a timeout, `duration` records how long the harness waited before giving up, not how long the model took.
+
+**`duration_kind` marks it `truncated`, and truncated durations are excluded from latency baseline computation.** Averaging them in would measure the harness's patience rather than the model's speed, and a case that timed out at the configured ceiling would drag its own baseline upward, making genuinely slow responses look normal afterwards.
+
+### 9.4 Timeouts are attributed to their source
+
+| Source | Code | Rationale |
+|---|---|---|
+| Candidate | `QC_HARNESS_CANDIDATE_TIMEOUT` | Could be provider infrastructure or an unusable model. The suite records, the reviewer adjudicates (A7.1) |
+| Judge | `QC_HARNESS_JUDGE_TIMEOUT` | **The judge is not under test.** The candidate may have produced a good response that could not be scored |
+
+Both skip and both count toward the skip budget, since in neither case was a measurement obtained. The codes stay distinct because repeated judge timeouts mean the evaluation path is unreliable while repeated candidate timeouts mean something about the model or its provider.
+
+**Precedence:** an assertion failure dominates a judge timeout. If assertions failed the case has already failed; a judge timeout only produces a skip when the assertions passed and the measurement was therefore incomplete rather than negative.
+
+## 10. Extension Rules
+
+Per A12, extension points are configuration, never code.
+
+| To add | Mechanism | Code change? |
+|---|---|---|
+| An engine | Config entry (roster plus credentials) | No |
+| A test layer | Three-step registration, §3.4 | No |
+| An evaluation family | Four-step registration, §11.2 | No |
+| An unsupported pair | Config declaration with reason | No |
+| A priority level | **Not permitted**: fixed at five, §4.3 | - |
+| A taxonomy code | A row in §6 plus a design document entry | No |
+
+---
+
+## 11. Evaluation Family Registry
+
+A **family** is a task type with its own input shape and its own source of ground truth. Layers say how a test is gated; families say what the model was asked to do.
+
+Families apply to graded cases only. A precondition tests the harness, which has no task.
+
+### 11.1 Registered families
+
+| Identifier | Input | Ground truth from | Scope |
+|---|---|---|---|
+| `requirement_match` | Resume material and a job posting's requirements | Provided source material, making invention a set operation | `DESIGN.md` §7.1 |
+| `output_shape` | Any content plus declared shape constraints | Parsers and counters applied to the response | `DESIGN.md` §7.2 |
+| `code_comprehension` | A code excerpt carrying a known defect | A parser for syntactic defects, execution for logical ones | `DESIGN.md` §7.3 |
+
+**The middle column is the admission criterion, not a description.** Both original families were chosen because they supply ground truth for a property that would otherwise be judged: provided source material makes fabrication checkable, and a parser makes falsehood checkable. A family that can only be graded by rubric adds cases without adding confidence, because it measures a judge as much as a candidate.
+
+### 11.2 Adding a family
+
+A procedure, not a summary. None of the steps is a code change, and each states what must be true when it is done.
+
+#### Step 1. Confirm it is a family
+
+It is a family when **either** the input shape **or** the source of ground truth differs from every row in §11.1. Both differing is the common case.
+
+| Situation | What it actually is |
+|---|---|
+| New subject matter, same input shape and same ground truth | A fixture, not a family |
+| New requirements, same task the model performs | A requirement domain, `MQC_MDL_<DOMAIN>_*`, not a family |
+| New way of checking the same task | Usually a new assertion kind |
+| New task the model performs, with its own ground truth | **A family** |
+
+Stop here if it is one of the first three. Filing cases under a family they do not belong to is how a scope statement comes to describe less than the suite exercises, which is the failure §11.3 records.
+
+#### Step 2. State the ground-truth mechanism, and reject the family if there is none
+
+Write one sentence naming what settles whether the model was right, other than a judge.
+
+**A family gradable only by rubric is refused at this step.** It adds cases without adding confidence, because it measures the judge as much as the candidate. This is the admission criterion and it is not a formality: it is the reason all three registered families exist.
+
+If the mechanism is partial, say which part it covers and grade the rest by rubric. `output_shape` is the example: counters settle length and character prohibitions, while whether the shortened text still reads well is judged.
+
+#### Step 3. Choose an identifier
+
+Lowercase `snake_case`, two words where one is ambiguous, naming the **task** rather than the subject matter. `code_comprehension`, not `python_bugs`. Identifiers are never reused once retired, per §3.2.
+
+#### Step 4. Register the row
+
+Add to §11.1: identifier, input, ground truth, and a link to the scope section written in step 5.
+
+#### Step 5. Write the scope section
+
+A new `### 7.N` in `DESIGN.md`, containing four things:
+
+| Must state | Why |
+|---|---|
+| Input, with shapes | A reader has to know what the model receives |
+| Why it earns a place in v1 | The step 2 sentence, expanded |
+| Fixtures, if any, and what defect or property each carries | Otherwise nothing records why a fixture exists |
+| **What it does not cover** | The section most often omitted and most often needed later |
+
+#### Step 6. Decide requirements before writing cases
+
+Reuse an existing requirement where the family is a new **formulation** of a behaviour already required. Add a requirement only where the family demands something no existing requirement states.
+
+**A family need not bring requirements of its own.** `code_comprehension` introduced none: it supplies formulations for three grounding requirements, because a grounding requirement is domain-independent and the family exists to test that the behaviour survives a change of domain.
+
+**A family bringing only new requirements and no new formulation of existing ones is a warning sign**, and step 1 should be revisited. It usually indicates a requirement domain misfiled as a task family.
+
+#### Step 7. Allocate identifiers and write the cases
+
+Take the next free numbers in the layer blocks from §3, never renumbering existing cases. Each case row carries priority, matched condition, category, behaviour and the requirements it traces to, in `model_evaluation_test_plan.md` §4, which lives in the case repository.
+
+Check the distribution ceilings in §4.2 **before** assigning priorities rather than after. Additional formulations of an existing requirement take P2 unless they independently match a more severe condition.
+
+#### Step 8. Add fixtures
+
+Under `tests/fixtures/<family>/` **in the case repository**. Any fixture asserted against mechanically needs a precondition case confirming it still exhibits the property recorded for it, per `model_evaluation_test_plan.md` §6.1, and that case is owned by the repository holding the fixture. A fixture silently repaired by a formatter otherwise leaves every case built on it asserting against an expectation that no longer holds.
+
+#### Step 9. Update the matrix and the counts
+
+Regenerate `rtm_model.csv` in the case repository, then update the graded case count there. Counts in this repository cover the preconditions only.
+
+#### Step 10. Verify
+
+All of the following must hold. Each is checked programmatically, and a failure at this step means an earlier step was skipped rather than that the check is wrong.
+
+| Assertion | Enforced by |
+|---|---|
+| Every case identifier is unique and inside its layer block | §3.2 |
+| Every priority names a registered condition | §4.1.0 |
+| The distribution stays within its ceilings | §4.2 |
+| Every requirement has at least one case, and every case a known requirement | T1 to T4 |
+| Every emitted `family` value is registered | `MQC_CMN_UNI_10180` |
+| The §11.1 table and the code registry agree | `MQC_CMN_UNI_11130` |
+| Every family the case matrix names is registered | `MQC_CMN_UNI_11131` |
+| Every registered family declares a ground-truth mechanism | `MQC_CMN_UNI_11132` |
+| Stated inventory totals match their rows | `MQC_CMN_UNI_10146` |
+
+#### 11.2.1 Changing or retiring a family
+
+**Changing the ground-truth mechanism is a new family, not an edit.** Results recorded under the old mechanism are not comparable with results under the new one, and silently changing it makes a history that looks continuous and is not.
+
+Changing input shape, adding fixtures or adding cases are ordinary edits. Revise the scope section in the same change, per A12: documentation is the standard, so a design change is discussed, documented and only then implemented.
+
+**Retiring a family retires its identifier permanently.** The row stays in §11.1 marked retired with the date, because stored history carries the value and a reader of that history needs to resolve it. Its cases are removed or reassigned explicitly, never left pointing at a retired family.
+
+
+#### 11.2.2 What step 10 did not check, until 2026-09-23
+
+The table above previously named one case against one assertion, and that case
+**checked neither the table nor an emitted value**. It asserted that
+`requirement_match` is registered and that a made-up identifier is not, which
+establishes that the lookup function works and nothing about this registry.
+
+Three assertions in the procedure had no enforcement behind them:
+
+**The §11.1 table and the code registry could disagree.** The table above is
+prose and `_EVALUATION_FAMILIES` is a dict, and step 4 asks an author to update
+the first while the second is what every check reads. A family registered in
+code and missing from the table leaves the scope statement describing less than
+the suite exercises, which is precisely the failure §11.3 records as the reason
+this is a registry at all.
+
+**A family named in the case matrix need not be registered.** T5 checks that a
+matrix row's `families` value agrees with the cases named in the same row. It
+compares the row against itself and never consults this registry, so a typo
+propagates into the durable record with nothing objecting.
+
+**The admission criterion was unenforceable.** Step 2 refuses a family gradable
+only by rubric, and that refusal is the reason all registered families exist.
+Nothing checked that a registered family carries a ground-truth mechanism at
+all, so the criterion held only while an author remembered it.
+
+`11130` through `11132` close these. **They enforce the procedure rather than
+restating it**, which is the distinction between a documented mechanism and a
+coded one: a step whose verification is named and absent reads as stronger than
+a step with no verification named.
+
+### 11.3 Why this is a registry rather than a list
+
+The families here were not planned together. Two were scoped early and the third arrived when code excerpts were introduced as formulations, and **it was specified in the test plan and shipped in the layout before anything recorded that a third family existed.** A registry makes that omission visible rather than leaving the v1 scope quietly describing two families while the suite exercised three.
+
+The `family` field in §9.1 carries the value onto every graded result, so analysis can group by task type without inferring it from case identifiers. An unregistered value is a defect for the same reason an unregistered taxonomy code is: nothing downstream can interpret it.
