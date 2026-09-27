@@ -736,7 +736,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 174 cases, 99 negative, 55 positive, 20 boundary.**
+**Inventory: 177 cases, 100 negative, 56 positive, 21 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -750,16 +750,6 @@ Three checks, the same shape as the RTM integrity checks in section 6 and for th
 | `10144` | Registry rot, where a code remains listed long after the condition that raised it was removed |
 | `10145` | A specification naming a code that was never registered |
 | `10146` | An inventory whose stated totals no longer match its rows |
-
-### 10.3 An inventory row can specify a name nothing may carry
-
-Added 2026-09-22, after five rows were found specifying behaviour names longer than the 60 characters `.pylintrc` permits on a callable. Two were discovered by implementing them and failing Gate 1; three were latent and would have failed whenever someone reached them.
-
-**`10186` checks the inventory against the pattern the callable must match.** A design that specifies an unimplementable name is a defect in the design, and the person who meets it is implementing something unrelated and has to stop to fix a document.
-
-**`10187` checks that an implemented name matches its row.** `10183` established that a test must appear in an inventory; it compares identifiers and says nothing about behaviour names. One case had already diverged: the test name was shortened to pass Gate 1 and the inventory row was left as it was, so the design and the code described the same case differently.
-
-That divergence is the exact shape the authoring order exists to prevent, arriving from the other direction: not a test written without a design, but a design left behind by a test. Both are the code and the document disagreeing, and one check cannot cover both.
 
 ### 10.2 The suite enforces its own authoring order
 
@@ -791,6 +781,16 @@ This check was added after a manual cross-check found two codes, `QC_HARNESS_FIX
 
 **Boundary cases are named explicitly at each threshold**: exactly 90%, exactly 20%, exactly 10%, exactly 30 cases. Every threshold in this document is an inequality, and off-by-one at a boundary is the most likely defect in the module. A rule stated as "below 90%" must be tested at 90%, not near it.
 
+
+### 10.3 An inventory row can specify a name nothing may carry
+
+Added 2026-09-22, after five rows were found specifying behaviour names longer than the 60 characters `.pylintrc` permits on a callable. Two were discovered by implementing them and failing Gate 1; three were latent and would have failed whenever someone reached them.
+
+**`10186` checks the inventory against the pattern the callable must match.** A design that specifies an unimplementable name is a defect in the design, and the person who meets it is implementing something unrelated and has to stop to fix a document.
+
+**`10187` checks that an implemented name matches its row.** `10183` established that a test must appear in an inventory; it compares identifiers and says nothing about behaviour names. One case had already diverged: the test name was shortened to pass Gate 1 and the inventory row was left as it was, so the design and the code described the same case differently.
+
+That divergence is the exact shape the authoring order exists to prevent, arriving from the other direction: not a test written without a design, but a design left behind by a test. Both are the code and the document disagreeing, and one check cannot cover both.
 
 ### 10.4 Nineteen cases added during implementation
 
@@ -891,7 +891,69 @@ That is the exact failure the gating rules exist to prevent, arriving through a 
 
 ---
 
-## 11. Traceability
+## 11. Test Inventory: `MQC_CMN_SYS_`
+
+Added 2026-09-26. **The module had no system inventory at all**, which is why it
+had no system cases: every `CMN` case was a unit case over synthetic input, and
+the one thing a unit case cannot establish is that the stages join.
+
+### 11.1 `MQC_CMN_SYS_`
+
+| ID | Cat | Behaviour |
+|---|---|---|
+| `20301` | P | `a_compliant_model_runs_the_chain_to_a_green_verdict` |
+| `20302` | N | `a_failing_model_runs_the_chain_to_a_red_verdict` |
+| `20303` | B | `three_observations_of_one_case_reach_the_verdict` |
+
+### 11.2 Why these exist, and what they replaced
+
+Every other suite proves one stage. Ingestion rejects a malformed corpus, dispatch
+routes to an adapter, the dual pass produces both halves, the verdict applies its
+rules. **None of them proves the stages compose**, and a harness whose stages each
+work but do not join measures nothing while reporting that it did.
+
+These run the whole chain on a synthetic corpus: the ingestion join, three
+recorded observations per case, replay dispatch, the dual pass against a judge
+double, and a verdict computed from the observations that come out.
+
+#### 11.2.1 Both outcomes, because one proves nothing
+
+`20302` differs from `20301` **by the candidate's text alone**: same corpus, same
+adapter, same judge, same rules. So the red is attributable to the model's output
+and to nothing else in the chain.
+
+**A chain that always answers green proves only that it can answer.** An
+instrument has to be able to say "this failed" about something that failed, or its
+green is not a measurement. It is also the distinction the whole design protects:
+`20302` asserts exit **1**, a finding about a model, rather than exit 3, which
+would say the instrument broke.
+
+#### 11.2.2 `20303` guards the repeat count through the whole chain
+
+A4.1 asks for three observations. **Dispatch could satisfy that and the verdict
+still see one:** repeats are requested per observation index, recorded per index
+and replayed per index, so a break anywhere collapses three samples into one
+without failing. The run would look complete and the consistency check would have
+nothing to compare.
+
+#### 11.2.3 What they replaced in CI
+
+Gates 4 to 7 of `gate-on-change.yml` ran `pytest -m evaluator`, `-m tool` and
+`-m sec`, then computed a verdict from `collected/results.json`.
+
+| | |
+|---|---|
+| The three markers | Collected nothing. This repository holds no graded case |
+| The artifact | Written by nothing. Section 5 emits Allure and JUnit for a downstream collector |
+| Why it was never seen | Gate 1 failed on the first commit that ran the workflow, so all four were skipped |
+
+**The gates are the consumer's**, which is where a model is actually measured, and
+a harness change is proved against real cases by `regress-consumers-on-merge.yml`.
+What this repository owes is proof that the instrument works, and that is these
+three cases.
+
+
+## 12. Traceability
 
 | Decision | Section |
 |---|---|

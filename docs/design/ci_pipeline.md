@@ -29,9 +29,9 @@ the change-scoping rule between them made necessary.
 |---|---|---|---|
 | `gate-on-change.yml` | Push, pull request, manual dispatch | None | Yes |
 | `regress-harness-on-branch.yml` | Manual dispatch | None | Yes |
-| `regress-consumers-on-merge.yml` | A green gate on `main` or `stabilization`, weekly | None | Yes |
-| `probe-model-version-nightly.yml` | Nightly schedule | Read-only model metadata | No |
-| `evaluate-live-weekly.yml` | Weekly schedule, and dispatch from the probe | Provider API keys | Yes |
+| `regress-consumers-on-merge.yml` | A green gate on `main` or `stabilization`, or manual dispatch | None | Yes |
+| `probe-model-version-nightly.yml` | Manual dispatch. **Schedule withdrawn**, see 2.0.1 | Read-only model metadata | No |
+| `evaluate-live-weekly.yml` | Manual dispatch. **Schedule withdrawn**, see 2.0.1 | Provider API keys | Yes |
 | `diagnose-on-demand.yml` | Manual dispatch only | Optional | **No** |
 | `debug-failures-on-demand.yml` | Manual dispatch only | Optional | **No** |
 
@@ -62,6 +62,32 @@ selection does.
 rule in section 2.1: a reader's first question about a run is why it happened,
 and a filename is where that answer costs nothing.
 
+### 2.0.1 No workflow is scheduled until `main` is stable
+
+Decided 2026-09-26 by the project owner.
+
+Three workflows carried a cron: the consumer regression weekly, the model-version
+probe nightly, and the live evaluation weekly. **All three are now dispatch-only,
+and the crons return when weekly regression is set up against a stable `main`.**
+
+| Reason | |
+|---|---|
+| A cron against a moving branch | Produces a red nobody acts on, weekly, which trains readers to ignore the one signal that a regression is real |
+| A cron that spends quota | Competes with corpus recording for the free tier's 20 requests per day per model (`OPEN_QUESTIONS.md` section 2.6) |
+| A cron on a broken workflow | `evaluate-live-weekly.yml` in **this** repository ran graded markers that collect nothing here, so it failed every Sunday for a structural reason (section 3.1.0) |
+
+**On-change triggers are unaffected and are the point.** `gate-on-change.yml`
+still runs on push and pull request, and `regress-consumers-on-merge.yml` still
+runs on a green gate on the default branch, which is the trigger that makes it a
+merge guard rather than a report.
+
+**Two filenames now name a cadence they do not have.** `probe-model-version-nightly.yml`
+and `evaluate-live-weekly.yml` are dispatch-only while their schedules are
+withdrawn. They keep their names rather than being renamed twice: section 2.2
+makes a filename a cross-workflow reference, and renaming now and back is churn
+that `actionlint` would have to catch in between. The withdrawal is stated in each
+file at the trigger it replaced.
+
 ### 2.1 Workflow file naming
 
 **`<verb>[-<subject>]-<cadence>.yml`.** The verb is what the workflow does, the subject narrows it when the verb alone is ambiguous, and the cadence is the trigger that fires without anyone asking.
@@ -76,7 +102,9 @@ and a filename is where that answer costs nothing.
 
 The naming matters more as workflows are added than it does now. A directory of four files can be learned by opening them; a directory of ten cannot, and the moment to fix a naming scheme is before the files it has to distinguish exist.
 
-Where a workflow has more than one trigger, **the cadence names the unconditional one.** `evaluate-live-weekly.yml` also fires on dispatch from the probe, but the weekly schedule is what runs regardless of whether anything else works. Naming a file after a conditional trigger would make it read as optional.
+Where a workflow has more than one trigger, **the cadence names the unconditional one.** `evaluate-live-weekly.yml` also fires on dispatch from the probe, and the weekly schedule was what ran regardless of whether anything else worked. Naming a file after a conditional trigger would make it read as optional.
+
+**While a schedule is withdrawn the name records the intended cadence, not the current one** (section 2.0.1). That is the lesser of two wrongs: a name is a cross-workflow reference, and renaming a workflow twice costs a dangling reference in between.
 
 | Future workflow | Name it |
 |---|---|
@@ -100,13 +128,28 @@ Four files also mean four independent answers to "why did this run", which is th
 |---|---|---|---|
 | `lint` | 1 | `pylint` against `.pylintrc`, plus `actionlint` | Everything |
 | `unit` | 2 | `pytest -m unit` | `system` |
-| `system` | 3 | `pytest -m system --mode replay` | `graded` |
-| `graded` | 4, 5, 6 | Three steps, one per gate, see below | `verdict` |
-| `verdict` | 7 | Verdict computation and artifact upload | Nothing |
+| `system` | 3 | `pytest -m system --mode replay` | Nothing |
 
-Each declares `needs` on its predecessor, so a precondition failure leaves the graded job **skipped rather than failed**. That distinction is the one recorded when the A2 conflict was resolved: a harness failure must not present as a model finding.
+Each declares `needs` on its predecessor, so a precondition failure leaves the next job **skipped rather than failed**. That distinction is the one recorded when the A2 conflict was resolved: a harness failure must not present as a model finding.
 
-**Three test-executing jobs**, as `testing-standards.md` section 2 specifies: `unit`, `system` and `graded`. `lint` and `verdict` execute no tests, and bands are selected inside `graded` via `--priority` rather than becoming jobs of their own.
+**Two test-executing jobs in this repository**, `unit` and `system`. `lint` executes none.
+
+### 3.1.0 Gates 4 to 7 are the consumer's, corrected 2026-09-26
+
+**This table specified a `graded` job and a `verdict` job here, and neither could run.** They were written when the pipeline was specified as one shape for one repository, and the split (A17) made them unrunnable without anybody noticing, because Gate 1 failed on the first commit that ever executed this workflow and all four downstream steps were skipped.
+
+| What it did | Why it could not work |
+|---|---|
+| `pytest -m evaluator`, `-m tool`, `-m sec` | **This repository holds no graded case.** `CLAUDE.md` states the harness owns no case data, so each marker matched zero tests and pytest exited 5 |
+| `cmn.verdict_tool collected/results.json` | **Nothing writes that file.** Section 5 of `cmn_verdict_and_cli.md` emits observations as Allure and JUnit for a downstream collector to assemble |
+
+**Where each one lives.** Gates 4 to 6 and the verdict run in `AP-Model-QC`'s own `gate-on-change.yml`, against its cases, which is where a model is actually measured. A harness change is proved against real cases by `regress-consumers-on-merge.yml`, which checks out a consumer against the candidate and runs the consumer's deterministic gates.
+
+**What this repository owes instead is proof that the instrument works**, and that is `MQC_CMN_SYS_20301` to `20303` inside Gate 3: the whole chain on a synthetic corpus, from the ingestion join through replay dispatch and the dual pass to a computed verdict, asserting it reaches **both** a green and a red. A harness that cannot report red about a failing model cannot be trusted when it reports green.
+
+**`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and is recorded in `OPEN_QUESTIONS.md` section 2.7, because what a harness-only live run should measure is a question about quota rather than about structure.
+
+**Section 3.1.1 below describes the three-step graded job as the consumer runs it**, and its requirement of three separate JUnit files is a requirement on that pipeline.
 
 #### 3.1.1 The graded job runs three steps, not one command
 
@@ -124,7 +167,7 @@ Each declares `needs` on its predecessor, so a precondition failure leaves the g
 
 | Job | Platforms |
 |---|---|
-| `lint`, `unit`, `system`, `graded` | Both |
+| `lint`, `unit`, `system` | Both |
 | `evaluate-live-weekly.yml` | Ubuntu only |
 
 **Separate means separate in every sense that matters**, and each of these is a requirement rather than a consequence:
@@ -655,7 +698,7 @@ The group is keyed on engine **and** mode so replay legs never wait on a live le
 
 ### 5.4 Request spacing and observation count
 
-Three observations per case, per A4, against 66 graded cases. Spacing is configured per engine because free-tier ceilings differ, and the two must be designed together: tripling observations triples request volume against the same ceiling.
+Three observations per case, per A4, against the consumer's graded corpus, which carries 69 cases as of 2026-09-26. The count lives there rather than here, and the figure above was stale because this document restated it. Spacing is configured per engine because free-tier ceilings differ, and the two must be designed together: tripling observations triples request volume against the same ceiling.
 
 Exhausted backoff **skips** rather than fails, per `MQC_REQ_HAR_EXE_0010`. The goal is measuring a model, not load-testing a provider.
 

@@ -94,15 +94,13 @@ jobs:
       - name: Gate 3, system preconditions
         if: always()
         run: pytest -m system --mode replay --junitxml=reports/junit_mqc_system.xml --alluredir=reports/allure-results
-      - name: Gate 4, evaluator
-        if: always()
-        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
-      - name: Gate 5, tool-use compliance
-        if: always()
-        run: pytest -m tool --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
-      - name: Gate 6, model security
-        if: always()
-        run: pytest -m sec --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
+      # GATES 4 TO 6 ARE NOT HERE. They collected nothing: this repository holds
+      # no graded case, because the harness owns no case data (CLAUDE.md). A
+      # marker matching zero tests exits 5, so all three failed the job they were
+      # meant to complete. What regresses a harness change against real cases is
+      # regress-consumers-on-merge.yml, which checks out a consumer against this
+      # candidate. What proves the harness composes is Gate 3, which now carries
+      # MQC_CMN_SYS_20301 to 20303: the whole chain, to both a green and a red.
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -113,36 +111,8 @@ jobs:
           path: reports/
           retention-days: 90
 
-  verdict:
-    name: verdict
-    needs: regress
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install
-        run: python -m pip install --editable ".[dev]"
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: mqc-reports-*
-          path: collected/
-      - name: Compute the verdict
-        shell: bash
-        run: |
-          set +e
-          python -m cmn.verdict_tool collected/results.json
-          code=$?
-          set -e
-          {
-            echo "## Full regression on ${{ inputs.ref || github.ref_name }}"
-            echo ""
-            echo "Selection: full, unscoped. This verdict is the real one, and is"
-            echo "what the merge run will say if nothing changes."
-            echo ""
-            echo "Exit code: ${code}"
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit "${code}"
+  # THE VERDICT JOB IS NOT HERE EITHER. It ran `cmn.verdict_tool` against
+  # `collected/results.json`, a file no part of this repository writes: section 5
+  # of cmn_verdict_and_cli.md emits observations as Allure and JUnit for a
+  # downstream collector to assemble. A verdict is also a statement about a
+  # model, and this workflow measures none.

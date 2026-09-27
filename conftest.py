@@ -27,7 +27,6 @@ from typing import Any, Iterator
 import pytest
 
 from cmn.config import load_env_file, warn_orphan_credentials
-from execution.adapters.registry import credential_variables
 from cmn.pytest_support import (
     arrange_dependencies,
     enforce_dependencies,
@@ -36,6 +35,7 @@ from cmn.pytest_support import (
     configure_invocation,
     label_priority_severity,
 )
+from execution.adapters.registry import credential_variables
 from ingestion.cases import build_case_id
 from ingestion.schemas import EvaluationCase, GoldenRuleSet, Rubric, TaskDataSet
 

@@ -12,10 +12,10 @@
 name: evaluate-live-weekly
 
 on:
-  schedule:
-    # 03:30 UTC Sunday. The cadence in the filename is this one: it fires
-    # whether or not anything else works.
-    - cron: "30 3 * * 0"
+  # NO SCHEDULE UNTIL MAIN IS STABLE, decided 2026-09-26. A cron firing against
+  # an unstabilized main produces a weekly red nobody acts on, and it spends
+  # provider quota on a branch still moving. Weekly regression is set up once
+  # main is stable, and this stanza returns then.
   workflow_dispatch:
     inputs:
       engine:

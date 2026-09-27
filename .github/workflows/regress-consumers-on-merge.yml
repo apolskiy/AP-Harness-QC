@@ -24,12 +24,10 @@ on:
     workflows: [gate-on-change]
     types: [completed]
     branches: [main, stabilization]
-  schedule:
-    # 04:45 UTC Monday. THE WEEKLY RUN EXISTS FOR THE SAME REASON THE LIVE ONE
-    # DOES: a consumer can break without this repository changing, because a
-    # case set moves on its own. A detector firing only on our merges would miss
-    # that entirely.
-    - cron: "45 4 * * 1"
+  # NO SCHEDULE UNTIL MAIN IS STABLE, decided 2026-09-26. A cron firing against
+  # an unstabilized main produces a weekly red nobody acts on, and it spends
+  # provider quota on a branch still moving. Weekly regression is set up once
+  # main is stable, and this stanza returns then.
   workflow_dispatch:
 
 concurrency:

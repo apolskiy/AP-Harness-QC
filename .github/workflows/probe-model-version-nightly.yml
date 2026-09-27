@@ -16,10 +16,10 @@
 name: probe-model-version-nightly
 
 on:
-  schedule:
-    # 02:15 UTC. Off the hour, because scheduled runs cluster on the hour and a
-    # queued run is a late run.
-    - cron: "15 2 * * *"
+  # NO SCHEDULE UNTIL MAIN IS STABLE, decided 2026-09-26. A cron firing against
+  # an unstabilized main produces a weekly red nobody acts on, and it spends
+  # provider quota on a branch still moving. Weekly regression is set up once
+  # main is stable, and this stanza returns then.
   workflow_dispatch:
 
 permissions:

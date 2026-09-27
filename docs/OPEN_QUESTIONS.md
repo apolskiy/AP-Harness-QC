@@ -228,6 +228,51 @@ Paying becomes worth it when the evaluator family starts, because that spends
 quota on the judge as well as the candidate.
 
 
+### 2.7 What should the harness's own live run measure, once it is scheduled again?
+
+Raised 2026-09-26, while removing the CI gates that could not run.
+
+`evaluate-live-weekly.yml` in **this** repository runs `pytest -m evaluator`,
+`-m tool` and `-m sec` live, then computes a verdict. **All three collect nothing
+and the verdict reads a file nothing writes** (`ci_pipeline.md` section 3.1.0).
+It fires on a schedule, so unlike the other two it fails every Sunday rather than
+only when dispatched.
+
+**`AP-Model-QC` already has its own `evaluate-live-weekly.yml`**, which resolves
+the paired harness and runs the real ladder. So this one is a duplicate of a
+workflow that works, in a repository with nothing for it to run.
+
+| Option | Cost | What it buys |
+|---|---|---|
+| **Delete it here** | Nothing | The consumer's ladder is the live ladder, and the weekly red stops |
+| Convert it to a live smoke of dispatch | **Provider quota, weekly** | Proof the harness can still reach a provider, which replay cannot establish |
+| Leave it | A red every Sunday | Nothing |
+
+**The second option is the only one with real content**, and it is a new thing
+rather than a repair. `testing-standards.md` section 1 does refer to "a live SYS
+smoke on the schedule", which does not exist; a smoke would need a synthetic
+corpus dispatched live against one engine, and on the free tier it would spend
+from the same 20 requests per day the recording runs need (section 2.6).
+
+**Settled in part, 2026-09-26.** The project owner's decision: no scheduled
+workflows at all until `main` is stable, and weekly regression is set up then. So
+**the cron is withdrawn from all three scheduled workflows** in this repository
+and from the consumer's live ladder, which makes this workflow dispatch-only and
+stops the weekly red. `ci_pipeline.md` section 2.0.1 carries the reasoning.
+
+**What is still open is only the content.** The graded steps in this file still
+collect nothing, so a dispatch of it fails. Nothing fires it, so nothing is red,
+but it is a trap for whoever dispatches it first.
+
+**My recommendation, for when weekly regression is set up:** replace its graded
+steps with a live smoke of dispatch against one engine on a synthetic corpus, which
+is the harness-only thing a live run can establish and the thing
+`testing-standards.md` section 1 already refers to as existing. Until then it is
+recorded here rather than deleted, because the file is the obvious home for that
+smoke and deleting it would lose the reference the probe workflow makes to it by
+name.
+
+
 ## 3. Things I changed that deserve a second opinion
 
 Each of these is implemented, tested and reversible. I believe each is right and

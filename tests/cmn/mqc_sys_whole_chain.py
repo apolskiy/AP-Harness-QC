@@ -1,0 +1,279 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+"""System preconditions for the whole chain, from a corpus to a verdict.
+
+Covers `MQC_CMN_SYS_20301` through `20303`, inventoried in
+``docs/design/cmn_verdict_and_cli.md`` section 11.1.
+
+**This is the combined test that decides whether the harness is usable at all.**
+Every other suite here proves one stage: ingestion rejects a bad corpus,
+dispatch routes to an adapter, the dual pass produces both halves, the verdict
+applies its rules. None of them proves the stages compose, and a harness whose
+stages each work but do not join measures nothing while reporting that it did.
+
+**Both outcomes are asserted, not just the green one.** A chain that always
+answers green proves only that it can answer. The instrument has to be able to
+say "this failed" about a model that failed, or a green from it means nothing,
+which is why `20302` exists beside `20301`.
+
+**Replay mode, and the verdict is computed in process.** Nothing here reaches a
+provider, and nothing here writes an artifact: section 5 emits observations as
+Allure and JUnit for a downstream collector, so a file-based verdict is that
+collector's concern and not a stage of this chain.
+
+A failure here is our defect, so the module carries no priority marker, per
+``framework-rules.md`` section 3.3.
+"""
+
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from cmn.observations import Observation
+from cmn.verdict import VerdictConfig, verdict
+from evaluation.isolation import UnauthoredMaterial
+from evaluation.pipeline import ObservationContext, evaluate_observation
+from execution.adapters.registry import adapter_for
+from execution.dispatch import DispatchPlan, DispatchSession, dispatch_case
+from execution.replay import FixtureKey, hash_request, record_fixture
+from ingestion.cases import build_evaluation_cases
+from ingestion.schemas import EvaluationCase, GoldenRuleSet, TaskDataSet
+from tests.evaluation.judge_doubles import scoring_judge
+from tests.execution.provider_doubles import ADAPTER_DOUBLES
+
+pytestmark = pytest.mark.system
+
+# A4.1: three observations per case, so the chain is exercised the way a real
+# run exercises it rather than in a shape only this test uses.
+_OBSERVATIONS = 3
+
+_ENGINE = "gemini"
+_TODAY = __import__("datetime").date(2026, 1, 15)
+
+# What the candidate is made to say, and what the rule demands of it. The
+# assertion is `contains`, so the pass and the fail differ by this string alone
+# and nothing else in the chain changes between 20301 and 20302.
+_REQUIRED_PHRASE = "grounded summary"
+_COMPLIANT = "A grounded summary of the posting, with nothing invented."
+_NON_COMPLIANT = "I would rather not answer that."
+
+
+def _rules(payload: dict[str, Any]) -> GoldenRuleSet:
+    """Build a rule set carrying both halves of the dual pass.
+
+    **Both halves deliberately.** A rule with only assertions would leave the
+    judge out of the chain, and a rule with only a rubric would leave the
+    deterministic gate out, so either would prove less than this test claims.
+
+    Args:
+        payload (dict): The minimal rule payload, which carries the rubric.
+
+    Returns:
+        GoldenRuleSet: The rule set, with one `contains` assertion added.
+    """
+    built = dict(payload)
+    built["assertions"] = [
+        {
+            "assertion_id": "MQC_ASR_mentions_summary",
+            "kind": "contains",
+            "parameters": {"value": _REQUIRED_PHRASE},
+            "taxonomy_code": "QC_LLM_CONTEXT_OMISSION",
+            "severity": "violation",
+        }
+    ]
+    rules = GoldenRuleSet.from_dict(built)
+    assert rules.rubric is not None, "the dual pass needs something to judge"
+    return rules
+
+
+def _run_chain(
+    case: EvaluationCase,
+    rules: GoldenRuleSet,
+    reply: str,
+    fixture_root: Path,
+) -> list[Observation]:
+    """Dispatch, evaluate and record one case three times.
+
+    Args:
+        case (EvaluationCase): The built case.
+        rules (GoldenRuleSet): What decides it.
+        reply (str): What the candidate is made to say.
+        fixture_root (Path): Where recorded responses live.
+
+    Returns:
+        list[Observation]: One observation per repeat, carrying the outcome,
+        the score and the engine and model that produced it.
+    """
+    adapter = adapter_for(_ENGINE)()
+    request = adapter.compose_request(case)
+
+    for index in range(_OBSERVATIONS):
+        double = ADAPTER_DOUBLES[_ENGINE].response(text=reply)
+        normalized = adapter.normalize_response(double, case.case_id)
+        record_fixture(
+            fixture_root,
+            FixtureKey(case.case_id, _ENGINE, index),
+            hash_request(request),
+            normalized.as_mapping(),
+            normalized.resolved_model,
+        )
+
+    plan = DispatchPlan(mode="replay", record=False, fixture_root=fixture_root)
+    session = DispatchSession()
+    binding, _ = scoring_judge(candidate_engine=_ENGINE)
+
+    observations: list[Observation] = []
+    for index in range(_OBSERVATIONS):
+        outcome = dispatch_case(case, _ENGINE, plan, session, observation_index=index)
+        assert outcome.measured, "replay produced no measurement from a recorded fixture"
+
+        evaluated = evaluate_observation(
+            ObservationContext(
+                case_id=case.case_id,
+                rules=rules,
+                material=UnauthoredMaterial(
+                    candidate_output=outcome.response.text,
+                    task_instruction=case.task.user_prompt,
+                ),
+            ),
+            binding,
+        )
+        observations.append(
+            Observation(
+                case_id=case.case_id,
+                layer="EVAL",
+                outcome="pass" if evaluated.passed else "fail",
+                observation_index=index,
+                priority=rules.priority,
+                family="code_comprehension",
+                engine=_ENGINE,
+                mode="replay",
+                resolved_model=outcome.response.resolved_model,
+                score=evaluated.score.value if evaluated.score else None,
+                scale_id=evaluated.score.scale_id if evaluated.score else None,
+            )
+        )
+    return observations
+
+
+@pytest.fixture(name="chain")
+def fixture_chain(
+    sample_task_payload: dict[str, Any],
+    sample_rule_payload: dict[str, Any],
+    tmp_path: Path,
+) -> Any:
+    """Return a callable running the whole chain for a given candidate reply.
+
+    Args:
+        sample_task_payload (dict): The minimal task payload.
+        sample_rule_payload (dict): The minimal rule payload, with a rubric.
+        tmp_path (Path): Where fixtures are recorded.
+
+    Returns:
+        Any: A callable taking the reply and returning the observations.
+    """
+    rules = _rules(sample_rule_payload)
+    task = TaskDataSet.from_dict(dict(sample_task_payload))
+    # THE REAL JOIN, not a hand-built case. Building the case by hand would
+    # skip the stage this test exists to include.
+    cases = build_evaluation_cases([task], [rules])
+    assert len(cases) == 1, "the sample corpus should produce exactly one case"
+    case = cases[0]
+
+    def run(reply: str) -> list[Observation]:
+        """Run the chain against one candidate reply.
+
+        Args:
+            reply (str): What the candidate is made to say.
+
+        Returns:
+            list[Observation]: What the run observed.
+        """
+        return _run_chain(case, rules, reply, tmp_path / "replay")
+
+    return run
+
+
+class TestMQCTheWholeChain:
+    """Whether the stages compose, and whether the result can be either answer."""
+
+    def MQC_CMN_SYS_20301_a_compliant_model_runs_the_chain_to_a_green_verdict(
+        self, chain: Any
+    ) -> None:
+        """Corpus, dispatch, dual pass and verdict, joined.
+
+        **Every stage of this is covered alone elsewhere and their composition
+        was covered nowhere.** Gate 7 was written to compute a verdict from a
+        collected artifact and no part of the harness emits one (section 5
+        emits Allure and JUnit), so the pipeline's end had never been reached
+        by anything.
+
+        Returns:
+            None
+        """
+        observations = _passing_precondition() + chain(_COMPLIANT)
+
+        computed = verdict(observations, VerdictConfig(), _TODAY)
+
+        assert computed.green is True, [breach.reason for breach in computed.breaches]
+        assert computed.exit_code == 0
+        assert computed.pass_rate == 1.0
+
+    def MQC_CMN_SYS_20302_a_failing_model_runs_the_chain_to_a_red_verdict(
+        self, chain: Any
+    ) -> None:
+        """The instrument can say no, which is what makes its yes worth reading.
+
+        **A chain that always answers green proves only that it can answer.**
+        This differs from `20301` by the candidate's text alone: same corpus,
+        same adapter, same judge, same rules. So a red here is attributable to
+        the model's output and to nothing else in the chain.
+
+        Returns:
+            None
+        """
+        observations = _passing_precondition() + chain(_NON_COMPLIANT)
+
+        computed = verdict(observations, VerdictConfig(), _TODAY)
+
+        assert computed.green is False
+        # EXIT 1, NOT 3. The run measured something and it failed, which is a
+        # finding about a model rather than a broken instrument.
+        assert computed.exit_code == 1
+        assert computed.pass_rate is not None and computed.pass_rate < 1.0
+
+    def MQC_CMN_SYS_20303_three_observations_of_one_case_reach_the_verdict(
+        self, chain: Any
+    ) -> None:
+        """A4.1 asks for three, and the chain has to carry all three through.
+
+        **Dispatch could satisfy A4.1 and the verdict still see one.** The
+        repeats are requested per observation index, recorded per index and
+        replayed per index, so a break anywhere in that chain collapses three
+        samples into one without failing: the run would look complete and the
+        consistency check would have nothing to compare.
+
+        Returns:
+            None
+        """
+        observations = chain(_COMPLIANT)
+
+        assert len(observations) == _OBSERVATIONS
+        assert {entry.observation_index for entry in observations} == {0, 1, 2}
+        # ONE CASE, THREE OBSERVATIONS, and one model behind all of them.
+        assert len({entry.case_id for entry in observations}) == 1
+        assert len({entry.resolved_model for entry in observations}) == 1
+
+
+def _passing_precondition() -> list[Observation]:
+    """Return the precondition observation every graded run carries.
+
+    A verdict over graded observations alone would breach the distribution
+    rules on a corpus this small, which is a property of the sample rather than
+    of the chain under test.
+
+    Returns:
+        list[Observation]: One passing `UNI` observation.
+    """
+    return [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]

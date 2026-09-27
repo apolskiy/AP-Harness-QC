@@ -128,95 +128,27 @@ jobs:
           path: reports/
           retention-days: 90
 
-  # Gates 4, 5 and 6 as THREE STEPS, not one command. Combining them would emit
-  # one JUnit file where framework-rules.md section 1 requires three, and would
-  # erase the separation that makes SEC its own suite. SEC is exempt from the
-  # distribution ceilings precisely so security coverage never competes with
-  # functional coverage for a budget, and a merged result set makes that
-  # exemption unverifiable from the artifacts alone.
+  # GATES 4 TO 7 ARE NOT HERE, AND THAT IS THE BOUNDARY RATHER THAN AN OMISSION.
+  # They ran `pytest -m evaluator`, `-m tool` and `-m sec` and then computed a
+  # verdict. This repository contains no graded case: CLAUDE.md states that the
+  # harness owns no case data, and the cases live in AP-Model-QC. So all three
+  # markers collected nothing, pytest exited 5, and Gate 7 read a
+  # `collected/results.json` that nothing in this repository writes, because
+  # section 5 of cmn_verdict_and_cli.md emits observations as Allure and JUnit
+  # for a downstream collector. Gate 1 failed first on the first commit that ran
+  # this workflow, so all four were skipped and none of it had ever surfaced.
   #
-  # Every engine, because replay is free. Restricting it to one would discard
-  # coverage for nothing, and a run naming no engine would emit the defaulted
-  # engine warning every time, training readers to ignore the one signal that
-  # says a record is not what it appears to be.
-  graded:
-    name: graded (${{ matrix.engine }}, ${{ matrix.os }})
-    needs: system
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        engine: [gemini, openai, claude]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      # From pyproject.toml, the single declaration. requirements.txt is
-      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
-      # fails the run when the two disagree.
-      - name: Install
-        run: python -m pip install --editable ".[dev]"
-      - name: Gate 4, evaluator
-        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
-      - name: Gate 5, tool-use compliance
-        if: always()
-        run: pytest -m tool --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
-      - name: Gate 6, model security
-        if: always()
-        run: pytest -m sec --engine ${{ matrix.engine }} --mode replay --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: mqc-reports-graded-${{ matrix.engine }}-replay-${{ matrix.os }}
-          path: reports/
-          retention-days: 90
-
-  # Gate 7. Computes the verdict from the emitted artifacts rather than in
-  # process, so a verdict stays recomputable from stored artifacts without
-  # re-running anything.
+  # WHERE EACH ONE LIVES NOW:
+  #   Gates 4 to 6   AP-Model-QC's own gate-on-change.yml, against its cases.
+  #   Gate 7         The same, where a model has actually been measured.
+  #   This harness    regress-consumers-on-merge.yml, which checks out a
+  #                   consumer against this candidate and runs the consumer's
+  #                   deterministic gates. That is how a change here is proved
+  #                   not to break a model run.
   #
-  # The step reports the exit CODE, not only success or failure. 3 and 4 must
-  # not collapse into 1, or CI reads "the harness is broken" as "the model
-  # underperformed", inverting the attribution the whole design protects.
-  verdict:
-    name: verdict
-    needs: graded
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      # From pyproject.toml, the single declaration. requirements.txt is
-      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
-      # fails the run when the two disagree.
-      - name: Install
-        run: python -m pip install --editable ".[dev]"
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: mqc-reports-*
-          path: collected/
-      - name: Gate 7, compute the verdict
-        shell: bash
-        run: |
-          set +e
-          python -m cmn.verdict_tool collected/results.json
-          code=$?
-          set -e
-          {
-            echo "## Verdict"
-            echo ""
-            case "${code}" in
-              0) echo "Green. Every rule satisfied." ;;
-              1) echo "Red. One or more verdict rules breached." ;;
-              2) echo "Configuration defect: the tool was invoked wrongly." ;;
-              3) echo "Precondition failure. Nothing was measured, so this is NOT a model finding." ;;
-              4) echo "Refused. No verdict was computable from this artifact." ;;
-              *) echo "Unrecognised exit code ${code}." ;;
-            esac
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit "${code}"
+  # WHAT REPLACES THEM AS PROOF THE HARNESS WORKS: `MQC_CMN_SYS_20301` through
+  # `20303`, in Gate 3. They run the whole chain on a synthetic corpus, from the
+  # ingestion join through dispatch and the dual pass to a computed verdict, and
+  # assert that it reaches BOTH a green and a red. A harness that cannot report
+  # red about a failing model cannot be trusted when it reports green, and
+  # nothing proved the stages composed until those cases existed.

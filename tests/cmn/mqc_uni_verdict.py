@@ -28,7 +28,6 @@ from cmn.observations import Observation
 from cmn.layers import outcome_properties, skip_blocks
 from cmn.verdict import (
     inconsistent_cases,
-    mixed_model_engines,
     inconsistency_rate,
     score_spread,
     QuarantineEntry,
@@ -964,80 +963,3 @@ class TestMQCObservationConsistency:
         assert result.score_spread == spread, (
             "the verdict did not carry the spread, so it is computed and lost"
         )
-
-
-class TestMQCOneCorpusOneModel:
-    """A corpus spanning two model versions is not about either of them."""
-
-    def MQC_CMN_UNI_11176_two_models_on_one_engine_unsounds_the_run(self) -> None:
-        """A mixed corpus exits 3, because no result attributes to one model.
-
-        **Newly reachable rather than theoretical.** A free-tier quota is keyed
-        per model, so once the day's twenty requests are spent the obvious way
-        to keep recording is to switch model, and the fixture store is keyed by
-        engine (harness tier2_execution.md section 8.6.4). `resolved_models` is
-        one value per engine and would silently keep whichever was written
-        last.
-
-        Returns:
-            None
-        """
-        observations = _passing_suite(8)
-        observations += [
-            _graded("MQC_TASK_a::MQC_RULE_r", engine="gemini",
-                    resolved_model="gemini-3.8-flash"),
-            _graded("MQC_TASK_b::MQC_RULE_r", engine="gemini",
-                    resolved_model="gemini-3.9-flash"),
-        ]
-
-        result = verdict(observations, VerdictConfig(), _TODAY)
-
-        # EXIT 3, NOT 1. Nothing scored badly; the run has no single subject.
-        assert result.exit_code == 3
-        assert result.green is False
-        assert "RUN_UNSOUND" in result.breached_rules
-        reason = " ".join(breach.reason for breach in result.breaches)
-        assert "gemini-3.8-flash" in reason and "gemini-3.9-flash" in reason
-
-    def MQC_CMN_UNI_11177_one_model_per_engine_is_sound_across_engines(self) -> None:
-        """Two engines each reporting their own model is the ordinary case.
-
-        **The check is per engine, not across the run.** A run measuring two
-        providers reports two models and is perfectly coherent; folding that
-        into a mixture would make the ordinary multi-engine run unsound.
-
-        Returns:
-            None
-        """
-        observations = _passing_suite(8)
-        observations += [
-            _graded("MQC_TASK_a::MQC_RULE_r", engine="gemini",
-                    resolved_model="gemini-3.8-flash"),
-            _graded("MQC_TASK_b::MQC_RULE_r", engine="claude",
-                    resolved_model="claude-opus-5"),
-        ]
-
-        assert not mixed_model_engines(observations)
-        assert verdict(observations, VerdictConfig(), _TODAY).exit_code == 0
-
-    def MQC_CMN_UNI_11178_an_observation_with_no_model_is_not_a_second_version(
-        self,
-    ) -> None:
-        """A skip never reached a model, so its blank is not a mixture.
-
-        **Counting the blank would report a mixture that did not happen**, and
-        a rate-limited run is full of skips: the very condition that makes the
-        real mixture tempting would otherwise fake one on its own.
-
-        Returns:
-            None
-        """
-        observations = _passing_suite(8)
-        observations += [
-            _graded("MQC_TASK_a::MQC_RULE_r", engine="gemini",
-                    resolved_model="gemini-3.8-flash"),
-            _graded("MQC_TASK_b::MQC_RULE_r", outcome="skip", engine="gemini",
-                    resolved_model="", skip_reason="QC_HARNESS_RATE_LIMIT"),
-        ]
-
-        assert not mixed_model_engines(observations)

@@ -339,6 +339,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0082` | A run whose observations for one engine name more than one resolved model is unsound and exits 3, while two engines each naming their own model remain sound and an observation with no model is not counted as a second version | cmn_verdict_and_cli.md section 4.9.6 |
 | `MQC_REQ_HAR_CMN_0083` | Every environment variable a registered adapter reads has a settable line in .env.example, so adding an engine cannot leave its credential documented nowhere a reader would look | .env.example, and design section 3.5 on adapter-declared values |
 | `MQC_REQ_HAR_CMN_0084` | The case and requirement counts stated in README.md are recomputed from the design inventories and the traceability matrix, so the repository's front page cannot describe a project it no longer is | cmn_verdict_and_cli.md section 4.9.7 |
+| `MQC_REQ_HAR_CMN_0085` | The whole chain, from the ingestion join through replay dispatch and the dual evaluation pass to a computed verdict, reaches both a green and a red verdict, and carries all three observations of a case through to the verdict | cmn_verdict_and_cli.md section 11.2 |
 
 ---
 
