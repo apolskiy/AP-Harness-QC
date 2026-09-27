@@ -32,7 +32,7 @@ env:
 jobs:
   probe:
     name: probe model versions
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Secrets live in an environment, which makes them unreachable from any
     # workflow that does not name it. That is A1 made structural rather than
     # conventional.
@@ -40,8 +40,8 @@ jobs:
     outputs:
       changed_engines: ${{ steps.probe.outputs.changed_engines }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       # From pyproject.toml, the single declaration. requirements.txt is
@@ -78,7 +78,7 @@ jobs:
     name: dispatch live evaluation
     needs: probe
     if: needs.probe.outputs.changed_engines != ''
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Dispatch the changed engines
         env:
@@ -102,7 +102,7 @@ jobs:
     name: report probe failure
     needs: probe
     if: failure()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Record a harness event
         shell: bash

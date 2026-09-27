@@ -57,17 +57,17 @@ env:
 jobs:
   debug:
     name: debug
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Named only because mode may be live. Gating derives from selection mode,
     # precondition execution and run context, none of which a credential
     # touches, so this run stays ungated whatever the environment grants.
     environment: live
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install
@@ -140,7 +140,7 @@ jobs:
           echo "passes=${passes}" >> "$GITHUB_OUTPUT"
           echo "attempts=${attempts}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           # Does not begin with the collector prefix, so exclusion does not

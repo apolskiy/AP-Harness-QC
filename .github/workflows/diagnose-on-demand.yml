@@ -68,7 +68,7 @@ jobs:
     # May name a single platform. The both-platforms rule binds gate-on-change
     # and evaluate-live-weekly; it does not bind this workflow, which yields no
     # verdict either way.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Named because section 6.4 specifies two diagnostic combinations that run
     # live. A1's boundary is TRIGGER TRUST, not workflow count: this workflow is
     # manual-dispatch only, which cannot be fired from a fork or by a pull
@@ -86,7 +86,7 @@ jobs:
       # completely. If the current harness scores a checkpoint's responses
       # differently than it did then, nothing about the model is involved.
       - name: Check out the code ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.code_ref || github.ref }}
           fetch-depth: 0
@@ -108,7 +108,7 @@ jobs:
           echo "sha=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
           echo "diverged=true" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       # From pyproject.toml, the single declaration. requirements.txt is
@@ -150,7 +150,7 @@ jobs:
       # EXCLUSION MECHANISM 1: the name does not begin with mqc-reports-, so
       # exclusion does not depend on a negative match, which is the kind of
       # pattern that breaks quietly when someone edits it.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: scratch-diagnose-${{ github.run_id }}
@@ -204,7 +204,7 @@ jobs:
     name: notify
     needs: diagnose
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Announce the transition
         shell: bash

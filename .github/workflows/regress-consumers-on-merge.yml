@@ -45,7 +45,7 @@ jobs:
   # an entry in config/consumers.yaml rather than a change here.
   enumerate:
     name: read the consumer registry
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # A gate that did not conclude success says nothing was established about
     # this commit, so there is nothing to fan out from. The schedule and a
     # manual dispatch carry no workflow_run payload and are unaffected.
@@ -61,13 +61,19 @@ jobs:
       # gate actually passed on, and the branch may already have moved past it.
       # Checking out the branch here would fan out from a commit no gate has
       # seen, which is the window section 3C.2 closes on the consumer side.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install PyYAML
+      # PYYAML, AND NOTHING ELSE. This job only reads the consumer registry to
+      # build the matrix, so it needs a YAML parser and nothing from the harness
+      # it is about to hand to a consumer.
+      #
+      # The version matches the `pyyaml` pin in `pyproject.toml`; it is repeated
+      # here because a workflow cannot read that file before Python is installed.
+      - name: Install PyYAML for the registry read
         run: python -m pip install --quiet "pyyaml>=6.0,<7.0"
       - name: Build the matrix
         id: read
@@ -106,7 +112,7 @@ jobs:
     name: verify ${{ matrix.consumer.name }} (${{ matrix.consumer.ref }})
     needs: enumerate
     if: needs.enumerate.outputs.consumers != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       # One consumer failing says nothing about the others, and cancelling the
       # rest would discard the answer for every consumer that was fine.
@@ -115,7 +121,7 @@ jobs:
         consumer: ${{ fromJson(needs.enumerate.outputs.consumers) }}
     steps:
       - name: Check out this harness candidate
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ needs.enumerate.outputs.harness_sha }}
           path: harness
@@ -129,7 +135,7 @@ jobs:
       - name: Check out the consumer
         id: fetch
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ matrix.consumer.repository }}
           ref: ${{ matrix.consumer.ref }}
@@ -154,7 +160,7 @@ jobs:
             echo "consumer's result is affected."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: steps.fetch.outcome == 'success'
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -167,7 +173,11 @@ jobs:
           # is the entire experiment: the consumer's own cases, run against the
           # harness as it stands here rather than as it stands on the ref the
           # consumer declared.
-          python -m pip install --quiet --editable ./harness
+          # THE `[dev]` EXTRA IS WHAT INSTALLS THE TOOLCHAIN. Without it the
+          # consumer's gate reported `pytest: command not found`, exit 127, which
+          # read as a consumer failure and was ours. The consumer stays
+          # `--no-deps` so its own harness pin cannot replace this candidate.
+          python -m pip install --quiet --editable "./harness[dev]"
           python -m pip install --quiet --no-deps --editable ./consumer
 
       - name: Run the consumer's deterministic gates
@@ -175,7 +185,7 @@ jobs:
         working-directory: consumer
         run: ${{ matrix.consumer.command }} --junitxml=reports/junit_consumer.xml
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always() && steps.fetch.outcome == 'success'
         with:
           name: mqc-reports-consumer-${{ matrix.consumer.name }}-none-replay
@@ -194,7 +204,7 @@ jobs:
     name: report
     needs: [enumerate, verify]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Summarise
         shell: bash

@@ -163,7 +163,7 @@ Each declares `needs` on its predecessor, so a precondition failure leaves the n
 
 #### 3.1.2 Every job runs on both operating systems
 
-`ubuntu-latest` and `windows-latest`, as **separate jobs with `fail-fast: false`**, for the reason B9 gives for engines: the default would let one platform's failure cancel the other, and a collapsed job lets a pass on one platform mask a failure on the other.
+`ubuntu-24.04` and `windows-latest`, as **separate jobs with `fail-fast: false`**, for the reason B9 gives for engines: the default would let one platform's failure cancel the other, and a collapsed job lets a pass on one platform mask a failure on the other. **The Ubuntu image is pinned and the Windows label is not**, for the reasons in `DESIGN.md` section 5.0.2.
 
 | Job | Platforms |
 |---|---|

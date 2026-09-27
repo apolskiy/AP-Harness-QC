@@ -295,11 +295,40 @@ The harness is Python and adopters run it on machines this project did not choos
 
 | | Verified by CI | Claimed |
 |---|---|---|
-| Linux | `ubuntu-latest` | Ubuntu 22.04 or later, and glibc distributions such as CentOS Stream |
-| Windows | `windows-latest`, which is Windows Server 2022 | Windows 11 or later |
+| Linux | `ubuntu-24.04`, pinned | Ubuntu 22.04 or later, and glibc distributions such as CentOS Stream |
+| Windows | `windows-latest`, the current Windows Server image | Windows 11 or later |
 | macOS | Not run | **Not claimed** |
 
 `windows-latest` is not Windows 11. It shares the same path, filesystem and encoding semantics, so the claim holds, but what CI proves is the runner image.
+
+#### 5.0.2 The Ubuntu image is pinned, and the Windows one is not yet
+
+Changed 2026-09-26. **`ubuntu-latest` was a moving label**, and GitHub announced it
+migrating to Ubuntu 26 on 19 October 2026, which it warns about on every run.
+
+**Pinning is the engineering answer here rather than warning suppression.**
+`code-style.md` section 8 exists because a platform difference that silently
+changes a value is worse than one that raises: an encoding default, a path
+separator, a filesystem's case sensitivity. An OS major arriving unannounced is
+exactly that class of change, and it would arrive on a green branch with nothing
+attributing it.
+
+| | Moving label | Pinned image |
+|---|---|---|
+| An OS major arrives | Unannounced, on somebody's unrelated commit | When this line is edited |
+| Maintenance | None | **A deliberate bump, and a run that proves it** |
+| Warning noise | On every run, until it is not a warning | None |
+
+**The cost is real and is accepted:** a pinned image stops receiving the newer
+OS's coverage, so Ubuntu 26 compatibility is unknown until the pin moves. That is
+the trade this project already makes everywhere else, preferring a failure that
+names its cause to a difference nobody attributed.
+
+**Windows stays on the moving label** because GitHub has announced no migration
+for it, and pinning a label this project has not verified would risk a red run to
+remove a warning that does not exist. The stale claim that `windows-latest` is
+Windows Server 2022 is corrected above: it moved, which is the same argument for
+pinning it when a migration is announced.
 
 **macOS is a known gap, not an oversight.** It is excluded because no machine is available here to reproduce a failure on, and a CI leg nobody can debug is a liability rather than coverage. Its two risk axes are each covered individually, POSIX paths by Ubuntu and a case-insensitive filesystem by Windows; only the combination is untested. Reasoning in A18.
 
