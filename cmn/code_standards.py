@@ -34,9 +34,20 @@ COPYRIGHT_TAG: Final[str] = "SPDX-FileCopyrightText:"
 # `logs` holds untracked working output, including the prompt log, which
 # is never committed because it is the one place a credential could be
 # pasted. The header rule binds tracked files.
+# TREES THIS REPOSITORY DOES NOT AUTHOR. Vendored code, build output and tool
+# caches, none of which a licence header belongs in.
+#
+# THE CACHES ARRIVED 2026-09-26, FROM A CI FAILURE THAT COULD NOT REPRODUCE
+# LOCALLY. `pytest` writes `.pytest_cache/README.md`, which this scan read as a
+# document the repository owns. It passed here and failed in CI for the worst
+# possible reason: an earlier header pass had written a header INTO the local
+# copy, so the local tree carried a property a fresh checkout did not, and the
+# check was measuring the leftovers of its own remediation.
 SKIPPED_TREES: Final[frozenset[str]] = frozenset(
     {"venv", ".venv", "build", "dist", "__pycache__", ".git",
-     "node_modules", "logs"}
+     "node_modules", "logs",
+     ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox",
+     "htmlcov", ".eggs", "reports", "allure-results"}
 )
 
 
@@ -183,14 +194,20 @@ LICENCE_FILES: Final[frozenset[str]] = frozenset({"LICENSE", "NOTICE"})
 
 
 def markup_sources(root: Path) -> list[Path]:
-    """Return every tracked document and data file.
+    """Return every document and data file the repository authors.
+
+    **It walks the filesystem rather than asking git**, so "authors" is decided
+    by :data:`SKIPPED_TREES` rather than by what is tracked. An earlier version
+    of this docstring said "tracked", which was not what the code did and hid a
+    real difference: a generated file in an ignored directory is untracked and
+    was still being read.
 
     Args:
         root (Path): The repository root.
 
     Returns:
-        list[Path]: Sorted markdown and YAML paths, excluding vendored trees
-        and the licence files themselves.
+        list[Path]: Sorted markdown and YAML paths, excluding the trees in
+        :data:`SKIPPED_TREES` and the licence files themselves.
     """
     found: list[Path] = []
     for suffix in sorted(MARKUP_STYLES):

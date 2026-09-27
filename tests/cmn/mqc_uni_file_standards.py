@@ -143,6 +143,55 @@ class TestMQCMarkupHeaders:
         )
 
 
+    def MQC_CMN_UNI_11182_a_generated_file_in_a_skipped_tree_is_not_read(
+        self, tmp_path: Path
+    ) -> None:
+        """A tool cache is not a document this repository authors.
+
+        **`11140` caught this and only by accident.** `pytest` writes
+        `.pytest_cache/README.md`, the scan read it as a document, and it
+        passed locally because an earlier header pass had written a header into
+        the local copy. A fresh checkout had no such file, so CI failed on a
+        commit that was green here, and the check was measuring the leftovers of
+        its own remediation.
+
+        **This case does not depend on a cache being dirty.** It builds the
+        condition, which is the difference between a check that happens to
+        notice and one that cannot miss: `11140` only fails when the working
+        tree's cache is clean, and a developer who has ever run the header pass
+        does not have one.
+
+        Args:
+            tmp_path (Path): A tree to plant the generated file in.
+
+        Returns:
+            None
+        """
+        authored = tmp_path / "docs" / "real.md"
+        authored.parent.mkdir(parents=True)
+        authored.write_text(
+            "<!--\nSPDX-License-Identifier: Apache-2.0\n-->\n", encoding="utf-8"
+        )
+
+        for tree in (".pytest_cache", "__pycache__", "reports"):
+            generated = tmp_path / tree / "README.md"
+            generated.parent.mkdir(parents=True)
+            generated.write_text(
+                "# generated, and nobody signed it #\n", encoding="utf-8"
+            )
+
+        found = markup_sources(tmp_path)
+
+        assert authored in found, "the authored document was not read"
+        # THE AUTHORED FILE AND NOTHING ELSE. An earlier version of this asserted
+        # only that the authored file appeared, which every generated file also
+        # satisfied: it passed with the exclusion removed, which is the vacuous
+        # shape this project checks for by injection.
+        assert found == [authored], (
+            f"a generated file was read as an authored one: "
+            f"{[str(source.relative_to(tmp_path)) for source in found]}"
+        )
+
 class TestMQCRunbook:
     """The operating procedure, checked against the workflows it describes."""
 

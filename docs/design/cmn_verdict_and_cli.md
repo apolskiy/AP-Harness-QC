@@ -734,10 +734,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11179` | N | `every_declared_credential_appears_in_the_example` |
 | `11180` | N | `a_readme_count_disagreeing_with_the_designs_is_reported` |
 | `11181` | N | `an_installed_gating_tool_outside_its_pin_is_reported` |
+| `11182` | N | `a_generated_file_in_a_skipped_tree_is_not_read` |
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 178 cases, 101 negative, 56 positive, 21 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 179 cases, 102 negative, 56 positive, 21 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -919,6 +920,39 @@ verdict on every other case at once, and says nothing.
 section 5.0.1: a local environment holding a property CI did not, which made the
 local run the stronger check while appearing to be the weaker one. Here it ran the
 other way, and the asymmetry is the point rather than its direction.
+
+### 10.36 The header scan reached files nobody wrote
+
+Added 2026-09-26, from a CI failure that would not reproduce locally.
+
+`pytest` writes `.pytest_cache/README.md`. The markup scan read it as a document
+this repository authors, so `11140` reported it as missing an SPDX header. **It
+passed here and failed in CI**, and the reason is the worst available one: an
+earlier header pass had written a header **into the local copy**, so the working
+tree carried a property a fresh checkout did not, and the check was measuring the
+leftovers of its own remediation.
+
+**The docstring said "tracked" and the code walked the filesystem.** Those are
+different sets, and a generated file in a gitignored directory is in exactly the
+gap between them. The docstring is corrected to say what the code does, and
+`SKIPPED_TREES` gains the tool caches and build output: `.pytest_cache`,
+`.mypy_cache`, `.ruff_cache`, `.tox`, `htmlcov`, `.eggs`, `reports` and
+`allure-results`.
+
+**`11182` builds the condition rather than waiting for it.** `11140` fails only
+when the working tree's cache is clean, and a developer who has run the header
+pass does not have one, so it was a check that happened to notice rather than one
+that could not miss. `11182` plants a generated file in three skipped trees and
+asserts the scan returns the authored document and nothing else.
+
+**Its first version was vacuous and injection caught it.** It asserted only that
+the authored file appeared, which every generated file also satisfied, and it
+passed with the exclusion removed.
+
+**One fix served both repositories.** `markup_sources` lives in `cmn` and both
+call it with their own root, which is the arrangement section 5.1 of
+`consumer_ci.md` describes. The consumer had the same stale header in its own
+cache and would have failed identically once its resolver let it reach Gate 2.
 
 ## 11. Test Inventory: `MQC_CMN_SYS_`
 

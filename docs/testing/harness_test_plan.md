@@ -341,6 +341,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0084` | The case and requirement counts stated in README.md are recomputed from the design inventories and the traceability matrix, so the repository's front page cannot describe a project it no longer is | cmn_verdict_and_cli.md section 4.9.7 |
 | `MQC_REQ_HAR_CMN_0085` | The whole chain, from the ingestion join through replay dispatch and the dual evaluation pass to a computed verdict, reaches both a green and a red verdict, and carries all three observations of a case through to the verdict | cmn_verdict_and_cli.md section 11.2 |
 | `MQC_REQ_HAR_CMN_0086` | The installed versions of the tools that gate CI satisfy the pins declared in pyproject.toml, so a local gate result predicts the CI one | cmn_verdict_and_cli.md section 10.35 |
+| `MQC_REQ_HAR_CMN_0087` | The document and data scan reads only files the repository authors, so a generated file in a tool cache or build directory is never reported as missing a licence header | cmn_verdict_and_cli.md section 10.36 |
 
 ---
 
