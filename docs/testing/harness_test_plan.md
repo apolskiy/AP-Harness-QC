@@ -340,6 +340,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0083` | Every environment variable a registered adapter reads has a settable line in .env.example, so adding an engine cannot leave its credential documented nowhere a reader would look | .env.example, and design section 3.5 on adapter-declared values |
 | `MQC_REQ_HAR_CMN_0084` | The case and requirement counts stated in README.md are recomputed from the design inventories and the traceability matrix, so the repository's front page cannot describe a project it no longer is | cmn_verdict_and_cli.md section 4.9.7 |
 | `MQC_REQ_HAR_CMN_0085` | The whole chain, from the ingestion join through replay dispatch and the dual evaluation pass to a computed verdict, reaches both a green and a red verdict, and carries all three observations of a case through to the verdict | cmn_verdict_and_cli.md section 11.2 |
+| `MQC_REQ_HAR_CMN_0086` | The installed versions of the tools that gate CI satisfy the pins declared in pyproject.toml, so a local gate result predicts the CI one | cmn_verdict_and_cli.md section 10.35 |
 
 ---
 

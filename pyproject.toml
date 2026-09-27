@@ -45,6 +45,12 @@ dev = [
     "pytest>=9.1,<10.0",
     "allure-pytest>=2.13,<3.0",
     "pylint>=3.3,<4.0",
+    # READS THE PINS ABOVE, so it cannot be one of the things drifting. pylint
+    # and pytest both pull it in transitively, and MQC_CMN_UNI_11181 imports it
+    # to compare an installed version against a declared specifier: relying on
+    # a transitive arrival is the same arrangement the note below calls the
+    # worse of the two.
+    "packaging>=24.0",
     # NOT a convenience. It shuffles test order every run, and the suite depends
     # on that: the extension cases register a layer, an outcome and a verdict
     # rule and then remove each one, and a cleanup that failed would change the

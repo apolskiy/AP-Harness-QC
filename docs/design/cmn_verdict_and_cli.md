@@ -733,10 +733,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11178` | B | `an_observation_with_no_model_is_not_a_second_version` |
 | `11179` | N | `every_declared_credential_appears_in_the_example` |
 | `11180` | N | `a_readme_count_disagreeing_with_the_designs_is_reported` |
+| `11181` | N | `an_installed_gating_tool_outside_its_pin_is_reported` |
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 177 cases, 100 negative, 56 positive, 21 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 178 cases, 101 negative, 56 positive, 21 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -890,6 +891,34 @@ two that are named.
 That is the exact failure the gating rules exist to prevent, arriving through a flag nobody had registered. The selector registry is what makes it impossible rather than merely unlikely, which is why `10164` is parametrized over that registry rather than over a written list.
 
 ---
+
+### 10.35 The installed toolchain is checked against the declared pin
+
+Added 2026-09-26, from a bug rather than a review.
+
+**`pyproject.toml` pinned `pylint>=3.3,<4.0` and 4.0.6 was installed locally.**
+Gate 1 exited **0** here and **8** in CI on the same commit, because the newer
+pylint counts `self` differently against `max-args`. Two commits were pushed on
+the strength of a local run that was measuring a different tool.
+
+**`11108` could not catch it.** It regenerates the requirements files from
+`pyproject.toml`, so it verifies that what is *declared* agrees with itself.
+Nothing verified that what is *installed* agrees with the declaration, and the
+declaration is what CI installs from.
+
+| Checked | By |
+|---|---|
+| The generated files match the declaration | `11108` |
+| **The installed tool satisfies the declaration** | **`11181`** |
+
+**Scoped to the tools that gate**, `pylint` and `pytest`. A drifting library
+changes behaviour and some case says so; a drifting linter or runner changes the
+verdict on every other case at once, and says nothing.
+
+**This is the same failure as the random-ordering plugin** recorded in `DESIGN.md`
+section 5.0.1: a local environment holding a property CI did not, which made the
+local run the stronger check while appearing to be the weaker one. Here it ran the
+other way, and the asymmetry is the point rather than its direction.
 
 ## 11. Test Inventory: `MQC_CMN_SYS_`
 

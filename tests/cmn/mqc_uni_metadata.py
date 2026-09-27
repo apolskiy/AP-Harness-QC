@@ -25,10 +25,12 @@ import csv
 import re
 import sys
 import tomllib
+from importlib import metadata
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pytest
+from packaging.specifiers import SpecifierSet
 
 from cmn.metadata import (
     DiagnosticSummary,
@@ -131,6 +133,20 @@ def _graded(**overrides: Any) -> Observation:
     payload.update(overrides)
     return Observation(**payload)
 
+
+def _requirement_name(entry: str) -> Optional[str]:
+    """Return the distribution name a requirement string begins with.
+
+    Args:
+        entry (str): A requirement such as ``pylint>=3.3,<4.0``.
+
+    Returns:
+        Optional[str]: The name, or ``None`` where the entry carries no name
+        this simply, such as a URL requirement. **None rather than a guess**,
+        because a wrong name would silently report a tool as unpinned.
+    """
+    found = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", entry.strip())
+    return found.group(1) if found is not None else None
 
 class TestMQCTaxonomyRegistryConsistency:
     """Every emitted code registered, and every registered code accounted for."""
@@ -606,6 +622,55 @@ class TestMQCDependencyDeclaration:
                 f"{path.name} disagrees with pyproject.toml; regenerate it with "
                 f"python tools/generate_requirements.py"
             )
+
+    def MQC_CMN_UNI_11181_an_installed_gating_tool_outside_its_pin_is_reported(
+        self,
+    ) -> None:
+        """A local pylint outside the pin reports a different result from CI.
+
+        **This case exists because it happened.** `pyproject.toml` pins
+        `pylint>=3.3,<4.0` and 4.0.6 was installed locally. Gate 1 exited 0
+        here and 8 in CI, on the same commit, because the newer pylint counts
+        `self` differently against `max-args`. Two commits were pushed on the
+        strength of a local run that was measuring a different tool.
+
+        **`11108` cannot catch this.** It compares the generated requirements
+        files against `pyproject.toml`, so it verifies what is *declared* agrees
+        with itself. Nothing verified what is *installed* agrees with the
+        declaration, and the declaration is what CI installs from.
+
+        **Scoped to the tools that gate**, which is pylint and pytest. A drifting
+        library changes behaviour and the suite says so; a drifting linter or
+        runner changes the verdict on every other case at once, silently.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        _, development = read_declaration(root / "pyproject.toml")
+        pinned = {
+            name.lower(): spec
+            for name, spec in (
+                (_requirement_name(entry), entry) for entry in development
+            )
+            if name is not None
+        }
+
+        wrong: list[str] = []
+        for tool in ("pylint", "pytest"):
+            spec = pinned.get(tool)
+            if spec is None:
+                wrong.append(f"{tool} gates a CI step and is not pinned at all")
+                continue
+            installed = metadata.version(tool)
+            if not SpecifierSet(spec[len(tool):]).contains(installed, prereleases=True):
+                wrong.append(f"{tool} {installed} is installed against the pin {spec}")
+
+        assert not wrong, (
+            "the installed toolchain does not satisfy what CI installs from, so a "
+            f"local gate result does not predict the CI one: {wrong}. Run "
+            f"`python -m pip install --editable \".[dev]\"` to align them"
+        )
 
     def MQC_CMN_UNI_11109_every_imported_package_is_declared(self) -> None:
         """A dependency the code imports and nothing declares breaks a clean install.
