@@ -942,6 +942,7 @@ the only thing the reader of an artifact actually needs from it:
 |---|---|---|---|---|
 | `400` | `QC_HARNESS_REQUEST_REJECTED` | **Ours** | No | Fix how the request is composed |
 | `401` | `QC_HARNESS_AUTH_ERROR` | Ours | No | Fix the credential |
+| `402` | `QC_HARNESS_CREDIT_EXHAUSTED` | **Environmental** | No | Add credit. **The credential is valid**, which is why this is not the auth code |
 | `403` | `QC_HARNESS_AUTH_ERROR` | Ours | No | Fix the credential or its grants |
 | `404` | `QC_HARNESS_VERSION_UNAVAILABLE` | Ours | No | Fix the model name (A3.1) |
 | `429` | `QC_HARNESS_RATE_LIMIT` | **Neither** | **Conditional** | Widen `spacing_sec` for a per-minute rate; wait for the reset where the period is spent (section 8.6.4) |
@@ -1258,6 +1259,34 @@ alternative is rediscovering it as a run that appears to hang. A paid tier
 removes it; until then live recording is a multi-day activity and `--fill-gaps`
 is what makes it resumable.
 
+#### 8.6.5 402 is the balance, not the credential
+
+Added 2026-09-28, the day the project first held prepaid credit.
+
+**Until there was money, this status could not occur.** A free-tier key returns
+429 when its allowance is spent; a paid key with an empty balance returns **402**,
+and Gemini stops every key on the billing account at once when prepay credit
+reaches zero.
+
+It fell through to `QC_HARNESS_PARSER_ERROR`, the catch-all. So at the moment the
+true cause was "the balance is empty", a run would have reported that it could not
+parse something.
+
+| | 401 | 402 |
+|---|---|---|
+| The credential | Rejected | **Valid** |
+| The remedy | A new key | **Money** |
+| Level | Ours | Environmental |
+| Retryable | No | No |
+
+**Not folded into the auth code**, because the remedies do not overlap and the
+wrong one wastes the most time: rotating a working key while the account is empty
+changes nothing and looks like it should. `.env.example` already draws the same
+distinction in prose, and this makes it a code.
+
+**Environmental, like the no-credit variant of 429** (section 8.6), so nothing
+retries it: no wait a run can afford produces funds.
+
 ## 9. Conformance Suite
 
 Per `extensibility_standard.md` section 10, registration enrols an adapter automatically. The battery asserts:
@@ -1400,6 +1429,13 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10295` | N | `a_spent_quota_period_abandons_its_remaining_attempts` |
 | `10296` | B | `a_rate_limit_of_unknown_period_keeps_its_retries` |
 | `10297` | P | `gemini_reads_the_spent_period_from_the_quota_id` |
+| `10298` | P | `every_adapter_reports_the_four_token_counts` |
+| `10299` | B | `thinking_is_counted_only_where_reported_separately` |
+| `10300` | B | `a_response_carrying_no_usage_reports_zero_not_an_error` |
+| `10301` | N | `a_run_at_its_spend_ceiling_dispatches_nothing_further` |
+| `10302` | P | `a_run_with_no_ceiling_is_unchanged` |
+| `10303` | N | `a_ceiling_against_an_unpriced_model_stops_the_run` |
+| `10304` | N | `an_empty_balance_is_its_own_code_not_an_auth_failure` |
 | `10271` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
@@ -1416,7 +1452,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 102 cases, 41 negative, 54 positive, 7 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 109 cases, 44 negative, 56 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

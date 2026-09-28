@@ -32,6 +32,7 @@ from typing import Any, Final, Optional
 
 import openai
 
+from cmn.tokens import TokenUsage
 from execution.adapters.base import (
     Capabilities,
     ConfiguredAdapter,
@@ -188,16 +189,50 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
             NormalizedResponse: The only shape that crosses into Tier 3.
         """
         choice = response.choices[0]
-        usage = getattr(response, "usage", None)
         return self.build_response(
             case_id,
             ProviderFacts(
                 text=choice.message.content or "",
                 tool_calls=self.extract_tool_calls(response),
-                output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                usage=self.read_usage(response),
                 finish_reason=_FINISH_REASONS.get(choice.finish_reason, "unknown"),
-                raw_reference=str(getattr(response, "id", "") or ""),
+                raw_reference=self.raw_reference_of(response),
                 resolved_model=self.resolve_model_version(response),
+            ),
+        )
+
+    def usage_from(self, usage: Any) -> TokenUsage:
+        """Return this protocol's counts.
+
+        **Nested, unlike the other two.** Reasoning and cached input are
+        reported inside `*_tokens_details`, which is absent on a response that
+        had neither, so both reads tolerate the absence rather than assuming the
+        object.
+
+        Args:
+            usage (Any): A completion usage object.
+
+        Returns:
+            TokenUsage: The counts.
+        """
+        return TokenUsage(
+            input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+            output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+            thinking_tokens=int(
+                getattr(
+                    getattr(usage, "completion_tokens_details", None),
+                    "reasoning_tokens",
+                    0,
+                )
+                or 0
+            ),
+            cached_input_tokens=int(
+                getattr(
+                    getattr(usage, "prompt_tokens_details", None),
+                    "cached_tokens",
+                    0,
+                )
+                or 0
             ),
         )
 

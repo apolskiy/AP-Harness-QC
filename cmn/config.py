@@ -257,13 +257,13 @@ def load_quarantine(path: Path) -> list[QuarantineEntry]:
             QuarantineEntry(
                 case_id=str(entry["case_id"]),
                 reason=str(entry["reason"]),
-                expires_on=_coerce_date(entry["expires_on"], path),
+                expires_on=coerce_date(entry["expires_on"], path),
             )
         )
     return entries
 
 
-def _coerce_date(value: Any, path: Path) -> date:
+def coerce_date(value: Any, path: Path) -> date:
     """Turn a configured value into a date.
 
     Args:

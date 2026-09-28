@@ -26,6 +26,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Optional
 
+from cmn.tokens import TokenUsage
 from cmn.config import (
     load_engines,
     load_judge_engine,
@@ -140,6 +141,11 @@ class JudgeChannel:
         self._adapter = adapter_for(engine)(model)
         self._session = DispatchSession(spacing_sec=spacing_sec)
         self._keep_connection = keep_connection
+        # WHAT THE JUDGE HAS COST SO FAR, accumulated because a run asks
+        # once at the end and a single judgement cannot answer it. Replayed
+        # judgements add nothing, which is correct: a stored reply was paid for
+        # when it was recorded, not when it is read.
+        self._usage = TokenUsage()
         self._plan = plan or JudgementPlan()
 
     @property
@@ -205,7 +211,14 @@ class JudgeChannel:
 
         self._session.wait_for_slot()
         try:
-            reply = self._adapter.parse_judgement(self._adapter.dispatch(composed))
+            # THE RAW RESPONSE IS HELD LONG ENOUGH TO READ ITS USAGE.
+            # `parse_judgement` returns a dict, so dispatching straight into it
+            # discarded every token count the judge had just billed for. The
+            # judge is the expensive half of a graded case: its input carries the
+            # rubric, the anchors and the candidate's response.
+            raw = self._adapter.dispatch(composed)
+            self._usage = self._usage + self._adapter.read_usage(raw)
+            reply = self._adapter.parse_judgement(raw)
         except ValueError:
             # ALREADY OURS AND ALREADY SHAPED. `parse_judgement` raises this
             # carrying its own code, and the pipeline reads it.
@@ -264,6 +277,18 @@ class JudgeChannel:
             self._plan.fixture_root, key, request_hash, self._adapter.requested_model
         )
         return dict(stored.reply)
+
+    @property
+    def usage(self) -> TokenUsage:
+        """Return every token this channel's judge has billed for.
+
+        Returns:
+            TokenUsage: The running total across every live judgement this
+            channel obtained. **Replayed judgements contribute nothing**,
+            because a stored reply was paid for when it was recorded; counting
+            it again would make a replay run look like it spent money.
+        """
+        return self._usage
 
     def release(self) -> None:
         """Drop the judge's connection.

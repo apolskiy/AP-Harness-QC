@@ -26,6 +26,7 @@ from typing import Any, Final
 import httpx
 from google import genai
 
+from cmn.tokens import TokenUsage
 from execution.adapters.base import (
     Capabilities,
     ConfiguredAdapter,
@@ -184,7 +185,6 @@ class GeminiAdapter(ConfiguredAdapter):
             NormalizedResponse: The only shape that crosses into Tier 3.
         """
         tool_calls = self.extract_tool_calls(response)
-        usage = getattr(response, "usage_metadata", None)
         return self.build_response(
             case_id,
             ProviderFacts(
@@ -193,10 +193,33 @@ class GeminiAdapter(ConfiguredAdapter):
                     if getattr(part, "text", None)
                 ),
                 tool_calls=tool_calls,
-                output_tokens=int(getattr(usage, "candidates_token_count", 0) or 0),
+                usage=self.read_usage(response),
                 finish_reason=self._finish_reason(response, tool_calls),
-                raw_reference=str(getattr(response, "response_id", "") or ""),
+                raw_reference=self.raw_reference_of(response),
                 resolved_model=self.resolve_model_version(response),
+            ),
+        )
+
+    def usage_from(self, usage: Any) -> TokenUsage:
+        """Return Gen AI's four counts.
+
+        **`thoughts_token_count` is the count that was costing money
+        invisibly.** Gen AI reports thinking apart from `candidates_token_count`
+        and bills it at the output rate, so reading only the visible count
+        understates the bill by however much the model thought.
+
+        Args:
+            usage (Any): A `usage_metadata` object.
+
+        Returns:
+            TokenUsage: The counts.
+        """
+        return TokenUsage(
+            input_tokens=int(getattr(usage, "prompt_token_count", 0) or 0),
+            output_tokens=int(getattr(usage, "candidates_token_count", 0) or 0),
+            thinking_tokens=int(getattr(usage, "thoughts_token_count", 0) or 0),
+            cached_input_tokens=int(
+                getattr(usage, "cached_content_token_count", 0) or 0
             ),
         )
 

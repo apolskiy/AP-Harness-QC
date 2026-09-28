@@ -116,6 +116,38 @@ def add_mqc_options(parser: Any) -> None:
         _add_pytest_option(group, declared)
 
 
+
+def _flags_named(config: Any) -> frozenset[str]:
+    """Return the flags the caller actually wrote, however they wrote them.
+
+    **Comparing a value against its default cannot answer this.** Choosing the
+    default explicitly and choosing nothing produce the same value, so
+    `--engine gemini` read as an unchosen provider and every deliberate run
+    carried `QC_DATA_ENGINE_DEFAULTED`. A warning that fires when the thing it
+    warns about did not happen is worse than no warning: it teaches the reader
+    to skip the line.
+
+    **Both spellings count.** pytest accepts `--engine gemini` and
+    `--engine=gemini`, and a reader choosing the second did not choose less.
+
+    Args:
+        config (Any): pytest's configuration, carrying the raw invocation.
+
+    Returns:
+        frozenset[str]: Every flag present on the command line, including its
+        leading dashes. **Empty where the invocation is unavailable**, which
+        falls back to the value comparison rather than raising: a warning is not
+        worth failing a run over.
+    """
+    params = getattr(config, "invocation_params", None)
+    arguments = list(getattr(params, "args", ()) or ())
+    return frozenset(
+        argument.split("=", 1)[0]
+        for argument in arguments
+        if isinstance(argument, str) and argument.startswith("-")
+    )
+
+
 def configure_invocation(config: Any) -> None:
     """Record what the run was invoked with, and warn on a defaulted engine.
 
@@ -129,10 +161,12 @@ def configure_invocation(config: Any) -> None:
     Returns:
         None
     """
+    named = _flags_named(config)
     supplied = {
         declared.metadata_key: config.getoption(declared.metadata_key)
         for declared in registered_options()
-        if config.getoption(declared.metadata_key, None) not in (None, declared.default)
+        if declared.cli_flag in named
+        or config.getoption(declared.metadata_key, None) not in (None, declared.default)
     }
     invocation = build_invocation(supplied)
     config.mqc_invocation = invocation

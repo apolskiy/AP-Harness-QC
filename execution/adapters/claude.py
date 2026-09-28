@@ -21,6 +21,7 @@ from typing import Any, Final
 
 import anthropic
 
+from cmn.tokens import TokenUsage
 from execution.adapters.base import Capabilities, ConfiguredAdapter, ProviderFacts
 from execution.normalize import NormalizedResponse, ToolCall
 
@@ -186,10 +187,33 @@ class ClaudeAdapter(ConfiguredAdapter):
                     if getattr(block, "type", None) == "text"
                 ),
                 tool_calls=self.extract_tool_calls(response),
-                output_tokens=int(response.usage.output_tokens),
+                usage=self.read_usage(response),
                 finish_reason=_FINISH_REASONS.get(response.stop_reason, "unknown"),
-                raw_reference=str(getattr(response, "id", "") or ""),
+                raw_reference=self.raw_reference_of(response),
                 resolved_model=self.resolve_model_version(response),
+            ),
+        )
+
+    def usage_from(self, usage: Any) -> TokenUsage:
+        """Return Anthropic's counts.
+
+        **No separate thinking count, and that is not an omission.** Anthropic
+        includes thinking inside `output_tokens` rather than reporting it apart,
+        so populating a thinking field here would double it. Section 5A.2 records
+        that thinking cannot be disabled on this model, so the output count is
+        always carrying some.
+
+        Args:
+            usage (Any): A Messages usage object.
+
+        Returns:
+            TokenUsage: The counts.
+        """
+        return TokenUsage(
+            input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+            output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+            cached_input_tokens=int(
+                getattr(usage, "cache_read_input_tokens", 0) or 0
             ),
         )
 

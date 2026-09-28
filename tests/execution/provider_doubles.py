@@ -59,6 +59,12 @@ _DEFAULT_TEXT: Final[str] = "The answer, grounded in the supplied document."
 _DEFAULT_MODEL: Final[str] = "served-build-001"
 _DEFAULT_TOKENS: Final[int] = 42
 
+# DISTINCT FROM EACH OTHER ON PURPOSE. Equal defaults would let an adapter
+# read the wrong count and still pass.
+_DEFAULT_INPUT: Final[int] = 137
+_DEFAULT_THINKING: Final[int] = 41
+_DEFAULT_CACHED: Final[int] = 19
+
 
 class MQCToolWasExecuted(AssertionError):
     """An adapter invoked a tool the model merely intended to call.
@@ -135,18 +141,67 @@ class _ClaudeBlock:
 
 
 @dataclass
+class _CompletionDetails:
+    """OpenAI's nested reasoning count.
+
+    Attributes:
+        reasoning_tokens (int): Thinking, which this protocol reports inside a
+            details object rather than beside the total.
+    """
+
+    reasoning_tokens: int = _DEFAULT_THINKING
+
+
+@dataclass
+class _PromptDetails:
+    """OpenAI's nested cache count.
+
+    Attributes:
+        cached_tokens (int): Input served from cache.
+    """
+
+    cached_tokens: int = _DEFAULT_CACHED
+
+
+@dataclass
 class _Usage:
     """Token usage, under whichever name a provider gives it.
 
+    **Every spelling, including the ones nobody read until 2026-09-27.** A
+    double that omits the field under test cannot fail when the adapter stops
+    reading it, so the counts below exist to be asserted rather than to look
+    plausible.
+
     Attributes:
-        output_tokens (int): Anthropic's name.
+        output_tokens (int): Anthropic's name. **Already includes thinking**,
+            which is why there is no separate Anthropic thinking count.
         completion_tokens (int): OpenAI's name.
-        candidates_token_count (int): Gemini's name.
+        candidates_token_count (int): Gemini's name for visible output.
+        input_tokens (int): Anthropic's name.
+        prompt_tokens (int): OpenAI's name.
+        prompt_token_count (int): Gemini's name.
+        thoughts_token_count (int): Gemini's name for thinking, reported apart
+            from the visible count and billed as output.
+        cache_read_input_tokens (int): Anthropic's name for cached input.
+        cached_content_token_count (int): Gemini's name for the same.
+        completion_tokens_details (_CompletionDetails): Where OpenAI puts
+            reasoning.
+        prompt_tokens_details (_PromptDetails): Where OpenAI puts cached input.
     """
 
     output_tokens: int = _DEFAULT_TOKENS
     completion_tokens: int = _DEFAULT_TOKENS
     candidates_token_count: int = _DEFAULT_TOKENS
+    input_tokens: int = _DEFAULT_INPUT
+    prompt_tokens: int = _DEFAULT_INPUT
+    prompt_token_count: int = _DEFAULT_INPUT
+    thoughts_token_count: int = _DEFAULT_THINKING
+    cache_read_input_tokens: int = _DEFAULT_CACHED
+    cached_content_token_count: int = _DEFAULT_CACHED
+    completion_tokens_details: _CompletionDetails = field(
+        default_factory=_CompletionDetails
+    )
+    prompt_tokens_details: _PromptDetails = field(default_factory=_PromptDetails)
 
 
 @dataclass

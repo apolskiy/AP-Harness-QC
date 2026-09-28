@@ -151,6 +151,14 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         help_text="Hold the provider connection open between cases, for reuse",
     ),
     Option(
+        name="max-spend",
+        default=0.0,
+        help_text=(
+            "Abort the run before a request would take total spend past this "
+            "many USD. Zero means no ceiling"
+        ),
+    ),
+    Option(
         name="as-of",
         default="",
         help_text="ISO date the verdict is evaluated against, for quarantine expiry",

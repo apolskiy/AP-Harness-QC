@@ -227,9 +227,9 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 89 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 179 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 187 cases | **Implemented** |
 | `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
-| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 102 cases | **Implemented** |
+| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 109 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 98 cases | **Implemented** |
 
 `ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.

@@ -342,6 +342,12 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0085` | The whole chain, from the ingestion join through replay dispatch and the dual evaluation pass to a computed verdict, reaches both a green and a red verdict, and carries all three observations of a case through to the verdict | cmn_verdict_and_cli.md section 11.2 |
 | `MQC_REQ_HAR_CMN_0086` | The installed versions of the tools that gate CI satisfy the pins declared in pyproject.toml, so a local gate result predicts the CI one | cmn_verdict_and_cli.md section 10.35 |
 | `MQC_REQ_HAR_CMN_0087` | The document and data scan reads only files the repository authors, so a generated file in a tool cache or build directory is never reported as missing a licence header | cmn_verdict_and_cli.md section 10.36 |
+| `MQC_REQ_HAR_CMN_0088` | What a run cost is computed from a dated price table and the tokens a provider reported, priced against an injected date, with an unpriced model yielding no figure rather than zero | cmn_verdict_and_cli.md section 12.3 |
+| `MQC_REQ_HAR_CMN_0089` | Cost is reported per case with the judge consumption kept apart from the candidate, and a replayed observation contributes nothing because it was paid for when it was recorded | cmn_verdict_and_cli.md section 12.1 |
+| `MQC_REQ_HAR_EXE_0076` | Every adapter reports the input, output, thinking and cached input counts its provider returned, through one method serving both the candidate and the judge path | tier2_execution.md section 10.1 |
+| `MQC_REQ_HAR_EXE_0077` | A run stops rather than dispatching further once it has spent its configured ceiling, and stops immediately where a model it met is unpriced, because a cap that cannot be enforced must not appear enforced | tier2_execution.md section 10.1 |
+| `MQC_REQ_HAR_EXE_0078` | HTTP 402 is reported as an exhausted balance rather than an authentication failure or a parser error, and is not retried, because the credential is valid and the remedy is funds | tier2_execution.md section 8.6.5 |
+| `MQC_REQ_HAR_CMN_0090` | A flag named on the command line counts as supplied even where its value equals the default, so the defaulted-engine warning marks only runs that chose no provider | cmn_verdict_and_cli.md section 7.4.1 |
 
 ---
 

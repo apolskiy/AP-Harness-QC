@@ -26,6 +26,7 @@ from typing import Any, Final
 
 import pytest
 
+from cmn.pricing import TokenUsage
 from execution.adapters.grok import GrokAdapter
 from execution.adapters.openai_protocol import OpenAICompatibleAdapter
 from execution.adapters.registry import (
@@ -47,6 +48,7 @@ from tests.execution.provider_doubles import (
     gemini_response,
     openai_response,
 )
+from tests.execution.provider_doubles import ADAPTER_DOUBLES
 
 pytestmark = pytest.mark.unit
 
@@ -383,6 +385,76 @@ class TestMQCGeminiAdapter:
         assert adapter.period_quota_exhausted(RuntimeError(per_minute)) is False
         # AN UNRECOGNISED BODY FAILS OPEN rather than abandoning the attempts.
         assert adapter.period_quota_exhausted(RuntimeError("429 too many")) is False
+
+    def MQC_EXE_UNI_10298_every_adapter_reports_the_four_token_counts(self) -> None:
+        """Each provider spells them differently, and all four are read.
+
+        **Three of the four were being discarded.** Every adapter read its usage
+        object and kept only the output count, while the input count sat in the
+        same object unread: input is the larger half for this corpus, so every
+        cost figure the harness could have produced was wrong in one direction.
+
+        **The doubles report distinct values per category** so an adapter that
+        read the wrong field cannot pass by coincidence.
+
+        Returns:
+            None
+        """
+        for engine in sorted(registered_engines()):
+            adapter = adapter_for(engine)()
+            response = ADAPTER_DOUBLES[engine].response(text="An answer.")
+            usage = adapter.read_usage(response)
+
+            assert usage.input_tokens > 0, f"{engine} reported no input count"
+            assert usage.output_tokens > 0, f"{engine} reported no output count"
+            assert usage.cached_input_tokens > 0, f"{engine} reported no cache count"
+            # NORMALIZING AND READING DIRECTLY MUST AGREE, because the candidate
+            # path uses the first and the judge path the second.
+            assert adapter.normalize_response(response, "case").usage == usage
+
+    def MQC_EXE_UNI_10299_thinking_is_counted_only_where_reported_separately(
+        self,
+    ) -> None:
+        """Anthropic folds thinking into output; the others report it apart.
+
+        **Populating a thinking field for Anthropic would double it.** Its
+        `output_tokens` already includes thinking, and section 5A.2 records that
+        thinking cannot be disabled on that model, so the output count always
+        carries some. Reporting it twice would inflate the one engine whose
+        thinking is least avoidable.
+
+        Returns:
+            None
+        """
+        separate = adapter_for("gemini")().read_usage(
+            ADAPTER_DOUBLES["gemini"].response(text="x")
+        )
+        folded = adapter_for("claude")().read_usage(
+            ADAPTER_DOUBLES["claude"].response(text="x")
+        )
+
+        assert separate.thinking_tokens > 0, "gemini reports thinking apart"
+        assert folded.thinking_tokens == 0, (
+            "anthropic includes thinking in its output count, so counting it "
+            "again here would bill it twice"
+        )
+
+    def MQC_EXE_UNI_10300_a_response_carrying_no_usage_reports_zero_not_an_error(
+        self,
+    ) -> None:
+        """A provider that sent no usage object is not a failure.
+
+        **Zero, and zero means no tokens rather than no price.** An unpriced
+        model yields ``None`` from the cost function, which is a different
+        condition with a different remedy: price the model, against report the
+        usage the provider withheld.
+
+        Returns:
+            None
+        """
+        for engine in sorted(registered_engines()):
+            usage = adapter_for(engine)().read_usage(object())
+            assert usage == TokenUsage(), f"{engine} invented a count"
 
 class TestMQCWireProtocolReuse:
     """Adding an engine on a served protocol costs four values."""

@@ -20,6 +20,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Final, Optional
 
+from cmn.tokens import TokenUsage
+
 logger = logging.getLogger(__name__)
 
 # Finish reasons, normalized across providers. Vendors spell the same outcome
@@ -113,6 +115,17 @@ class NormalizedResponse:
         tool_calls (list): Captured intent, empty when none.
         output_tokens (int): Recorded alongside duration, because latency is
             dominated by verbosity (A7.2).
+        input_tokens (int): Everything sent. **The larger half for this
+            corpus**, and read from the same usage object that already gave the
+            output count, where it sat unread until 2026-09-27.
+        thinking_tokens (int): Reasoning the provider billed and did not return
+            in the text. Counted apart from ``output_tokens`` because providers
+            report it apart, and billed at the output rate because they bill it
+            that way.
+        cached_input_tokens (int): The part of the input served from the
+            provider's cache, at a tenth of the input rate. **Included in
+            ``input_tokens``**, never added to it, so the two cannot
+            double-count.
         duration_ms (int): Measured here, normalized downstream.
         finish_reason (str): Normalized across providers.
         raw_reference (str): Pointer to the stored original.
@@ -129,6 +142,29 @@ class NormalizedResponse:
     finish_reason: str
     raw_reference: str
     tool_calls: list[ToolCall] = field(default_factory=list)
+    # ADDITIVE, AND THAT IS THE POINT. Nineteen fixtures were recorded before
+    # these existed, and a required field would have made every one of them
+    # unreplayable. They read as zero, which is honest: nobody captured the
+    # count at the time.
+    input_tokens: int = 0
+    thinking_tokens: int = 0
+    cached_input_tokens: int = 0
+
+    @property
+    def usage(self) -> TokenUsage:
+        """Return the four counts as the record the cost function prices.
+
+        Returns:
+            TokenUsage: The usage, structured. **Flat on the wire, structured
+            in use**: the fixture format stays additive while the caller is
+            handed something it cannot get the field order wrong in.
+        """
+        return TokenUsage(
+            input_tokens=self.input_tokens,
+            output_tokens=self.output_tokens,
+            thinking_tokens=self.thinking_tokens,
+            cached_input_tokens=self.cached_input_tokens,
+        )
 
     def __post_init__(self) -> None:
         """Refuse a record that could not be interpreted downstream.
@@ -173,6 +209,9 @@ class NormalizedResponse:
             "resolved_model": self.resolved_model,
             "text": self.text,
             "output_tokens": self.output_tokens,
+            "input_tokens": self.input_tokens,
+            "thinking_tokens": self.thinking_tokens,
+            "cached_input_tokens": self.cached_input_tokens,
             "duration_ms": self.duration_ms,
             "finish_reason": self.finish_reason,
             "raw_reference": self.raw_reference,
@@ -214,6 +253,11 @@ class NormalizedResponse:
                 resolved_model=str(payload["resolved_model"]),
                 text=str(payload["text"]),
                 output_tokens=int(payload["output_tokens"]),
+                # READ WITH A DEFAULT, never subscripted. A fixture recorded
+                # before these fields existed has no key to read.
+                input_tokens=int(payload.get("input_tokens", 0) or 0),
+                thinking_tokens=int(payload.get("thinking_tokens", 0) or 0),
+                cached_input_tokens=int(payload.get("cached_input_tokens", 0) or 0),
                 duration_ms=int(payload["duration_ms"]),
                 finish_reason=str(payload["finish_reason"]),
                 raw_reference=str(payload["raw_reference"]),

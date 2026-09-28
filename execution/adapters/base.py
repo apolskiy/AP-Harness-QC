@@ -21,9 +21,10 @@ threatens owns its own defence (A5c).
 import json
 import logging
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from cmn.tokens import TokenUsage
 from cmn.registries import is_adapter_error_code, taxonomy_for_status
 from execution.normalize import NormalizedResponse, ToolCall
 
@@ -244,8 +245,22 @@ class ProviderFacts:
         text (str): The primary output, already concatenated where the provider
             splits it across blocks.
         tool_calls (list): Captured intent, empty when the model called nothing.
-        output_tokens (int): Recorded alongside duration, because latency is
-            dominated by verbosity (A7.2).
+        usage (TokenUsage): Every token count the provider reported, read
+            through :meth:`ConfiguredAdapter.read_usage` so the provider's
+            spellings live in one place. **Output is read from here too**: it was
+            briefly a field of its own beside this one, which meant each adapter
+            computed it twice from the same object.
+        input_tokens (int): Everything sent. **The larger half for this
+            corpus**, and read from the same usage object that already gave the
+            output count, where it sat unread until 2026-09-27.
+        thinking_tokens (int): Reasoning the provider billed and did not return
+            in the text. Counted apart from ``output_tokens`` because providers
+            report it apart, and billed at the output rate because they bill it
+            that way.
+        cached_input_tokens (int): The part of the input served from the
+            provider's cache, at a tenth of the input rate. **Included in
+            ``input_tokens``**, never added to it, so the two cannot
+            double-count.
         finish_reason (str): Already mapped into the canonical vocabulary.
         raw_reference (str): Pointer to the stored original, never the payload.
         resolved_model (str): What the provider reported serving (A8).
@@ -253,10 +268,15 @@ class ProviderFacts:
 
     text: str
     tool_calls: list[ToolCall]
-    output_tokens: int
     finish_reason: str
     raw_reference: str
     resolved_model: str
+    # DEFAULTED, so an adapter that cannot report a count is not forced to
+    # invent one. A provider reporting nothing yields zero, which the cost
+    # function reads as "no tokens here" rather than "no price here": the
+    # second is what an unpriced MODEL yields, and the two are different
+    # failures.
+    usage: TokenUsage = field(default_factory=TokenUsage)
 
 
 class ConfiguredAdapter(ProviderAdapter):
@@ -387,6 +407,74 @@ class ConfiguredAdapter(ProviderAdapter):
         """
         return False
 
+    @staticmethod
+    def raw_reference_of(response: Any) -> str:
+        """Return the provider's own identifier for a response.
+
+        **Three spellings, one fact.** Two providers call it `id` and the third
+        `response_id`, which made the read identical in two adapters and
+        different in the third: pylint reported the pair as duplication, and the
+        pair would have drifted the first time one of them learned something.
+
+        Args:
+            response (Any): The provider's response object.
+
+        Returns:
+            str: The identifier, or an empty string where the provider sent
+            none. **Never the payload**: this is a pointer to the stored
+            original, and carrying the response here would put a model's output
+            in a field nothing redacts.
+        """
+        for name in ("id", "response_id"):
+            found = getattr(response, name, None)
+            if found:
+                return str(found)
+        return ""
+
+    # THE NAMES A PROVIDER GIVES ITS USAGE OBJECT. Two call it `usage` and the
+    # Gen AI client calls it `usage_metadata`, and an adapter should not have to
+    # restate the search to answer what its own fields are called.
+    USAGE_ATTRIBUTES: tuple[str, ...] = ("usage", "usage_metadata")
+
+    def read_usage(self, response: Any) -> TokenUsage:
+        """Return the four token counts a provider reported for one response.
+
+        **Two callers, which is why this exists at all.** The candidate path
+        reads usage while normalizing; the judge path reads it from a judgement
+        response, whose parse discards the object. Writing the field names twice
+        is how they drift.
+
+        **The absence is handled once, here.** Every adapter had the same guard
+        before this: fetch the object, return empty where it is missing, read the
+        fields otherwise. Only the last step differs per provider, so only that
+        step is overridden, in :meth:`usage_from`.
+
+        Args:
+            response (Any): The provider's own response object.
+
+        Returns:
+            TokenUsage: The counts. **Zero where the provider reported nothing**,
+            which the cost function reads as no tokens rather than no price: an
+            unpriced model is a different failure and yields ``None``.
+        """
+        for name in self.USAGE_ATTRIBUTES:
+            usage = getattr(response, name, None)
+            if usage is not None:
+                return self.usage_from(usage)
+        return TokenUsage()
+
+    def usage_from(self, usage: Any) -> TokenUsage:  # pylint: disable=unused-argument
+        """Return the counts, reading this provider's own field names.
+
+        Args:
+            usage (Any): The provider's usage object, already found and known
+                to be present.
+
+        Returns:
+            TokenUsage: The counts. **Empty by default**, so an adapter whose
+            provider reports nothing useful is not forced to invent a shape.
+        """
+        return TokenUsage()
     def release(self) -> None:
         """Drop the provider client, closing its connection pool.
 
@@ -462,7 +550,10 @@ class ConfiguredAdapter(ProviderAdapter):
             resolved_model=facts.resolved_model,
             text=facts.text,
             tool_calls=facts.tool_calls,
-            output_tokens=facts.output_tokens,
+            output_tokens=facts.usage.output_tokens,
+            input_tokens=facts.usage.input_tokens,
+            thinking_tokens=facts.usage.thinking_tokens,
+            cached_input_tokens=facts.usage.cached_input_tokens,
             duration_ms=0,
             finish_reason=facts.finish_reason,
             raw_reference=facts.raw_reference,

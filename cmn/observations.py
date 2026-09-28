@@ -25,6 +25,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Final, Optional
 
+from cmn.tokens import CaseUsage
 from cmn.layers import layer_properties, outcome_properties
 from cmn.registries import registered_evaluation_families
 
@@ -160,6 +161,12 @@ class Observation:
         duration (int): Milliseconds.
         duration_kind (str): ``measured`` or ``truncated``.
         output_tokens (int): Latency is dominated by verbosity (A7.2).
+        tokens (CaseUsage): Every token this observation consumed, on both
+            sides of a judged case. **One field rather than six**, for the reason
+            `.pylintrc` gives about its attribute limit: what a case consumed is
+            one fact about an execution. ``output_tokens`` stays beside it
+            because A7.2 reads it as a latency signal rather than a cost one, and
+            that predates any of this.
         score (Optional[float]): Recorded on passes as well as failures.
         scale_id (Optional[str]): Scores of differing scale are not comparable.
         rubric_result (Optional[str]): ``evaluated``, or not evaluated with a
@@ -184,6 +191,7 @@ class Observation:
     duration: int = 0
     duration_kind: str = "measured"
     output_tokens: int = 0
+    tokens: CaseUsage = field(default_factory=CaseUsage)
     score: Optional[float] = None
     scale_id: Optional[str] = None
     rubric_result: Optional[str] = None

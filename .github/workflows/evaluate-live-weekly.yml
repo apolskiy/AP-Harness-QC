@@ -56,11 +56,16 @@ jobs:
           # Live: free tier, serving as both judge and candidate, per A3.
           - engine: gemini
             mode: live
-          # Replay: no key provisioned, per A3. --engine and --mode stay
-          # ORTHOGONAL, so provisioning a key later is a configuration change
-          # and not a refactor.
+          # OPENAI STAYS ON REPLAY THOUGH ITS KEY IS NOW FUNDED (2026-09-28).
+          # The pairing was originally forced by A3, and now it is a choice: a
+          # live leg here bills at roughly twice the flash rate for the same
+          # corpus, and nothing yet establishes that a second engine measures
+          # anything the first does not. Moving it to live is a one-word change
+          # and a budget decision, which is the point of keeping --engine and
+          # --mode orthogonal.
           - engine: openai
             mode: replay
+          # Claude has no key, so this one is still forced rather than chosen.
           - engine: claude
             mode: replay
     # concurrency PREVENTS OVERLAP BETWEEN RUNS. Keyed on engine AND mode so a

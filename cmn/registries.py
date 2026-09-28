@@ -99,6 +99,16 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     "QC_HARNESS_BRANCH_NAME",
     "QC_HARNESS_BRANCH_STALE",
     "QC_HARNESS_BRANCH_ROUTE",
+    # A RUN THAT STOPPED ITSELF RATHER THAN A PROVIDER STOPPING IT.
+    # Distinct from a rate limit on purpose: a rate limit is the
+    # provider declining, and this is us declining, which is a
+    # different remedy (raise the ceiling, or accept that the run is
+    # bigger than the budget) and a different conversation.
+    "QC_HARNESS_BUDGET_EXHAUSTED",
+    # THE ACCOUNT HAS NO MONEY LEFT, which is not the same as having no
+    # valid credential. Reachable from 2026-09-28, when the project first
+    # held prepaid credit that could run out.
+    "QC_HARNESS_CREDIT_EXHAUSTED",
 })
 
 # The subset an adapter's map_error may return. Narrower than the family: a
@@ -106,6 +116,7 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
 # runner, and an adapter returning one would be reporting on something it
 # cannot observe.
 _ADAPTER_ERROR_CODES: Final[frozenset[str]] = frozenset({
+    "QC_HARNESS_CREDIT_EXHAUSTED",
     "QC_HARNESS_CANDIDATE_TIMEOUT",
     "QC_HARNESS_RATE_LIMIT",
     "QC_HARNESS_PROVIDER_UNAVAILABLE",
@@ -533,6 +544,15 @@ _STATUS_CODES: Final[dict[int, str]] = {
     401: "QC_HARNESS_AUTH_ERROR",
     403: "QC_HARNESS_AUTH_ERROR",
     404: "QC_HARNESS_VERSION_UNAVAILABLE",
+    # THE BALANCE IS EMPTY, and that is not an authentication failure. Gemini
+    # returns this when prepay credits reach zero, at which point every key on
+    # the billing account stops at once. Mapping it to the auth code would send
+    # a reader to rotate a credential that is working perfectly;
+    # `.env.example` already makes the same distinction in prose.
+    #
+    # ENVIRONMENTAL, LIKE THE NO-CREDIT VARIANT OF 429 (section 8.6), so no
+    # retry reaches it: the remedy is money, which no run can supply.
+    402: "QC_HARNESS_CREDIT_EXHAUSTED",
     # NOBODY'S DEFECT: the request was well formed and we asked too often.
     429: "QC_HARNESS_RATE_LIMIT",
     # THE SERVICE ITSELF, saying it cannot serve.

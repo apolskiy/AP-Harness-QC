@@ -84,6 +84,14 @@ def emit_result(observation: Observation, run: RunContext) -> dict[str, Any]:
         "duration": observation.duration,
         "duration_kind": observation.duration_kind,
         "output_tokens": observation.output_tokens,
+        # FLAT ON THE WIRE, nested in use. A collector reads standard formats
+        # and should not have to learn this project's nesting to find a count.
+        "input_tokens": observation.tokens.candidate.input_tokens,
+        "thinking_tokens": observation.tokens.candidate.thinking_tokens,
+        "cached_input_tokens": observation.tokens.candidate.cached_input_tokens,
+        "judge_input_tokens": observation.tokens.judge.input_tokens,
+        "judge_output_tokens": observation.tokens.judge.output_tokens,
+        "judge_thinking_tokens": observation.tokens.judge.thinking_tokens,
         "demoted": observation.demoted,
     }
     emitted.update(run.as_fields())

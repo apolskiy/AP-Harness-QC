@@ -523,6 +523,37 @@ A **diagnostic run uses none of these.** It returns pytest's exit status, becaus
 
 **Defaults fail safe.** `--mode` defaults to `replay` so no unconfigured invocation can spend quota or emit an unmarked live result. `--extra-columns` defaults to `reject`. `--engine` defaults to `gemini` but emits a **WARNING into the artifact** when defaulted, so a cloned repository running unconfigured produces a record saying so (A7.4).
 
+#### 7.4.1 Choosing the default is not defaulting
+
+Corrected 2026-09-28, found in the output of the first paid run.
+
+`configure_invocation` decided a flag had been supplied by comparing its value
+against its default. So `--engine gemini` was indistinguishable from naming no
+engine at all, because gemini **is** the default, and every deliberate run
+carried `QC_DATA_ENGINE_DEFAULTED`.
+
+**The warning exists to mark a record nobody chose the provider for** (A7.4).
+Firing it on records where somebody did choose inverts it: `ci_pipeline.md`
+already names this hazard when it says a signal present on every run trains a
+reader to ignore the one line that says a record is not what it appears to be.
+
+**The commonest invocation was the broken one.** Gemini is the roster's default
+and the only engine with a funded credential, so nearly every live run this
+project will ever make names the default explicitly.
+
+##### Why the existing case did not catch it
+
+`10197` asserted that `build_invocation({"engine": "openai"})` is quiet. `openai`
+is not the default, so the case proved only that an explicitly NON-default engine
+warns about nothing. The defect lived precisely where the explicit value equals
+the default, and the fixture's choice of value stepped around it.
+
+**The fix reads the command line rather than inferring from the value.**
+`config.invocation_params.args` carries what the caller actually wrote, in both
+the `--engine gemini` and `--engine=gemini` spellings, so what was named is a fact
+rather than a deduction. Where the invocation is unavailable the value comparison
+still applies: a warning is not worth failing a run over.
+
 ---
 
 ## 8. Configuration
@@ -738,7 +769,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 179 cases, 102 negative, 56 positive, 21 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 187 cases, 106 negative, 58 positive, 23 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -1016,7 +1047,70 @@ What this repository owes is proof that the instrument works, and that is these
 three cases.
 
 
-## 12. Traceability
+## 12. Test Inventory: cost
+
+Added 2026-09-27, when the project owner asked what a paid run would cost and the
+harness could not answer: every adapter read its usage object and kept only the
+output count, and the judge path recorded nothing at all.
+
+### 12.1 `MQC_CMN_UNI_`
+
+| ID | Cat | Behaviour |
+|---|---|---|
+| `11183` | N | `a_price_window_that_has_closed_is_reported` |
+| `11184` | B | `the_published_increase_is_priced_from_its_own_date` |
+| `11185` | N | `an_unpriced_model_yields_no_figure_rather_than_zero` |
+| `11186` | P | `thinking_is_billed_at_the_output_rate` |
+| `11187` | B | `cached_input_is_discounted_and_never_double_counted` |
+| `11188` | P | `a_judged_case_reports_its_judge_apart_from_its_candidate` |
+| `11189` | N | `a_replayed_observation_contributes_nothing` |
+| `11190` | N | `choosing_the_default_engine_is_not_defaulting` |
+
+### 12.2 What was measured before any of this was built
+
+**The estimate came first, and it cost nothing.** Every request the corpus would
+send was composed offline and measured, which answered the affordability question
+before a key existed:
+
+| | Input | Output | At the published rates |
+|---|---|---|---|
+| Security family, 21 cases times three | 10,720 | 1,449 | 0.014 |
+| Whole corpus, 65 cases times three | 64,364 | 6,831 | 0.074 |
+| Whole corpus, realistic output | 64,364 | ~74,600 | 0.33 |
+| Whole corpus, plus thinking at twice output | 64,364 | ~224,000 | 0.89 |
+
+Figures in USD. **The corpus is too small for the bill to matter at flash rates,
+and the variance is entirely in what was uncaptured**: thinking, and the judge.
+That is why the capture came before the ceiling.
+
+### 12.3 Why the price table is dated, and checked
+
+Every rate for `gemini-3.8-flash` doubles on 1 January 2027, which the provider
+published in advance. A table overtaken by that change would not report an error,
+it would report **the older, smaller figure**, and a halved bill in a report is
+worse than no bill at all. So `priced_on` and `effective_until` are data, and
+`11183` fails when no window covers the date being priced.
+
+**An unpriced model yields no figure rather than zero** (`11185`). Zero reads as a
+run that was free, which is the one wrong answer that looks right.
+
+### 12.4 The ceiling fails closed, which a test found
+
+`11185` is also why `MQC_EXE_UNI_10303` exists. A ceiling set against an unpriced
+model cannot be honoured: the model's responses cost nothing computable, so
+spending never accumulates and the cap never engages. A run would have spent
+without limit while reporting a budget.
+
+**Found by a case that would not fail.** The first version of `10301` set a ceiling
+against a double whose model the table does not price, and passed for that reason
+rather than the one it asserted. `claude-opus-5-5` is exactly that case:
+deliberately unpriced, the model a new key would most likely point at, and the one
+whose thinking cannot be disabled.
+
+So an unpriced model with a ceiling set **stops the run**, and the two conditions
+are separate cases.
+
+## 13. Traceability
 
 | Decision | Section |
 |---|---|

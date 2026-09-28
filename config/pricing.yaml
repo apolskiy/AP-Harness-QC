@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+#
+# What a token costs, per model, in USD per million tokens.
+#
+# THIS FILE IS THE ONLY PLACE A PRICE IS STATED. A price in code would be a
+# second declaration, and the thing about prices is that they move: the figures
+# below were read from the provider's own page and every one of them changes on
+# 1 January 2027.
+#
+# PRICES ARE DATED, AND THE DATE IS CHECKED. `priced_on` is not documentation:
+# `MQC_CMN_UNI_11183` fails when a tier's window has closed, because a stale
+# price does not report an error, it reports a smaller number. Halving a bill in
+# a report is worse than refusing to produce one.
+#
+# A MODEL ABSENT FROM THIS FILE IS PRICED AT NOTHING AND SAID SO. The cost
+# functions return no figure rather than zero for an unpriced model, so an
+# unpriced run reads as unmeasured instead of free.
+
+# Every figure is USD per 1,000,000 tokens.
+currency: USD
+unit: per_million_tokens
+
+models:
+  gemini-3.8-flash:
+    source: https://ai.google.dev/gemini-api/docs/pricing
+    # TWO TIERS, BECAUSE THE PRICE DOUBLES ON A DATE THE PROVIDER PUBLISHED IN
+    # ADVANCE. Naming both means the run after new year reports the bill it
+    # actually incurred rather than the one this file was written against.
+    tiers:
+      - priced_on: 2026-09-27
+        effective_from: 2026-01-01
+        effective_until: 2026-12-31
+        input: 0.75
+        output: 3.75
+        cached_input: 0.075
+      - priced_on: 2026-09-27
+        effective_from: 2027-01-01
+        input: 1.50
+        output: 7.50
+        cached_input: 0.15
+    # THINKING IS BILLED AS OUTPUT, not as its own line. The provider says so,
+    # and it matters more than it sounds: `thoughts_token_count` is reported
+    # separately from `candidates_token_count`, so a harness reading only the
+    # visible count understates the bill by however much the model thought.
+    thinking_billed_as: output
+
+  gemini-2.5-flash:
+    source: https://ai.google.dev/gemini-api/docs/pricing
+    # RETIRED, AND PRICED ANYWAY. DESIGN.md section 2.2 records that this model
+    # is listed by the API and 404s on use. A recorded corpus can still name it,
+    # and a cost report over that corpus should not silently read as free.
+    retired: true
+    tiers:
+      - priced_on: 2026-09-27
+        effective_from: 2026-01-01
+        input: 0.30
+        output: 2.50
+        cached_input: 0.03
+    thinking_billed_as: output
+
+  gpt-4.1:
+    source: https://developers.openai.com/api/docs/pricing
+    # ONE WINDOW, because OpenAI published no end date for these rates. An
+    # open-ended window is priced until somebody replaces it, which is why
+    # `priced_on` matters more here than for a model whose change was announced.
+    tiers:
+      - priced_on: 2026-09-28
+        effective_from: 2026-01-01
+        input: 2.00
+        output: 8.00
+        cached_input: 0.50
+    # NOT A REASONING MODEL, so `reasoning_tokens` is normally absent and the
+    # adapter reads zero. It is read anyway rather than assumed: the field lives
+    # in `completion_tokens_details`, a reasoning model would populate it, and
+    # the same adapter serves every model on this wire protocol.
+    thinking_billed_as: output
+    # WORTH KNOWING BEFORE A WEEKLY RUN GOES LIVE ON THIS ENGINE. Input is 2.7
+    # times the flash rate and output 2.1 times, so the same corpus costs roughly
+    # twice as much here, and the batch tier halves it.
+
+# NOT PRICED, DELIBERATELY. No credential is provisioned, so it runs in replay,
+# which bills nothing. Pricing it now would state a figure nobody can spend
+# against and nobody would notice going stale.
+#
+#   claude-opus-5-5
+#
+# gpt-4.1 WAS IN THIS LIST UNTIL 2026-09-28, when a credential was funded for it.
+# That is the trigger: an unpriced model stops a budgeted run, because a ceiling
+# that cannot be computed must not appear enforced (MQC_EXE_UNI_10303). A model
+# becomes priceable the moment somebody can spend against it.
+#
+# claude-opus-5-5 IS THE ONE TO PRICE FIRST if a key is ever added. Its thinking
+# cannot be disabled (tier2_execution.md section 5A.2), so its output-billed
+# volume is not a choice the run makes, and Opus output is an order above flash.

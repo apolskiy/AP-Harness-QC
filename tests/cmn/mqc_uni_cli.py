@@ -30,6 +30,7 @@ import conftest
 from cmn.config import Consumer, load_consumers, unreachable_consumer_code
 from cmn.observations import RunContext
 from cmn.registries import is_registered_harness_code
+from cmn.pytest_support import configure_invocation
 from cmn.options import (
     build_invocation,
     defaults,
@@ -141,6 +142,61 @@ def _artifact(**overrides: Any) -> dict:
     }
     payload.update(overrides)
     return payload
+
+
+
+class _FakeInvocationParams:
+    """The raw arguments pytest records for a run.
+
+    Attributes:
+        args (list): Exactly what the caller wrote.
+    """
+
+    def __init__(self, args: list[str]) -> None:
+        """Hold the arguments.
+
+        Args:
+            args (list[str]): The raw command line.
+
+        Returns:
+            None
+        """
+        self.args = args
+
+
+class _FakeConfig:
+    """Enough of pytest's config to exercise the invocation record.
+
+    **Built here rather than through a pytest run** because the question is what
+    `configure_invocation` concludes from a given command line, and spinning up a
+    session to ask it would make the case slower and less specific.
+    """
+
+    def __init__(self, args: list[str], values: dict[str, Any]) -> None:
+        """Hold the command line and the parsed values.
+
+        Args:
+            args (list[str]): The raw command line.
+            values (dict[str, Any]): What pytest would have parsed from it.
+
+        Returns:
+            None
+        """
+        self.invocation_params = _FakeInvocationParams(args)
+        self._values = values
+        self.mqc_invocation: Any = None
+
+    def getoption(self, name: str, default: Any = None) -> Any:
+        """Return a parsed value, as pytest would.
+
+        Args:
+            name (str): The option's destination name.
+            default (Any): What to return when it is unset.
+
+        Returns:
+            Any: The value.
+        """
+        return self._values.get(name, default)
 
 
 class TestMQCOptionRegistry:
@@ -265,6 +321,44 @@ class TestMQCOptionRegistry:
         assert len(defaulted.warnings) == 1
         assert "QC_DATA_ENGINE_DEFAULTED" in defaulted.warnings[0]
         assert not named.warnings
+
+    def MQC_CMN_UNI_11190_choosing_the_default_engine_is_not_defaulting(self) -> None:
+        """`--engine gemini` chose a provider, and the run said nobody had.
+
+        **The existing case could not catch this.** `10197` named `openai`, a
+        value that differs from the default, so it proved only that an explicit
+        NON-default engine is quiet. The bug lived exactly where the explicit
+        value equals the default, which is the commonest invocation there is:
+        gemini is the roster's default and the only engine with a funded key.
+
+        **A warning that fires when its condition did not occur is worse than no
+        warning.** `ci_pipeline.md` already names the hazard: a signal present on
+        every run teaches the reader to skip the line, and this one exists to say
+        a record measured a provider nobody chose (A7.4).
+
+        **Both spellings count**, because pytest accepts either and a reader who
+        wrote the second did not choose less.
+
+        Returns:
+            None
+        """
+        for arguments in (
+            ["-m", "sec", "--engine", "gemini"],
+            ["-m", "sec", "--engine=gemini"],
+        ):
+            config = _FakeConfig(arguments, {"engine": "gemini", "mode": "replay"})
+            configure_invocation(config)
+            assert not config.mqc_invocation.warnings, (
+                f"naming the default engine as {arguments[-1]!r} still reported "
+                f"that nobody chose a provider"
+            )
+
+        # AND THE WARNING STILL FIRES WHERE IT SHOULD, which is the half the
+        # original case did cover and this must not break.
+        unchosen = _FakeConfig(["-m", "sec"], {"engine": "gemini", "mode": "replay"})
+        configure_invocation(unchosen)
+        assert len(unchosen.mqc_invocation.warnings) == 1
+        assert "QC_DATA_ENGINE_DEFAULTED" in unchosen.mqc_invocation.warnings[0]
 
     def MQC_CMN_UNI_10199_mode_defaults_to_replay_so_nothing_spends_quota(self) -> None:
         """Defaults fail safe.
