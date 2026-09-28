@@ -398,9 +398,32 @@ class _GeminiCandidate:
     finish_reason: _GeminiFinishReason
 
 
+
+@dataclass
+class _BlockedReason:
+    """The enum member a provider reports for refusing a prompt.
+
+    Attributes:
+        name (str): The member name, which is what the adapter reads.
+    """
+
+    name: str
+
+
+@dataclass
+class _PromptFeedback:
+    """What the provider says about a prompt it declined.
+
+    Attributes:
+        block_reason (Optional[_BlockedReason]): Present only on a refusal.
+    """
+
+    block_reason: Optional[Any] = None
+
 @dataclass
 class _GeminiResponse:
     """A Gemini generate-content response.
+    prompt_feedback: Optional[Any] = None
 
     Attributes:
         candidates (list): One candidate, since the harness requests one.
@@ -416,6 +439,7 @@ class _GeminiResponse:
     usage_metadata: _Usage
     response_id: str
     invocations: list[str]
+    prompt_feedback: Optional[Any] = None
 
 
 def claude_response(
@@ -761,3 +785,30 @@ ADAPTER_DOUBLES: Final[dict[str, _AdapterDoubles]] = {
             judgement=openai_judgement,
         ),
 }
+
+
+def gemini_blocked_prompt(reason: str = "OTHER") -> _GeminiResponse:
+    """Build the response a provider returns when it refuses the prompt.
+
+    **Zero candidates, not a candidate carrying nothing.** `gemini_response`
+    already had a `blocked` flag that produced a candidate whose content was
+    absent, which is the shape of a blocked *candidate*. A prompt refused before
+    generation returns no candidate at all and explains itself in
+    `prompt_feedback`, and the difference is why `50015` was reported as a model
+    failure for three runs: the double tested a shape the provider does not
+    produce.
+
+    Args:
+        reason (str): The provider's own word for refusing.
+
+    Returns:
+        _GeminiResponse: A response with no candidates and a block reason.
+    """
+    return _GeminiResponse(
+        candidates=[],
+        model_version=_DEFAULT_MODEL,
+        usage_metadata=_Usage(candidates_token_count=0),
+        response_id="resp_blocked",
+        invocations=[],
+        prompt_feedback=_PromptFeedback(block_reason=_BlockedReason(reason)),
+    )

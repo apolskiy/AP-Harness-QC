@@ -245,6 +245,10 @@ class ProviderFacts:
         text (str): The primary output, already concatenated where the provider
             splits it across blocks.
         tool_calls (list): Captured intent, empty when the model called nothing.
+        block_reason (str): The provider's own word for refusing, empty where
+            it did not. Verbatim, never mapped.
+        block_stage (str): ``prompt``, ``response`` or empty, so a refusal can be
+            reclassified later without re-running the corpus.
         usage (TokenUsage): Every token count the provider reported, read
             through :meth:`ConfiguredAdapter.read_usage` so the provider's
             spellings live in one place. **Output is read from here too**: it was
@@ -277,6 +281,8 @@ class ProviderFacts:
     # second is what an unpriced MODEL yields, and the two are different
     # failures.
     usage: TokenUsage = field(default_factory=TokenUsage)
+    block_reason: str = ""
+    block_stage: str = ""
 
 
 class ConfiguredAdapter(ProviderAdapter):
@@ -554,6 +560,8 @@ class ConfiguredAdapter(ProviderAdapter):
             input_tokens=facts.usage.input_tokens,
             thinking_tokens=facts.usage.thinking_tokens,
             cached_input_tokens=facts.usage.cached_input_tokens,
+            block_reason=facts.block_reason,
+            block_stage=facts.block_stage,
             duration_ms=0,
             finish_reason=facts.finish_reason,
             raw_reference=facts.raw_reference,

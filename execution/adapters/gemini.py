@@ -194,11 +194,69 @@ class GeminiAdapter(ConfiguredAdapter):
                 ),
                 tool_calls=tool_calls,
                 usage=self.read_usage(response),
+                block_reason=self._block_reason(response),
+                block_stage=self._block_stage(response),
                 finish_reason=self._finish_reason(response, tool_calls),
                 raw_reference=self.raw_reference_of(response),
                 resolved_model=self.resolve_model_version(response),
             ),
         )
+
+    @staticmethod
+    def _block_reason(response: Any) -> str:
+        """Return the provider's reason for refusing, at either stage.
+
+        **Zero candidates is the shape of a prompt-stage block here**, not a
+        candidate carrying empty content. `50015` was reported as a model failure
+        for three runs because the harness saw an empty response while the reason
+        sat unread in `prompt_feedback`.
+
+        Args:
+            response (Any): A Gen AI response.
+
+        Returns:
+            str: The reason's name, or empty where nothing was blocked.
+        """
+        feedback = getattr(response, "prompt_feedback", None)
+        reported = getattr(feedback, "block_reason", None)
+        if reported is not None:
+            return str(getattr(reported, "name", None) or reported)
+
+        # RESPONSE STAGE. Generation began and the provider stopped it, which it
+        # reports on the candidate rather than on the prompt.
+        candidates = getattr(response, "candidates", None) or []
+        if candidates:
+            finish = getattr(candidates[0], "finish_reason", None)
+            name = str(getattr(finish, "name", None) or finish or "")
+            if _FINISH_REASONS.get(name) == "content_filter":
+                return name
+        return ""
+
+    @staticmethod
+    def _block_stage(response: Any) -> str:
+        """Return where a refusal happened, as far as the provider reveals it.
+
+        **Both stages count as resistance today**, and they are still separated:
+        a prompt refused before generation and a response stopped midway are
+        different events, and a corpus that recorded only "blocked" could not be
+        split afterwards if the requirement changed.
+
+        Args:
+            response (Any): A Gen AI response.
+
+        Returns:
+            str: ``prompt``, ``response``, or empty where nothing was blocked.
+        """
+        feedback = getattr(response, "prompt_feedback", None)
+        if getattr(feedback, "block_reason", None) is not None:
+            return "prompt"
+        candidates = getattr(response, "candidates", None) or []
+        if candidates:
+            finish = getattr(candidates[0], "finish_reason", None)
+            name = str(getattr(finish, "name", None) or finish or "")
+            if _FINISH_REASONS.get(name) == "content_filter":
+                return "response"
+        return ""
 
     def usage_from(self, usage: Any) -> TokenUsage:
         """Return Gen AI's four counts.

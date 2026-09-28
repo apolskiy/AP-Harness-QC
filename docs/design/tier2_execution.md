@@ -1436,6 +1436,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10302` | P | `a_run_with_no_ceiling_is_unchanged` |
 | `10303` | N | `a_ceiling_against_an_unpriced_model_stops_the_run` |
 | `10304` | N | `an_empty_balance_is_its_own_code_not_an_auth_failure` |
+| `10305` | P | `a_refused_prompt_is_recorded_with_its_reason_and_stage` |
 | `10271` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
@@ -1452,7 +1453,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 109 cases, 44 negative, 56 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 110 cases, 44 negative, 57 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

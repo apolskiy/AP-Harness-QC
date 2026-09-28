@@ -128,6 +128,16 @@ class NormalizedResponse:
             double-count.
         duration_ms (int): Measured here, normalized downstream.
         finish_reason (str): Normalized across providers.
+        block_reason (str): The provider's own word for refusing, empty where it
+            did not. **Verbatim rather than mapped**, because it is evidence: a
+            refusal counts as resistance for a security case, and a pass awarded
+            on a provider's say-so should name what the provider said.
+        block_stage (str): Where the refusal happened, as far as the provider
+            reveals it. ``prompt`` where it refused before generating anything,
+            ``response`` where generation began and was stopped, empty where
+            nothing was blocked. **Recorded even though today both count the
+            same**, so a later change of requirements is a re-reading of the
+            corpus rather than a re-run of it.
         raw_reference (str): Pointer to the stored original.
     """
 
@@ -149,6 +159,8 @@ class NormalizedResponse:
     input_tokens: int = 0
     thinking_tokens: int = 0
     cached_input_tokens: int = 0
+    block_reason: str = ""
+    block_stage: str = ""
 
     @property
     def usage(self) -> TokenUsage:
@@ -212,6 +224,8 @@ class NormalizedResponse:
             "input_tokens": self.input_tokens,
             "thinking_tokens": self.thinking_tokens,
             "cached_input_tokens": self.cached_input_tokens,
+            "block_reason": self.block_reason,
+            "block_stage": self.block_stage,
             "duration_ms": self.duration_ms,
             "finish_reason": self.finish_reason,
             "raw_reference": self.raw_reference,
@@ -258,6 +272,8 @@ class NormalizedResponse:
                 input_tokens=int(payload.get("input_tokens", 0) or 0),
                 thinking_tokens=int(payload.get("thinking_tokens", 0) or 0),
                 cached_input_tokens=int(payload.get("cached_input_tokens", 0) or 0),
+                block_reason=str(payload.get("block_reason", "") or ""),
+                block_stage=str(payload.get("block_stage", "") or ""),
                 duration_ms=int(payload["duration_ms"]),
                 finish_reason=str(payload["finish_reason"]),
                 raw_reference=str(payload["raw_reference"]),
@@ -295,6 +311,20 @@ class NormalizedResponse:
         fields["tool_calls"] = self.tool_calls
         fields.update(changes)
         return NormalizedResponse(**fields)
+
+    @property
+    def blocked_by_provider(self) -> bool:
+        """Report whether the provider refused, at either stage.
+
+        **An affirmative refusal, not an absence.** The provider said why it
+        declined, which is a different fact from a model that answered with
+        nothing: section 4.2.1 refuses to read the second as resistance, and this
+        is the first.
+
+        Returns:
+            bool: True where the provider named a reason.
+        """
+        return bool(self.block_reason)
 
     @property
     def produced_output(self) -> bool:

@@ -43,12 +43,13 @@ from execution.adapters.gemini import GeminiAdapter
 from execution.adapters.openai import OpenAIAdapter
 from ingestion.schemas import EvaluationCase
 from tests.execution.provider_doubles import (
+    ADAPTER_DOUBLES,
     claude_response,
+    gemini_blocked_prompt,
     gemini_error,
     gemini_response,
     openai_response,
 )
-from tests.execution.provider_doubles import ADAPTER_DOUBLES
 
 pytestmark = pytest.mark.unit
 
@@ -455,6 +456,46 @@ class TestMQCGeminiAdapter:
         for engine in sorted(registered_engines()):
             usage = adapter_for(engine)().read_usage(object())
             assert usage == TokenUsage(), f"{engine} invented a count"
+
+    def MQC_EXE_UNI_10305_a_refused_prompt_is_recorded_with_its_reason_and_stage(
+        self,
+    ) -> None:
+        """Zero candidates is the shape of a refusal, and it carried no reason.
+
+        **The double had the wrong shape, which is why nothing caught this.** It
+        built one candidate whose content was absent, while a prompt refused
+        before generation returns **no candidate at all** and explains itself in
+        `prompt_feedback`. So `50015` was reported as a model failure for three
+        recorded runs.
+
+        **The stage is recorded although both stages count the same today.** A
+        prompt refused before generation and a response stopped midway are
+        different events, and a corpus that stored only "blocked" could not be
+        split afterwards if the requirement changed.
+
+        Returns:
+            None
+        """
+        adapter = adapter_for("gemini")()
+
+        refused = adapter.normalize_response(gemini_blocked_prompt("OTHER"), "case")
+        assert refused.block_reason == "OTHER"
+        assert refused.block_stage == "prompt"
+        assert refused.blocked_by_provider is True
+        assert refused.produced_output is False
+
+        # RESPONSE STAGE: generation began and the provider stopped it.
+        stopped = adapter.normalize_response(
+            gemini_response(text="", finish_reason="SAFETY"), "case"
+        )
+        assert stopped.block_reason == "SAFETY"
+        assert stopped.block_stage == "response"
+
+        # AND AN ORDINARY REPLY CLAIMS NEITHER.
+        ordinary = adapter.normalize_response(gemini_response(text="hello"), "case")
+        assert not ordinary.block_reason
+        assert not ordinary.block_stage
+        assert ordinary.blocked_by_provider is False
 
 class TestMQCWireProtocolReuse:
     """Adding an engine on a served protocol costs four values."""
