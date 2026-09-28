@@ -184,7 +184,7 @@ now says so where the clarification family is specified.
 
 ---
 
-### 2.6 Recording the corpus takes about ten days on the free tier. Pay, or wait?
+### 2.6 ~~Recording the corpus takes about ten days on the free tier. Pay, or wait?~~
 
 **Measured 2026-09-26, not estimated.** Asked directly, Gemini named the quota
 that stalled the security recording run at nineteen fixtures:
@@ -222,10 +222,11 @@ corpus. `mixed_model_engines` now exits 3 on that (`cmn_verdict_and_cli.md`
 section 4.9.6). I mention it because it is the cheapest-looking way out and the
 one that silently destroys the result.
 
-**My recommendation:** wait, and record security first. It is the family that
-needs no judge, so it is the one that makes progress on candidate quota alone.
-Paying becomes worth it when the evaluator family starts, because that spends
-quota on the judge as well as the candidate.
+**Settled 2026-09-28: paid.** Gemini and OpenAI were both funded with 60 USD and a 20 USD monthly cap each, and the security family was recorded in one run for **six cents** rather than four days.
+
+**What the measurement changed.** Thinking runs at six to seven times the visible output and is billed as output, which no estimate had reached: the counts were not being captured at all. A full corpus at the measured ratio is roughly **2.05 USD** per run against the 0.23 the visible counts alone suggested.
+
+**What is still unmeasured** is the judge, which only the evaluator family exercises. Every `EVAL` and `TOOL` figure remains modelled rather than measured until that family is recorded.
 
 
 ### 2.7 What should the harness's own live run measure, once it is scheduled again?

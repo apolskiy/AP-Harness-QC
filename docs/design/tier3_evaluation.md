@@ -863,6 +863,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10345` | N | `judge_timeout_never_attributed_to_the_candidate` |
 | `10346` | P | `task_instruction_is_isolated_into_a_data_field` |
 | `10347` | P | `context_documents_are_isolated_into_a_data_field` |
+| `10402` | N | `each_observation_composes_under_its_own_index` |
 | `10348` | N | `declared_adversarial_case_invokes_no_judge` |
 | `10349` | P | `tier_three_screen_catches_what_ingest_warned_about` |
 | `10351` | P | `reply_schema_names_every_criterion` |
@@ -922,7 +923,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `20203` | N | `judge_engine_without_structured_output_is_rejected` |
 | `20204` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 100 cases, 42 negative, 43 positive, 15 boundary.**
+**Inventory: 101 cases, 43 negative, 43 positive, 15 boundary.**
 
 ### 11.3 The five cases added with A19
 

@@ -24,10 +24,16 @@ A failure here is our defect, so the module carries no priority marker, per
 
 from typing import Any, Final
 
+import json
+
 import pytest
 
 from cmn.pricing import TokenUsage
+from evaluation.isolation import UnauthoredMaterial, compose_judge_request
+from execution.adapters.claude import ClaudeAdapter
+from execution.adapters.gemini import GeminiAdapter
 from execution.adapters.grok import GrokAdapter
+from execution.adapters.openai import OpenAIAdapter
 from execution.adapters.openai_protocol import OpenAICompatibleAdapter
 from execution.adapters.registry import (
     CANDIDATE_ROLE,
@@ -36,12 +42,8 @@ from execution.adapters.registry import (
     engines_for_role,
     registered_engines,
 )
-
-from execution.adapters.claude import ClaudeAdapter
 from execution.replay import hash_request
-from execution.adapters.gemini import GeminiAdapter
-from execution.adapters.openai import OpenAIAdapter
-from ingestion.schemas import EvaluationCase
+from ingestion.schemas import EvaluationCase, Rubric
 from tests.execution.provider_doubles import (
     ADAPTER_DOUBLES,
     claude_response,
@@ -67,6 +69,35 @@ _SPENT_DAY_BODY: Final[str] = (
     "ayPerProjectPerModel-FreeTier', 'quotaValue': '20'}]}, {'retryDelay': '5"
     "2s'}]}}"
 )
+
+def _rubric_with(criterion_id: str) -> Any:
+    """Return a one-criterion rubric, for composing a real judgement schema.
+
+    Args:
+        criterion_id (str): What to call the criterion.
+
+    Returns:
+        Any: A rubric the composer accepts.
+    """
+    return Rubric.from_dict(
+        {
+            "threshold": 3.0,
+            "criteria": [
+                {
+                    "criterion_id": criterion_id,
+                    "name": "Usefulness",
+                    "description": "Whether the answer is useful.",
+                    "anchors": {
+                        1: {"description": "Answers nothing."},
+                        3: {"description": "Answers in part."},
+                        5: {"description": "Answers fully."},
+                    },
+                }
+            ],
+        }
+    )
+
+
 
 class TestMQCClaudeAdapter:
     """What this provider does that the other two do not."""
@@ -496,6 +527,54 @@ class TestMQCGeminiAdapter:
         assert not ordinary.block_reason
         assert not ordinary.block_stage
         assert ordinary.blocked_by_provider is False
+
+    def MQC_EXE_UNI_10306_the_judgement_schema_drops_keywords_the_provider_rejects(
+        self,
+    ) -> None:
+        """No judgement had ever reached this provider, and nothing said so.
+
+        Every judgement returned `400 INVALID_ARGUMENT` naming
+        `additional_properties` as a field it cannot find: Gen AI's
+        `response_schema` takes a restricted OpenAPI subset rather than JSON
+        Schema. **The whole `EVAL` family was unjudgeable live**, and the
+        security family did not reveal it because those rules carry no rubric.
+
+        **The schema Tier 3 composed is not wrong and is not changed.**
+        `additionalProperties: false` is what makes the reply validation strict:
+        a judge returning a criterion nobody asked for must fail, and
+        `_require_schema_valid` reads the same schema. So the adapter translates
+        it for the wire, which is where a provider's constraints belong.
+
+        Returns:
+            None
+        """
+        adapter = adapter_for("gemini")()
+        # THE SCHEMA TIER 3 ACTUALLY COMPOSES, not a hand-copy of its shape. A
+        # literal here would assert against my memory of the builder rather than
+        # the builder, and the builder is what the provider rejected.
+        strict = compose_judge_request(
+            "MQC_TASK_probe::MQC_RULE_probe",
+            _rubric_with("C_ONE"),
+            UnauthoredMaterial(candidate_output="An answer.", task_instruction="Ask."),
+        ).reply_schema
+        assert "additionalProperties" in json.dumps(strict), (
+            "the composed schema no longer carries the keyword this translates, "
+            "so the case is asserting nothing"
+        )
+
+        composed = adapter.compose_judgement("Score it.", strict)
+        sent = composed["config"]["response_schema"]
+
+        # NESTED OCCURRENCES TOO, because the rejection named both the root and
+        # a property: removing only the outer one would still be a 400.
+        assert "additionalProperties" not in json.dumps(sent)
+        # AND NOTHING ELSE IS LOST. The structure the judge must reply in is
+        # what constrains the reply, so dropping a keyword must not drop a field.
+        assert sent["required"] == ["scores"]
+        assert "C_ONE" in sent["properties"]["scores"]["properties"]
+        # THE CALLER'S SCHEMA IS UNTOUCHED, because Tier 3 validates the reply
+        # against it and needs the strictness the wire cannot carry.
+        assert "additionalProperties" in json.dumps(strict)
 
 class TestMQCWireProtocolReuse:
     """Adding an engine on a served protocol costs four values."""

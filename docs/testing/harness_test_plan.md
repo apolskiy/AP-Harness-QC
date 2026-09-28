@@ -350,6 +350,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0090` | A flag named on the command line counts as supplied even where its value equals the default, so the defaulted-engine warning marks only runs that chose no provider | cmn_verdict_and_cli.md section 7.4.1 |
 | `MQC_REQ_HAR_EVL_0039` | A declared adversarial case whose provider refused to answer passes and records the reason and stage, while an empty response carrying no stated reason still does not pass | tier3_evaluation.md section 4.2.2 |
 | `MQC_REQ_HAR_EXE_0079` | A provider's refusal is recorded with its own reason and the stage it occurred at, so a security outcome can be reclassified from the stored corpus rather than by running it again | tier2_execution.md section 10.1 |
+| `MQC_REQ_HAR_EXE_0080` | A judgement request carries a schema the provider accepts, with keywords it rejects removed on the way to the wire and the composed schema left strict for validating the reply | tier2_execution.md section 5A.7 |
+| `MQC_REQ_HAR_EXE_0081` | A judgement is recorded and replayed per observation, keyed by the observation index the request carries, so repeat observations of one case do not overwrite each other | tier2_execution.md section 5A.8 |
 
 ---
 

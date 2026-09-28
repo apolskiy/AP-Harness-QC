@@ -444,7 +444,10 @@ def _judge_and_aggregate(
     """
     declared, rubric_authored = _declared_checks(context.rules)
     rubric = context.rules.rubric
-    request = compose_judge_request(context.case_id, rubric, context.material)
+    request = compose_judge_request(
+        context.case_id, rubric, context.material,
+        observation_index=context.observation_index,
+    )
 
     try:
         reply = validate_judge_reply(

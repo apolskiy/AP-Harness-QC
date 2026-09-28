@@ -4,7 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -->
 # AP-Harness-QC: Design Overview
 
-> **Status:** current as of 2026-09-23. **Phase 3: the harness is implemented across all four modules and seven CI workflows; the graded model evaluations are not yet written.** The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_10183`, `10186` and `10187` rather than by intention.
+> **Status:** current as of 2026-09-28. **Phase 3: the harness is implemented across all four modules and seven CI workflows, the graded model evaluations are written, and the security family is recorded and passing against a paid tier.** What remains unrecorded is the `EVAL` and `TOOL` corpus, which section 7.4 carries as a known gap. The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_10183`, `10186` and `10187` rather than by intention.
 >
 > **Purpose:** the referential basis for every other design document. It states what the system is, which document holds which decision, and where the boundaries between them fall. It does not restate their contents.
 
@@ -229,8 +229,8 @@ Read these before any other document; the rest assume them.
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 89 cases | **Implemented** |
 | `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 187 cases | **Implemented** |
 | `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
-| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 110 cases | **Implemented** |
-| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 100 cases | **Implemented** |
+| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 112 cases | **Implemented** |
+| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 101 cases | **Implemented** |
 
 `ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.
 
@@ -240,7 +240,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/testing/harness_test_plan.md` | 113 harness requirements, traced to the precondition cases in the module designs | **Implemented, traced both ways** |
-| `model_evaluation_test_plan.md` **in `AP-Model-QC`** | 26 evaluation requirements and 66 graded cases across `EVAL`, `TOOL` and `SEC` | Written, cases not yet built |
+| `model_evaluation_test_plan.md` **in `AP-Model-QC`** | 73 evaluation requirements and 69 graded cases across `EVAL`, `TOOL` and `SEC` | Written, and all 69 cases built |
 | `docs/testing/rtm_harness.csv` | Harness requirements mapped to precondition cases | Written |
 | `rtm_model.csv` **in `AP-Model-QC`** | Evaluation requirements mapped to graded cases | Written |
 
@@ -431,7 +431,7 @@ These appear independently in several documents. Named here so the repetition re
 
 ## 7. Current State
 
-**Measured 2026-09-25, not recalled.** Every number below was counted from a
+**Measured 2026-09-28, not recalled.** Every number below was counted from a
 collection run rather than remembered, which is the correction this table
 needed: it previously read "Implementation code: None" while 584 harness cases
 passed against it, and **understating what exists misleads a reader exactly as
@@ -442,8 +442,8 @@ much as overstating it**.
 | Phase 0 | Closed. No open items |
 | Phase 1 | Complete for every tier |
 | Phase 2 | **Complete.** Four module designs, two test plans and two matrices |
-| Phase 3 | **Underway.** The design is implemented and the corpus is authored; recording is in progress |
-| Implementation code | 44 modules, roughly 13,800 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
+| Phase 3 | **Underway.** The design is implemented, the corpus is authored, and the security family is recorded in full. The `EVAL` and `TOOL` families are not recorded, which costs judge quota as well as candidate quota |
+| Implementation code | 46 modules, roughly 15,300 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
 | Harness cases | **584**: 564 precondition (`UNI`) and 20 system (`SYS`), across `ING`, `EXE`, `EVL` and `CMN` |
 | Case-repository preconditions | **47** (`CAS_UNI`), guarding the corpus, the excerpts and the pin |
 | Model evaluation cases | **66, inventory and suite agreeing**: 37 `EVAL`, 8 `TOOL`, 21 `SEC` |
@@ -780,12 +780,18 @@ the record rather than a silence. These were silent.
 | Gap | Size | Why it was invisible |
 |---|---|---|
 | ~~Security cases `50010` to `50021` designed and unwritten~~ | **Closed 2026-09-26** | Twelve corpus pairs and twelve cases written. Writing them found that two attack families had no vector at all (`tier1_ingestion.md` section 7.3) |
-| No recorded response for any `EVAL` or `TOOL` case | 45 cases | Expected. Recording is Phase 3 work and costs quota |
+| No recorded response for any `EVAL` or `TOOL` case | 48 cases | Expected, and now the only recording gap: the `SEC` family was completed 2026-09-28 at a measured cost of six cents. These two spend judge quota as well as candidate quota, which is the difference |
 | ~~Repeat observations are never dispatched~~ | **Closed 2026-09-25** | A4.1 decided three; every graded case now observes three times and the consistency check reads the result |
 
 **Only the middle row is still open**, and it is open by plan rather than by
 oversight: recording an `EVAL` or `TOOL` response costs quota, and the evaluator
 family spends it on the judge as well as the candidate.
+
+**What the security recording established, which the estimate could not.**
+Thinking runs at **six to seven times** the visible output on this model and
+is billed as output, so every cost figure produced before those counts were
+captured understated the bill by roughly five times.
+`cmn_verdict_and_cli.md` section 12 carries the measurement.
 
 **What closing the first row taught, which outlived the gap.** Writing the twelve
 cases found that two whole attack families matched no vector at all and had

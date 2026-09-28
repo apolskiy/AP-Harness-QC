@@ -174,6 +174,44 @@ class TestMQCIsolation:
         assert request.data["context_document.MQC_DOC_one"] == _PAYLOAD
         assert request.data["context_document.MQC_DOC_two"] == "Benign text."
         assert request.instruction_contains(_PAYLOAD) is False
+    def MQC_EVL_UNI_10402_each_observation_composes_under_its_own_index(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """Three observations were recorded as one judgement, overwriting.
+
+        `JudgeRequest` had no `observation_index`, and `judge_channel` read one
+        through `getattr(request, "observation_index", 0)`. The default was
+        always taken, so every observation of every case keyed its judgement at
+        index zero: observation 1 overwrote 0, observation 2 overwrote 1, and
+        the surviving file held the hash of the last observation judged.
+        Replaying started at observation 0 and found a hash belonging to
+        different candidate text, which failed the whole case as stale.
+
+        **The index is routing, not content.** It names the fixture and must
+        not reach the provider, so the rendered payload is identical across
+        observations of the same material and only the key differs.
+
+        Args:
+            sample_rubric_record (Rubric): A rubric to compose against.
+
+        Returns:
+            None
+        """
+        material = _material()
+
+        first = compose_judge_request(
+            _CASE_ID, sample_rubric_record, material, observation_index=0
+        )
+        third = compose_judge_request(
+            _CASE_ID, sample_rubric_record, material, observation_index=2
+        )
+
+        assert (first.observation_index, third.observation_index) == (0, 2)
+        # AND THE PAYLOAD IS UNCHANGED, because an index that reached the judge
+        # would make three observations three different questions.
+        assert first.rendered() == third.rendered()
+
+
 class TestMQCJudgeInstructionContent:
     """What the instruction portion must carry, and what it must not."""
 

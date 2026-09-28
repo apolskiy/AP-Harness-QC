@@ -71,12 +71,17 @@ class JudgeRequest:
             judge's own directions. **Nothing else may appear here.**
         data (dict): Every isolated value, by typed field name.
         reply_schema (dict): The structure the judge must reply in (C2).
+        observation_index (int): Which of the repeat observations (A4)
+            this judges. **Routing, not content**: it names the fixture
+            the judgement is stored under and never reaches the
+            provider, so ``rendered`` does not read it.
     """
 
     case_id: str
     instruction: str
     reply_schema: dict[str, Any]
     data: dict[str, str] = field(default_factory=dict)
+    observation_index: int = 0
 
     def rendered(self) -> str:
         """Return the full payload a provider receives.
@@ -152,6 +157,7 @@ def compose_judge_request(
     case_id: str,
     rubric: Any,
     material: UnauthoredMaterial,
+    observation_index: int = 0,
 ) -> JudgeRequest:
     """Build a judge request with every unauthored value isolated.
 
@@ -161,6 +167,9 @@ def compose_judge_request(
             instruction text. Typed loosely so Tier 3 does not import Tier 1's
             record for one attribute walk.
         material (UnauthoredMaterial): Everything we did not author.
+        observation_index (int): Which of the repeat observations (A4)
+            this judges, carried through so each one is recorded under
+            its own fixture rather than overwriting observation zero.
     Returns:
         JudgeRequest: The composed request.
 
@@ -176,6 +185,7 @@ def compose_judge_request(
         instruction=_compose_instruction(rubric),
         reply_schema=reply_schema_for(rubric),
         data=isolated,
+        observation_index=observation_index,
     )
     _assert_isolation_held(request, isolated)
     return request

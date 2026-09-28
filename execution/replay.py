@@ -413,7 +413,8 @@ def load_judgement(
         raise FixtureStale(
             f"QC_HARNESS_FIXTURE_STALE: the judge request for {key.case_id} no "
             f"longer matches the one this judgement was recorded against, so "
-            f"replaying it would answer a different question"
+            f"replaying it would answer a different question. Recorded against "
+            f"{stored.request_hash[:12]}, would now send {request_hash[:12]}"
         )
     if stored.judge_model != judge_model:
         raise FixtureStale(

@@ -327,6 +327,56 @@ a live run.
 
 ---
 
+#### 5A.7 The judgement schema is translated for the wire
+
+Added 2026-09-28, from the first live judged run.
+
+**No judgement had ever reached Gen AI.** Every one returned `400
+INVALID_ARGUMENT` naming `additional_properties` as a field it cannot find:
+`response_schema` takes a restricted OpenAPI subset, not JSON Schema. The whole
+`EVAL` family was unjudgeable live, and the `SEC` family did not reveal it
+because those rules carry no rubric.
+
+**The composed schema is right and is unchanged.** `additionalProperties: false`
+is what makes the reply validation strict, and `_require_schema_valid` reads the
+same object: a judge returning a criterion nobody asked for must fail. Weakening
+the schema to satisfy one provider would weaken it for every provider.
+
+**So the adapter translates.** A provider's constraints stop at the adapter, the
+same rule that keeps vendor types out of Tier 3, and `_wire_schema` copies the
+schema without the keywords this provider rejects.
+
+**The rejected list is evidence-driven and short.** `additionalProperties` is
+there because a request carrying it was refused, not because a list somewhere
+says so. An entry is added when a request fails for it, which keeps the file from
+claiming knowledge nobody verified.
+
+#### 5A.8 A judgement is recorded per observation
+
+Added 2026-09-28, from the first replay of a judged family.
+
+**Three observations kept one judgement.** `JudgeRequest` carried no
+`observation_index`, and the channel read one through
+`getattr(request, "observation_index", 0)`. The default was always taken, so
+every observation of every case composed its key at index zero: observation 1
+overwrote 0, observation 2 overwrote 1, and the surviving file held the hash of
+whichever observation was judged last.
+
+**Replay then failed as staleness.** Observation 0 recomputed its hash over its
+own candidate text, met the hash of observation 2, and raised
+`QC_HARNESS_FIXTURE_STALE` — which reads as a corpus problem and is not one.
+The `amb` family recorded live and would not replay.
+
+**Every layer but one was already built for it.** `ObservationContext`,
+`JudgementKey` and the fixture path all carry the index; `compose_judge_request`
+did not take it and so could not pass it on. The `getattr` default is what made
+the gap silent, and direct attribute access replaces it: a request without the
+field is now loud.
+
+**The index is routing, not content.** It names the fixture and never reaches
+the provider, so `rendered()` does not read it and two observations of identical
+material compose identical payloads.
+
 ## 6. Declared Capabilities
 
 An adapter declares what its provider supports. Unsupported pairs are then **derived rather than hand-maintained**.
@@ -1437,6 +1487,8 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10303` | N | `a_ceiling_against_an_unpriced_model_stops_the_run` |
 | `10304` | N | `an_empty_balance_is_its_own_code_not_an_auth_failure` |
 | `10305` | P | `a_refused_prompt_is_recorded_with_its_reason_and_stage` |
+| `10306` | N | `the_judgement_schema_drops_keywords_the_provider_rejects` |
+| `10307` | N | `each_observation_records_its_own_judgement` |
 | `10271` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
@@ -1453,7 +1505,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 110 cases, 44 negative, 57 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 112 cases, 46 negative, 57 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

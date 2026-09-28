@@ -326,6 +326,102 @@ class TestMQCJudgeChannelMode:
             JudgementPlan(mode="cached")
 
 
+    def MQC_EXE_UNI_10307_each_observation_records_its_own_judgement(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """Three observations of a case kept one judgement, overwriting.
+
+        `JudgeRequest` carried no `observation_index` and the channel read one
+        through `getattr(request, "observation_index", 0)`, so every
+        observation keyed at zero. Observation 1 overwrote 0, observation 2
+        overwrote 1, and the surviving file held the hash of the last
+        observation judged. Replay then started at observation 0, recomputed a
+        hash over different candidate text, and failed the case as
+        `QC_HARNESS_FIXTURE_STALE` — the amb family recorded live and would not
+        replay.
+
+        **The round trip here used one observation**, which is why it passed
+        throughout: the collision needs two.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+            monkeypatch (Any): Replaces the adapter's dispatch.
+
+        Returns:
+            None
+        """
+        awarded = {"scores": {"C_ONE": {"score": 4, "rationale": "Grounded."}}}
+
+        def answer(self: Any, request: Any) -> Any:
+            """Return a judgement for whatever was composed.
+
+            Args:
+                self (Any): The adapter.
+                request (Any): The composed request.
+
+            Returns:
+                Any: A Gen AI response double.
+            """
+            assert request is not None and self is not None
+            return gemini_judgement(awarded)
+
+        monkeypatch.setattr(GeminiAdapter, "dispatch", answer)
+
+        # TWO OBSERVATIONS OF ONE CASE, DIFFERING ONLY IN THE CANDIDATE TEXT,
+        # which is exactly what repeat observations are: the same prompt
+        # answered again.
+        requests = [
+            JudgeRequest(
+                case_id=_CASE,
+                instruction="Score the response against the rubric.",
+                reply_schema={"type": "object", "properties": {"scores": {}}},
+                data={"candidate_output": text},
+                observation_index=index,
+            )
+            for index, text in enumerate(["A grounded summary.", "Another wording."])
+        ]
+
+        live = JudgeChannel(
+            "gemini",
+            model=_MODEL,
+            plan=JudgementPlan(mode="live", fixture_root=tmp_path, record=True),
+        )
+        for request in requests:
+            assert live.invoke(request) == awarded
+
+        stored = sorted(
+            path.name
+            for path in (tmp_path / "judgements" / "gemini" / "MQC_TASK_alpha").rglob(
+                "*.json"
+            )
+        )
+        assert stored == ["0.json", "1.json"], stored
+
+        def forbidden(self: Any, request: Any) -> Any:
+            """Refuse to be dispatched.
+
+            Args:
+                self (Any): The adapter.
+                request (Any): The composed request.
+
+            Returns:
+                Any: Never; this always raises.
+
+            Raises:
+                AssertionError: Always.
+            """
+            assert request is not None and self is not None
+            raise AssertionError("the replay reached the provider")
+
+        monkeypatch.setattr(GeminiAdapter, "dispatch", forbidden)
+        replayed = JudgeChannel(
+            "gemini", model=_MODEL, plan=JudgementPlan(mode="replay", fixture_root=tmp_path)
+        )
+        # AND BOTH REPLAY, which is the failure this reproduces: under the old
+        # key, observation 0 met observation 1's hash and raised.
+        for request in requests:
+            assert replayed.invoke(request) == awarded
+
 class TestMQCJudgeFailureContainment:
     """A provider failure while judging, which used to escape."""
 

@@ -197,7 +197,7 @@ class JudgeChannel:
         key = JudgementKey(
             case_id=request.case_id,
             judge_engine=self.engine,
-            observation_index=getattr(request, "observation_index", 0),
+            observation_index=request.observation_index,
         )
         request_hash = hash_request(composed)
 

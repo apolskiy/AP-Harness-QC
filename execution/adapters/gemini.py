@@ -334,6 +334,41 @@ class GeminiAdapter(ConfiguredAdapter):
             )
         return str(resolved).strip()
 
+    # KEYWORDS GEN AI'S `response_schema` REJECTS. Its structured output takes a
+    # restricted OpenAPI subset rather than JSON Schema, and an unsupported
+    # keyword is a 400 naming the field rather than a warning.
+    #
+    # EVIDENCE-DRIVEN, AND DELIBERATELY SHORT. `additionalProperties` is here
+    # because a request carrying it was rejected, not because a list somewhere
+    # says so. An entry is added when a request fails for it, so this never
+    # claims knowledge nobody verified.
+    _SCHEMA_KEYWORDS_REJECTED: Final[frozenset[str]] = frozenset({"additionalProperties"})
+
+    @classmethod
+    def _wire_schema(cls, schema: Any) -> Any:
+        """Return the schema with keywords this provider cannot parse removed.
+
+        **The caller's schema is not modified.** Tier 3 keeps
+        `additionalProperties: false` because the reply validation needs it: a
+        judge returning a criterion nobody asked for must fail, and that check
+        reads the same schema this method copies.
+
+        Args:
+            schema (Any): The reply schema as Tier 3 composed it.
+
+        Returns:
+            Any: A copy the provider accepts, structurally identical otherwise.
+        """
+        if isinstance(schema, dict):
+            return {
+                key: cls._wire_schema(value)
+                for key, value in schema.items()
+                if key not in cls._SCHEMA_KEYWORDS_REJECTED
+            }
+        if isinstance(schema, list):
+            return [cls._wire_schema(entry) for entry in schema]
+        return schema
+
     def compose_judgement(self, prompt: str, reply_schema: dict[str, Any]) -> Any:
         """Build a Gen AI request constrained to the reply schema.
 
@@ -360,7 +395,7 @@ class GeminiAdapter(ConfiguredAdapter):
             "config": {
                 "automatic_function_calling": {"disable": True},
                 "response_mime_type": "application/json",
-                "response_schema": reply_schema,
+                "response_schema": self._wire_schema(reply_schema),
             },
         }
 
