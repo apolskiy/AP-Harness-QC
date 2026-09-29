@@ -356,13 +356,27 @@ def judge_channel_from_roster(
         carrying its own adapter.
 
     Raises:
-        ValueError: With ``QC_HARNESS_PREFLIGHT_FAILURE`` when the engine is
-            not on the roster or does not declare structured output. **Refused
+        ValueError: With ``QC_HARNESS_PREFLIGHT_FAILURE`` when the roster
+            names nothing, or when the engine is not on it or does not declare
+            structured output. **Refused
             here rather than at the first judgement**, which is the difference
             between a run that does not start and a run that spends candidate
             quota and then cannot grade what it bought.
     """
     roster = load_engines(roster_path)
+    if not roster:
+        # AN ABSENT ROSTER READS AS AN EMPTY ONE, and the resolver below would
+        # report the judge engine missing from a roster it never read. That is
+        # what a consumer saw when it located the file by directory adjacency
+        # and CI had no sibling checkout: a true statement about the wrong
+        # thing, three layers from the cause. The verdict tool legitimately
+        # configures no engine, so this is refused here rather than in the
+        # loader.
+        raise ValueError(
+            f"QC_HARNESS_PREFLIGHT_FAILURE: the engine roster at {roster_path} "
+            f"names nothing, so no engine can judge. The file is absent or "
+            f"empty, which is a misconfigured instrument"
+        )
     resolved = resolve_judge_engine(
         engine or load_judge_engine(roster_path),
         roster,

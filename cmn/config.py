@@ -23,6 +23,7 @@ durable record silently.
 import logging
 import re
 import os
+from importlib import resources
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -157,6 +158,78 @@ def _refuse_credentials(path: Path, payload: Any) -> None:
     elif isinstance(payload, list):
         for entry in payload:
             _refuse_credentials(path, entry)
+
+
+# The roster's own file name, used to recognise the configuration directory
+# wherever it was installed.
+_ROSTER_NAME: Final[str] = "engines.yaml"
+
+
+def packaged_config_root() -> Path:
+    """Return the directory holding this harness's own configuration.
+
+    **A consumer read it by directory adjacency and CI had no sibling.**
+    `AP-Model-QC` located the roster at `../AP-Harness-QC/config/engines.yaml`,
+    which is true only on a developer's disk where both repositories are
+    checked out side by side. CI installs this harness from a pinned commit, so
+    the path did not exist, `load_yaml_config` returned an empty mapping for an
+    absent file as it does for an optional one, and the run failed three layers
+    away with `judge engine 'gemini' is not on the roster`.
+
+    **So the configuration travels inside the distribution**, and this is how a
+    consumer finds it. `config/` ships as package data, which
+    `MQC_CMN_UNI_11114` already learned to care about the first time this
+    repository was installed into another one.
+
+    **Why not let the consumer keep its own copy**: the roster carries evidence,
+    not preferences. Which spacing was measured, which model was retired and
+    why, which engine grades. A second copy drifts toward whichever repository
+    was edited last, which is the drift the consumer's own comment warned about
+    while reaching across a directory boundary to avoid it.
+
+    Returns:
+        Path: The directory carrying ``engines.yaml``. Resolved from the
+        installed package first, then from this source tree, so it answers the
+        same way installed, on ``PYTHONPATH``, or run from the repository root.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PREFLIGHT_FAILURE`` when no configuration
+            directory carries a roster. **Loud rather than empty**: an absent
+            roster is a broken installation, and returning nothing is what made
+            the original failure report the wrong cause.
+    """
+    try:
+        located = resources.files("config") / _ROSTER_NAME
+        if located.is_file():
+            # A real file on disk: pip unpacks wheels, so this is not a member
+            # of an archive and has a filesystem path to hand to a loader.
+            return Path(str(located)).parent
+    except (ModuleNotFoundError, TypeError, NotADirectoryError):
+        # No such namespace portion, which a source checkout reaches below.
+        pass
+
+    fallback = Path(__file__).resolve().parents[1] / "config"
+    if (fallback / _ROSTER_NAME).is_file():
+        return fallback
+
+    raise ValueError(
+        "QC_HARNESS_PREFLIGHT_FAILURE: no configuration directory carries "
+        f"{_ROSTER_NAME}. The harness is installed without its package data, "
+        "so no engine, model or pacing is configured"
+    )
+
+
+def packaged_roster_path() -> Path:
+    """Return the engine roster's own path.
+
+    Returns:
+        Path: ``engines.yaml`` inside :func:`packaged_config_root`.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PREFLIGHT_FAILURE`` when none is
+            installed.
+    """
+    return packaged_config_root() / _ROSTER_NAME
 
 
 def load_engines(path: Path) -> dict[str, EngineConfig]:

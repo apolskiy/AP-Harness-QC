@@ -18,6 +18,7 @@ which are a Tier 2 record.
 A failure here is our defect, so the module carries no priority marker.
 """
 
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,7 @@ from cmn.config import (
     load_harness_config,
     load_judge_engine,
     load_judge_model,
+    packaged_roster_path,
     probe_subjects,
     resolve_judge_engine,
 )
@@ -309,3 +311,61 @@ class TestMQCJudgeMode:
             resolve_judge_mode(mode, judge)
             for mode, judge in (("replay", ""), ("live", ""), ("replay", "live"))
         } == {"replay", "live"}
+
+
+class TestMQCPackagedConfiguration:
+    """Where a consumer finds this harness's own configuration."""
+
+    def MQC_CMN_UNI_11191_the_roster_is_found_through_the_installed_package(
+        self,
+    ) -> None:
+        """A consumer read the roster from the directory next door.
+
+        `AP-Model-QC` located it at `../AP-Harness-QC/config/engines.yaml`,
+        true only where both repositories are checked out side by side. CI
+        installs this harness from a pinned commit, so the path did not exist,
+        an absent file loaded as an empty mapping the way an optional one
+        does, and the gate failed reporting `judge engine 'gemini' is not on
+        the roster` — a true statement about a roster never read.
+
+        Returns:
+            None
+        """
+        located = packaged_roster_path()
+
+        assert located.is_file()
+        assert located.name == "engines.yaml"
+        # POPULATED, NOT MERELY PRESENT, because an empty roster was the shape
+        # the original failure took.
+        assert sorted(load_engines(located))
+
+    def MQC_CMN_UNI_11192_the_shipped_distribution_carries_the_configuration(
+        self,
+    ) -> None:
+        """Package data is configured, or the consumer install has no roster.
+
+        **The build must be asked, not the source tree.** `config/` is present
+        on disk whatever the build says, so a check that it exists proves
+        nothing: `MQC_CMN_UNI_11114` learned the same lesson about packages the
+        first time this repository was installed into another one. What
+        matters is that the packaging configuration would carry it into a
+        wheel.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        configured = tomllib.loads(
+            (root / "pyproject.toml").read_text(encoding="utf-8")
+        )["tool"]["setuptools"]
+
+        found = configured["packages"]["find"]
+        assert any(entry.rstrip("*") == "config" for entry in found["include"]), (
+            "config/ is not in the package list, so a wheel would omit the "
+            "roster and every consumer would resolve an empty one"
+        )
+        # A NAMESPACE PORTION, because `config/` carries no `__init__.py` and
+        # acquiring one would make a data directory importable to say so.
+        assert found.get("namespaces") is True
+        assert "*.yaml" in configured["package-data"]["config"]
+        assert "config" not in [entry.rstrip("*") for entry in found["exclude"]]

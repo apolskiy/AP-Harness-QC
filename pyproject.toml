@@ -82,5 +82,9 @@ build-backend = "setuptools.build_meta"
 # included by being on disk instead of by being remembered.
 # MQC_CMN_UNI_11114 asserts what is configured against what is on disk.
 [tool.setuptools.packages.find]
-include = ["ingestion*", "execution*", "evaluation*", "cmn*", "tools*"]
-exclude = ["tests*", "docs*", "config*"]
+include = ["ingestion*", "execution*", "evaluation*", "cmn*", "tools*", "config*"]
+exclude = ["tests*", "docs*"]
+namespaces = true
+
+[tool.setuptools.package-data]
+config = ["*.yaml"]

@@ -769,7 +769,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 187 cases, 106 negative, 58 positive, 23 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 189 cases, 108 negative, 58 positive, 23 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -985,6 +985,43 @@ call it with their own root, which is the arrangement section 5.1 of
 `consumer_ci.md` describes. The consumer had the same stale header in its own
 cache and would have failed identically once its resolver let it reach Gate 2.
 
+#### 10.37 The configuration travels inside the distribution
+
+Added 2026-09-28, from the first CI run in which a judged case was replayable.
+
+**A consumer read this harness's roster from the directory next door.**
+`AP-Model-QC` located it at `../AP-Harness-QC/config/engines.yaml`, which is
+true only on a disk where both repositories are checked out side by side. CI
+installs the pinned harness from git, so the path did not exist,
+`load_yaml_config` returned an empty mapping for an absent file as it does for
+an optional one, and Gate 4 failed with `judge engine 'gemini' is not on the
+roster` — a true statement about a roster that was never read.
+
+**It could not fail locally.** The sibling is always present on a developer's
+disk, so every local run passed and only an install could show it. That is the
+second instance of the shape `MQC_CMN_UNI_11114` records: a distribution
+missing something the source tree has, found the first time this repository was
+installed into another one.
+
+**So `config/` ships as package data**, and `packaged_config_root` is how a
+consumer finds it: the installed package first, then this source tree, so it
+answers the same way installed, on `PYTHONPATH`, or run from the repository
+root. It is a namespace portion because a data directory should not acquire an
+`__init__.py` to be shipped.
+
+**Why the harness keeps the roster.** It carries evidence rather than
+preferences: which spacing was measured and which remedy the evidence rejected,
+which model was retired and why, which engine grades and on what capability. A
+copy in the consumer would drift toward whichever repository was edited last,
+which is the drift the consumer's own comment warned about while reaching
+across a directory boundary to avoid it.
+
+**An empty roster is refused where one is required.** `load_engines` stays
+permissive, because the verdict tool recomputes from stored artifacts and
+configures no engine; `judge_channel_from_roster` refuses a roster naming
+nothing, which is the site that actually needs one. Reporting the cause beats
+reporting a true consequence three layers away.
+
 ## 11. Test Inventory: `MQC_CMN_SYS_`
 
 Added 2026-09-26. **The module had no system inventory at all**, which is why it
@@ -1065,6 +1102,8 @@ output count, and the judge path recorded nothing at all.
 | `11188` | P | `a_judged_case_reports_its_judge_apart_from_its_candidate` |
 | `11189` | N | `a_replayed_observation_contributes_nothing` |
 | `11190` | N | `choosing_the_default_engine_is_not_defaulting` |
+| `11191` | N | `the_roster_is_found_through_the_installed_package` |
+| `11192` | N | `the_shipped_distribution_carries_the_configuration` |
 
 ### 12.2 What was measured before any of this was built
 
