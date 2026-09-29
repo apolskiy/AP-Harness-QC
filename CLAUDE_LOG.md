@@ -5918,8 +5918,34 @@ own premises.
 | `--priority` | Declared, documented as working, **never read** | A run naming a band measured everything and reported as a band |
 | `rule_set_hash` | Declared, serialised, **never computed** | Runs emitted the empty string for "which rules produced this" |
 
-A precondition asserting every registered option is consumed is queued as part
-of step 1. All three would have failed it.
+**A precondition asserting every registered option is consumed was queued for
+step 1, and measuring it showed it would have caught none of them.**
+`configure_invocation` reads the whole registry generically to build the
+invocation record, so every flag is read, including these three. Narrowing to
+"read specifically" fails too: `--priority` had no `getoption` call of its own,
+but `priority` is read as an attribute throughout the suite, so any name-based
+heuristic scores it consumed. The check as first specified would have passed
+both defects it was written for.
+
+**What works is the inventory principle applied to flags: every registered
+option is named by at least one case.** `--max-spend` and `--priority` both
+fail that, which is the whole point. It does not prove a flag is wired, only
+that something claims to exercise it; that moves the absence from silent to
+arguable, which is the most a structural check can do.
+
+Built as `MQC_CMN_UNI_11193` against `cmn_verdict_and_cli.md` section 7.1.0,
+traced by `MQC_REQ_HAR_CMN_0092`. **Nine of sixteen flags fail it today**, and
+that number is the finding rather than a defect in the check. Each is a dated
+entry in `config/flag_coverage.yaml` carrying a reason, expiring the way a
+quarantined case does, and the check was run against a future date to confirm
+all nine then fire. Injection: declaring `--out-dir` harness-owned produced
+"no case names it, so nothing establishes that it does anything".
+
+**Coverage is owned per flag** because neither repository can see both test
+trees: the harness must not read the case repository and the installed wheel
+ships no tests. A harness-side check demanding the whole registry would have
+needed eleven exemptions out of sixteen, which is a permitted list wearing a
+check's clothes.
 
 #### `rule_set_hash` is content over loaded rules, not over the file
 

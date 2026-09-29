@@ -20,11 +20,13 @@ the case repository runs the identical implementation against MIT.
 A failure here is our defect, so the module carries no priority marker.
 """
 
+from datetime import date
 from pathlib import Path
 
 import pytest
 
 from cmn.code_standards import (
+    flag_coverage_problems,
     annotation_gaps,
     encoding_gaps,
     future_annotation_imports,
@@ -221,6 +223,41 @@ class TestMQCRunbook:
 
 class TestMQCEncodingDeclared:
     """The rule that fails more quietly than any other here."""
+
+    def MQC_CMN_UNI_11193_a_registered_flag_no_case_names_is_reported(self) -> None:
+        """Two flags were declared, documented and proved by nothing.
+
+        `--max-spend` accepted a ceiling that could not stop a request, and
+        `--priority` named a band and ran every band. Neither failed: both were
+        read into the invocation record by `configure_invocation`, which reads
+        the whole registry generically, so "is it read" was true of both and
+        distinguished nothing.
+
+        **Naming a flag in a case is what this asserts**, which is weaker than
+        proving the flag works and is the strongest thing available
+        structurally. It moves an absence from silent to arguable; whether the
+        case is vacuous is settled by injection.
+
+        **Only the harness share.** The registry is shared and the test trees
+        are not: this repository must not read the case repository, and the
+        installed wheel ships no tests. `config/flag_coverage.yaml` says who
+        owns each flag and each side asserts its own.
+
+        **A gap expires.** Nine flags are declared gaps as this is written,
+        each with a reason and a date, because a list without an expiry is
+        where unproven flags go to be forgotten.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        problems = flag_coverage_problems(
+            root, "harness", root / "config" / "flag_coverage.yaml", date.today()
+        )
+
+        assert not problems, (
+            f"{len(problems)} flag coverage problem(s): {'; '.join(problems)}"
+        )
 
     def MQC_CMN_UNI_11157_a_file_open_declaring_no_encoding_is_reported(
         self, tmp_path: Path

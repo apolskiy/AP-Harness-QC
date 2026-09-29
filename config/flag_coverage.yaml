@@ -1,0 +1,97 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Which side proves each registered flag does something.
+#
+# THE REGISTRY IS SHARED AND THE TEST TREES ARE NOT. The harness must not read
+# the case repository, and the installed wheel ships no tests, so neither side
+# can ask about the whole registry. This file says who owns each flag; each
+# repository asserts only its own share. `cmn_verdict_and_cli.md` section 7.1.0
+# carries the reasoning.
+#
+# A GAP IS A DECLARED ABSENCE, NOT AN EXEMPTION. It carries a reason and an
+# expiry, exactly as `quarantine.yaml` does for a case, because a list with no
+# expiry is where unproven flags go to be forgotten and the check stops meaning
+# anything once everything inconvenient has left its denominator. An expired
+# entry fails the run.
+#
+# WHAT THIS PROVES AND WHAT IT DOES NOT. Naming a flag in a case does not make
+# the case exercise it; it makes the absence arguable rather than silent, which
+# is the most a structural check can do. Whether the case is vacuous is settled
+# by injection, per `testing-standards.md`.
+flags:
+  # --- exercised by harness cases -----------------------------------------
+  "--engine": {owner: harness}
+  "--fill-gaps": {owner: harness}
+  "--judge-mode": {owner: harness}
+  "--keep-connection": {owner: harness}
+  "--mode": {owner: harness}
+
+  # --- exercised by consumer cases ----------------------------------------
+  "--case": {owner: consumer}
+  "--judge-on-failure": {owner: consumer}
+
+  # --- declared gaps, dated ------------------------------------------------
+  #
+  # THE TWO THAT PRODUCED THIS FILE. Both were declared, documented and read
+  # generically into the invocation record while acting on nothing:
+  # `--max-spend` accepted a ceiling that could not stop a request, and
+  # `--priority` named a band and ran every band. Both are being closed now,
+  # which is why their expiry is short.
+  "--max-spend":
+    gap:
+      reason: >-
+        The ceiling is covered by MQC_EXE_UNI_10301 and 10303, which test the
+        session and the fail-closed rule. Nothing yet proves the flag reaches
+        them, which is the half that was broken.
+      expires_on: 2026-10-31
+  "--priority":
+    gap:
+      reason: >-
+        The band filter is implemented and verified by hand. Its cases are the
+        next step of the same change.
+      expires_on: 2026-10-31
+
+  # A RUN-SHAPING FLAG WITH NO CASE. Each changes what a run measures or where
+  # it reports, and none is currently demonstrated by anything.
+  "--observations":
+    gap:
+      reason: >-
+        Repeat observations are A4 and the count is configurable, but no case
+        varies it and asserts the population changes.
+      expires_on: 2026-11-30
+  "--golden-rules":
+    gap:
+      reason: >-
+        Points the run at a corpus. Exercised implicitly by every graded run
+        using the default, and by nothing that names it.
+      expires_on: 2026-11-30
+  "--judge-engine":
+    gap:
+      reason: >-
+        Overrides the configured judge. MQC_CMN_UNI_11190 covers the
+        resolution beneath it; nothing covers the flag reaching it.
+      expires_on: 2026-11-30
+  "--extra-columns":
+    gap:
+      reason: >-
+        Documented at section 7.3 as defaulting to reject. Whether any code
+        acts on it is itself unestablished.
+      expires_on: 2026-11-30
+  "--as-of":
+    gap:
+      reason: >-
+        Read by the verdict tool as parsed.as_of, so it is acted upon; no case
+        passes it on a command line.
+      expires_on: 2026-11-30
+  "--out-dir":
+    gap:
+      reason: >-
+        Where a run writes. Workflows pass --junitxml and --alluredir instead,
+        so this may have no behaviour at all and the finding would be that.
+      expires_on: 2026-11-30
+  "--tests":
+    gap:
+      reason: >-
+        A debug workflow input. The workflow turns it into a selection before
+        pytest sees it, so there may be nothing here for a case to reach.
+      expires_on: 2026-11-30

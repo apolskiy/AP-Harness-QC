@@ -23,10 +23,13 @@ module is deliberately only the part pylint cannot express.
 
 import ast
 import re
+from datetime import date
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
 import yaml
+
+from cmn.options import registered_options
 
 # Not this project's source, so not this project's conventions to enforce.
 COPYRIGHT_TAG: Final[str] = "SPDX-FileCopyrightText:"
@@ -455,3 +458,103 @@ def _is_binary_open(node: ast.Call) -> bool:
         isinstance(mode, ast.Constant) and mode.value in _BINARY_MODES
         for mode in modes
     )
+def flag_coverage_declaration(path: Path) -> dict[str, dict[str, Any]]:
+    """Read which side proves each registered flag does something.
+
+    Args:
+        path (Path): The declaration file.
+
+    Returns:
+        dict: Flag to its entry, carrying ``owner`` or ``gap``.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the file is absent or
+            declares a flag the registry does not carry. **A declaration for a
+            flag nobody registered is a stale entry**, and a stale entry in a
+            coverage list is the thing the list exists to prevent.
+    """
+    if not path.is_file():
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: no flag coverage declaration at {path}"
+        )
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    declared = dict((loaded.get("flags") or {}).items())
+    registered = {entry.cli_flag for entry in registered_options()}
+    unknown = sorted(set(declared) - registered)
+    if unknown:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: flag coverage declares {unknown}, which "
+            f"the option registry does not carry"
+        )
+    return declared
+
+
+def flags_named_by_cases(root: Path) -> set[str]:
+    """Return every registered flag some test module names.
+
+    **Text, not syntax, and deliberately.** A flag reaches a case as a string
+    in a command line, an option dictionary or a parametrised value, and there
+    is no one syntactic shape to look for. The looseness is the right side to
+    err on: this check asks whether anything claims to exercise the flag, and
+    whether the claim is true is settled by injection rather than by parsing.
+
+    Args:
+        root (Path): The repository root to scan.
+
+    Returns:
+        set[str]: The flags named by at least one case.
+    """
+    named: set[str] = set()
+    flags = [entry.cli_flag for entry in registered_options()]
+    for source in root.rglob("mqc_*.py"):
+        if any(part in SKIPPED_TREES for part in source.parts):
+            continue
+        text = source.read_text(encoding="utf-8")
+        named.update(flag for flag in flags if flag in text)
+    return named
+
+
+def flag_coverage_problems(
+    root: Path, owner: str, declaration: Path, as_of: date
+) -> list[str]:
+    """Return every flag this side owns and no case of its names, plus lapses.
+
+    Args:
+        root (Path): The repository root whose cases are scanned.
+        owner (str): ``harness`` or ``consumer``, the share to assert.
+        declaration (Path): The coverage declaration.
+        as_of (date): The date expiries are judged against, injected so the
+            check is not a function of when it runs.
+
+    Returns:
+        list[str]: One message per uncovered flag or expired gap, empty when
+        this side's share holds.
+    """
+    declared = flag_coverage_declaration(declaration)
+    named = flags_named_by_cases(root)
+    problems: list[str] = []
+
+    for entry in registered_options():
+        flag = entry.cli_flag
+        record = declared.get(flag)
+        if record is None:
+            problems.append(
+                f"{flag} is registered and the coverage declaration does not "
+                f"say who proves it works"
+            )
+            continue
+        gap = record.get("gap")
+        if gap is not None:
+            expires = gap.get("expires_on")
+            if isinstance(expires, date) and expires < as_of:
+                problems.append(
+                    f"{flag} has been a declared coverage gap since its expiry "
+                    f"on {expires.isoformat()}: {gap.get('reason', '')!s}".strip()
+                )
+            continue
+        if record.get("owner") == owner and flag not in named:
+            problems.append(
+                f"{flag} is owned by {owner} and no case names it, so nothing "
+                f"establishes that it does anything"
+            )
+    return problems

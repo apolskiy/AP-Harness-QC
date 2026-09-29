@@ -410,6 +410,81 @@ The flags reach the harness through two entry points, and they must not drift.
 
 **Options are defined once in a registry** that both entry points consume. Two hand-maintained definitions of `--mode` would eventually disagree, and the symptom would be a report contradicting the run it describes.
 
+#### 7.1.0 A registry entry nothing reads is worse than a missing flag
+
+Specified 2026-09-29, after three were found in one area.
+
+Registering an option adds it to `pytest --help`, to the table at section 7, and
+to whatever documentation quotes it. **None of that makes anything read it.**
+
+| Flag or field | Found | What a run did |
+|---|---|---|
+| `--max-spend` | Declared, never read | Accepted a ceiling that could not stop a request |
+| `--priority` | Declared, quoted in `testing-standards.md` section 2 as a worked example, **never read** | Named a band, ran every band, reported as a band |
+| `rule_set_hash` | Declared, serialised by `as_fields`, **never computed** | Emitted the empty string for "which rules produced this" |
+
+**The failure mode is the same in all three and it is not a crash.** The flag
+parses, the run proceeds, and the result is reported under a description of
+itself that is false. A missing flag fails loudly at parse time; a declared one
+that nothing reads produces a confident wrong answer, which is the error class
+this project keeps finding and the reason section 7.1 exists at all.
+
+**"Is it read" cannot be the check, and the first attempt at this section said
+it was.** `configure_invocation` reads every registered option generically to
+build the invocation record, so every flag is read, including the three above.
+Narrowing it to "is it read specifically" fails too: `--priority` had no
+`getoption` call of its own, but `priority` is read as an attribute throughout
+the suite, so any name-based heuristic scores it consumed. Measured against the
+two known defects, that check would have passed both.
+
+**So the rule is the inventory principle, applied to flags: every registered
+option is named by at least one case.** A flag that no case exercises is a flag
+nobody has established does anything, which is exactly the state all three were
+in.
+
+| Flag | Was it read? | Named by a case? |
+|---|---|---|
+| `--max-spend` | Yes, generically | **No** |
+| `--priority` | Yes, generically | **No** |
+
+That is checkable without heuristics, and it fails for the right reason: not
+"this code looks unused" but "nothing demonstrates this works".
+
+**It does not prove the flag is wired correctly**, only that something claims
+to exercise it. A case can still be vacuous, which is what injection testing is
+for. It moves the failure from silent to arguable, which is the most a
+structural check can do.
+
+**Coverage is owned per flag, because neither repository can see both test
+trees.** The harness must not read the case repository, and the installed wheel
+ships no tests, so a check on either side alone can only ask about its own
+cases. Measured: five flags are exercised by harness cases, five by consumer
+cases, and a harness-side check demanding the whole registry would need eleven
+exemptions out of sixteen, which is a permitted list wearing a check's clothes.
+
+So `config/flag_coverage.yaml` declares, per flag, which side is responsible:
+
+```
+--engine:    {owner: harness}
+--case:      {owner: consumer}
+--out-dir:   {gap: {reason: "...", expires_on: 2026-11-30}}
+```
+
+Each repository asserts only what it owns. The file ships as package data, so
+both read one declaration rather than two that drift.
+
+**A gap is declared, dated and expires**, which is the treatment
+`quarantine.yaml` gives a case and for the same reason: without an expiry, the
+list is where inconvenient flags go to be forgotten, and the check stops meaning
+anything because everything unproven has left its denominator. An expired entry
+fails the run, which forces the decision to be made again rather than to lapse.
+
+**Nine of sixteen flags are gaps as this is written**, including the two that
+produced this section. That number is the finding, not a defect in the check.
+
+`MQC_CMN_UNI_11193` enforces the harness half, reading the shipped registry and
+declaration rather than a permitted list of its own.
+
 #### 7.1.1 Diagnostic runs
 
 Troubleshooting and hotfix verification need a single case run from a terminal, not a CI pipeline.
@@ -865,7 +940,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 189 cases, 108 negative, 58 positive, 23 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 190 cases, 109 negative, 58 positive, 23 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -1200,6 +1275,7 @@ output count, and the judge path recorded nothing at all.
 | `11190` | N | `choosing_the_default_engine_is_not_defaulting` |
 | `11191` | N | `the_roster_is_found_through_the_installed_package` |
 | `11192` | N | `the_shipped_distribution_carries_the_configuration` |
+| `11193` | N | `a_registered_flag_no_case_names_is_reported` |
 
 ### 12.2 What was measured before any of this was built
 
