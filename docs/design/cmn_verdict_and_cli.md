@@ -556,6 +556,102 @@ still applies: a warning is not worth failing a run over.
 
 ---
 
+### 7.5 `--priority` selects a band, and the flag did nothing for months
+
+Specified 2026-09-29, after the flag was found to filter nothing.
+
+`--priority` has been in the option registry, in the table at section 7.1, and
+in `testing-standards.md` section 2 as a worked example since bands were first
+discussed. **No code ever read it.** A run passing `--priority 0,1` collected
+every band, ran the whole graded suite and reported as though a band had run,
+which is worse than the flag not existing: a job that names a band and measures
+everything looks like coverage it does not have.
+
+**Selection is by band membership**, from the `priority` marker each graded case
+carries. A precondition has no marker and is never deselected: it establishes
+that the corpus loads at all, and a band measured against an unchecked corpus
+measures nothing.
+
+**A malformed band is refused rather than ignored.** `--priority 5` or
+`--priority one` raises `QC_HARNESS_PARSER_ERROR`. The alternative reading, that
+an unparseable value selects everything, is the failure above with a typo as its
+cause.
+
+#### 7.5.1 A band carries its foundations only when it runs alone
+
+The cascade crosses bands: `MQC_EVL_EVAL_30036` is P2 and depends on a P1 case,
+and that is the normal shape rather than an accident. A P2 elaboration
+presupposes the P1 foundation it elaborates.
+
+So a band selected on its own collects dependents whose bases are absent, and
+`arrange_dependencies` refuses the suite. **What to do about that differs by
+why the band is running**, which is the distinction this section exists to make.
+
+| Context | Foundations | Because |
+|---|---|---|
+| A band in the CI sequence | **Carried**, per section 7.6 | The earlier band already ran them, minutes ago, in the same job |
+| A band run alone, debugging | **Collected and run** | Nothing else has run them |
+
+**Re-running them in the sequence would be waste at best and noise at worst.**
+The p1 execution has just reported those cases. Running them again inside the
+p2 execution asks the same question of the same fixtures and, when one of them
+failed, asks it again knowing the answer.
+
+`--with-prerequisites` is therefore explicit rather than inferred from whether a
+carried record happens to exist. Inferring it would make a CI misconfiguration
+silently become a standalone run: the band would pass, having quietly re-run and
+re-established its own foundations, and nothing in the result would say so.
+
+### 7.6 Carried prerequisite outcomes, and the provenance that admits them
+
+Specified 2026-09-29.
+
+**The cascade is in-process.** `_BASE_OUTCOMES` is a module-level mapping,
+cleared per session, so it does not survive between the executions that make up
+one job. The p2 execution starts with no memory that p1 ran.
+
+**Only the outcome is carried, never the test.** A base that held is a fact the
+earlier execution established; re-establishing it is the waste section 7.5.1
+names. A base that did **not** hold still skips its dependents with
+`QC_HARNESS_DEPENDENCY_UNMET`, which is the property that would be lost by the
+obvious alternative of treating an absent base as non-gating: a P2 case would
+then run and report a measurement that presupposes something known to be false.
+
+#### 7.6.1 The record is validated, and a mismatch refuses
+
+A carried outcome is cross-run state, which is the category that fails silently.
+A stale record would let a dependent pass on a foundation that held against
+different code, different rules, or a different engine, and nothing would look
+wrong.
+
+So the record carries provenance and the load compares it field by field:
+
+| Field | Answers |
+|---|---|
+| `rule_set_hash` | Were these the same rules? |
+| `code_ref` | The same harness commit |
+| `case_ref` | The same corpus commit |
+| `engine` | The same provider |
+| `mode` | Observed or replayed |
+| `platform` | The harness is verified on two, and a P1 failing on one is the case this whole topology exists to surface |
+| `band` | Which execution wrote it |
+
+**`rule_set_hash` is the primary guard**, and the refs are secondary, for the
+reason `test_taxonomy.md` section 9.1.1 gives: a commit reference cannot see an
+uncommitted edit, and corpus edits between executions are normal working.
+
+**A mismatch refuses.** The two available fallbacks are both worse than
+stopping: re-running the prerequisites is the waste this avoids, and assuming
+the foundation held is an assertion nobody measured. The refusal names the field
+that differed, because "provenance mismatch" sends a reader to check six things.
+
+**The record is per job and is not a durable artifact.** It is written under
+`reports/`, read by the next execution in the same job, and dies with the
+runner. It is deliberately not uploaded: a carried outcome is scaffolding
+between executions, and a collector that picked it up would have a second,
+weaker account of results that the JUnit and Allure artifacts already carry
+properly.
+
 ## 8. Configuration
 
 | File | Contents | Why config, not code |

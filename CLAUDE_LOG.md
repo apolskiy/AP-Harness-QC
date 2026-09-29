@@ -5863,3 +5863,90 @@ three cause assertions, which is precisely the discrimination that was missing.
 
 Harness: 573 unit, 20 system, pylint 10.00/10. Cases: 47 unit, **69 graded**
 (40 `EVAL`, 8 `TOOL`, 21 `SEC`), pylint 10.00/10.
+
+---
+
+### 2026-09-29 - Priority Bands As Executions, And Three Flags That Did Nothing
+
+* **Phase:** Design and partial implementation. Implementation is incomplete and
+  the sequence is recorded here so it resumes in order.
+
+* **What prompted it:** a graded run went red on two failures, one P1 and one
+  P2. Under the documented rules only the P1 fails the run: V1 fails any P0 or
+  P1 not passing, and lower bands answer to the section 6.1 pass floor. Gate 4
+  gates on pytest's exit code, so it would have failed on the P2 alone. The red
+  was the right answer by the wrong mechanism.
+
+#### Why the verdict was not consulted
+
+`cmn/verdict.py` implements V1 to V9, the floor, the skip ceilings and
+quarantine expiry, with 46 cases. `cmn/verdict_tool.py` is the standalone CLI
+with its documented exit codes. **Nothing emits the artifact either reads.**
+`Observation` is constructed in exactly two places: a helper, and the tool
+parsing a file. So section 7.2's promise, that a verdict is recomputable from
+stored artifacts, holds only for the synthetic artifacts in tests.
+
+#### The topology, corrected
+
+The decision recorded in `testing-standards.md` section 2 was bands selected
+inside one graded job, and that stands. What was missing is that a band is a
+**separate execution**, not a filter over one mixed run: per platform and
+engine, one job runs p0, then p1, then p2-p4.
+
+This makes most of the emission work unnecessary. For p0 and p1 the exit code
+**is** V1, because "this band had a failure" and "a P0 or P1 did not pass" are
+the same statement. Only p2-p4 needs a pass rate, over its own JUnit.
+
+#### Foundations cross bands, and what follows
+
+`MQC_EVL_EVAL_30036` is P2 and depends on a P1 case. Measured across the three
+band selections: **80 cases collected for 69 distinct, so 11 run twice.**
+
+Re-running them is waste, and when a P1 case has just failed it is waste that
+asks a question already answered. So the outcome is carried and the test is not,
+specified at `cmn_verdict_and_cli.md` sections 7.5.1 and 7.6. A band run alone
+still collects its foundations, behind an explicit `--with-prerequisites`:
+inferring it from the absence of a carried record would let a CI
+misconfiguration become a standalone run that passes having re-established its
+own premises.
+
+#### Three flags declared and never wired
+
+| Flag or field | State found | Consequence |
+|---|---|---|
+| `--max-spend` | Declared, never read | Fixed earlier; a ceiling that could not stop anything |
+| `--priority` | Declared, documented as working, **never read** | A run naming a band measured everything and reported as a band |
+| `rule_set_hash` | Declared, serialised, **never computed** | Runs emitted the empty string for "which rules produced this" |
+
+A precondition asserting every registered option is consumed is queued as part
+of step 1. All three would have failed it.
+
+#### `rule_set_hash` is content over loaded rules, not over the file
+
+Specified at `test_taxonomy.md` section 9.1.1. Hashing the parsed records rather
+than the YAML, so comment edits do not read as corpus changes; content rather
+than a commit reference, because this session edited `data/rules/` repeatedly
+between runs without committing and a commit-based guard would have called those
+runs identical. It becomes the primary guard on carried prerequisite outcomes.
+
+#### Sequence, and where it stopped
+
+1. `rule_set_hash` computed for real, plus the consumed-option check
+2. `--priority` filter with tests
+3. Carried outcomes with the provenance record
+4. Gate 4 into three executions; debug workflow gains band and platform inputs
+5. Rules, `consumer_ci.md` and this log reconciled
+
+**Designs for 1 to 3 are written** (`test_taxonomy.md` 9.1.1,
+`cmn_verdict_and_cli.md` 7.5, 7.5.1, 7.6, 7.6.1). **Step 2's code exists and is
+verified**: harness 632 passing, pylint 10.00/10, and the bands select 15, 12
+and 53 against Gate 4's marker set. It was written before its design, which is
+the authoring order inverted; the design has since been written and the RTM rows
+for all of it are outstanding.
+
+* **Code Quality & Compliance Audit:**
+  * Harness: 632 cases passing, pylint 10.00/10, exit 0.
+  * Cases: 55 preconditions, pylint 10.00/10. Graded: 2 failures, both findings
+    about `gemini-3.8-flash`, replaying identically on both platforms in CI.
+  * Not yet written: RTM rows for sections 9.1.1, 7.5, 7.5.1 and 7.6, and every
+    case for steps 1, 3 and 4.

@@ -24,6 +24,7 @@ The consumer's ``conftest.py`` is therefore a delegation:
 
     from cmn.pytest_support import (
         add_mqc_options, configure_invocation, label_priority_severity,
+        select_priority_bands,
     )
 
     def pytest_addoption(parser): add_mqc_options(parser)
@@ -31,6 +32,7 @@ The consumer's ``conftest.py`` is therefore a delegation:
     def pytest_runtest_setup(item): enforce_dependencies(item)
     def pytest_collection_modifyitems(config, items):
         label_priority_severity(items)
+        select_priority_bands(config, items)
         arrange_dependencies(items)
 
     @pytest.hookimpl(hookwrapper=True)
@@ -425,6 +427,133 @@ def order_by_dependency(items: list[pytest.Item]) -> list[pytest.Item]:
     for item in items:
         visit(item, [])
     return ordered
+
+
+def selected_bands(raw: str) -> frozenset[int]:
+    """Return the priority bands a run asked for.
+
+    Args:
+        raw (str): The comma-separated value of ``--priority``, empty for all.
+
+    Returns:
+        frozenset[int]: The bands, empty when none was named.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when a band is not 0 to 4.
+            **Refused rather than ignored**, because a typo that silently
+            selected everything would report a full run as a band.
+    """
+    if not raw or not raw.strip():
+        return frozenset()
+    bands: set[int] = set()
+    for piece in raw.split(","):
+        text = piece.strip()
+        if not text:
+            continue
+        if not text.isdigit() or int(text) not in _SEVERITY_BY_PRIORITY:
+            raise ValueError(
+                f"QC_HARNESS_PARSER_ERROR: priority band {text!r} is not 0 to 4"
+            )
+        bands.add(int(text))
+    return frozenset(bands)
+
+
+def item_priority(item: pytest.Item) -> Optional[int]:
+    """Return the priority a test declares, or None.
+
+    Args:
+        item (pytest.Item): The collected test.
+
+    Returns:
+        Optional[int]: The band, absent on a precondition which carries none.
+    """
+    marker = item.get_closest_marker("priority")
+    if marker is None or not marker.args:
+        return None
+    try:
+        return int(marker.args[0])
+    except (TypeError, ValueError):
+        return None
+
+
+def _closure(chosen: list[pytest.Item], items: list[pytest.Item]) -> set[str]:
+    """Return every identifier the chosen items rest on, transitively.
+
+    Args:
+        chosen (list): The items the band selected.
+        items (list): Everything collected, to resolve bases against.
+
+    Returns:
+        set[str]: The identifiers needed as foundations.
+    """
+    by_identifier = declared_bases(items)
+    needed: set[str] = set()
+    frontier = list(chosen)
+    while frontier:
+        current = frontier.pop()
+        for identifier in declared_dependencies(current):
+            if identifier in needed:
+                continue
+            needed.add(identifier)
+            frontier.extend(by_identifier.get(identifier, []))
+    return needed
+
+
+def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Deselect every graded case outside the requested bands.
+
+    **Preconditions are never deselected.** They carry no priority and they are
+    what establishes that the corpus is loadable at all, so a band run that
+    dropped them would measure against an unchecked corpus.
+
+    **A band takes its foundations with it.** A dependent whose base is absent
+    makes the suite unresolvable, so the closure runs too and gates its
+    dependents as it would in a full run. It is not part of what the band
+    reports; it is what makes the band runnable alone, which is the whole point
+    of selecting one.
+
+    Args:
+        config (pytest.Config): pytest's configuration, read for ``--priority``.
+        items (list): The collected items, filtered in place.
+
+    Returns:
+        None
+    """
+    bands = selected_bands(str(config.getoption("--priority") or ""))
+    if not bands:
+        return
+
+    graded = sum(1 for item in items if item_priority(item) is not None)
+    chosen = [item for item in items if item_priority(item) in bands]
+    needed = _closure(chosen, items)
+
+    keep, drop, foundations = [], [], []
+    for item in items:
+        priority = item_priority(item)
+        if priority is None or priority in bands:
+            keep.append(item)
+        # A FOUNDATION OF THE BAND, kept so the band can run at all, and
+        # IDENTIFIED THE WAY `declared_bases` DOES rather than by substring:
+        # two conventions for what a case is called would eventually disagree
+        # about which foundations a band needs, and `30015` is a substring of
+        # `130015`.
+        elif case_identifier(item.name) in needed:
+            foundations.append(item)
+            keep.append(item)
+        else:
+            drop.append(item)
+
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep
+    # THE BAND IS WHAT WAS CHOSEN, not what survived. A foundation kept for the
+    # band is graded and out of band, so reporting the kept set as the band
+    # would overstate what this run measured.
+    logger.info(
+        "priority bands %s selected %d graded case(s) of %d, keeping %d foundation(s)",
+        ",".join(str(band) for band in sorted(bands)),
+        len(chosen), graded, len(foundations),
+    )
 
 
 def arrange_dependencies(items: list[pytest.Item]) -> None:

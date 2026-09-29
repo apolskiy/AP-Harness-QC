@@ -750,6 +750,49 @@ Emitted as Allure parameters and labels, and through JUnit XML, so both reach a 
 | | `timeout_ms` | **Run** | Changing it changes results |
 | | `cli_flags` | **Run** | `judge_on_failure`, `extra_columns`, `observations` |
 
+#### 9.1.1 `rule_set_hash` is content over the loaded rules, not over their file
+
+Specified 2026-09-29. The field has been in the table above since the metadata
+model was written, is carried on `RunContext`, is serialised by `as_fields`, and
+**was never computed**: the only values it has ever held are the literals three
+test cases pass it. A run emitted the empty string and said "which rules
+produced this" about nothing.
+
+**What it covers.** The loaded `GoldenRuleSet` records, canonicalised: rule
+identifiers, priorities and priority conditions, each assertion's kind and
+parameters, each rubric's criteria, anchors and threshold. Keys sorted, content
+normalised to LF, hashed as `sha256:` with the digest.
+
+**The loaded records rather than the file bytes**, which is the decision worth
+stating. Hashing the YAML would make every comment edit a different corpus, and
+this project comments its corpus heavily: a session correcting eight assertions
+also rewrote the prose around them, and a byte hash would have reported eight
+different rule sets where three mattered. Hashing what was parsed means the
+hash moves when the *rules* move.
+
+**Why content addressing and not a commit reference.** The two answer different
+questions, and the difference is not academic. A working session on 2026-09-29
+corrected assertions in `data/rules/` across several runs **without committing
+between them**: every run shared one commit SHA while the rules underneath
+changed repeatedly. A commit reference would have called those runs identical.
+
+| Guard | Catches a committed change | Catches an uncommitted edit |
+|---|---|---|
+| Commit reference | Yes | **No** |
+| Content hash | Yes | Yes |
+
+A commit reference remains useful and is kept alongside, because it says *which
+history* a run belongs to, which a hash cannot. They are complementary rather
+than alternatives: the hash says the rules are the same rules, the ref says
+where they came from.
+
+**What it is for.** Two things, and the second is the reason it is being built
+now. It makes a stored result interpretable years later, which is what section
+9.2 says every run-scoped field is for. And it is the primary guard on carried
+prerequisite outcomes: a band that gates its dependents on a foundation
+established by an earlier execution is only entitled to do so if the same rules
+produced both, which `cmn_verdict_and_cli.md` section 7.6 specifies.
+
 ### 9.2 Run-scoped fields are emitted twice
 
 Once in a run manifest, and **again on every result**.
