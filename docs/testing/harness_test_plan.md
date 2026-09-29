@@ -353,6 +353,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EXE_0080` | A judgement request carries a schema the provider accepts, with keywords it rejects removed on the way to the wire and the composed schema left strict for validating the reply | tier2_execution.md section 5A.7 |
 | `MQC_REQ_HAR_EXE_0081` | A judgement is recorded and replayed per observation, keyed by the observation index the request carries, so repeat observations of one case do not overwrite each other | tier2_execution.md section 5A.8 |
 | `MQC_REQ_HAR_CMN_0091` | The harness ships its own configuration inside the distribution and exposes where it landed, so a consumer reads the roster from the installed package rather than from an adjacent checkout | cmn_verdict_and_cli.md section 10.37 |
+| `MQC_REQ_HAR_EVL_0040` | An injection vector matches text directed at the grader and not text that reports a score, so a response answering a scoring task is evaluated rather than aborted | tier3_evaluation.md section 5B.5 |
+| `MQC_REQ_HAR_EXE_0082` | A live judged run with --fill-gaps replays a judgement that loads cleanly and asks the judge only where none is recorded or the stored one is stale | tier2_execution.md section 7.10.3 |
 
 ---
 

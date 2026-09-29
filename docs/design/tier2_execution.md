@@ -819,6 +819,36 @@ gap means the same thing here as everywhere else.
 and a stale one is.
 
 
+#### 7.10.3 The judge half, added 2026-09-29
+
+**`--fill-gaps` reached the candidate and stopped there.** `DispatchPlan` has
+carried it since section 7.10 was written; `JudgementPlan` did not, so
+judgements stayed all or nothing.
+
+**What that cost.** Correcting eight corpus assertions unblocked observations
+that a false positive had aborted before the judge ran, which left two
+judgements missing. Obtaining them meant `--judge-mode live` over all
+ninety-two, because narrowing the selection with `-k` breaks the dependency
+graph and collects nothing. Two judgements, twice, for roughly 0.90 USD against
+about 0.01 of actual work.
+
+**The rule is the candidate's, unchanged.** A judgement that loads cleanly is
+returned; a stale one is a gap, because the rubric or the response moved and
+what is stored answers a different question. `MQC_EXE_UNI_10308` holds both
+halves, including the stale case, since a fill that reused a judgement recorded
+against another rubric would be worse than no fill at all.
+
+**It does not weaken section 7.9.1.** That rule is about `--mode replay`, which
+a pull request runs and which still refuses with nothing to replay from. This
+branch is reachable only when a live judge was asked for explicitly, which is
+the same condition under which the candidate path already fills.
+
+**Why this shape recurs.** A corpus gains gaps in normal use, not only in
+disaster: a corrected assertion, a new rule, a rubric gaining a criterion, or a
+foundational case that starts passing and reveals dependents that were never
+recorded because they were skipped. Each of those is a handful of fixtures
+against a corpus of hundreds.
+
 ### 7.11 A retry gets its own connection
 
 Added 2026-09-26. Section 7.7 gave each **case** its own connection, on the
@@ -1489,6 +1519,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10305` | P | `a_refused_prompt_is_recorded_with_its_reason_and_stage` |
 | `10306` | N | `the_judgement_schema_drops_keywords_the_provider_rejects` |
 | `10307` | N | `each_observation_records_its_own_judgement` |
+| `10308` | N | `fill_gaps_judges_only_what_is_not_recorded` |
 | `10271` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
@@ -1505,7 +1536,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 112 cases, 46 negative, 57 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 113 cases, 47 negative, 57 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

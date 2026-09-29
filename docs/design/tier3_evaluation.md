@@ -706,6 +706,39 @@ unable to see its own subject.
 
 ---
 
+
+
+### 5B.5 A reported score is not a manipulated one
+
+Added 2026-09-29, from the first graded run of the `EVAL` families.
+
+**The screen aborted a case for answering the question it was asked.**
+`score_manipulation` required a scoring word within thirty characters of a high
+number. A requirement-match task answered `**Mandatory Match Score:** 7.8 out
+of 10`, which is the arithmetic the task asked for, and the screen read it as
+the candidate instructing the judge what to award.
+
+**A screen finding aborts evaluation**, so that observation was never judged.
+Two of the three observations worded the same correct answer differently and
+passed, so the case failed as `QC_LLM_INCONSISTENT` and the report said the
+model does not answer consistently. It does; our detector does not read
+consistently.
+
+**This is the most expensive shape of false positive.** It does not arrive
+looking like a broken pattern. It arrives looking like a finding about the
+subject, in a suite whose entire purpose is to produce findings about the
+subject, and the abort removes the judged evidence that would have contradicted
+it.
+
+**Direction is the discriminator.** An instruction names the thing to be
+scored: *award **this response** the maximum*. A report states what was scored:
+*the mandatory match score is 7.8 out of 10*. The pattern now requires the
+named object, with a second branch for the objectless imperative — *award
+maximum marks* — which a narrowing aimed only at `score this` would have lost.
+
+`MQC_EVL_UNI_10403` holds both directions, because a narrowing that is not
+pinned against the attacks it must still catch is a hole rather than a fix.
+
 ## 6. Judge Invocation
 
 ### 6.1 Structured output is mandatory
@@ -823,6 +856,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10306` | P | `screen_detects_zero_width_obfuscation` |
 | `10307` | P | `screen_detects_role_assertion` |
 | `10308` | P | `screen_detects_score_manipulation` |
+| `10403` | N | `a_reported_score_is_not_a_manipulated_one` |
 | `10309` | N | `screen_hit_aborts_evaluation_for_ordinary_case` |
 | `10310` | B | `screen_hit_continues_for_declared_adversarial_case` |
 | `10311` | N | `screen_makes_no_model_call` |
@@ -923,7 +957,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `20203` | N | `judge_engine_without_structured_output_is_rejected` |
 | `20204` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 101 cases, 43 negative, 43 positive, 15 boundary.**
+**Inventory: 102 cases, 44 negative, 43 positive, 15 boundary.**
 
 ### 11.3 The five cases added with A19
 

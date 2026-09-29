@@ -274,6 +274,54 @@ smoke and deleting it would lose the reference the probe workflow makes to it by
 name.
 
 
+### 2.8 ~~Should there be a mode that records only what is missing?~~
+
+Raised 2026-09-29, after two full re-judges that were needed for two judgements.
+
+**There are two recording modes and neither fits a gap.** `--mode live`
+dispatches everything and `--mode replay` dispatches nothing, deliberately:
+section 7.9.1 forbids replay falling back to a live call, because a replay run
+that quietly judges spends provider quota on every pull request. That rule is
+right and is not in question here.
+
+**What it costs in practice.** Correcting eight assertions unblocked
+observations that had been aborted before the judge ran, so two judgements
+needed recording. Getting them meant `--judge-mode live` over all 92, twice,
+because narrowing with `-k` breaks the dependency graph and collects nothing.
+Two judgements cost roughly 0.90 USD instead of roughly 0.01.
+
+**The shape of the answer, if it is yes.** A third mode, explicitly opted into,
+never reached by falling back: replay every fixture that exists and whose hash
+matches, dispatch live only where none does. Plain `--mode replay` keeps
+refusing, so the property section 7.9.1 protects is untouched.
+
+**What makes it worth deciding rather than doing.** A mode that sometimes
+spends is a mode someone will reach for by habit, and the reason replay is
+absolute is that a mode with an exception stops being a guarantee. Against
+that: every recording gap from here is priced at a full pass, and gaps are
+normal — a corrected assertion, a new rule, a re-recorded family all make one.
+
+**Settled 2026-09-29: it already half existed.** `--fill-gaps` has been on
+`DispatchPlan` since section 7.10, and the question above was written without
+checking: only the judge half was missing, and adding it was a field, a branch
+and a case rather than the mode this question imagined. Section 7.10.3 records
+it. The five unrecorded pairs were then filled for a few cents, leaving every
+existing fixture untouched.
+
+**Originally deferred** in favour of a 0.25 USD partial re-record, on the basis
+that one case needed three observations and the mode needed an hour. That
+arithmetic reverses as soon as the corpus is recorded against a second engine.
+
+**A related measurement is missing and is cheaper.** Judge usage is never
+recorded per case: `Observation.tokens.judge` is not populated and judgement
+fixtures carry no token counts. That is why a per-judgement cost measured on
+the `amb` family — one-line answers, short rubric — was carried to the `EVAL`
+families, whose candidate responses run 400 to 600 words against full
+five-level anchors, and the resulting estimate was low by roughly ten times
+with nothing in the artefacts to contradict it.
+
+---
+
 ## 3. Things I changed that deserve a second opinion
 
 Each of these is implemented, tested and reversible. I believe each is right and

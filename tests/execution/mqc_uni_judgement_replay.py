@@ -422,6 +422,100 @@ class TestMQCJudgeChannelMode:
         for request in requests:
             assert replayed.invoke(request) == awarded
 
+    def MQC_EXE_UNI_10308_fill_gaps_judges_only_what_is_not_recorded(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """Two missing judgements cost a re-judge of ninety-two, twice.
+
+        `--fill-gaps` has made the candidate path resumable since recording was
+        a multi-day activity on the free tier, and `JudgementPlan` never
+        carried it. So correcting an assertion — which unblocks observations
+        the screen or a false positive had aborted — left judgements missing
+        that could only be obtained by re-judging every one, at roughly 0.90
+        USD for work worth about 0.01.
+
+        **A stale judgement is a gap, not a hit.** The rule is the candidate
+        path's, unchanged: if the rubric or the response moved, what is stored
+        answers a different question, so asking again is right.
+
+        **`--mode replay` still refuses**, which is the property design section
+        7.9.1 protects; this branch is reached only when a live judge was asked
+        for explicitly.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+            monkeypatch (Any): Replaces the adapter's dispatch.
+
+        Returns:
+            None
+        """
+        awarded = {"scores": {"C_ONE": {"score": 4, "rationale": "Grounded."}}}
+        calls: list[str] = []
+
+        def answer(self: Any, request: Any) -> Any:
+            """Record that the provider was reached, and reply.
+
+            Args:
+                self (Any): The adapter.
+                request (Any): The composed request.
+
+            Returns:
+                Any: A Gen AI response double.
+            """
+            assert self is not None
+            calls.append(str(request)[:16])
+            return gemini_judgement(awarded)
+
+        monkeypatch.setattr(GeminiAdapter, "dispatch", answer)
+
+        first = JudgeRequest(
+            case_id=_CASE,
+            instruction="Score the response against the rubric.",
+            reply_schema={"type": "object", "properties": {"scores": {}}},
+            data={"candidate_output": "A grounded summary."},
+            observation_index=0,
+        )
+        second = JudgeRequest(
+            case_id=_CASE,
+            instruction="Score the response against the rubric.",
+            reply_schema={"type": "object", "properties": {"scores": {}}},
+            data={"candidate_output": "A different answer."},
+            observation_index=1,
+        )
+
+        # ONE OF THE TWO IS ALREADY RECORDED.
+        recording = JudgeChannel(
+            "gemini", model=_MODEL,
+            plan=JudgementPlan(mode="live", fixture_root=tmp_path, record=True),
+        )
+        assert recording.invoke(first) == awarded
+        assert len(calls) == 1
+
+        filling = JudgeChannel(
+            "gemini", model=_MODEL,
+            plan=JudgementPlan(
+                mode="live", fixture_root=tmp_path, record=True, fill_gaps=True
+            ),
+        )
+        assert filling.invoke(first) == awarded
+        # THE RECORDED ONE COST NOTHING, which is the whole point.
+        assert len(calls) == 1, "a judgement already stored was asked again"
+
+        assert filling.invoke(second) == awarded
+        assert len(calls) == 2, "the missing judgement was not obtained"
+
+        # AND A STALE ONE IS A GAP. The rubric moving makes the stored answer
+        # one to a different question, so it is re-judged rather than replayed.
+        moved = JudgeRequest(
+            case_id=_CASE,
+            instruction="Score the response against the revised rubric.",
+            reply_schema={"type": "object", "properties": {"scores": {}}},
+            data={"candidate_output": "A grounded summary."},
+            observation_index=0,
+        )
+        assert filling.invoke(moved) == awarded
+        assert len(calls) == 3, "a judgement recorded against another rubric was reused"
+
 class TestMQCJudgeFailureContainment:
     """A provider failure while judging, which used to escape."""
 

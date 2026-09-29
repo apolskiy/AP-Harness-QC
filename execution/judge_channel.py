@@ -40,6 +40,8 @@ from execution.adapters.registry import (
 )
 from execution.dispatch import DispatchSession
 from execution.replay import (
+    FixtureMissing,
+    FixtureStale,
     JudgementKey,
     hash_request,
     load_judgement,
@@ -66,10 +68,16 @@ class JudgementPlan:
             for replay**, and absent means a live channel that records nothing,
             which is what a test wants.
         record (bool): Whether a live judgement is stored for later replay.
+        fill_gaps (bool): In live mode, whether to replay a judgement that
+            is already recorded instead of asking again. **Mirrors
+            `DispatchPlan.fill_gaps`**, which the candidate path has had
+            since recording was a multi-day activity; without it here, a
+            run needing two judgements re-judged all ninety-two.
     """
 
     mode: str = "live"
     fixture_root: Optional[Path] = None
+    fill_gaps: bool = False
     record: bool = False
 
     def __post_init__(self) -> None:
@@ -170,6 +178,19 @@ class JudgeChannel:
         """
         return self._adapter
 
+    @property
+    def plan(self) -> JudgementPlan:
+        """Return how this channel obtains judgements.
+
+        Read-only, and exposed so a consumer can assert what it configured
+        arrived. A flag set on a plan the channel never received reads as
+        working until a bill says otherwise.
+
+        Returns:
+            JudgementPlan: The plan this channel was built with.
+        """
+        return self._plan
+
     def invoke(self, request: Any) -> dict[str, Any]:
         """Issue one judge request, paced on the judge's own interval.
 
@@ -208,6 +229,30 @@ class JudgeChannel:
             # exist: a replay run that quietly judges spends quota on every
             # pull request.
             return self._stored_reply(key, request_hash)
+
+        if self._plan.fill_gaps and self._plan.fixture_root is not None:
+            # THE SAME RULE THE CANDIDATE PATH USES. A judgement that loads
+            # cleanly is returned, and a stale one is a gap: the rubric or
+            # the response moved, so what is stored answers a different
+            # question and asking again is exactly right.
+            #
+            # THIS IS NOT THE FALL-BACK SECTION 7.9.1 FORBIDS. That rule is
+            # about `--mode replay`, which still refuses above and is the
+            # mode a pull request runs; this branch is only reached when a
+            # live judge was asked for explicitly.
+            try:
+                stored = load_judgement(
+                    self._plan.fixture_root, key, request_hash,
+                    self._adapter.requested_model,
+                )
+            except (FixtureMissing, FixtureStale, ValueError):
+                pass
+            else:
+                logger.info(
+                    "%s observation %d already judged, not re-judged",
+                    key.case_id, key.observation_index,
+                )
+                return dict(stored.reply)
 
         self._session.wait_for_slot()
         try:

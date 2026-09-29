@@ -96,8 +96,24 @@ _VECTOR_PATTERNS: Final[dict[str, Pattern[str]]] = {
         re.IGNORECASE,
     ),
     "score_manipulation": re.compile(
-        r"\b(give|award|assign|rate|score)\b[^.]{0,30}?"
+        # DIRECTED AT THE GRADER, not merely mentioning a score. The first
+        # branch requires the thing to be scored to be named, which is what
+        # makes it an instruction rather than a statement.
+        #
+        # IT USED TO ASK ONLY FOR PROXIMITY: a scoring word within thirty
+        # characters of a high number. `**Mandatory Match Score:** 7.8 out of
+        # 10` matched, and that is the answer to a requirement-match task, not
+        # an attack on the judge. The screen aborts evaluation, so the
+        # observation went unjudged and the case reported the model as
+        # inconsistent for wording its own arithmetic one way rather than
+        # another.
+        r"\b(give|award|assign|rate|score)\s+"
+        r"(this|it|them|the\s+(response|answer|candidate|output))\b[^.]{0,30}?"
         r"\b(5|five|10|ten|full|maximum|top|perfect|highest)\b|"
+        # THE OBJECTLESS IMPERATIVE, which the first branch would miss:
+        # "award maximum marks", with nothing named.
+        r"\b(give|award|assign)\b[^.]{0,20}?"
+        r"\b(maximum|top|highest|full|perfect)\s+(score|scores|mark|marks|rating)\b|"
         r"\bthis\s+(response|answer)\s+(is|deserves)\b[^.]{0,20}\bperfect\b",
         re.IGNORECASE,
     ),
