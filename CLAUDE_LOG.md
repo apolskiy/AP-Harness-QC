@@ -6048,3 +6048,46 @@ that reached the case repository on 2026-09-28.
     failures, both findings about `gemini-3.8-flash`.
   * Outstanding: the priority decision above, and RTM rows for
     `cmn_verdict_and_cli.md` section 7.1.0's successor once that is settled.
+
+#### The invariant, and the band chain running
+
+Added after the cycle above was diagnosed. **Dependencies run with the priority
+ordering, never against it**: a case may depend only on cases at least as
+blocking as itself. `test_taxonomy.md` section 4.5 states it and
+`arrange_dependencies` refuses a suite that breaks it, alongside the unknown
+dependency and cycle checks, because an unsatisfiable ordering is a property of
+the suite rather than a result to report afterwards.
+
+**The corpus was fixed by promoting, not demoting.** `MQC_EVL_SEC_50010` moved
+from P1 to P0 because `50002` and `50004` rest on it and both are genuinely
+blocking; demoting them would have relaxed two security gates to correct a
+bookkeeping error. `SEC` is exempt from the distribution ceilings, so promoting a
+foundation into P0 costs no functional coverage its budget.
+
+**One more link was missing and the chain exposed it.** `select_priority_bands`
+demanded `--with-prerequisites` for any out-of-band foundation, including ones an
+earlier band had already published. A carried foundation needs neither running
+nor the flag, which is the whole point of the carry.
+
+**End to end, the three bands now behave as the topology intends:**
+
+| Band | Result | Note |
+|---|---|---|
+| p0 | 15 passed | green |
+| p1 | 1 failed, 9 passed | `30015`, the P1 grounding finding |
+| p2-p4 | 1 failed, 42 passed, 1 skipped | **`30015` is not re-run** |
+
+The last row is the change worth recording. Before the carry, that band reported
+**two** failures, one of them `30015` itself, so a P1 defect coloured the P2 job.
+It now reports one in-band failure and skips `30015`'s dependent with
+`QC_HARNESS_DEPENDENCY_UNMET`, reading the outcome from a record carrying 19
+foundations of which one did not hold. At 42 of 43 in band, that band clears the
+0.90 floor.
+
+* **Code Quality & Compliance Audit:**
+  * Harness: 639 cases passing, pylint 10.00/10, exit 0.
+  * Cases: 55 preconditions passing, pylint 10.00/10. Graded unchanged at 2
+    findings about `gemini-3.8-flash`.
+  * Outstanding: step 4, the band jobs in the workflow, where `preconditions`
+    splits into a real preconditions job and three named band jobs; step 5, the
+    rules reconciliation and graded replay in the consumer regression.

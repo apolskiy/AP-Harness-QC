@@ -659,6 +659,13 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
         and case_identifier(item.name) in needed
     }
     carry = bool(config.getoption("--with-prerequisites", False))
+    # A CARRIED FOUNDATION NEEDS NEITHER. An earlier band published whether it
+    # held, so this band is resolvable without collecting it and without being
+    # asked to run it again, which is the whole point of the carry.
+    outside = {
+        item for item in outside
+        if case_identifier(item.name) not in carried_identifiers()
+    }
 
     if outside and not carry:
         # REFUSED HERE, AND NAMING THE REMEDY. Letting the foundations drop
@@ -703,6 +710,52 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
     )
 
 
+
+def inverted_priority_dependencies(items: list[pytest.Item]) -> list[str]:
+    """Return every dependency resting on a less blocking foundation.
+
+    **Dependencies run with the priority ordering, never against it.** A case
+    may depend only on cases at least as blocking as itself, so a P0 may rest on
+    a P0, a P1 on a P0 or a P1, and so on. The numbers move the other way from
+    the severity, so the test is that the foundation's number is no larger.
+
+    **Why it is an error rather than a preference.** A P0 failure fails the run;
+    a P1 failure answers to the pass floor and may be tolerated. A P0 resting on
+    a P1 therefore claims a guarantee its own foundation does not carry. It also
+    makes the band sequence unsatisfiable: the corpus that produced this check
+    had band 0 resting on band 1 and band 1 resting on band 0, so no ordering
+    resolved.
+
+    Args:
+        items (list): The collected test items.
+
+    Returns:
+        list[str]: One message per inverted edge, empty when the cascade runs
+        with the priority ordering.
+    """
+    ranked: dict[str, int] = {}
+    for item in items:
+        identifier = case_identifier(item.name)
+        level = item_priority(item)
+        if identifier is not None and level is not None:
+            ranked[identifier] = level
+
+    inverted: list[str] = []
+    for item in items:
+        dependent = item_priority(item)
+        if dependent is None:
+            continue
+        for identifier in declared_dependencies(item):
+            foundation = ranked.get(identifier)
+            if foundation is not None and foundation > dependent:
+                inverted.append(
+                    f"{item.name} is P{dependent} and depends on {identifier}, "
+                    f"which is P{foundation}: a foundation cannot be less "
+                    f"blocking than what rests on it"
+                )
+    return inverted
+
+
 def arrange_dependencies(items: list[pytest.Item]) -> None:
     """Reorder the collected items in place, refusing an unresolvable suite.
 
@@ -719,6 +772,15 @@ def arrange_dependencies(items: list[pytest.Item]) -> None:
             **Reported once, naming every offender**, rather than erroring per
             dependent at setup.
     """
+    inverted = inverted_priority_dependencies(items)
+    if inverted:
+        # REFUSED BEFORE THE UNKNOWN CHECK, because an inverted edge makes
+        # the band ordering unsatisfiable and reports as a cycle between
+        # bands, which sends a reader looking for the wrong thing.
+        raise ValueError(
+            "QC_DATA_INVARIANT_VIOLATION: a foundation is less blocking "
+            "than what rests on it; " + "; ".join(inverted)
+        )
     unknown = unknown_dependencies(items)
     if unknown:
         raise ValueError(

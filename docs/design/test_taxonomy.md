@@ -384,6 +384,36 @@ A `@pytest.mark.priority(N)` marker, translated by a `conftest.py` hook into the
 
 ---
 
+### 4.5 A foundation is at least as blocking as its dependents
+
+Added 2026-09-29, from the first attempt to run the corpus band by band.
+
+**Dependencies run with the priority ordering, never against it.** A case may
+depend only on cases at least as blocking as itself: a P0 on a P0, a P1 on a P0
+or a P1, and so on.
+
+**A P0 that presupposes a P1 is not a P0.** A P0 failure fails the run under V1
+while a P1 failure answers to the pass floor and may be tolerated, so a blocking
+case resting on a tolerable one claims a guarantee its own foundation does not
+carry.
+
+**It also makes the band sequence unsatisfiable.** Two edges in the shipped
+corpus had `MQC_EVL_SEC_50002` and `50004`, both P0, depending on `50010` at P1.
+Band 0 then refused because it rested on band 1 and band 1 refused because it
+rested on band 0, so no ordering resolved and the cycle was not in the
+dependency graph itself but in the disagreement between two orderings.
+
+**Two resolutions, and they mean different things.** Promote the foundation, or
+demote the dependents. The first was taken here because `50010` is what
+`50002` and `50004` presuppose and both are genuinely blocking; demoting them
+would have relaxed two security gates to fix a bookkeeping error. `SEC` is
+exempt from the distribution ceilings, so promoting a foundation into P0 costs
+no functional coverage its budget.
+
+**Refused at collection rather than reported afterwards**, alongside the unknown
+dependency and the cycle checks: an unsatisfiable ordering is a property of the
+suite, and a run that proceeds has already chosen an order.
+
 ## 5. Outcome Model
 
 Each observation resolves to exactly one outcome. Allure's statuses already encode the distinction and are used directly.
