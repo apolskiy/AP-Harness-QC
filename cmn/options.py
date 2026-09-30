@@ -145,6 +145,14 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         help_text="In live mode, dispatch only observations not already recorded",
     ),
     Option(
+        name="with-prerequisites",
+        default=False,
+        is_flag=True,
+        help_text=(
+            "Run the foundations a selected band rests on, for a band run alone"
+        ),
+    ),
+    Option(
         name="keep-connection",
         default=False,
         is_flag=True,

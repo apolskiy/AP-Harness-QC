@@ -506,11 +506,17 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
     what establishes that the corpus is loadable at all, so a band run that
     dropped them would measure against an unchecked corpus.
 
-    **A band takes its foundations with it.** A dependent whose base is absent
-    makes the suite unresolvable, so the closure runs too and gates its
-    dependents as it would in a full run. It is not part of what the band
-    reports; it is what makes the band runnable alone, which is the whole point
-    of selecting one.
+    **A band takes its foundations only when asked.** Inside the CI sequence
+    the earlier band has already run them, so carrying them here would re-run
+    work reported minutes ago and, where one failed, would colour this band
+    with a failure belonging to another. `--with-prerequisites` is therefore
+    explicit: inferring it would let a misconfigured job silently become a
+    standalone run that passes having re-established its own premises.
+
+    **Without it, a band needing an absent foundation refuses**, naming both
+    remedies. Letting the foundation drop would surface as a dependency naming
+    no collected base, which is true and indistinguishable from a corpus
+    defect.
 
     Args:
         config (pytest.Config): pytest's configuration, read for ``--priority``.
@@ -527,17 +533,41 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
     chosen = [item for item in items if item_priority(item) in bands]
     needed = _closure(chosen, items)
 
+    # IDENTIFIED THE WAY `declared_bases` DOES rather than by substring: two
+    # conventions for what a case is called would eventually disagree about
+    # which foundations a band needs, and `30015` is a substring of `130015`.
+    outside = {
+        item for item in items
+        if item_priority(item) not in (None, *bands)
+        and case_identifier(item.name) in needed
+    }
+    carry = bool(config.getoption("--with-prerequisites", False))
+
+    if outside and not carry:
+        # REFUSED HERE, AND NAMING THE REMEDY. Letting the foundations drop
+        # would reach `arrange_dependencies`, which reports a dependency naming
+        # no collected base: true, and a reader has no way to tell it from a
+        # corpus defect. The two remedies differ, so the message states both.
+        elsewhere = sorted(
+            {
+                str(item_priority(item))
+                for item in outside
+                if item_priority(item) is not None
+            }
+        )
+        raise ValueError(
+            f"{_UNMET}: band {','.join(str(band) for band in sorted(bands))} "
+            f"rests on foundations in band {','.join(elsewhere)}, which this "
+            f"selection does not include. Run that band first so its outcomes "
+            f"carry, or pass --with-prerequisites to run them here"
+        )
+
     keep, drop, foundations = [], [], []
     for item in items:
         priority = item_priority(item)
         if priority is None or priority in bands:
             keep.append(item)
-        # A FOUNDATION OF THE BAND, kept so the band can run at all, and
-        # IDENTIFIED THE WAY `declared_bases` DOES rather than by substring:
-        # two conventions for what a case is called would eventually disagree
-        # about which foundations a band needs, and `30015` is a substring of
-        # `130015`.
-        elif case_identifier(item.name) in needed:
+        elif item in outside:
             foundations.append(item)
             keep.append(item)
         else:

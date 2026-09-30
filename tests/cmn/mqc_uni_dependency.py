@@ -33,6 +33,8 @@ from cmn.vectors import (
     registered_vectors,
 )
 from cmn.pytest_support import (
+    select_priority_bands,
+    selected_bands,
     arrange_dependencies,
     case_identifier,
     declared_dependencies,
@@ -47,6 +49,58 @@ pytestmark = pytest.mark.unit
 _UNMET = "QC_HARNESS_DEPENDENCY_UNMET"
 
 
+class _Config:
+    """The parts of pytest's configuration the band filter reads.
+
+    Attributes:
+        deselected (list): Items the filter reported as deselected.
+    """
+
+    def __init__(self, supplied: dict[str, Any]) -> None:
+        """Build a stand-in answering ``getoption`` from what was supplied.
+
+        **Keyed by the flag as a user types it**, dashes included, so a case
+        names the thing under test rather than the field it lands in. That is
+        also what `MQC_CMN_UNI_11193` looks for: a case exercising an option
+        through its record alone leaves the flag ungreppable, and the flag is
+        what a reader has.
+
+        Args:
+            supplied (dict): Option values, keyed by flag including dashes.
+
+        Returns:
+            None
+        """
+        self._supplied = supplied
+        self.deselected: list[Any] = []
+        self.hook = self
+
+    def getoption(self, name: str, default: Any = None) -> Any:
+        """Return a supplied option value.
+
+        Args:
+            name (str): The flag, with or without leading dashes.
+            default (Any): What to return when it was not supplied.
+
+        Returns:
+            Any: The value.
+        """
+        wanted = f"--{name.lstrip('-').replace('_', '-')}"
+        return self._supplied.get(wanted, default)
+
+    def pytest_deselected(self, items: list[Any]) -> None:
+        """Record what the filter deselected.
+
+        Args:
+            items (list): The deselected items.
+
+        Returns:
+            None
+        """
+        self.deselected.extend(items)
+
+
+
 class _Item:
     """The parts of a pytest item the cascade reads.
 
@@ -54,13 +108,18 @@ class _Item:
         name (str): The test callable's name.
     """
 
-    def __init__(self, name: str, *, base: bool = False, depends: tuple = ()) -> None:
+    def __init__(
+        self, name: str, *, base: bool = False, depends: tuple = (),
+        priority: Optional[int] = None,
+    ) -> None:
         """Build a stand-in carrying the markers the cascade looks for.
 
         Args:
             name (str): The test callable's name.
             base (bool): Whether it is marked foundational.
             depends (tuple): Identifiers it declares a dependency on.
+            priority (Optional[int]): The band it belongs to, absent on a
+                precondition, which carries none.
 
         Returns:
             None
@@ -68,6 +127,7 @@ class _Item:
         self.name = name
         self._base = base
         self._depends = depends
+        self._priority = priority
 
     def get_closest_marker(self, marker_name: str) -> Optional[Any]:
         """Return the named marker, or ``None``.
@@ -80,6 +140,8 @@ class _Item:
         """
         if marker_name == "base" and self._base:
             return pytest.mark.base
+        if marker_name == "priority" and self._priority is not None:
+            return pytest.mark.priority(self._priority)
         return None
 
     def iter_markers(self, name: str) -> list[Any]:
@@ -535,3 +597,91 @@ class TestMQCHomoglyphVector:
         # it rather than reporting an unnamed match.
         assert is_registered_vector(HOMOGLYPH_VECTOR)
         assert HOMOGLYPH_VECTOR in registered_vectors()
+
+
+class TestMQCPriorityBands:
+    """Selecting one band, and what it takes with it."""
+
+    @staticmethod
+    def _banded() -> list[Any]:
+        """Return one case per band, plus a precondition and a cascade.
+
+        Returns:
+            list: Stand-in items.
+        """
+        return [
+            _Item("MQC_EVL_SEC_50001_blocking", priority=0),
+            _Item("MQC_EVL_EVAL_30015_foundation", priority=1, base=True),
+            _Item("MQC_EVL_EVAL_30016_rests_on_it", priority=2, depends=("30015",)),
+            _Item("MQC_EVL_EVAL_30040_informational", priority=4),
+            _Item("MQC_CMN_UNI_11001_precondition"),
+        ]
+
+    def MQC_CMN_UNI_11194_a_band_selects_only_its_own_cases(self) -> None:
+        """The flag named a band and the run measured everything.
+
+        `--priority` was in the registry, in the CLI table and quoted in
+        `testing-standards.md` section 2 as a worked example, and nothing read
+        it. A job naming a band and measuring the whole suite reports coverage
+        it does not have, which is worse than the flag not existing.
+
+        Returns:
+            None
+        """
+        items = self._banded()
+        config = _Config({"--priority": "0"})
+
+        select_priority_bands(config, items)
+        kept = [item.name for item in items]
+
+        assert "MQC_EVL_SEC_50001_blocking" in kept
+        # THE PRECONDITION SURVIVES. It carries no priority and establishes
+        # that the corpus loads at all, so a band measured without it is
+        # measured against something unchecked.
+        assert "MQC_CMN_UNI_11001_precondition" in kept
+        assert "MQC_EVL_EVAL_30040_informational" not in kept
+        assert len(config.deselected) == 3
+
+    def MQC_CMN_UNI_11195_a_malformed_band_is_refused_not_ignored(self) -> None:
+        """An unparseable band selecting everything is the original defect again.
+
+        Returns:
+            None
+        """
+        assert selected_bands("") == frozenset()
+        assert selected_bands("2, 3 ,4") == frozenset({2, 3, 4})
+
+        for malformed in ("5", "one", "-1", "0.5"):
+            with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+                selected_bands(malformed)
+
+    def MQC_CMN_UNI_11196_a_band_takes_its_foundations_only_when_asked(self) -> None:
+        """Re-running a foundation the previous band just ran is waste.
+
+        The cascade crosses bands: a P2 case depends on a P1 case, which is
+        the normal shape rather than an accident. Inside the CI sequence the
+        P1 execution has already run it minutes earlier, and when it failed,
+        running it again asks a question already answered.
+
+        **So the closure is explicit.** Inferring it from circumstance would
+        make a misconfigured CI job silently become a standalone run, passing
+        having quietly re-established its own premises.
+
+        Returns:
+            None
+        """
+        without = self._banded()
+        with pytest.raises(ValueError, match="QC_HARNESS_DEPENDENCY_UNMET"):
+            select_priority_bands(_Config({"--priority": "2"}), without)
+
+        asked = self._banded()
+        select_priority_bands(
+            _Config({"--priority": "2", "--with-prerequisites": True}), asked
+        )
+        kept = [item.name for item in asked]
+
+        assert "MQC_EVL_EVAL_30016_rests_on_it" in kept
+        assert "MQC_EVL_EVAL_30015_foundation" in kept, (
+            "the band dropped the foundation it rests on, so the suite cannot "
+            "resolve and the band cannot run alone"
+        )

@@ -25,6 +25,8 @@ flags:
   "--judge-mode": {owner: harness}
   "--keep-connection": {owner: harness}
   "--mode": {owner: harness}
+  "--priority": {owner: harness}
+  "--with-prerequisites": {owner: harness}
 
   # --- exercised by consumer cases ----------------------------------------
   "--case": {owner: consumer}
@@ -43,12 +45,6 @@ flags:
         The ceiling is covered by MQC_EXE_UNI_10301 and 10303, which test the
         session and the fail-closed rule. Nothing yet proves the flag reaches
         them, which is the half that was broken.
-      expires_on: 2026-10-31
-  "--priority":
-    gap:
-      reason: >-
-        The band filter is implemented and verified by hand. Its cases are the
-        next step of the same change.
       expires_on: 2026-10-31
 
   # A RUN-SHAPING FLAG WITH NO CASE. Each changes what a run measures or where
