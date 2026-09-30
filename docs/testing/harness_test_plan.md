@@ -357,6 +357,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EXE_0082` | A live judged run with --fill-gaps replays a judgement that loads cleanly and asks the judge only where none is recorded or the stored one is stale | tier2_execution.md section 7.10.3 |
 | `MQC_REQ_HAR_CMN_0092` | Every registered execution flag is named by at least one case, or is a declared coverage gap carrying a reason and an expiry that fails the run once it lapses | cmn_verdict_and_cli.md section 7.1.0 |
 | `MQC_REQ_HAR_CMN_0093` | A run selects the priority bands named by --priority and no others, refuses a malformed band rather than selecting everything, and carries the foundations a band rests on only when --with-prerequisites asks for them | cmn_verdict_and_cli.md sections 7.5 and 7.5.1 |
+| `MQC_REQ_HAR_CMN_0094` | Base outcomes established by one band execution are carried to the next without re-running the cases, so a dependent resolves against a foundation it did not collect and still skips when that foundation did not hold | cmn_verdict_and_cli.md section 7.6 |
+| `MQC_REQ_HAR_CMN_0095` | A carried outcome record is admitted only when the rules, harness commit, corpus commit, engine, mode and platform match the current run, and a mismatch refuses naming the field that moved | cmn_verdict_and_cli.md section 7.6.1 |
 
 ---
 

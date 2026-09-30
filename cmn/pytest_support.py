@@ -47,12 +47,16 @@ namespace and invite a case to assert against one.
 """
 
 import logging
+import os
+import platform
 import re
+from pathlib import Path
 from typing import Any, Final, Optional
 
 import pytest
 
 from cmn.options import Option, build_invocation, registered_options
+from cmn.prerequisites import Provenance, read_outcomes, write_outcomes
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +217,11 @@ def label_priority_severity(items: list[pytest.Item]) -> None:
 # the cascade run in different hooks: one records, the other reads.
 _BASE_OUTCOMES: dict[str, bool] = {}
 
+# IDENTIFIERS ADMITTED FROM AN EARLIER BAND, kept apart from the outcomes so
+# `unknown_dependencies` can tell a foundation this execution collected from
+# one it is entitled to assume. Design section 7.6.
+_CARRIED: set[str] = set()
+
 _UNMET: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
 
 # Identifiers look like MQC_<MODULE>_<LAYER>_<5 digits>_<behaviour>.
@@ -243,6 +252,110 @@ def reset_dependency_state() -> None:
         the cascade itself needs.
     """
     _BASE_OUTCOMES.clear()
+    _CARRIED.clear()
+
+
+
+def adopt_carried_outcomes(carried: dict[str, bool]) -> None:
+    """Seed the cascade with foundations an earlier band established.
+
+    **Seeded, not merged over.** An outcome this execution records itself wins,
+    because it measured the case and the carried record only remembers it.
+
+    Args:
+        carried (dict): Identifier to whether that foundation held.
+
+    Returns:
+        None
+    """
+    for identifier, held in carried.items():
+        _BASE_OUTCOMES.setdefault(str(identifier), bool(held))
+    _CARRIED.update(str(identifier) for identifier in carried)
+
+
+def carried_identifiers() -> frozenset[str]:
+    """Return the identifiers admitted from an earlier band.
+
+    Returns:
+        frozenset[str]: The carried identifiers, empty for a first band.
+    """
+    return frozenset(_CARRIED)
+
+
+def established_outcomes() -> dict[str, bool]:
+    """Return every base outcome this execution knows.
+
+    **Including the carried ones**, so a third band reads one record rather
+    than one per band it follows.
+
+    Returns:
+        dict: Identifier to whether that foundation held.
+    """
+    return dict(_BASE_OUTCOMES)
+
+
+def _run_provenance(config: pytest.Config) -> Provenance:
+    """Return what this execution would stamp on a carried record.
+
+    **The refs come from the environment**, because a commit is a property of
+    the checkout rather than of the invocation, and CI is where they exist. A
+    local run leaves them empty, which still matches another local run of the
+    same tree.
+
+    Args:
+        config (pytest.Config): The active configuration.
+
+    Returns:
+        Provenance: The fields a later band is matched against.
+    """
+    return Provenance(
+        rule_set_hash=str(getattr(config, "mqc_rule_set_hash", "") or ""),
+        code_ref=os.environ.get("MQC_CODE_REF", ""),
+        case_ref=os.environ.get("MQC_CASE_REF", ""),
+        engine=str(config.getoption("--engine", "") or ""),
+        mode=str(config.getoption("--mode", "") or ""),
+        platform=platform.system(),
+        band=str(config.getoption("--priority", "") or "all"),
+    )
+
+
+def adopt_prerequisites(config: pytest.Config) -> None:
+    """Read base outcomes an earlier band published, if a file was named.
+
+    Args:
+        config (pytest.Config): The active configuration, read for
+            ``--carry-outcomes``.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PREREQUISITE_MISMATCH`` when the record
+            was not produced by this run. Refused rather than ignored, because
+            both fallbacks are worse than stopping: re-running the
+            prerequisites is the waste this avoids, and assuming they held is
+            an assertion nobody measured (design section 7.6.1).
+    """
+    named = str(config.getoption("--carry-outcomes", "") or "")
+    if not named:
+        return
+    carried = read_outcomes(Path(named), _run_provenance(config))
+    adopt_carried_outcomes(carried.outcomes)
+
+
+def publish_prerequisites(config: pytest.Config) -> None:
+    """Write what this execution established, for the next band.
+
+    Args:
+        config (pytest.Config): The active configuration.
+
+    Returns:
+        None
+    """
+    named = str(config.getoption("--carry-outcomes", "") or "")
+    if not named:
+        return
+    write_outcomes(Path(named), _run_provenance(config), established_outcomes())
 
 
 def record_base_outcome(item: pytest.Item, passed: bool) -> None:
@@ -361,12 +474,16 @@ def unknown_dependencies(items: list[pytest.Item]) -> list[str]:
         every dependency resolves.
     """
     bases = declared_bases(items)
+    # A CARRIED FOUNDATION IS A KNOWN ONE. An earlier band in this job ran
+    # it and published whether it held, so a dependent here is resolvable
+    # without collecting it again (design section 7.6).
+    known = set(bases) | set(_CARRIED)
     return [
         f"{item.name} depends on {identifier}, which no collected case "
         f"declares as base"
         for item in items
         for identifier in declared_dependencies(item)
-        if identifier not in bases
+        if identifier not in known
     ]
 
 

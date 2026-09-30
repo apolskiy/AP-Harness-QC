@@ -145,6 +145,14 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         help_text="In live mode, dispatch only observations not already recorded",
     ),
     Option(
+        name="carry-outcomes",
+        default="",
+        help_text=(
+            "File holding base outcomes carried between the band executions of "
+            "one job, read at start and rewritten at finish"
+        ),
+    ),
+    Option(
         name="with-prerequisites",
         default=False,
         is_flag=True,

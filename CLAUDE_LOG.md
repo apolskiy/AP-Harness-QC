@@ -5976,3 +5976,75 @@ for all of it are outstanding.
     about `gemini-3.8-flash`, replaying identically on both platforms in CI.
   * Not yet written: RTM rows for sections 9.1.1, 7.5, 7.5.1 and 7.6, and every
     case for steps 1, 3 and 4.
+
+---
+
+### 2026-09-29 - Carried Prerequisite Outcomes, And A Cascade That Is Not Layered
+
+* **Phase:** Step 3 of the band sequence. Implemented, tested and traced; the
+  end-to-end band chain is blocked on a corpus decision recorded below.
+
+#### What was built
+
+`cmn/prerequisites.py`: a content digest over loaded rules, a `Provenance`
+record, and read and write for the outcomes one band execution publishes for the
+next. `_BASE_OUTCOMES` is in-process and cleared per session, so it does not
+survive between the executions that make up one job: the p2 execution began with
+no memory that p1 ran.
+
+**Only the outcome is carried, never the test.** A base that held is a fact the
+earlier execution established. A base that did **not** hold still skips its
+dependents, which is the property lost by the obvious alternative of treating an
+absent base as non-gating: the dependent would run and report a measurement
+presupposing something known to be false.
+
+**A mismatch refuses and names the field.** `rule_set_hash` leads the guarded
+list because a commit reference cannot see an uncommitted edit, and corpus edits
+between executions are normal working. Injection: disabling the guard makes
+`MQC_CMN_UNI_11198` report "DID NOT RAISE", across all six guarded fields.
+
+#### The finding: the cascade is not layered by priority
+
+Running the real corpus band by band produced a cycle. Band 0 refused because it
+rests on foundations in band 1, and band 1 refused because it rests on band 0.
+**No band ordering can satisfy that**, and the cause is two edges:
+
+```
+P0 50002 depends on P1 50010
+P0 50004 depends on P1 50010
+```
+
+A blocking case resting on a non-blocking one. The dependency ordering and the
+priority ordering disagree, and until they do not, the sequence p0 then p1 then
+p2-p4 cannot run whatever the carry mechanism does.
+
+**This is a finding about the corpus that the band work exposed**, and it wants a
+rule before it wants a fix: a foundation's priority should be at least as high as
+any dependent's, or a P0 gate rests on something the suite is allowed to tolerate
+failing. Three resolutions exist and they are not equivalent: promote `50010` to
+P0, demote its dependents, or forbid the shape and split the foundation. Left for
+a decision rather than chosen here.
+
+#### Two flags the coverage check caught while they were being written
+
+`--with-prerequisites` and `--carry-outcomes` were both added and both reported
+by `MQC_CMN_UNI_11193` within minutes. The first case exercised
+`with_prerequisites` as a field and never named the flag, so nobody could have
+grepped it; the stand-in is now keyed by the flag as typed. That is the check
+earning its place on the day it shipped.
+
+#### Sequence
+
+Steps 1 and 2 are complete. Step 3 is complete as a mechanism and blocked
+end-to-end on the priority decision above. Step 4 is the band-job topology,
+where `preconditions` splits into a real preconditions job and three named band
+jobs; step 5 is the rules reconciliation plus running graded replay in the
+consumer regression, which would have caught two of the three harness defects
+that reached the case repository on 2026-09-28.
+
+* **Code Quality & Compliance Audit:**
+  * Harness: 639 cases passing, pylint 10.00/10, exit 0.
+  * Cases: 55 preconditions passing, pylint 10.00/10. Graded unchanged at 2
+    failures, both findings about `gemini-3.8-flash`.
+  * Outstanding: the priority decision above, and RTM rows for
+    `cmn_verdict_and_cli.md` section 7.1.0's successor once that is settled.

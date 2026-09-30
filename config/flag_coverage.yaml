@@ -27,6 +27,7 @@ flags:
   "--mode": {owner: harness}
   "--priority": {owner: harness}
   "--with-prerequisites": {owner: harness}
+  "--carry-outcomes": {owner: harness}
 
   # --- exercised by consumer cases ----------------------------------------
   "--case": {owner: consumer}

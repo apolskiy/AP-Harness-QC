@@ -941,7 +941,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 193 cases, 110 negative, 59 positive, 24 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 196 cases, 111 negative, 60 positive, 25 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -1280,6 +1280,9 @@ output count, and the judge path recorded nothing at all.
 | `11194` | P | `a_band_selects_only_its_own_cases` |
 | `11195` | N | `a_malformed_band_is_refused_not_ignored` |
 | `11196` | B | `a_band_takes_its_foundations_only_when_asked` |
+| `11197` | P | `a_carried_foundation_is_not_run_again` |
+| `11198` | N | `a_record_whose_provenance_moved_is_refused` |
+| `11199` | B | `no_carry_file_named_changes_nothing` |
 
 ### 12.2 What was measured before any of this was built
 

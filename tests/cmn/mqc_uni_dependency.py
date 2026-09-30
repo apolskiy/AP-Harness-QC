@@ -25,6 +25,8 @@ from typing import Any, Optional
 
 import pytest
 
+from cmn.prerequisites import Provenance, read_outcomes, write_outcomes
+
 from cmn.vectors import (
     HOMOGLYPH_VECTOR,
     homoglyph_words,
@@ -33,6 +35,11 @@ from cmn.vectors import (
     registered_vectors,
 )
 from cmn.pytest_support import (
+    adopt_carried_outcomes,
+    adopt_prerequisites,
+    carried_identifiers,
+    publish_prerequisites,
+
     select_priority_bands,
     selected_bands,
     arrange_dependencies,
@@ -685,3 +692,137 @@ class TestMQCPriorityBands:
             "the band dropped the foundation it rests on, so the suite cannot "
             "resolve and the band cannot run alone"
         )
+
+
+class TestMQCCarriedPrerequisites:
+    """What a later band may assume, and what admits it."""
+
+    @staticmethod
+    def _provenance(**overrides: Any) -> Provenance:
+        """Return a provenance with one field optionally moved.
+
+        Args:
+            **overrides (Any): Fields to replace.
+
+        Returns:
+            Provenance: The record.
+        """
+        fields = {
+            "rule_set_hash": "sha256:abc",
+            "code_ref": "cafe1234",
+            "case_ref": "beef5678",
+            "engine": "gemini",
+            "mode": "replay",
+            "platform": "Linux",
+            "band": "1",
+        }
+        fields.update(overrides)
+        return Provenance(**fields)
+
+    def MQC_CMN_UNI_11197_a_carried_foundation_is_not_run_again(
+        self, tmp_path: Path
+    ) -> None:
+        """A P2 band re-ran the P1 case the previous band had just reported.
+
+        `_BASE_OUTCOMES` is in-process and cleared per session, so it does not
+        survive between the executions that make up one job: the p2 execution
+        starts with no memory that p1 ran. Carrying the test instead of the
+        outcome re-runs work reported minutes ago and, where it failed, colours
+        this band with a failure belonging to another. That was measured before
+        this change: a p2 band reported two failures, one of them the P1 case.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        record = tmp_path / "reports" / "base_outcomes.json"
+        reset_dependency_state()
+        write_outcomes(record, self._provenance(), {"30015": True, "30019": False})
+
+        reset_dependency_state()
+        carried = read_outcomes(record, self._provenance(band="2"))
+        adopt_carried_outcomes(carried.outcomes)
+
+        # THE DEPENDENT IS RESOLVABLE WITHOUT COLLECTING ITS BASE, which is
+        # what lets a band run without the one before it.
+        dependent = _Item("MQC_EVL_EVAL_30016_rests_on_it", priority=2, depends=("30015",))
+        assert unknown_dependencies([dependent]) == []
+        assert "30015" in carried_identifiers()
+
+        # AND A FOUNDATION THAT DID NOT HOLD STILL GATES. Treating an absent
+        # base as non-gating would let a case report a measurement that
+        # presupposes something known to be false.
+        failing = _Item("MQC_EVL_EVAL_30020_rests_on_a_failure", priority=2, depends=("30019",))
+        with pytest.raises(pytest.skip.Exception, match=_UNMET):
+            enforce_dependencies(failing)
+        reset_dependency_state()
+
+    def MQC_CMN_UNI_11198_a_record_whose_provenance_moved_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        """A stale record would pass a dependent on a foundation from elsewhere.
+
+        A carried outcome is cross-run state, the category that fails silently.
+        The two available fallbacks are both worse than stopping: re-running the
+        prerequisites is the waste this avoids, and assuming they held is an
+        assertion nobody measured.
+
+        **The field is named**, because the remedy differs by which one moved. A
+        changed corpus means run the earlier band again; a changed engine means
+        the record belongs to another run entirely.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        record = tmp_path / "carried.json"
+        write_outcomes(record, self._provenance(), {"30015": True})
+
+        # ABSENT IS NOT STALE. The first band of a job has nothing to read, and
+        # that is a starting condition rather than a fault.
+        assert not read_outcomes(tmp_path / "absent.json", self._provenance()).outcomes
+
+        for field_name, moved in (
+            ("rule_set_hash", "sha256:different"),
+            ("code_ref", "0000dead"),
+            ("case_ref", "9999feed"),
+            ("engine", "openai"),
+            ("mode", "live"),
+            ("platform", "Windows"),
+        ):
+            with pytest.raises(ValueError, match="QC_HARNESS_PREREQUISITE_MISMATCH") as raised:
+                read_outcomes(record, self._provenance(**{field_name: moved}))
+            assert field_name in str(raised.value), (
+                f"the refusal did not name {field_name}, so a reader has six "
+                f"things to check rather than one"
+            )
+
+        # AND THE BAND IS NOT GUARDED, deliberately: a later band reading an
+        # earlier band's record is the whole mechanism.
+        assert read_outcomes(record, self._provenance(band="2,3,4")).outcomes == {
+            "30015": True
+        }
+
+    def MQC_CMN_UNI_11199_no_carry_file_named_changes_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        """The mechanism is opt-in, so an ordinary run is untouched.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        reset_dependency_state()
+        quiet = _Config({"--carry-outcomes": ""})
+
+        adopt_prerequisites(quiet)
+        publish_prerequisites(quiet)
+
+        assert carried_identifiers() == frozenset()
+        assert not list(tmp_path.iterdir())
