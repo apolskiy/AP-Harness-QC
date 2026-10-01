@@ -324,6 +324,54 @@ harness would be unable to release a fix for it.
 
 ---
 
+### 3B.3 The graded replay runs here too, and only our codes fail it
+
+Added 2026-10-01.
+
+**The regression ran the consumer's deterministic gates and stopped there**, so
+it asked whether a harness change broke the consumer's preconditions and never
+whether it broke the graded path. Three harness defects reached `AP-Model-QC` on
+2026-09-28 and **two of them broke the graded path**:
+
+| Defect | Broke | Caught by this regression |
+|---|---|---|
+| `observation_index` collapsing three judgements into one file | Judgement replay | **No** |
+| The engine roster read by directory adjacency | The graded gate's first step | **No** |
+| `fill_gaps` set on a plan the channel never received | A live fill | No |
+
+Both were found when the consumer's own gate went red after a push, which is
+later and attributes the failure to whoever pushed the consumer rather than to
+the harness change that caused it.
+
+**A graded replay costs nothing.** It contacts no provider, needs no credential
+and takes under two seconds, so the argument for excluding it was never cost.
+
+#### 3B.3.1 The taxonomy decides what turns it red
+
+**A model finding must not fail this job.** The consumer currently carries two,
+and a harness regression that went red because `gemini-3.8-flash` overstates a
+figure would be reporting the wrong subject: it would be red permanently, for
+something no harness change can fix, which is how a signal stops being read.
+
+So the step runs and **the outcome is judged by the code, not by the count**:
+
+| Outcome in the graded replay | This job |
+|---|---|
+| `QC_HARNESS_*` anywhere | **Red.** Our change broke the consumer |
+| An `error` rather than a failure | **Red.** Same reason, reported differently |
+| `QC_LLM_*` or `QC_SEC_*` failures only | Green. The model underperformed, which is not this job's subject |
+| A skip under `QC_HARNESS_DEPENDENCY_UNMET` | Green. A dependent of a model finding, not a harness fault |
+
+That is `framework-rules.md` section 4 used as a gate rather than as a label:
+the families split by what the code asserts about, and this job asserts about
+the harness alone.
+
+**The consumer's own gate keeps judging the model**, unchanged. Two jobs read
+the same run and ask different questions of it, which is the point of having
+the codes.
+
+---
+
 ## 3C. Branch Topology, And Which Harness A Case Set Runs Against
 
 Added 2026-09-23. Two repositories each carrying branches means a run is defined

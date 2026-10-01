@@ -185,6 +185,34 @@ jobs:
         working-directory: consumer
         run: ${{ matrix.consumer.command }} --junitxml=reports/junit_consumer.xml
 
+      # THE GRADED PATH TOO, AND IT WAS NOT RUN BEFORE. Two of the three
+      # harness defects that reached the consumer on 2026-09-28 broke this and
+      # not the deterministic gates, so both were found when the consumer's own
+      # gate went red after a later push. A replay contacts no provider and
+      # takes under two seconds, so the argument for excluding it was never
+      # cost. Design `ci_pipeline.md` section 3B.3.
+      #
+      # IT DOES NOT GATE. The consumer carries findings about the model, and
+      # this job asks only whether our change broke it.
+      - name: Replay the consumer's graded layers
+        if: steps.fetch.outcome == 'success'
+        continue-on-error: true
+        working-directory: consumer
+        shell: bash
+        run: |
+          pytest -m "evaluator or tool or sec" \
+            --engine gemini \
+            --mode replay \
+            --junitxml=reports/junit_consumer_graded.xml
+
+      # OUR CODES FAIL THIS JOB, NOT THE COUNT. A `QC_LLM_*` failure is a
+      # finding about the model and belongs to the consumer's own gate; a
+      # `QC_HARNESS_*` one means this change broke the consumer. Section 3B.3.1
+      # carries the table.
+      - name: Fail only on harness-attributable outcomes
+        if: steps.fetch.outcome == 'success'
+        run: python tools/consumer_regression.py consumer/reports/junit_consumer_graded.xml
+
       - uses: actions/upload-artifact@v6
         if: always() && steps.fetch.outcome == 'success'
         with:

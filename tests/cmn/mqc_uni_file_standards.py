@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pytest
 
+from tools.consumer_regression import harness_faults
 from cmn.code_standards import (
     flag_coverage_problems,
     annotation_gaps,
@@ -258,6 +259,72 @@ class TestMQCEncodingDeclared:
         assert not problems, (
             f"{len(problems)} flag coverage problem(s): {'; '.join(problems)}"
         )
+
+    def MQC_CMN_UNI_11200_a_consumer_run_fails_this_job_only_on_our_codes(
+        self, tmp_path: Path
+    ) -> None:
+        """The regression ran the consumer's preconditions and stopped there.
+
+        Three harness defects reached the case repository on 2026-09-28 and two
+        broke the graded path, which this regression did not run: an
+        `observation_index` that collapsed three judgements into one file, and
+        an engine roster read by directory adjacency. Both surfaced only when
+        the consumer's own gate went red after a later push, attributing the
+        failure to whoever pushed the consumer.
+
+        **A model finding must not fail this job.** The consumer carries two,
+        and a harness regression red because the model overstates a figure
+        would be reporting the wrong subject, permanently, for something no
+        harness change can fix.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        model_only = tmp_path / "model.xml"
+        model_only.write_text(
+            "<testsuites><testsuite>"
+            '<testcase name="MQC_EVL_EVAL_30015_x"><failure message="'
+            'A_GND_NO_ROUNDED_UP_FIGURE (QC_LLM_SOURCE_ALTERATION): pattern found'
+            '"/></testcase>'
+            '<testcase name="MQC_EVL_EVAL_30016_y"><skipped message="'
+            'QC_HARNESS_DEPENDENCY_UNMET: foundational case 30015 did not hold'
+            '"/></testcase>'
+            '<testcase name="MQC_EVL_SEC_50002_z"><failure message="'
+            'QC_SEC_INJECTION_ATTEMPT"/></testcase>'
+            "</testsuite></testsuites>",
+            encoding="utf-8",
+        )
+        assert not harness_faults(model_only), (
+            "a finding about the model, and a dependent skipped because of one, "
+            "blamed this harness"
+        )
+
+        ours = tmp_path / "ours.xml"
+        ours.write_text(
+            "<testsuites><testsuite>"
+            '<testcase name="MQC_EVL_EVAL_30020_a"><failure message="'
+            'QC_HARNESS_FIXTURE_STALE: the judge request no longer matches'
+            '"/></testcase>'
+            '<testcase name="MQC_EVL_EVAL_30021_b"><error message="'
+            'QC_HARNESS_PREFLIGHT_FAILURE: judge engine is not on the roster'
+            '"/></testcase>'
+            "</testsuite></testsuites>",
+            encoding="utf-8",
+        )
+        faults = harness_faults(ours)
+        assert len(faults) == 2, faults
+        assert any("FIXTURE_STALE" in entry for entry in faults)
+        # AN ERROR COUNTS WHATEVER IT SAYS, because reporting an error rather
+        # than a failure is itself our defect.
+        assert any("error rather than a failure" in entry for entry in faults)
+
+        # AND A MISSING REPORT REFUSES. A regression that produced none verified
+        # nothing, and an empty finding list would read as a pass.
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            harness_faults(tmp_path / "absent.xml")
 
     def MQC_CMN_UNI_11157_a_file_open_declaring_no_encoding_is_reported(
         self, tmp_path: Path

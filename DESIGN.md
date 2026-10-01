@@ -227,7 +227,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 89 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 196 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 197 cases | **Implemented** |
 | `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 113 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 102 cases | **Implemented** |
@@ -442,13 +442,15 @@ much as overstating it**.
 | Phase 0 | Closed. No open items |
 | Phase 1 | Complete for every tier |
 | Phase 2 | **Complete.** Four module designs, two test plans and two matrices |
-| Phase 3 | **Underway.** The design is implemented, the corpus is authored, and the security family is recorded in full. The `EVAL` and `TOOL` families are not recorded, which costs judge quota as well as candidate quota |
-| Implementation code | 46 modules, roughly 15,300 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
-| Harness cases | **584**: 564 precondition (`UNI`) and 20 system (`SYS`), across `ING`, `EXE`, `EVL` and `CMN` |
-| Case-repository preconditions | **47** (`CAS_UNI`), guarding the corpus, the excerpts and the pin |
-| Model evaluation cases | **66, inventory and suite agreeing**: 37 `EVAL`, 8 `TOOL`, 21 `SEC` |
-| Requirements traced | 173 harness, 67 model, both directions checked by `MQC_CMN_UNI_11122` |
-| Recorded fixtures | 8 security responses, **all at observation 0**. Under A4.1 each case needs three, so the corpus is one third recorded and every graded case reports `QC_HARNESS_FIXTURE_MISSING` |
+| Phase 3 | **Underway.** The design is implemented, the corpus is authored, and **every graded family is recorded against `gemini-3.8-flash`**. `openai` and `claude` are unrecorded, so nothing here says anything about them: an empty log is an absence of measurement rather than of defects |
+| Implementation code | 47 modules, roughly 16,200 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
+| Harness cases | **639**: 616 precondition (`UNI`) and 23 system (`SYS`), across `ING`, `EXE`, `EVL` and `CMN` |
+| Case-repository preconditions | **58** (`CAS_UNI`), guarding the corpus, the excerpts, the pin and how the harness is located |
+| Model evaluation cases | **69, inventory and suite agreeing**: 40 `EVAL`, 8 `TOOL`, 21 `SEC` |
+| Requirements traced | 205 harness, 77 model, both directions checked by `MQC_CMN_UNI_11122` |
+| Recorded fixtures | **195 candidate responses and 108 judgements**, three observations per case per A4.1. The corpus replays offline with no credential, which is what makes a graded gate free |
+| Graded result | **2 findings about `gemini-3.8-flash`**, reproducing identically on both platforms: a sourced figure overstated on instruction conflict, 3 of 3; and a silent-zero defect identified in 1 of 3. Triaged from eight failures, the other six being defects in the suite itself |
+| Consumer gate topology | **One job per priority band per platform**, so a red names its own remedy. `AP-Model-QC` `consumer_ci.md` section 3.12 |
 
 **What is not done.** Recording. A4.1 raised the corpus from 54 responses to
 162, of which 8 exist, and those 8 are the first of three samples each rather

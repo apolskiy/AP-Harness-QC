@@ -6156,3 +6156,106 @@ indication of which mattered.
   * Outstanding: step 5, the rules reconciliation, and graded replay in the
     consumer regression, which would have caught two of the three harness
     defects that reached the case repository on 2026-09-28.
+
+---
+
+### 2026-10-01 - Step 5: Reconciling The Rules, And A Regression That Asks About The Harness
+
+* **Phase:** Step 5, the last of the band sequence.
+
+#### The rule contradicted what had shipped
+
+`testing-standards.md` still specified bands selected inside one graded job, on
+the ground that separate jobs multiply install overhead beyond the test runtime.
+**That arithmetic is correct and was the wrong thing to weigh.** Measured: a
+graded replay takes about 1.4 seconds against roughly 70 seconds of install, and
+the jobs run in parallel on free runners, so the cost is wall-clock rather than
+anything scarce. What the split buys is that a red names its own remedy, which
+the overhead argument never priced.
+
+The rule now states the harness runs `UNI` and `SYS` because it owns no corpus
+and therefore has no bands, and that a consumer runs its preconditions in one
+job and each band in a job of its own.
+
+#### `DESIGN.md` was stating figures from before the corpus existed
+
+Every row of its state table predated the recording. It said the `EVAL` and
+`TOOL` families were unrecorded, that eight security responses existed **all at
+observation 0**, and that consequently every graded case reported
+`QC_HARNESS_FIXTURE_MISSING`. Measured and replaced: 639 harness cases, 58
+consumer preconditions, 69 graded, 205 and 77 requirements, 195 candidate
+responses and 108 judgements, and the two findings.
+
+#### The consumer regression asked the wrong question
+
+It ran the consumer's deterministic gates and stopped, so it asked whether a
+harness change broke the consumer's **preconditions**. Of the three harness
+defects that reached `AP-Model-QC` on 2026-09-28, two broke the **graded** path
+and neither was caught: the `observation_index` collapse and the roster read by
+directory adjacency. Both surfaced when the consumer's own gate went red after a
+later push, which attributes the failure to whoever pushed the consumer rather
+than to the change that caused it.
+
+**A graded replay costs nothing**, so cost was never the argument. The step now
+runs and `tools/consumer_regression.py` judges it **by taxonomy family rather
+than by count**:
+
+| Outcome | This job |
+|---|---|
+| `QC_HARNESS_*` | Red, our change broke the consumer |
+| An `error` rather than a failure | Red, same reason reported differently |
+| `QC_LLM_*` or `QC_SEC_*` only | Green, not this job's subject |
+| A skip under `QC_HARNESS_DEPENDENCY_UNMET` | Green, the cascade working |
+
+That is `framework-rules.md` section 4 used as a gate rather than as a label.
+Without the discrimination the job would be red permanently, for two findings no
+harness change can fix, which is how a signal stops being read.
+
+Injection: widening the pattern to `QC_[A-Z]+_` makes `MQC_CMN_UNI_11200` report
+"a finding about the model, and a dependent skipped because of one, blamed this
+harness", listing `QC_LLM_SOURCE_ALTERATION` as the first extra item.
+
+* **Code Quality & Compliance Audit:**
+  * Harness: 640 cases passing, pylint 10.00/10 exit 0, actionlint 0.
+  * Cases: 58 preconditions, pylint 10.00/10 exit 0, actionlint 0. Graded
+    unchanged at 2 findings.
+  * The five-step band sequence is complete. Remaining project work is the
+    `openai` and `claude` recordings, which need `claude-opus-5-5` priced before
+    a spend ceiling will admit it.
+
+#### Corrected: satisfying one check broke the property another states
+
+Run 36920538819, 2026-10-01. The P1 band failed and the **P2-P4 job was
+skipped entirely**, its name carrying an unexpanded matrix expression because it
+never started. That is the blocking `consumer_ci.md` section 3.12.1 exists to
+prevent, and it was introduced by satisfying `MQC_CAS_UNI_10439`.
+
+**GitHub conjoins `success()` onto any job condition carrying no status
+function**, and `success()` is false once any needed job has failed. So
+`if: needs.preconditions.result == 'success'` reads as careful and behaves as
+`success() && ...`. The band chained on P1 for ordering and the carry artifact,
+so P1 going red skipped it.
+
+**The rule was broader than the property it protected.** What must hold is that
+a refusal upstream stops the job. A status function alone does not guarantee
+that; a status function conjoined with `needs.<job>.result == 'success'` does,
+because a refused resolver leaves that job skipped and skipped is not success.
+Section 3.9.3 now states it and `10439` enforces the pair rather than banning
+the function.
+
+**The equality is load-bearing.** `result != 'failure'` admits `skipped`, which
+is exactly what a refusal produces, so a condition written that way would
+outrun the refusal while looking careful. Injection confirms all three unsafe
+forms are still reported: a bare `always()`, the inequality, and
+`needs.<job>.outcome == 'success'`, which names a field a job does not have and
+would have evaluated empty.
+
+**Why the local verification did not catch it.** The claim that a failed band
+blocks only its dependents was checked by running the bands locally, where
+there are no jobs: that measures the within-band cascade and cannot measure
+job-level gating. Two different mechanisms, one of which was tested and reported
+as though both had been.
+
+* **Code Quality & Compliance Audit:**
+  * Harness: 640 passing, pylint 10.00/10 exit 0.
+  * Cases: 58 preconditions, pylint 10.00/10 exit 0, actionlint 0.

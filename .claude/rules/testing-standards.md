@@ -337,11 +337,20 @@ A shell-specific form anywhere in a tracked document is a defect, because the re
 
 **The judge is not replayed, and this is where that shows.** `FixtureKey` is `(case_id, engine, observation_index)` and keys the candidate only, so a bound judge is a live call whatever the mode. A replay job therefore consumes no quota **because the gate does not judge a failed case**, not because replay makes judging free. A debug run passing `--judge-on-failure` in replay mode does spend quota, deliberately and against a named subset; `AP-Model-QC` `consumer_ci.md` section 6.4 carries the full table and records replaying the judge as an open question.
 
-**Default topology:** three **test-executing** jobs on natural dependency boundaries, `UNI`, `SYS`, graded, with bands selected inside the graded job via `--priority`. The static-analysis and verdict jobs execute no tests and are not counted here; the full job list is in `docs/design/ci_pipeline.md` section 3.1. Splitting bands into separate jobs by default would multiply checkout and dependency-install overhead, which on a small suite plausibly exceeds the test runtime itself. A single band runs as its own job on `workflow_dispatch` for troubleshooting.
+**Default topology, revised 2026-10-01.** The harness runs `UNI` and `SYS`, which is all it has: it owns no corpus, so it has no graded cases and no bands. **A consumer runs its preconditions in one job and each priority band in a job of its own**, specified in `AP-Model-QC` `consumer_ci.md` section 3.12.
+
+**The earlier wording put bands inside one graded job**, on the ground that separate jobs multiply checkout and dependency-install overhead beyond the test runtime. That arithmetic is correct and was the wrong thing to weigh. Measured: a graded replay takes about 1.4 seconds against roughly 70 seconds of install per job, and the jobs run in parallel on free runners, so the cost is wall-clock rather than anything scarce.
+
+**What it bought is the diagnosis.** One job running Gate 2 and the graded layers together means a red says either "our harness or corpus is broken and nothing was measured" or "the model underperformed", which are the two categories section 3.1 of `framework-rules.md` exists to separate and the verdict keeps apart as exit 3 against exit 1. Reading such a red meant finding the failing case, opening the test plan and looking up its priority before knowing which kind of problem it was. The band in the job name answers that before anything is opened, and the remedy differs at every level: P0 and P1 are release blockers, and a band below P1 is a bug to open and quarantine while review sets the date.
+
+**A band is runnable alone**, which is what the debug workflow needs, and `--with-prerequisites` is how it collects the foundations it rests on. Inside a sequence the foundations are not re-run: the outcome travels instead, per harness `cmn_verdict_and_cli.md` sections 7.5.1 and 7.6.
 
 ```bash
-# Manual or workflow_dispatch: run one band against one engine
-pytest -m "evaluator or tool" --priority 0,1 --engine gemini
+# One band, alone, with the foundations it rests on
+pytest -m "evaluator or tool" --priority 2,3,4 --with-prerequisites --engine gemini
+
+# One band in a sequence, taking what the band before it established
+pytest -m "evaluator or tool" --priority 2,3,4 --carry-outcomes reports/carry.json --engine gemini
 ```
 
 **Every gate runs on every supported platform, and alternating between them is prohibited.** Platforms are separate jobs with `fail-fast: false`, so one platform's failure neither cancels nor masks the other. A run that covers only one platform yields no verdict for the same reason a manual selection does not: it cannot establish what the gate exists to establish. Supported platforms are listed in `DESIGN.md` section 5.0 and the preclusion is normative in `docs/design/extensibility_standard.md` section 7.
