@@ -899,6 +899,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11138` | N | `a_judgement_whose_request_hash_moved_is_stale` |
 | `11139` | N | `a_missing_judgement_raises_rather_than_judging_live` |
 | `11140` | N | `a_document_or_data_file_without_an_spdx_header_is_reported` |
+| `11201` | N | `two_candidate_engines_judged_by_one_judge_do_not_share` |
 | `11141` | P | `judge_mode_defaults_to_whatever_mode_is` |
 | `11142` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
 | `11143` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
@@ -941,7 +942,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 197 cases, 112 negative, 60 positive, 25 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 198 cases, 113 negative, 60 positive, 25 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -1604,6 +1605,15 @@ and a provider update as the same event.
 **`11139` asserts the absence of a fallback.** A missing judgement raises rather
 than returning anything a caller might mistake for a score, so the fail-open
 path does not exist to be taken by accident.
+
+**`11201` was added 2026-10-01, after the key lost 96 fixtures.** The key named
+the judge engine and not the candidate engine, so recording a second candidate
+overwrote the first engine's judgements file for file. It is a negative case
+because what it asserts is that a collision does not happen, and it is here
+rather than beside `11138` because the stale check is what *detected* the
+collision: `11138` says a moved request is refused, and `11201` says the two
+requests never reach one file to be compared. The design is
+`tier2_execution.md` section 7.9.3.
 
 
 ### 10.20 The header check, extended past Python

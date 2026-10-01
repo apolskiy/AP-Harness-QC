@@ -23,7 +23,7 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Precondition suite (`UNI`, `SYS`) | **501 cases, all passing** |
+| Precondition suite (`UNI`, `SYS`) | **502 cases, all passing** |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
 | Requirements traced | 206, none uncovered, none untraced |

@@ -67,6 +67,11 @@ class JudgementPlan:
         fixture_root (Optional[Path]): Where judgements are stored. **Required
             for replay**, and absent means a live channel that records nothing,
             which is what a test wants.
+        candidate_engine (Optional[str]): Which engine produced the output being
+            graded. **Required wherever a fixture root is**, because it is half
+            the judgement's identity and omitting it is what let a second
+            engine's recording overwrite the first's (design 7.9.3). Absent is
+            permitted only for a channel that touches no fixtures.
         record (bool): Whether a live judgement is stored for later replay.
         fill_gaps (bool): In live mode, whether to replay a judgement that
             is already recorded instead of asking again. **Mirrors
@@ -77,6 +82,7 @@ class JudgementPlan:
 
     mode: str = "live"
     fixture_root: Optional[Path] = None
+    candidate_engine: Optional[str] = None
     fill_gaps: bool = False
     record: bool = False
 
@@ -101,6 +107,15 @@ class JudgementPlan:
             raise ValueError(
                 "QC_HARNESS_PARSER_ERROR: judge replay names no fixture root, "
                 "so there is nothing to replay from"
+            )
+        # REFUSED HERE RATHER THAN AT THE FIRST JUDGEMENT, for the same reason
+        # the clause above is: a fixture root without a candidate engine
+        # addresses a file shared by every engine, which is the state that
+        # destroyed 96 judgements before anything noticed.
+        if self.fixture_root is not None and self.candidate_engine is None:
+            raise ValueError(
+                "QC_HARNESS_PARSER_ERROR: judge fixtures are named without a "
+                "candidate engine, so two engines would address one file"
             )
 
 
@@ -217,6 +232,10 @@ class JudgeChannel:
         )
         key = JudgementKey(
             case_id=request.case_id,
+            # NOT `self.engine`, WHICH IS THE JUDGE. Under the zero-cost
+            # configuration the two are routinely equal (A3), which is why the
+            # missing dimension stayed invisible for the project's whole life.
+            candidate_engine=self._plan.candidate_engine or self.engine,
             judge_engine=self.engine,
             observation_index=request.observation_index,
         )

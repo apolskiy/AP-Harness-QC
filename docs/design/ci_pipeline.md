@@ -73,7 +73,7 @@ and the crons return when weekly regression is set up against a stable `main`.**
 | Reason | |
 |---|---|
 | A cron against a moving branch | Produces a red nobody acts on, weekly, which trains readers to ignore the one signal that a regression is real |
-| A cron that spends quota | Competed with corpus recording for the free tier's 20 requests per day per model. **That reason expired on 2026-09-28**, when both engines were funded (`OPEN_QUESTIONS.md` section 2.6); the two reasons above did not, and they are why no cron has returned |
+| A cron that spends quota | Competed with corpus recording for the free tier's 20 requests per day per model. **That reason expired on 2026-09-28**, when both engines were funded (`OPEN_QUESTIONS.md` section 2A, settled 2026-09-28); the two reasons above did not, and they are why no cron has returned |
 | A cron on a broken workflow | `evaluate-live-weekly.yml` in **this** repository ran graded markers that collect nothing here, so it failed every Sunday for a structural reason (section 3.1.0) |
 
 **On-change triggers are unaffected and are the point.** `gate-on-change.yml`

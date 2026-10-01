@@ -769,6 +769,65 @@ a question nobody asked.
 and `MQC_EXE_UNI_10284` that a live one records what it obtained.
 
 
+#### 7.9.3 The key separates candidate engines, because the hash only detects that it did not
+
+Added 2026-10-01, after recording a second candidate engine destroyed the first
+one's stored judgements.
+
+`JudgementKey` was `(case_id, judge_engine, observation_index)`, and its
+docstring argued the judge engine belongs in the key because a judgement is a
+measurement and which instrument made it is part of its identity. That is true
+and it is half the identity. **A judgement is a measurement of something**, and
+what was measured is the other half: one judge scoring two candidates produces
+two judgements, exactly as two judges scoring one candidate do.
+
+Candidate fixtures were already separated, `replay/<engine>/<task>/...` per
+engine. Judgements were not, so `replay/judgements/gemini/<task>/<rule>/0.json`
+named a file both the gemini run and the openai run wrote.
+
+| | Candidate fixture | Judgement fixture, before | Judgement fixture, after |
+|---|---|---|---|
+| Candidate engine in the path | Yes | **No** | Yes |
+| Judge engine in the path | Not applicable | Yes | Yes |
+| Recording a second engine | Writes beside the first | **Overwrites it** | Writes beside it |
+
+**What it cost.** Recording `gpt-4.1` replaced 96 gemini judgements in place.
+The gemini replay then reported ten failures where it had reported two, and
+thirty dependent cases skipped on `QC_HARNESS_DEPENDENCY_UNMET` behind stale
+foundations. Nine of the ten failures were `QC_HARNESS_FIXTURE_STALE`, which is
+the correct code: the stored judgement answered a different question.
+
+**The hash is the second mechanism and it held.** Section 7.9.2 binds a stored
+judgement to the exact text it scored, so the overwritten files were refused
+rather than read as scores for the wrong response. That is the difference
+between losing data and publishing a wrong result, and it is why the failure
+was loud. It is not a substitute for the key: a guard that detects a collision
+after it has destroyed the data it was guarding has prevented the wrong answer
+and not the loss.
+
+**Why the collision was invisible until a second engine existed.** Under the
+zero-cost configuration the candidate and the judge are routinely the same
+engine (A3), so `judgements/gemini/` held gemini-judged gemini output and the
+missing dimension was constant. The project ran one candidate engine for its
+whole life until this session. A key that is correct for every value a field has
+so far taken is not a correct key, and nothing distinguishes the two states from
+inside a single-engine run.
+
+**The path gains one level**, candidate engine above judge engine:
+
+```
+replay/judgements/<candidate_engine>/<judge_engine>/<task>/<rule>/<index>.json
+```
+
+Candidate first, because that is the order the rest of the tree already reads:
+`replay/<candidate_engine>/...` for candidates, so a reader looking for
+everything one engine produced finds it under one name in both subtrees.
+
+`MQC_CMN_UNI_11201` asserts that two candidate engines judged by one judge
+occupy two files. It fails against the old key by reading back the first
+judgement and finding the second, which is the shape the defect had.
+
+
 ### 7.10 A recording run that repeats itself does not converge
 
 Added 2026-09-26, building the first corpus under a rate limit.

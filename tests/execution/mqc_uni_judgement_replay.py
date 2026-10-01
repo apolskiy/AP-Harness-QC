@@ -52,7 +52,12 @@ def _recorded(root: Path, reply: Any = None) -> JudgementKey:
     Returns:
         JudgementKey: What was recorded.
     """
-    key = JudgementKey(case_id=_CASE, judge_engine="gemini", observation_index=0)
+    key = JudgementKey(
+        case_id=_CASE,
+        candidate_engine="gemini",
+        judge_engine="gemini",
+        observation_index=0,
+    )
     record_judgement(root, key, _REQUEST, _MODEL, reply or {"scores": [4, 5]})
     return key
 
@@ -83,11 +88,71 @@ class TestMQCJudgementFixture:
 
         # KEYED BY THE JUDGE ENGINE. Two judges scoring one observation produce
         # two judgements, not one overwriting the other.
-        other = JudgementKey(case_id=_CASE, judge_engine="claude", observation_index=0)
+        other = JudgementKey(
+            case_id=_CASE,
+            candidate_engine="gemini",
+            judge_engine="claude",
+            observation_index=0,
+        )
         record_judgement(tmp_path, other, _REQUEST, "claude-opus-5-5", {"scores": [2]})
         assert load_judgement(tmp_path, key, _REQUEST, _MODEL).reply == {
             "scores": [4, 5]
         }
+
+    def MQC_CMN_UNI_11201_two_candidate_engines_judged_by_one_judge_do_not_share(
+        self, tmp_path: Path
+    ) -> None:
+        """One judge scoring two candidates produces two judgements.
+
+        **The companion to `11136`, from the other side.** That case asserts
+        two judges scoring one observation do not overwrite each other; this
+        one asserts two candidates scored by one judge do not either. The key
+        carried the first half and not the second, and recording `gpt-4.1`
+        replaced 96 gemini judgements in place.
+
+        **What stopped it being a wrong score was the hash, not the key.** The
+        overwritten files were refused as stale, so the loss was data rather
+        than a published result. A guard that detects a collision after it has
+        destroyed what it guarded has prevented the wrong answer and not the
+        loss, which is why the key is the fix and `11138` is not.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        judged_gemini = JudgementKey(
+            case_id=_CASE,
+            candidate_engine="gemini",
+            judge_engine="gemini",
+            observation_index=0,
+        )
+        judged_openai = JudgementKey(
+            case_id=_CASE,
+            candidate_engine="openai",
+            judge_engine="gemini",
+            observation_index=0,
+        )
+
+        assert judged_gemini.path(tmp_path) != judged_openai.path(tmp_path)
+
+        # RECORDED SECOND MUST NOT DISPLACE RECORDED FIRST. The hashes differ
+        # because the composed request carries the candidate text, which is
+        # what made the collision visible rather than silent.
+        record_judgement(
+            tmp_path, judged_gemini, "sha256:geminisaid", _MODEL, {"scores": [5]}
+        )
+        record_judgement(
+            tmp_path, judged_openai, "sha256:openaisaid", _MODEL, {"scores": [2]}
+        )
+
+        assert load_judgement(
+            tmp_path, judged_gemini, "sha256:geminisaid", _MODEL
+        ).reply == {"scores": [5]}
+        assert load_judgement(
+            tmp_path, judged_openai, "sha256:openaisaid", _MODEL
+        ).reply == {"scores": [2]}
 
     def MQC_CMN_UNI_11137_a_judgement_from_a_different_judge_model_is_stale(
         self, tmp_path: Path
@@ -156,6 +221,7 @@ class TestMQCJudgementFixture:
         """
         absent = JudgementKey(
             case_id="MQC_TASK_new::MQC_RULE_new",
+            candidate_engine="gemini",
             judge_engine="gemini",
             observation_index=0,
         )
@@ -226,7 +292,9 @@ class TestMQCJudgeChannelMode:
         channel = JudgeChannel(
             "gemini",
             model="gemini-2.5-flash",
-            plan=JudgementPlan(mode="replay", fixture_root=tmp_path),
+            plan=JudgementPlan(
+                mode="replay", fixture_root=tmp_path, candidate_engine="gemini"
+            ),
         )
         request = self._request()
         composed = channel.adapter.compose_judgement(
@@ -235,7 +303,7 @@ class TestMQCJudgeChannelMode:
         stored = {"scores": {"MQC_CRIT_grounding": {"score": 4, "rationale": "Fine."}}}
         record_judgement(
             tmp_path,
-            JudgementKey(request.case_id, "gemini", 0),
+            JudgementKey(request.case_id, "gemini", "gemini", 0),
             hash_request(composed),
             "gemini-2.5-flash",
             stored,
@@ -248,7 +316,11 @@ class TestMQCJudgeChannelMode:
         empty = JudgeChannel(
             "gemini",
             model="gemini-2.5-flash",
-            plan=JudgementPlan(mode="replay", fixture_root=tmp_path / "elsewhere"),
+            plan=JudgementPlan(
+                mode="replay",
+                fixture_root=tmp_path / "elsewhere",
+                candidate_engine="gemini",
+            ),
         )
         with pytest.raises(FixtureMissing):
             empty.invoke(request)
@@ -289,7 +361,12 @@ class TestMQCJudgeChannelMode:
         live = JudgeChannel(
             "gemini",
             model="gemini-2.5-flash",
-            plan=JudgementPlan(mode="live", fixture_root=tmp_path, record=True),
+            plan=JudgementPlan(
+                mode="live",
+                fixture_root=tmp_path,
+                candidate_engine="gemini",
+                record=True,
+            ),
         )
         request = self._request()
 
@@ -315,7 +392,9 @@ class TestMQCJudgeChannelMode:
         replayed = JudgeChannel(
             "gemini",
             model="gemini-2.5-flash",
-            plan=JudgementPlan(mode="replay", fixture_root=tmp_path),
+            plan=JudgementPlan(
+                mode="replay", fixture_root=tmp_path, candidate_engine="gemini"
+            ),
         )
         assert replayed.invoke(request) == awarded
 
@@ -384,17 +463,21 @@ class TestMQCJudgeChannelMode:
         live = JudgeChannel(
             "gemini",
             model=_MODEL,
-            plan=JudgementPlan(mode="live", fixture_root=tmp_path, record=True),
+            plan=JudgementPlan(
+                mode="live",
+                fixture_root=tmp_path,
+                candidate_engine="gemini",
+                record=True,
+            ),
         )
         for request in requests:
             assert live.invoke(request) == awarded
 
-        stored = sorted(
-            path.name
-            for path in (tmp_path / "judgements" / "gemini" / "MQC_TASK_alpha").rglob(
-                "*.json"
-            )
-        )
+        # CANDIDATE ENGINE THEN JUDGE ENGINE, spelled out rather than globbed,
+        # because the level between them is the one whose absence let a second
+        # candidate engine overwrite the first (design 7.9.3).
+        subtree = tmp_path / "judgements" / "gemini" / "gemini" / "MQC_TASK_alpha"
+        stored = sorted(found.name for found in subtree.rglob("*.json"))
         assert stored == ["0.json", "1.json"], stored
 
         def forbidden(self: Any, request: Any) -> Any:
@@ -415,7 +498,9 @@ class TestMQCJudgeChannelMode:
 
         monkeypatch.setattr(GeminiAdapter, "dispatch", forbidden)
         replayed = JudgeChannel(
-            "gemini", model=_MODEL, plan=JudgementPlan(mode="replay", fixture_root=tmp_path)
+            "gemini", model=_MODEL, plan=JudgementPlan(
+                mode="replay", fixture_root=tmp_path, candidate_engine="gemini"
+            )
         )
         # AND BOTH REPLAY, which is the failure this reproduces: under the old
         # key, observation 0 met observation 1's hash and raised.
@@ -486,7 +571,12 @@ class TestMQCJudgeChannelMode:
         # ONE OF THE TWO IS ALREADY RECORDED.
         recording = JudgeChannel(
             "gemini", model=_MODEL,
-            plan=JudgementPlan(mode="live", fixture_root=tmp_path, record=True),
+            plan=JudgementPlan(
+                mode="live",
+                fixture_root=tmp_path,
+                candidate_engine="gemini",
+                record=True,
+            ),
         )
         assert recording.invoke(first) == awarded
         assert len(calls) == 1
@@ -494,7 +584,11 @@ class TestMQCJudgeChannelMode:
         filling = JudgeChannel(
             "gemini", model=_MODEL,
             plan=JudgementPlan(
-                mode="live", fixture_root=tmp_path, record=True, fill_gaps=True
+                mode="live",
+                fixture_root=tmp_path,
+                candidate_engine="gemini",
+                record=True,
+                fill_gaps=True,
             ),
         )
         assert filling.invoke(first) == awarded

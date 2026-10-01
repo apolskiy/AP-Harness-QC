@@ -318,18 +318,27 @@ def _read_fixture(path: Path, key: FixtureKey) -> StoredFixture:
 class JudgementKey:
     """What locates one stored judgement.
 
-    **Keyed by the judge engine, not the candidate engine.** A judgement is a
-    measurement made by an instrument, and which instrument made it is part of
-    its identity. Two judges scoring the same observation produce two
-    judgements, not one that overwrites the other.
+    **Keyed by both engines.** A judgement is a measurement made by an
+    instrument of something, and both halves are part of its identity: two
+    judges scoring one observation produce two judgements, and one judge
+    scoring two candidates produces two as well.
+
+    **The second half was missing until 2026-10-01**, and recording a second
+    candidate engine overwrote 96 of the first one's judgements in place. The
+    request hash refused them rather than reading them as scores for the wrong
+    response, so the cost was the data and not a published result; a guard that
+    detects a collision after it has destroyed what it guarded is not a key.
+    Design section 7.9.3 carries it.
 
     Attributes:
         case_id (str): The case the judged observation belongs to.
+        candidate_engine (str): Which engine produced what was graded.
         judge_engine (str): Which engine graded it.
         observation_index (int): Which of the observations, zero based.
     """
 
     case_id: str
+    candidate_engine: str
     judge_engine: str
     observation_index: int
 
@@ -343,11 +352,16 @@ class JudgementKey:
             Path: The judgement file path, under a ``judgements`` subtree so it
             never collides with a candidate fixture for an engine of the same
             name.
+
+            **Candidate engine above judge engine**, matching the order the
+            rest of the tree already reads: candidates live under
+            ``replay/<candidate_engine>/``, so everything one engine produced
+            is found under one name in both subtrees.
         """
         task_id, _, rule_id = self.case_id.partition("::")
         return (
-            root / "judgements" / self.judge_engine / task_id / (rule_id or "_")
-            / f"{self.observation_index}.json"
+            root / "judgements" / self.candidate_engine / self.judge_engine
+            / task_id / (rule_id or "_") / f"{self.observation_index}.json"
         )
 
 
