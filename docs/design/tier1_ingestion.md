@@ -312,11 +312,45 @@ Five checks, run **after** the join because they need both sides. Every violatio
 |---|---|---|
 | **R1** | Every `rubric_id` resolves to a `GoldenRuleSet` | Dangling reference |
 | **R2** | Every `constraint_ref` resolves to a `Constraint` on the joined task | A check referencing an instruction that was never sent |
-| **R3** | Every `Constraint` is referenced by at least one check | **An instruction sent and never verified** |
+| **R3** | Every `Constraint` is referenced by at least one check **among the rules the task names** | **An instruction sent and never verified** |
 | **R4** | Every tool in `required_tools`/`forbidden_tools` appears in `available_tools` | A vacuous test: forbidding a tool never offered |
 | **R5** | `required_tools ∩ forbidden_tools` is empty | Contradictory expectation |
 
-**R3 is the one nobody writes.** A constraint sent without a corresponding check means the rule is untested and nothing surfaces it. Its converse, R2, means grading a model on an instruction it never received: an unfair test producing a finding about a model that did nothing wrong. Both yield plausible-looking results, which is what makes them dangerous.
+**R3 is the one nobody writes.** A constraint sent without a corresponding check means the rule is untested and nothing surfaces it. **Its unit is the task**, which section 7.3.1 records as a correction: evaluated per rule it demanded that every rule check every constraint, which is satisfiable only by refusing to specialise rules. Its converse, R2, means grading a model on an instruction it never received: an unfair test producing a finding about a model that did nothing wrong. Both yield plausible-looking results, which is what makes them dangerous.
+
+#### 7.3.1 R3 is scoped to the task, not to one of its rules
+
+Corrected 2026-10-01, when a consumer task first sent constraints and named
+more than one rule.
+
+**R3 says "at least one check", and it was evaluated once per rule.** With one
+rule per task the two readings coincide, and every task in the corpus had one
+rule for the project's whole life. A consumer split `MQC_RULE_ins_quantities`
+into four specialised rules, one constraint each, and R3 reported **twelve
+violations over a corpus in which every constraint is checked**: each rule was
+asked to check all four.
+
+| | Unit of evaluation | A task with four constraints and four specialised rules |
+|---|---|---|
+| Before | Each `(task, rule)` pair | 12 violations, none real |
+| After | The task and every rule it names | Clean, and still reports a genuinely unchecked constraint |
+
+**The pair scoping was not merely wrong, it was coercive.** The only way to
+satisfy it was to put every constraint's check in every rule, which in practice
+meant one rule carrying all four assertions. Four consumer cases then bound that
+one rule, assertions are conjunctive, and one failing assertion failed all four
+while three of them reported a finding about something they never measured. **An
+invariant that can only be satisfied by a worse design is a defect in the
+invariant.**
+
+**What it still catches is unchanged.** A constraint no rule the task names
+checks is an instruction sent and never verified, which is what section 7.3
+calls the check nobody writes. Widening the unit from one rule to the set the
+task names does not admit a single unchecked constraint; it stops demanding that
+each rule check constraints that are another rule's subject.
+
+`MQC_ING_SYS_20012` covers it, and `20003` continues to report the real case.
+
 
 
 
@@ -806,6 +840,7 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `20009` | N | `case_building_requires_integrity_to_have_run` |
 | `20010` | N | `colliding_case_ids_are_rejected_after_the_join` |
 | `20011` | P | `a_tool_expectation_may_itself_check_a_constraint` |
+| `20012` | P | `several_rules_may_divide_a_task_s_constraints_between_them` |
 
 **`20008` is the positive nobody writes.** Five negatives establish that each check fires; only a fully consistent corpus establishes that all five can be satisfied at once, which is the claim an author relies on when writing a case.
 
@@ -857,7 +892,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 89 cases, 49 negative, 29 positive, 11 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 90 cases, 49 negative, 30 positive, 11 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

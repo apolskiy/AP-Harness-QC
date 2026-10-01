@@ -79,17 +79,47 @@ models:
     # times the flash rate and output 2.1 times, so the same corpus costs roughly
     # twice as much here, and the batch tier halves it.
 
-# NOT PRICED, DELIBERATELY. No credential is provisioned, so it runs in replay,
-# which bills nothing. Pricing it now would state a figure nobody can spend
-# against and nobody would notice going stale.
+  claude-opus-5-5:
+    source: https://platform.claude.com/docs/en/about-claude/pricing
+    # ONE WINDOW, no end date published, so the same rule gpt-4.1 gets applies:
+    # priced until somebody replaces it, and `priced_on` carries the weight.
+    tiers:
+      - priced_on: 2026-10-01
+        effective_from: 2026-01-01
+        input: 4.00
+        output: 20.00
+        # 0.05x THE INPUT RATE, NOT THE USUAL 0.1x. Opus 5.5 is one of three
+        # models the provider prices cache hits differently on, so the figure
+        # is read rather than derived from the base rate.
+        cached_input: 0.20
+    # THINKING CANNOT BE DISABLED on this model (tier2_execution.md section
+    # 5A.2), so output-billed volume is not a choice the run makes. At 20.00 per
+    # million output it is the dominant term in any Opus bill.
+    thinking_billed_as: output
+    # A DIFFERENT TOKENIZER, AND IT COSTS REAL MONEY. The provider states that
+    # 4.7 and later produce approximately 30% more tokens for the same text than
+    # earlier models do. Every spend estimate in this project that extrapolates
+    # from a gemini or gpt token count therefore UNDERSTATES Opus by about that
+    # much, and an estimate that is low is the direction a ceiling must not be
+    # wrong in. Treated as an estimation caveat and not as a price: the rate per
+    # token is what this file states, and the token count comes from the
+    # provider's own usage figures at run time.
+    tokenizer_inflates_estimates_by: 0.30
+
+# THE LIST OF MODELS NOT PRICED IS NOW EMPTY, and the heading stays so the rule
+# it states stays visible. No credential is provisioned for an engine whose
+# models are absent from this file, and such an engine runs in replay, which
+# bills nothing. Pricing a model nobody can spend against would state a figure
+# nobody would notice going stale.
 #
-#   claude-opus-5-5
+#   (none)
 #
-# gpt-4.1 WAS IN THIS LIST UNTIL 2026-09-28, when a credential was funded for it.
-# That is the trigger: an unpriced model stops a budgeted run, because a ceiling
-# that cannot be computed must not appear enforced (MQC_EXE_UNI_10303). A model
-# becomes priceable the moment somebody can spend against it.
+# gpt-4.1 LEFT THAT LIST ON 2026-09-28 and claude-opus-5-5 on 2026-10-01, each
+# when a credential was funded for it. That is the trigger, and it runs in one
+# direction only: an unpriced model stops a budgeted run, because a ceiling that
+# cannot be computed must not appear enforced (MQC_EXE_UNI_10303). A model
+# becomes priceable the moment somebody can spend against it, and the funding is
+# what makes it so.
 #
-# claude-opus-5-5 IS THE ONE TO PRICE FIRST if a key is ever added. Its thinking
-# cannot be disabled (tier2_execution.md section 5A.2), so its output-billed
-# volume is not a choice the run makes, and Opus output is an order above flash.
+# XAI_API_KEY REMAINS UNFUNDED, so grok's models are the live example of the
+# rule rather than a gap in it.

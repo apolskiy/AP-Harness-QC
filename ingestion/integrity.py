@@ -49,14 +49,20 @@ def check_referential_integrity(
 
     for task in task_list:
         violations.extend(_check_rubric_references(task, rules_by_id))
-        for rule_id in task.rubric_ids:
-            rule = rules_by_id.get(rule_id)
-            if rule is None:
-                continue
+        named = [
+            rules_by_id[rule_id]
+            for rule_id in task.rubric_ids
+            if rule_id in rules_by_id
+        ]
+        for rule in named:
             violations.extend(_check_constraint_references(task, rule))
-            violations.extend(_check_every_constraint_is_checked(task, rule))
             violations.extend(_check_tool_expectations(task, rule))
             violations.extend(_check_adversarial_has_no_rubric(task, rule))
+        # R3 TAKES EVERY RULE AT ONCE. Its claim is that a constraint is checked
+        # by something, and asking it of one rule at a time demanded that every
+        # rule check every constraint: satisfiable only by refusing to
+        # specialise rules. Design section 7.3.1.
+        violations.extend(_check_every_constraint_is_checked(task, named))
 
     if violations:
         logger.error("QC_DATA_INVARIANT_VIOLATION %d referential violations", len(violations))
@@ -132,20 +138,34 @@ def _check_constraint_references(task: TaskDataSet, rule: GoldenRuleSet) -> list
     ]
 
 
-def _check_every_constraint_is_checked(task: TaskDataSet, rule: GoldenRuleSet) -> list[str]:
+def _check_every_constraint_is_checked(
+    task: TaskDataSet, rules: list[GoldenRuleSet]
+) -> list[str]:
     """Apply R3: every constraint sent is referenced by at least one check.
+
+    **Across every rule the task names, not one of them.** A rule that
+    specialises on one constraint is correct and was previously reported once
+    per constraint it was not about. Design section 7.3.1 records what the pair
+    scoping cost.
 
     Args:
         task (TaskDataSet): The joined task.
-        rule (GoldenRuleSet): The joined rule set.
+        rules (list): Every rule set the task names, already resolved.
 
     Returns:
         list[str]: One message per constraint that nothing verifies.
     """
-    referenced = {reference for _, reference in _declared_constraint_refs(rule)}
+    referenced = {
+        reference
+        for rule in rules
+        for _, reference in _declared_constraint_refs(rule)
+    }
+    # NAMES EVERY RULE THAT WAS ASKED, because "no rule checks it" is only
+    # actionable alongside which rules were consulted.
+    consulted = ", ".join(rule.rule_id for rule in rules) or "no rule"
     return [
         f"R3 {task.task_id} sends constraint {constraint.constraint_id} which "
-        f"{rule.rule_id} never checks"
+        f"none of {consulted} checks"
         for constraint in task.constraints
         if constraint.constraint_id not in referenced
     ]

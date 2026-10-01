@@ -64,6 +64,26 @@ def _rubric(constraint_ref: str | None = None) -> dict[str, Any]:
     return {"criteria": [criterion], "threshold": 3.0}
 
 
+def _assertion(assertion_id: str, constraint_ref: str) -> dict[str, Any]:
+    """Build a regex assertion referencing one constraint.
+
+    Args:
+        assertion_id (str): The assertion identifier.
+        constraint_ref (str): The constraint it checks.
+
+    Returns:
+        dict: The assertion payload.
+    """
+    return {
+        "assertion_id": assertion_id,
+        "kind": "regex",
+        "parameters": {"pattern": "nothing", "present": False},
+        "taxonomy_code": "QC_LLM_SOURCE_ALTERATION",
+        "severity": "violation",
+        "constraint_ref": constraint_ref,
+    }
+
+
 def _task(**overrides: Any) -> TaskDataSet:
     """Build a task, with overrides applied over a valid base.
 
@@ -182,6 +202,60 @@ class TestMQCReferentialIntegrity:
         with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION") as caught:
             check_referential_integrity([_task(available_tools=[_TOOL])], [contradictory])
         assert "R5" in str(caught.value)
+
+    def MQC_ING_SYS_20012_several_rules_may_divide_a_task_s_constraints_between_them(
+        self,
+    ) -> None:
+        """R3 is a claim about a task and was asked of one rule at a time.
+
+        Every task in the corpus named one rule for the project's whole life, so
+        "referenced by at least one check" and "referenced by this rule" were the
+        same sentence. A consumer split one rule into four specialised ones, one
+        constraint each, and R3 reported **twelve violations over a corpus in
+        which every constraint is checked**.
+
+        **The pair scoping was coercive, not merely wrong.** Satisfying it meant
+        every rule checking every constraint, so one rule carried all four
+        assertions; four graded cases then bound that rule, assertions are
+        conjunctive, and one failing assertion failed all four. An invariant
+        satisfiable only by a worse design is a defect in the invariant.
+
+        **`20003` still reports the real case**, which is what makes this a
+        widening rather than a weakening: a constraint no rule the task names
+        checks remains an instruction sent and never verified.
+
+        Returns:
+            None
+        """
+        second = {
+            "constraint_id": "C_NO_SPECULATION",
+            "text": "Do not speculate about causes.",
+            "kind": "prohibition",
+        }
+        task = _task(
+            rubric_ids=["MQC_RULE_grounded", "MQC_RULE_unspeculative"],
+            constraints=[_CONSTRAINT, second],
+        )
+
+        # EACH RULE CHECKS ONE CONSTRAINT AND IGNORES THE OTHER, which is what
+        # specialising a rule means and what the pair scoping forbade.
+        grounded = _rule(
+            rule_id="MQC_RULE_grounded",
+            rubric=None,
+            assertions=[_assertion("A_GROUNDED", "C_NO_INVENTION")],
+        )
+        unspeculative = _rule(
+            rule_id="MQC_RULE_unspeculative",
+            rubric=None,
+            assertions=[_assertion("A_UNSPECULATIVE", "C_NO_SPECULATION")],
+        )
+
+        check_referential_integrity([task], [grounded, unspeculative])
+
+        # AND A CONSTRAINT NO RULE CHECKS IS STILL REFUSED. Dropping one rule
+        # leaves its constraint sent and verified by nothing.
+        with pytest.raises(ValueError, match="C_NO_SPECULATION"):
+            check_referential_integrity([task], [grounded])
 
     def MQC_ING_SYS_20008_a_fully_consistent_corpus_passes_every_check(self) -> None:
         """All five checks satisfied at once, which no negative case proves.

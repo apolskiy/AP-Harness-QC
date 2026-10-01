@@ -21,6 +21,7 @@ A failure here is our defect, so the module carries no priority marker, per
 
 from datetime import date
 from pathlib import Path
+from typing import Final
 
 import pytest
 
@@ -38,6 +39,12 @@ pytestmark = pytest.mark.unit
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _PRICING = _REPOSITORY_ROOT / "config" / "pricing.yaml"
+
+# A NAME NO PROVIDER WILL EVER SERVE, so pricing a real model cannot
+# invalidate the case that asserts what an unpriced one costs. It did
+# once: `claude-opus-5-5` sat here until a credential was funded on
+# 2026-10-01 and it was priced within the hour.
+_ABSENT_MODEL: Final[str] = "no-such-model-is-priced-here"
 
 # The model the roster configures and the only one a live run currently spends
 # against: the other two engines have no credential provisioned (A3).
@@ -121,10 +128,26 @@ class TestMQCPriceTable:
         """Zero is the one wrong answer that looks like a right one.
 
         A run against an unpriced model has not been measured, and reporting
-        nothing spent would read as a run that was free. `claude-opus-5-5` is
-        deliberately absent from the table: no credential is provisioned, so it
-        runs replay, and pricing it now would state a figure nobody can spend
-        against and nobody would notice going stale.
+        nothing spent would read as a run that was free.
+
+        **The subject is a synthetic name, and was a real model until
+        2026-10-01.** This case named `claude-opus-5-5`, which was absent from
+        the table because no credential was provisioned for it. One was funded,
+        the model was priced the same day, and the case failed: it had been
+        asserting a property of the table through an example, and the example
+        moved.
+
+        **Every model the shipped roster names is now priced**, so no real name
+        can serve here. A synthetic one states the property directly, which is
+        what the case was always about.
+
+        **The real hazard is guarded elsewhere and deliberately not here.**
+        `MQC_EXE_UNI_10303` refuses a budgeted run whose model has no price, so
+        funding a credential without pricing its model stops the run rather than
+        under-reporting it. A precondition asserting that every roster model is
+        priced would be the wrong rule: an engine with no credential runs replay
+        and bills nothing, and pricing its model would state a figure nobody can
+        spend against.
 
         Args:
             table (PriceTable): The shipped table.
@@ -134,8 +157,12 @@ class TestMQCPriceTable:
         """
         usage = TokenUsage(input_tokens=1_000, output_tokens=1_000)
 
-        assert cost_of(usage, "claude-opus-5-5", table, _BEFORE_THE_RISE) is None
+        assert cost_of(usage, _ABSENT_MODEL, table, _BEFORE_THE_RISE) is None
         assert cost_of(usage, _FLASH, table, _BEFORE_THE_RISE) is not None
+
+        # AND IT IS ABSENT BECAUSE NOTHING PRICES IT, not because the lookup
+        # rejects the shape of the name.
+        assert _ABSENT_MODEL not in table.tiers
 
 
 class TestMQCCostArithmetic:
