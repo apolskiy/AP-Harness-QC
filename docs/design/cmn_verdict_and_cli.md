@@ -354,8 +354,34 @@ Two matrices (`rtm_harness.csv`, `rtm_model.csv`), loaded through Tier 1's CSV l
 | T4 | Every test carrying `requirement_ids` has a matching row | Untracked coverage |
 | T5 | Every `families` value matches the cases named in the same row | **Derived data restated wrongly** |
 | T6 | Every requirement identifier is declared exactly once | **A second row silently replacing the first** |
+| T7 | Every test the suite collects is named in some RTM row | **Untraced coverage: a case runs and no requirement claims it** |
 
 Two directions, structurally identical to Tier 1's R2 and R3 one level up: every declared thing must be verified, and every verification must trace to something declared.
+
+#### 6.0.1 T7 is invoked on its own, and T4 is not a substitute
+
+Added 2026-10-01, after two inventoried consumer cases ran untraced and
+the preconditions stayed green.
+
+**T4 asks a test what it claims and T7 asks the suite what it contains.**
+T4 reads `requirement_ids` off a test and checks the matrix has a matching
+row, so a test that declares nothing satisfies it by declaring nothing.
+That is the self-consistency problem one level down: the subject supplies
+the evidence. T7 takes the collected suite, which no part of the matrix
+produced.
+
+| | Input | A test traced to nothing |
+|---|---|---|
+| T4 | What the test declares | **Passes**, if it declares nothing |
+| T7 | What the suite collects | Reported |
+
+**It is therefore not part of `check_matrix_integrity`.** The other six
+run against whatever rows and sets a caller supplies, which is what lets
+them be exercised against synthetic fixtures. T7 is only meaningful
+against the **complete** collected suite, and a partial set makes it
+report every test the caller left out. `untraced_tests` is public and
+called by the two repository-level cases that can supply one,
+`MQC_CMN_UNI_11122` and `MQC_CAS_UNI_10460`.
 
 ### 6.1 Matrix schema
 
@@ -900,6 +926,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11139` | N | `a_missing_judgement_raises_rather_than_judging_live` |
 | `11140` | N | `a_document_or_data_file_without_an_spdx_header_is_reported` |
 | `11201` | N | `two_candidate_engines_judged_by_one_judge_do_not_share` |
+| `11202` | N | `an_untraced_test_is_reported_against_either_matrix` |
 | `11141` | P | `judge_mode_defaults_to_whatever_mode_is` |
 | `11142` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
 | `11143` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
@@ -942,7 +969,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 198 cases, 113 negative, 60 positive, 25 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 199 cases, 114 negative, 60 positive, 25 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

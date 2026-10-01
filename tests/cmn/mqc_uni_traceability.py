@@ -33,6 +33,7 @@ from cmn.traceability import (
     check_matrix_integrity,
     model_only_columns,
     shared_columns,
+    untraced_tests,
 )
 
 pytestmark = pytest.mark.unit
@@ -273,6 +274,55 @@ class TestMQCMatrixSchema:
 
         assert not [entry for entry in findings if entry.check == "T2"]
         assert len(rows) > 100
+
+    def MQC_CMN_UNI_11202_an_untraced_test_is_reported_against_either_matrix(
+        self,
+    ) -> None:
+        """T7 against synthetic rows, which is the only way to see it fire.
+
+        **The repository-level callers cannot be this case.** `11122` and
+        `MQC_CAS_UNI_10460` run T7 against their real matrices, and both are
+        green when the matrices are complete, so neither demonstrates that the
+        check reports anything. This supplies a suite containing a test no row
+        names.
+
+        **And the complement matters as much.** A suite every row names yields
+        nothing, because a check that reported on a clean input would be read as
+        noise and then ignored.
+
+        Returns:
+            None
+        """
+        rows = [
+            _row("MQC_REQ_HAR_EXE_0001", "MQC_EXE_UNI_10001_alpha"),
+            _row("MQC_REQ_HAR_EXE_0002", "MQC_EXE_UNI_10002_beta"),
+        ]
+
+        clean = untraced_tests(
+            rows, {"MQC_EXE_UNI_10001_alpha", "MQC_EXE_UNI_10002_beta"}
+        )
+        assert not clean, "a fully traced suite reported a gap"
+
+        findings = untraced_tests(
+            rows,
+            {
+                "MQC_EXE_UNI_10001_alpha",
+                "MQC_EXE_UNI_10002_beta",
+                "MQC_EXE_UNI_10003_gamma",
+            },
+        )
+
+        assert [entry.subject for entry in findings] == ["MQC_EXE_UNI_10003_gamma"]
+        assert findings[0].check == "T7"
+        assert findings[0].gap_type == "untraced coverage"
+
+        # NOT THE REVERSE DIRECTION, which is T3's. A row naming a test the
+        # suite lacks is a stale reference, and reporting it here as well would
+        # make one defect two findings.
+        assert not untraced_tests(
+            [_row("MQC_REQ_HAR_EXE_0003", "MQC_EXE_UNI_10009_deleted")], set()
+        )
+
 
 
 

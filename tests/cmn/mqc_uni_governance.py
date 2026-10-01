@@ -22,6 +22,7 @@ from typing import Optional
 import pytest
 
 from cmn.config import forbidden_keys
+from cmn.traceability import MatrixRow, untraced_tests
 
 pytestmark = pytest.mark.unit
 
@@ -374,31 +375,31 @@ class TestMQCLiveMatrixAgainstTheSuite:
         """
         matrix = _REPOSITORY_ROOT / "docs" / "testing" / "rtm_harness.csv"
         with matrix.open(encoding="utf-8-sig", newline="") as handle:
-            rows = list(csv.DictReader(handle))
-
-        named: set[str] = set()
-        for row in rows:
-            named.update(
-                entry.strip()
-                for entry in (row.get("test_ids") or "").split(";")
-                if entry.strip()
-            )
+            rows = [MatrixRow.from_row(entry) for entry in csv.DictReader(handle)]
 
         collected = {
             f"MQC_{module}_{layer}_{number}_{behaviour}"
             for module, layer, number, behaviour in _collected_tests()
         }
 
+        named = {test_id for row in rows for test_id in row.test_ids}
         dangling = sorted(named - collected)
-        untraced = sorted(collected - named)
 
         assert not dangling, (
             f"{len(dangling)} matrix rows name a test the suite does not "
             f"contain: {', '.join(dangling[:8])}"
         )
+
+        # ONE IMPLEMENTATION, TWO CALLERS. The consumer rebuilt this comparison
+        # inline and asserted one direction of it, so two of its own cases ran
+        # untraced while its preconditions stayed green. `MQC_CAS_UNI_10460`
+        # now calls the same function against the other matrix.
+        untraced = untraced_tests(rows, collected)
+
         assert not untraced, (
             f"{len(untraced)} collected tests appear in no matrix row, so the "
-            f"requirement each satisfies is unrecorded: {', '.join(untraced[:8])}"
+            f"requirement each satisfies is unrecorded: "
+            f"{', '.join(entry.subject for entry in untraced[:8])}"
         )
 
 

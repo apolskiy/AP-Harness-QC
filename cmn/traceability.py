@@ -277,6 +277,43 @@ def check_matrix_integrity(
     return findings
 
 
+
+def untraced_tests(
+    rows: list[MatrixRow], suite_tests: set[str]
+) -> list[TraceabilityFinding]:
+    """T7: every test the suite collects is named in some matrix row.
+
+    **The reverse of T3, and not a restatement of T4.** T3 reports a row naming
+    a test that does not exist; this reports a test that exists and no row
+    names. T4 reads the requirements a test declares for itself, so a test
+    declaring none satisfies it by declaring none, which is the self-consistency
+    problem one level down.
+
+    **Called separately from :func:`check_matrix_integrity`**, because it is
+    only meaningful against the complete collected suite: given a partial set it
+    reports every test the caller omitted. Design section 6.0.1 carries it.
+
+    Args:
+        rows (list): The loaded matrix rows.
+        suite_tests (set): **Every** test the suite collects, not a subset.
+
+    Returns:
+        list[TraceabilityFinding]: One per collected test no row names.
+    """
+    named = {test_id for row in rows for test_id in row.test_ids}
+    return [
+        TraceabilityFinding(
+            check="T7", subject=test_id,
+            detail=(
+                "the suite collects this test and no matrix row names it, so the "
+                "requirement it satisfies is unrecorded"
+            ),
+            gap_type="untraced coverage",
+        )
+        for test_id in sorted(suite_tests - named)
+    ]
+
+
 def _check_t1(declared: set[str], traced: set[str]) -> list[TraceabilityFinding]:
     """T1: every declared requirement has a matrix row.
 
