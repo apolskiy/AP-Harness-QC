@@ -6091,3 +6091,68 @@ foundations of which one did not hold. At 42 of 43 in band, that band clears the
   * Outstanding: step 4, the band jobs in the workflow, where `preconditions`
     splits into a real preconditions job and three named band jobs; step 5, the
     rules reconciliation and graded replay in the consumer regression.
+
+---
+
+### 2026-10-01 - One Job Per Band, Because The Job Name Is The Diagnosis
+
+* **Phase:** Step 4. The workflow topology, in `AP-Model-QC`.
+
+**`preconditions` ran Gate 2 and Gate 4 in one job.** A red there meant either
+"our harness or corpus is broken and nothing was measured" or "the model
+underperformed": the two categories `framework-rules.md` section 3.1 exists to
+separate and that the verdict keeps apart as exit 3 against exit 1. Reading a red
+meant finding the failing case, opening the test plan and looking up its priority
+before knowing which kind of problem it was.
+
+**Now five jobs per platform**, named so a red states the remedy: `lint`,
+`preconditions, our defect`, `graded P0, release blocking`, `graded P1, release
+blocking`, `graded P2-P4, pass floor`. Gate 2 left the graded job entirely, so
+"a precondition failure means the graded layers never execute" is expressed by
+the job graph rather than by step order.
+
+**The bands are chained and a failure does not hide the next.** Each needs the
+band before it, which orders them and carries the outcome record as an artifact;
+each gates on the preconditions result alone.
+
+#### The precondition caught my own workflow
+
+The first band condition was `!cancelled() && needs.preconditions.result ==
+'success'`, and `MQC_CAS_UNI_10439` reported it: a job-level status function
+outruns the resolver's refusal, so that band would have run graded cases against
+an unverified harness. `consumer_ci.md` section 3.9.1 says exactly this and the
+check enforces it. Naming the preconditions result alone replaces the default
+needs-success gating without reintroducing a status function.
+
+#### Only the lower band answers to a floor
+
+P0 and P1 gate on pytest's status, which **is** V1: "any P0 or P1 observation not
+passing fails the run" and "this band had a failure" are the same statement.
+`tools/band_floor.py` scores P2-P4 against `Thresholds.pass_floor`, imported
+rather than restated, and refuses rather than averaging when a report carries an
+error, because an error is our defect and a floor is a statement about the model.
+Skips leave the denominator: a dependent whose foundation did not hold produced
+no measurement, and counting it either way would be an invention.
+
+**Pylint found a real error there and I had the class wrong.** The tool read
+`VerdictConfig.pass_floor`, which does not exist; the thresholds live on
+`Thresholds`. `E1101` was correct and the runtime confirmed it.
+
+#### End to end, as CI will run it
+
+| Band | Result | Job colour |
+|---|---|---|
+| p0 | 15 passed | green |
+| p1 | 1 failed, 9 passed | **red**, the P1 grounding finding |
+| p2-p4 | 1 failed, 42 passed, 1 skipped | green: 42 of 43 measured, 97.7%, floor 90% |
+
+One red job, one finding, attributable without opening a document. Before the
+split that was a single red `preconditions` job carrying both findings and no
+indication of which mattered.
+
+* **Code Quality & Compliance Audit:**
+  * Harness: 639 cases passing, pylint 10.00/10, exit 0.
+  * Cases: 58 preconditions passing, pylint 10.00/10 exit 0, actionlint 0.
+  * Outstanding: step 5, the rules reconciliation, and graded replay in the
+    consumer regression, which would have caught two of the three harness
+    defects that reached the case repository on 2026-09-28.
