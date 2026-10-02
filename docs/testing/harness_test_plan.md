@@ -367,6 +367,10 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0099` | A run given an output directory writes both mandated artifacts there, deriving each destination the caller did not name, so an explicit pytest flag redirects one artifact without suppressing the other | cmn_verdict_and_cli.md section 7.1.0.2 |
 | `MQC_REQ_HAR_CMN_0100` | A five-digit case identifier is bound by exactly one test callable across the suite, so an accidental duplicate is reported rather than collapsing into a set | cmn_verdict_and_cli.md section 10.10.1 |
 | `MQC_REQ_HAR_CMN_0101` | Every workflow invocation emits both JUnit XML and Allure raw results, so a diagnostic or regression run produces the reporting evidence the downstream artifact contract requires and not half of it | cmn_verdict_and_cli.md section 7.1.0.3 |
+| `MQC_REQ_HAR_CMN_0102` | A quarantine entry expires when the run's resolved model differs from the model it was observed against, or when the injected evaluation date reaches 21 days past the date it was quarantined, so an accepted finding cannot outlive the model it was accepted about | cmn_verdict_and_cli.md section 4.6.2 |
+| `MQC_REQ_HAR_CMN_0103` | A quarantine entry missing the date or the model it was observed against is reported as a harness condition and still excludes its case, so a defect in our bookkeeping neither fails the run nor silently reinstates an accepted failure | cmn_verdict_and_cli.md section 4.6.4 |
+| `MQC_REQ_HAR_CMN_0104` | Quarantine is read per engine and an absent file is an empty quarantine, so the default state needs no file and a run whose engine has none does no expiry work | cmn_verdict_and_cli.md section 4.6.3 |
+| `MQC_REQ_HAR_CMN_0105` | The quarantine entries a run consulted are recorded in its metadata by hash, so a stored pass rate can be read against the exclusions that produced it | cmn_verdict_and_cli.md section 4.6.6 |
 
 ---
 

@@ -17,15 +17,14 @@ A failure here is our defect, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
-from typing import Any
 import inspect
 from datetime import date
 
 import pytest
 
 from cmn import verdict as verdict_module
-from cmn.observations import Observation
 from cmn.layers import outcome_properties, skip_blocks
+from cmn.observations import Observation
 from cmn.verdict import (
     QuarantineEntry,
     Thresholds,
@@ -33,41 +32,9 @@ from cmn.verdict import (
     evaluate_distribution,
     verdict,
 )
+from tests.cmn.verdict_support import TODAY, graded, passing_suite
 
 pytestmark = pytest.mark.unit
-
-_TODAY = date(2026, 9, 23)
-
-
-def _graded(case_id: str, outcome: str = "pass", priority: int = 2, **extra: Any) -> Observation:
-    """Build one graded observation.
-
-    Args:
-        case_id (str): Which case.
-        outcome (str): What it produced.
-        priority (int): Its priority band.
-        **extra: Any further field to set.
-
-    Returns:
-        Observation: The built record.
-    """
-    return Observation(
-        case_id=case_id, layer="EVAL", outcome=outcome, priority=priority, **extra
-    )
-
-
-def _passing_suite(count: int = 10) -> list[Observation]:
-    """Build a suite that satisfies every rule.
-
-    Args:
-        count (int): How many graded observations to produce.
-
-    Returns:
-        list[Observation]: One passing precondition plus passing graded cases.
-    """
-    return [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")] + [
-        _graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(count)
-    ]
 
 
 class TestMQCPriorityGate:
@@ -79,7 +46,7 @@ class TestMQCPriorityGate:
         Returns:
             None
         """
-        result = verdict(_passing_suite(), VerdictConfig(), _TODAY)
+        result = verdict(passing_suite(), VerdictConfig(), TODAY)
         assert result.green is True
         assert result.exit_code == 0
         assert not result.breaches
@@ -97,10 +64,10 @@ class TestMQCPriorityGate:
         Returns:
             None
         """
-        observations = _passing_suite(20)
-        observations.append(_graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=priority))
+        observations = passing_suite(20)
+        observations.append(graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=priority))
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.green is False
         assert "V1" in result.breached_rules
         assert result.pass_rate > 0.90
@@ -114,9 +81,9 @@ class TestMQCPriorityGate:
         Returns:
             None
         """
-        observations = _passing_suite(20)
-        observations.append(_graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=1))
-        assert "V1" in verdict(observations, VerdictConfig(), _TODAY).breached_rules
+        observations = passing_suite(20)
+        observations.append(graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=1))
+        assert "V1" in verdict(observations, VerdictConfig(), TODAY).breached_rules
 
     def MQC_CMN_UNI_10104_green_when_p2_fails_within_pass_floor(self) -> None:
         """A P2 failure is absorbed by the pass rate, not by the gate.
@@ -127,10 +94,10 @@ class TestMQCPriorityGate:
         Returns:
             None
         """
-        observations = _passing_suite(20)
-        observations.append(_graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=2))
+        observations = passing_suite(20)
+        observations.append(graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=2))
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.green is True
         assert result.pass_rate >= 0.90
 
@@ -145,10 +112,10 @@ class TestMQCRateThresholds:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [_graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(9)]
-        observations.append(_graded("MQC_TASK_9::MQC_RULE_r", "fail", priority=3))
+        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(9)]
+        observations.append(graded("MQC_TASK_9::MQC_RULE_r", "fail", priority=3))
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.pass_rate == pytest.approx(0.90)
         assert "V2" not in result.breached_rules
 
@@ -159,13 +126,13 @@ class TestMQCRateThresholds:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [_graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(8)]
+        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(8)]
         observations += [
-            _graded(f"MQC_TASK_f{index}::MQC_RULE_r", "fail", priority=3)
+            graded(f"MQC_TASK_f{index}::MQC_RULE_r", "fail", priority=3)
             for index in range(2)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.pass_rate == pytest.approx(0.80)
         assert "V2" in result.breached_rules
 
@@ -176,14 +143,14 @@ class TestMQCRateThresholds:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [_graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(8)]
+        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(8)]
         observations += [
-            _graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=3,
+            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=3,
                     skip_reason="environmental")
             for index in range(2)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.skip_rate == pytest.approx(0.20)
         assert "V3" not in result.breached_rules
 
@@ -194,14 +161,14 @@ class TestMQCRateThresholds:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [_graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(7)]
+        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(7)]
         observations += [
-            _graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=3,
+            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=3,
                     skip_reason="environmental")
             for index in range(3)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.skip_rate == pytest.approx(0.30)
         assert "V3" in result.breached_rules
 
@@ -216,14 +183,14 @@ class TestMQCRateThresholds:
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
         observations += [
-            _graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=1) for index in range(9)
+            graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=1) for index in range(9)
         ]
         observations.append(
-            _graded("MQC_TASK_s::MQC_RULE_r", "skip", priority=1,
+            graded("MQC_TASK_s::MQC_RULE_r", "skip", priority=1,
                     skip_reason="environmental")
         )
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert "V4" not in result.breached_rules
 
     def MQC_CMN_UNI_10110_red_just_above_ten_percent_priority_skips(self) -> None:
@@ -234,74 +201,17 @@ class TestMQCRateThresholds:
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
         observations += [
-            _graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=1) for index in range(8)
+            graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=1) for index in range(8)
         ]
         observations += [
-            _graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=1,
+            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=1,
                     skip_reason="environmental")
             for index in range(2)
         ]
 
-        assert "V4" in verdict(observations, VerdictConfig(), _TODAY).breached_rules
+        assert "V4" in verdict(observations, VerdictConfig(), TODAY).breached_rules
 
 
-class TestMQCQuarantine:
-    """V5, and the date the expiry is evaluated against."""
-
-    def MQC_CMN_UNI_10111_red_when_quarantine_entry_expired(self) -> None:
-        """Without expiry, quarantine becomes where failures go to be forgotten.
-
-        The pass floor stops meaning anything once everything inconvenient has
-        left the denominator, which is why a lapsed entry fails the run rather
-        than quietly continuing to exclude.
-
-        Returns:
-            None
-        """
-        entry = QuarantineEntry("MQC_TASK_q::MQC_RULE_r", "flaky", date(2026, 9, 1))
-        result = verdict(
-            _passing_suite(), VerdictConfig(quarantine=[entry]), _TODAY
-        )
-        assert result.green is False
-        assert "V5" in result.breached_rules
-
-    def MQC_CMN_UNI_10112_green_when_quarantine_entry_current(self) -> None:
-        """A current entry excludes without failing.
-
-        Returns:
-            None
-        """
-        entry = QuarantineEntry("MQC_TASK_q::MQC_RULE_r", "flaky", date(2026, 12, 1))
-        result = verdict(_passing_suite(), VerdictConfig(quarantine=[entry]), _TODAY)
-        assert result.green is True
-        assert result.quarantined == ["MQC_TASK_q::MQC_RULE_r"]
-
-    @pytest.mark.parametrize(
-        "as_of,expired",
-        [(date(2026, 9, 30), False), (date(2026, 10, 1), False), (date(2026, 10, 2), True)],
-    )
-    def MQC_CMN_UNI_10113_expiry_boundary_evaluated_against_injected_date(
-        self, as_of: date, expired: Any
-    ) -> None:
-        """The boundary is testable only because the date is injected.
-
-        A function calling the system clock could not be exercised at its own
-        boundary without manipulating the machine, which is why the date is a
-        parameter rather than something the function reaches for.
-
-        The entry lapses **after** its expiry date, not on it: an entry good
-        until the first is good on the first.
-
-        Args:
-            as_of (date): The injected evaluation date.
-            expired (bool): Whether the entry should have lapsed.
-
-        Returns:
-            None
-        """
-        entry = QuarantineEntry("MQC_TASK_q::MQC_RULE_r", "flaky", date(2026, 10, 1))
-        result = verdict(_passing_suite(), VerdictConfig(quarantine=[entry]), as_of)
-        assert ("V5" in result.breached_rules) is expired
 
 
 class TestMQCNothingMeasured:
@@ -316,7 +226,7 @@ class TestMQCNothingMeasured:
         Returns:
             None
         """
-        result = verdict([], VerdictConfig(), _TODAY)
+        result = verdict([], VerdictConfig(), TODAY)
         assert result.green is False
         assert "V6" in result.breached_rules
 
@@ -330,7 +240,7 @@ class TestMQCNothingMeasured:
             Observation(f"MQC_TASK_{index}::MQC_RULE_pre", "UNI", "pass")
             for index in range(5)
         ]
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.green is False
         assert "V6" in result.breached_rules
 
@@ -340,12 +250,12 @@ class TestMQCNothingMeasured:
         Returns:
             None
         """
-        observations = _passing_suite(3)
+        observations = passing_suite(3)
         quarantine = [
             QuarantineEntry(entry.case_id, "parked", date(2026, 12, 1))
             for entry in observations if entry.graded
         ]
-        result = verdict(observations, VerdictConfig(quarantine=quarantine), _TODAY)
+        result = verdict(observations, VerdictConfig(quarantine=quarantine), TODAY)
 
         assert result.green is False
         assert "V6" in result.breached_rules
@@ -359,11 +269,11 @@ class TestMQCNothingMeasured:
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
         observations += [
-            _graded(f"MQC_TASK_{index}::MQC_RULE_r", "skip", skip_reason="unsupported")
+            graded(f"MQC_TASK_{index}::MQC_RULE_r", "skip", skip_reason="unsupported")
             for index in range(4)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.green is False
         assert "V6" in result.breached_rules
         assert result.skip_rate is None
@@ -383,13 +293,13 @@ class TestMQCDenominators:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [_graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(5)]
+        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(5)]
         observations += [
-            _graded(f"MQC_TASK_d{index}::MQC_RULE_r", "skip", skip_reason="dependency")
+            graded(f"MQC_TASK_d{index}::MQC_RULE_r", "skip", skip_reason="dependency")
             for index in range(20)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.skip_rate == pytest.approx(0.0)
         assert "V3" not in result.breached_rules
 
@@ -400,13 +310,13 @@ class TestMQCDenominators:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [_graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(5)]
+        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(5)]
         observations += [
-            _graded(f"MQC_TASK_u{index}::MQC_RULE_r", "skip", skip_reason="unsupported")
+            graded(f"MQC_TASK_u{index}::MQC_RULE_r", "skip", skip_reason="unsupported")
             for index in range(20)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.skip_rate == pytest.approx(0.0)
         assert "V3" not in result.breached_rules
 
@@ -417,11 +327,11 @@ class TestMQCDenominators:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [_graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(9)]
-        observations.append(_graded("MQC_TASK_q::MQC_RULE_r", "fail", priority=3))
+        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(9)]
+        observations.append(graded("MQC_TASK_q::MQC_RULE_r", "fail", priority=3))
 
         quarantine = [QuarantineEntry("MQC_TASK_q::MQC_RULE_r", "parked", date(2026, 12, 1))]
-        result = verdict(observations, VerdictConfig(quarantine=quarantine), _TODAY)
+        result = verdict(observations, VerdictConfig(quarantine=quarantine), TODAY)
 
         assert result.pass_rate == pytest.approx(1.0)
         assert result.green is True
@@ -437,7 +347,7 @@ class TestMQCDenominators:
         Returns:
             None
         """
-        graded = [
+        measured = [
             Observation(f"MQC_TASK_{index}::MQC_RULE_r", "EVAL", "pass", priority=3)
             for index in range(40)
         ]
@@ -446,7 +356,7 @@ class TestMQCDenominators:
             for index in range(40)
         ]
 
-        report = evaluate_distribution(graded + security, Thresholds())
+        report = evaluate_distribution(measured + security, Thresholds())
         assert report.case_definitions == 40
         assert report.p0_share == pytest.approx(0.0)
 
@@ -465,9 +375,9 @@ class TestMQCPreconditionGate:
         """
         observations = [
             Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "fail"),
-            _graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=0),
+            graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=0),
         ]
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
 
         assert result.exit_code == 3
         assert result.breached_rules == ["PRECONDITION_FAILED"]
@@ -485,9 +395,9 @@ class TestMQCPreconditionGate:
         observations = [
             Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "skip",
                         skip_reason="environmental"),
-            _graded("MQC_TASK_x::MQC_RULE_r"),
+            graded("MQC_TASK_x::MQC_RULE_r"),
         ]
-        assert verdict(observations, VerdictConfig(), _TODAY).exit_code == 3
+        assert verdict(observations, VerdictConfig(), TODAY).exit_code == 3
 
 
 class TestMQCVerdictProperties:
@@ -505,16 +415,16 @@ class TestMQCVerdictProperties:
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
         observations += [
-            _graded(f"MQC_TASK_f{index}::MQC_RULE_r", "fail", priority=0)
+            graded(f"MQC_TASK_f{index}::MQC_RULE_r", "fail", priority=0)
             for index in range(3)
         ]
         observations += [
-            _graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=1,
+            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=1,
                     skip_reason="environmental")
             for index in range(3)
         ]
 
-        breached = verdict(observations, VerdictConfig(), _TODAY).breached_rules
+        breached = verdict(observations, VerdictConfig(), TODAY).breached_rules
         assert {"V1", "V2", "V3", "V4"} <= set(breached)
         assert len(breached) >= 4
 
@@ -524,9 +434,9 @@ class TestMQCVerdictProperties:
         Returns:
             None
         """
-        observations = _passing_suite()
-        first = verdict(observations, VerdictConfig(), _TODAY)
-        second = verdict(list(observations), VerdictConfig(), _TODAY)
+        observations = passing_suite()
+        first = verdict(observations, VerdictConfig(), TODAY)
+        second = verdict(list(observations), VerdictConfig(), TODAY)
         assert first == second
 
     def MQC_CMN_UNI_10126_verdict_does_not_read_system_clock(self) -> None:
@@ -543,10 +453,13 @@ class TestMQCVerdictProperties:
         for forbidden in ("date.today()", "datetime.now()", "time.time()", "os.environ"):
             assert forbidden not in source
 
-        entry = QuarantineEntry("MQC_TASK_q::MQC_RULE_r", "flaky", date(2026, 10, 1))
-        past = verdict(_passing_suite(), VerdictConfig(quarantine=[entry]), date(2026, 1, 1))
+        entry = QuarantineEntry(
+            "MQC_TASK_q::MQC_RULE_r", "flaky", date(2026, 10, 1),
+            observed_model="gemini-3.8-flash",
+        )
+        past = verdict(passing_suite(), VerdictConfig(quarantine=[entry]), date(2026, 1, 1))
         future = verdict(
-            _passing_suite(), VerdictConfig(quarantine=[entry]), date(2027, 1, 1)
+            passing_suite(), VerdictConfig(quarantine=[entry]), date(2027, 1, 1)
         )
         assert past.green is True
         assert future.green is False
@@ -576,7 +489,7 @@ class TestMQCDistribution:
         assert report.p0_share is None
         assert verdict(
             [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")] + small,
-            VerdictConfig(), _TODAY,
+            VerdictConfig(), TODAY,
         ).green is True
 
     def MQC_CMN_UNI_10128_red_when_p0_share_exceeds_ten_percent(self) -> None:
@@ -587,13 +500,13 @@ class TestMQCDistribution:
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
         observations += [
-            _graded(f"MQC_TASK_p{index}::MQC_RULE_r", priority=0) for index in range(10)
+            graded(f"MQC_TASK_p{index}::MQC_RULE_r", priority=0) for index in range(10)
         ]
         observations += [
-            _graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=3) for index in range(30)
+            graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=3) for index in range(30)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert "V7" in result.breached_rules
         assert result.distribution.p0_share == pytest.approx(0.25)
 
@@ -608,16 +521,16 @@ class TestMQCDistribution:
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
         observations += [
-            _graded(f"MQC_TASK_a{index}::MQC_RULE_r", priority=0) for index in range(4)
+            graded(f"MQC_TASK_a{index}::MQC_RULE_r", priority=0) for index in range(4)
         ]
         observations += [
-            _graded(f"MQC_TASK_b{index}::MQC_RULE_r", priority=1) for index in range(12)
+            graded(f"MQC_TASK_b{index}::MQC_RULE_r", priority=1) for index in range(12)
         ]
         observations += [
-            _graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=3) for index in range(24)
+            graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=3) for index in range(24)
         ]
 
-        result = verdict(observations, VerdictConfig(), _TODAY)
+        result = verdict(observations, VerdictConfig(), TODAY)
         assert result.distribution.combined_share == pytest.approx(0.40)
         assert "V9" in result.breached_rules
 
@@ -666,10 +579,10 @@ class TestMQCRunSoundness:
         Returns:
             None
         """
-        suite = _passing_suite(20)
-        suite.append(_graded("MQC_TASK_x::MQC_RULE_r", outcome="broken", priority=3))
+        suite = passing_suite(20)
+        suite.append(graded("MQC_TASK_x::MQC_RULE_r", outcome="broken", priority=3))
 
-        result = verdict(suite, as_of_date=_TODAY)
+        result = verdict(suite, as_of_date=TODAY)
 
         assert not result.green
         assert result.exit_code == 3, (
@@ -679,9 +592,9 @@ class TestMQCRunSoundness:
 
         # ONE IS ENOUGH, at the lowest priority there is. A rule that only
         # fired at P0 would let the cheapest cases hide our own defects.
-        single = _passing_suite(50)
-        single.append(_graded("MQC_TASK_y::MQC_RULE_r", outcome="broken", priority=4))
-        assert verdict(single, as_of_date=_TODAY).exit_code == 3
+        single = passing_suite(50)
+        single.append(graded("MQC_TASK_y::MQC_RULE_r", outcome="broken", priority=4))
+        assert verdict(single, as_of_date=TODAY).exit_code == 3
 
         # AND IT IS OUT OF THE PASS RATE, so harness flakiness does not read as
         # model degradation in the headline number.
@@ -705,9 +618,9 @@ class TestMQCRunSoundness:
         assert not skip_blocks("unsupported")
         assert not skip_blocks(None)
 
-        suite = _passing_suite(50)
+        suite = passing_suite(50)
         suite.append(
-            _graded(
+            graded(
                 "MQC_TASK_z::MQC_RULE_r",
                 outcome="skip",
                 priority=4,
@@ -715,7 +628,7 @@ class TestMQCRunSoundness:
             )
         )
 
-        result = verdict(suite, as_of_date=_TODAY)
+        result = verdict(suite, as_of_date=TODAY)
 
         assert not result.green
         assert result.exit_code == 3
@@ -734,9 +647,9 @@ class TestMQCRunSoundness:
             None
         """
         # 16 passing graded plus 4 environmental skips is exactly 20%.
-        at_ceiling = _passing_suite(16)
+        at_ceiling = passing_suite(16)
         at_ceiling.extend(
-            _graded(
+            graded(
                 f"MQC_TASK_e{index}::MQC_RULE_r",
                 outcome="skip",
                 priority=3,
@@ -744,7 +657,7 @@ class TestMQCRunSoundness:
             )
             for index in range(4)
         )
-        result = verdict(at_ceiling, as_of_date=_TODAY)
+        result = verdict(at_ceiling, as_of_date=TODAY)
         assert result.green, (
             f"an outage at exactly the ceiling was refused: {result.breaches}"
         )
@@ -752,9 +665,9 @@ class TestMQCRunSoundness:
 
         # One more crosses it, and it is a ceiling breach rather than a
         # soundness failure: exit 1, because the run did measure.
-        over = _passing_suite(15)
+        over = passing_suite(15)
         over.extend(
-            _graded(
+            graded(
                 f"MQC_TASK_e{index}::MQC_RULE_r",
                 outcome="skip",
                 priority=3,
@@ -762,7 +675,7 @@ class TestMQCRunSoundness:
             )
             for index in range(5)
         )
-        breached = verdict(over, as_of_date=_TODAY)
+        breached = verdict(over, as_of_date=TODAY)
         assert not breached.green
         assert breached.exit_code == 1, (
             "an outage over the ceiling exited 3, which says nothing was "

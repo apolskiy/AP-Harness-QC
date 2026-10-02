@@ -117,6 +117,43 @@ def _rubric_summary(rubric: Any) -> dict[str, Any]:
     return {"criteria": criteria, "threshold": getattr(rubric, "threshold", None)}
 
 
+def quarantine_digest(entries: Iterable[Any]) -> str:
+    """Return a content hash over the quarantine entries a run consulted.
+
+    **The loaded entries rather than the file bytes**, for the reason
+    :func:`rule_set_digest` gives: a reworded comment or a reordered file is not
+    a different quarantine, and a digest that moved for either would cry wolf.
+    Canonicalised with keys sorted, so it does not depend on how a file was
+    checked out.
+
+    Design: ``cmn_verdict_and_cli.md`` section 4.6.6.
+
+    Args:
+        entries (Iterable): The loaded quarantine records, typed loosely so
+            this does not import the verdict's schema for one attribute walk.
+
+    Returns:
+        str: ``sha256:`` and the digest, or the empty string for no entries,
+        which is the default state rather than a suspicious zero.
+    """
+    summary: list[dict[str, str]] = []
+    for entry in entries:
+        stamped = getattr(entry, "quarantined_on", None)
+        summary.append(
+            {
+                "case_id": str(getattr(entry, "case_id", "")),
+                "reason": str(getattr(entry, "reason", "")),
+                "quarantined_on": stamped.isoformat() if stamped is not None else "",
+                "observed_model": str(getattr(entry, "observed_model", "")),
+                "ticket": str(getattr(entry, "ticket", "")),
+            }
+        )
+    if not summary:
+        return ""
+    summary.sort(key=lambda item: item["case_id"])
+    payload = json.dumps(summary, sort_keys=True, ensure_ascii=True)
+    return f"sha256:{sha256(payload.encode(_ENCODING)).hexdigest()}"
+
 def _canonical(value: Any) -> Any:
     """Return a JSON-serialisable form with text normalised to LF.
 

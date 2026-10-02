@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Precondition suite (`UNI`, `SYS`) | **515 cases, all passing** |
+| Precondition suite (`UNI`, `SYS`) | **521 cases, all passing** |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 213, none uncovered, none untraced |
+| Requirements traced | 217, none uncovered, none untraced |
 | Specified and not yet built | Recorded as deferrals, not as silence |
 
 Every case is inventoried in a design document before it is implemented, traced

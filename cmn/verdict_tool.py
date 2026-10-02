@@ -39,7 +39,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Final, Optional
 
-from cmn.config import load_harness_config
+from cmn.config import load_quarantine_for, load_harness_config
 from cmn.observations import Observation
 from cmn.options import Option, registered_options
 from cmn.verdict import Thresholds, Verdict, VerdictConfig, verdict
@@ -237,19 +237,47 @@ def compute(
         return None, refusal
 
     harness_config = load_harness_config(config_dir)
+    observations = observations_from(artifact)
+
+    # QUARANTINE IS PER ENGINE, so the entries consulted are the ones recorded
+    # against the engine this artifact came from. A run reporting more than one
+    # engine reads none of them rather than picking: the entries would not be
+    # about the same model. Design section 4.6.3.
+    engines = {entry.engine for entry in observations if entry.engine}
+    quarantine = (
+        load_quarantine_for(config_dir or Path("config"), engines.pop())
+        if len(engines) == 1
+        else []
+    )
+
     settings = VerdictConfig(
         thresholds=thresholds_from(artifact),
-        quarantine=harness_config.quarantine,
+        quarantine=quarantine,
         unsupported_pairs=harness_config.unsupported_keys(),
     )
-    return verdict(observations_from(artifact), settings, as_of_date), None
+    computed = verdict(observations, settings, as_of_date)
+    for case_id in computed.unconfirmed_quarantine:
+        logger.warning(
+            "QC_HARNESS_QUARANTINE_UNCONFIRMED: the quarantine entry for %s "
+            "carries no date or no observed model, so its expiry could not be "
+            "evaluated. The case is still excluded and the run is not failed "
+            "for it; confirm the entry to restore its expiry",
+            case_id,
+        )
+    return computed, None
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(
+    argv: Optional[list[str]] = None, config_dir: Optional[Path] = None
+) -> int:
     """Run the tool and return its exit code.
 
     Args:
         argv (Optional[list]): Arguments, for testing without a process.
+        config_dir (Optional[Path]): Where the configuration files live,
+            injected so a case can supply a quarantine whose expiry
+            ``--as-of`` decides. **The shipped quarantine is empty**, so
+            without this the flag could not be exercised end to end at all.
 
     Returns:
         int: One of the module's exit codes. Returned rather than raised, so
@@ -263,7 +291,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         return EXIT_ARGUMENT_ERROR
 
     as_of = date.fromisoformat(parsed.as_of) if getattr(parsed, "as_of", "") else None
-    computed, refusal = compute(artifact, as_of_date=as_of)
+    computed, refusal = compute(artifact, config_dir, as_of_date=as_of)
 
     if refusal is not None:
         return refusal.exit_code

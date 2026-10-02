@@ -20,7 +20,6 @@ A failure here is our defect, so the module carries no priority marker, per
 """
 
 import json
-from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Optional
@@ -57,9 +56,8 @@ from cmn.verdict_tool import (
     thresholds_from,
 )
 
+from tests.cmn.verdict_support import TODAY, gated_artifact
 pytestmark = pytest.mark.unit
-
-_TODAY = date(2026, 9, 23)
 
 
 class _RecordingParser:
@@ -124,33 +122,6 @@ def _plugin_registrations() -> _RecordingParser:
     recorder = _RecordingParser()
     conftest.pytest_addoption(recorder)
     return recorder
-
-
-def _artifact(**overrides: Any) -> dict:
-    """Build a gated artifact over a valid base.
-
-    Args:
-        **overrides: Fields to replace.
-
-    Returns:
-        dict: The artifact.
-    """
-    payload = {
-        "gated": True,
-        "run_context": "ci",
-        "selection_mode": "full",
-        "effective_thresholds": {},
-        "results": [
-            {"case_id": "MQC_TASK_pre::MQC_RULE_pre", "layer": "UNI", "outcome": "pass"},
-            {"case_id": "MQC_TASK_a::MQC_RULE_r", "layer": "EVAL", "outcome": "pass",
-             "priority": 2},
-        ],
-    }
-    payload.update(overrides)
-    return payload
-
-
-
 class _FakeInvocationParams:
     """The raw arguments pytest records for a run.
 
@@ -542,7 +513,7 @@ class TestMQCVerdictToolExitCodes:
         Returns:
             None
         """
-        artifact = _artifact(results=[
+        artifact = gated_artifact(results=[
             {"case_id": "MQC_TASK_pre::MQC_RULE_pre", "layer": "UNI", "outcome": "pass"},
         ] + [
             {"case_id": f"MQC_TASK_{index}::MQC_RULE_r", "layer": "EVAL",
@@ -550,11 +521,11 @@ class TestMQCVerdictToolExitCodes:
             for index in range(10)
         ])
 
-        lenient, _ = compute(artifact, tmp_path, _TODAY)
+        lenient, _ = compute(artifact, tmp_path, TODAY)
         assert lenient.green is True
 
         artifact["effective_thresholds"] = {"pass_floor": 0.95}
-        strict, _ = compute(artifact, tmp_path, _TODAY)
+        strict, _ = compute(artifact, tmp_path, TODAY)
 
         assert thresholds_from(artifact).pass_floor == 0.95
         assert strict.green is False
@@ -572,12 +543,12 @@ class TestMQCVerdictToolExitCodes:
         Returns:
             None
         """
-        artifact = _artifact(results=[
+        artifact = gated_artifact(results=[
             {"case_id": "MQC_TASK_pre::MQC_RULE_pre", "layer": "UNI", "outcome": "fail"},
             {"case_id": "MQC_TASK_a::MQC_RULE_r", "layer": "EVAL", "outcome": "fail",
              "priority": 0},
         ])
-        computed, refusal = compute(artifact, tmp_path, _TODAY)
+        computed, refusal = compute(artifact, tmp_path, TODAY)
 
         assert refusal is None
         assert computed.exit_code == 3
@@ -595,8 +566,8 @@ class TestMQCVerdictToolExitCodes:
         Returns:
             None
         """
-        artifact = _artifact(gated=False, run_context="ci_debug")
-        computed, refusal = compute(artifact, tmp_path, _TODAY)
+        artifact = gated_artifact(gated=False, run_context="ci_debug")
+        computed, refusal = compute(artifact, tmp_path, TODAY)
 
         assert computed is None
         assert refusal is not None
@@ -632,7 +603,7 @@ class TestMQCVerdictToolExitCodes:
             None
         """
         path = tmp_path / "results.json"
-        path.write_text(json.dumps(_artifact(gated=False)), encoding="utf-8")
+        path.write_text(json.dumps(gated_artifact(gated=False)), encoding="utf-8")
         assert main([str(path)]) == EXIT_REFUSED
 
     def MQC_CMN_UNI_10200_a_green_gated_artifact_exits_zero(self, tmp_path: Path) -> None:
@@ -645,8 +616,9 @@ class TestMQCVerdictToolExitCodes:
             None
         """
         path = tmp_path / "results.json"
-        path.write_text(json.dumps(_artifact()), encoding="utf-8")
+        path.write_text(json.dumps(gated_artifact()), encoding="utf-8")
         assert main([str(path)]) == EXIT_GREEN
+
 
     def MQC_CMN_UNI_11101_an_unreadable_artifact_is_an_argument_error(self, tmp_path: Path) -> None:
         """An unreadable artifact read as empty would report green for nothing.

@@ -34,6 +34,7 @@ from cmn.layers import (
     skip_blocks,
     skip_counts_toward_rate,
 )
+from cmn.quarantine import QUARANTINE_WINDOW_DAYS, QuarantineEntry
 from cmn.observations import Observation
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ _RUN_UNSOUND: Final[str] = "RUN_UNSOUND"
 # ceiling expressed as a percentage says more about the population size than
 # about priority inflation.
 _DISTRIBUTION_MINIMUM: Final[int] = 30
+
 
 
 @dataclass(frozen=True)
@@ -77,6 +79,10 @@ class Thresholds:
         combined_share_ceiling (float): Maximum share at P0 and P1 together.
         distribution_minimum (int): Case definitions below which the
             distribution check reports counts without a verdict.
+        quarantine_window_days (int): How long a quarantine entry stays
+            valid when the model has not changed. **Recorded rather than
+            constant** so a stored verdict stays recomputable; section
+            4.6.2 gives the reasoning for 21.
     """
 
     pass_floor: float = 0.90
@@ -87,39 +93,9 @@ class Thresholds:
     p1_share_ceiling: float = 0.20
     combined_share_ceiling: float = 0.30
     distribution_minimum: int = _DISTRIBUTION_MINIMUM
+    quarantine_window_days: int = QUARANTINE_WINDOW_DAYS
 
 
-@dataclass(frozen=True)
-class QuarantineEntry:
-    """One case excluded from the pass-rate denominator, with an expiry.
-
-    **Never deleted from the suite.** A quarantined case still runs and is
-    listed in the report; it only leaves the denominator.
-
-    Attributes:
-        case_id (str): Which case.
-        reason (str): Why it is quarantined.
-        expires_on (date): When the exclusion lapses. **Without expiry,
-            quarantine becomes where failures go to be forgotten** and the pass
-            floor stops meaning anything, because everything inconvenient has
-            left the denominator.
-    """
-
-    case_id: str
-    reason: str
-    expires_on: date
-
-    def expired(self, as_of: date) -> bool:
-        """Report whether this entry has lapsed.
-
-        Args:
-            as_of (date): The injected evaluation date.
-
-        Returns:
-            bool: True when the expiry date has passed. Evaluated against the
-            injected date rather than the clock, so the boundary is testable.
-        """
-        return as_of > self.expires_on
 
 
 @dataclass(frozen=True)
@@ -198,6 +174,10 @@ class Verdict:
             because a range needs two points (design section 4.9.4).
         distribution (Optional[DistributionReport]): What the check found.
         quarantined (list): Case identifiers excluded from the pass rate.
+        unconfirmed_quarantine (list): Case identifiers whose entry
+            carries no date or no observed model, so its expiry could not
+            be evaluated. **Not a breach**: carried beside them because
+            `QC_HARNESS_*` never fails a run (section 4.6.4).
         thresholds (Thresholds): The standard applied, carried so a verdict is
             self-describing.
     """
@@ -210,6 +190,7 @@ class Verdict:
     score_spread: dict[str, float] = field(default_factory=dict)
     distribution: Optional[DistributionReport] = None
     quarantined: list[str] = field(default_factory=list)
+    unconfirmed_quarantine: list[str] = field(default_factory=list)
     thresholds: Thresholds = field(default_factory=Thresholds)
 
     @property
@@ -234,6 +215,11 @@ class _Population:
         skipped (list): Of those, the ones that skipped.
         priority_skippable (list): The P0 and P1 subset of ``skippable``.
         priority_skipped (list): Of those, the ones that skipped.
+        resolved_model (str): The one model this run reported, or empty
+            when it reported none or several. **Empty leaves the
+            quarantine model trigger unevaluated**, because which of two
+            models an entry should be compared against has no answer
+            (design section 4.6.2).
     """
 
     graded: list[Observation]
@@ -242,6 +228,7 @@ class _Population:
     skipped: list[Observation]
     priority_skippable: list[Observation]
     priority_skipped: list[Observation]
+    resolved_model: str = ""
 
 
 def verdict(
@@ -303,6 +290,9 @@ def verdict(
         score_spread=score_spread(observations),
         distribution=distribution,
         quarantined=sorted(settings.quarantined_ids()),
+        unconfirmed_quarantine=sorted(
+            entry.case_id for entry in settings.quarantine if not entry.confirmed
+        ),
         thresholds=settings.thresholds,
     )
 
@@ -637,6 +627,11 @@ def _build_population(
     priority_skippable = [
         entry for entry in skippable if entry.priority in (0, 1)
     ]
+    # ONE MODEL OR NONE. A mixed corpus leaves this empty rather than
+    # picking one: `mixed_model_engines` reports the run as mixed, and
+    # expiring quarantine on an arbitrary pick would attach a second
+    # consequence to that one cause. Design section 4.6.2.
+    reported = {entry.resolved_model for entry in observations if entry.resolved_model}
     return _Population(
         graded=graded,
         executions=executions,
@@ -646,6 +641,7 @@ def _build_population(
         priority_skipped=[
             entry for entry in priority_skippable if entry.outcome == "skip"
         ],
+        resolved_model=reported.pop() if len(reported) == 1 else "",
     )
 
 
@@ -765,21 +761,32 @@ def _rule_v5(
 ) -> tuple[bool, str]:
     """An expired quarantine entry fails the run.
 
+    Expiry is by model change or by the configured window, per design section
+    4.6.2. **An unconfirmed entry does not fire this rule**: it is our
+    bookkeeping failing rather than a model finding, and is reported as
+    ``QC_HARNESS_QUARANTINE_UNCONFIRMED`` instead (section 4.6.4).
+
     Args:
-        population (_Population): Unused by this rule.
-        config (VerdictConfig): For the quarantine list.
+        population (_Population): For the run's resolved model.
+        config (VerdictConfig): For the quarantine list and the window.
         as_of (date): The injected evaluation date.
 
     Returns:
         tuple: Whether it fired, and what it found. Without this, quarantine
         becomes where failures go to be forgotten.
     """
-    del population
-    expired = [entry for entry in config.quarantine if entry.expired(as_of)]
+    window = config.thresholds.quarantine_window_days
+    expired = [
+        entry for entry in config.quarantine
+        if entry.expired(as_of, population.resolved_model, window)
+    ]
     if not expired:
         return False, ""
     names = ", ".join(sorted(entry.case_id for entry in expired))
-    return True, f"{len(expired)} quarantine entries expired on or before {as_of}: {names}"
+    return True, (
+        f"{len(expired)} quarantine entries expired as of {as_of}, by a changed "
+        f"model or the {window}-day window: {names}"
+    )
 
 
 def _rule_v6(

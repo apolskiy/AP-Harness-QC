@@ -77,7 +77,7 @@ Evaluated in full: **not short-circuited**. See §4.7.
 | V2 | Overall pass rate below 90% | Red |
 | V3 | Total skips above 20% | Red |
 | V4 | P0/P1 skips above 10% | Red |
-| V5 | Any quarantine entry expired as of `as_of_date` | Red |
+| V5 | Any quarantine entry expired as of `as_of_date`, by model change or the 21-day window | Red |
 | V6 | Zero graded observations | Red: §4.5 |
 | V7 | P0 share of the corpus above its ceiling | Red: §4.4 |
 | V8 | P1 share above its ceiling | Red: §4.4 |
@@ -116,11 +116,246 @@ These are specified because they are where verdict computers are wrong in practi
 
 ### 4.6 Quarantine
 
-An entry carries a case identifier, a reason, and an **expiry date**.
+Revised 2026-10-02. An entry carries a case identifier, a reason, the date it
+was quarantined, the model it was observed against, and an optional ticket
+reference.
 
-* Quarantined cases are excluded from the pass-rate denominator, never deleted from the suite.
+* Quarantined cases are excluded from the pass-rate denominator, never deleted
+  from the suite.
 * They are listed in the report.
-* **An expired entry fails the run (V5).** Without expiry, quarantine becomes where failures go to be forgotten and the 90% floor stops meaning anything, because everything inconvenient has left the denominator.
+* **An expired entry fails the run (V5).** Without expiry, quarantine becomes
+  where failures go to be forgotten and the 90% floor stops meaning anything,
+  because everything inconvenient has left the denominator.
+
+#### 4.6.1 Why expiry exists here, and what it substitutes for
+
+**Quarantine is not normally a place failures are forgotten, and expiry is not
+normally needed.** In a project with a tracking system, a quarantined case is
+linked to a ticket: the entry leaves quarantine when the bug is fixed, or stays
+indefinitely on a recorded decision not to fix. **The ticket governs the
+entry**, and if the problem returns the case catches it again, so nothing was
+forgotten.
+
+Two things remove that governor here:
+
+| | Consequence |
+|---|---|
+| This demo runs no tracking system | Nothing outside the file decides when an entry should leave |
+| **We neither test nor control the release of the models under test** | A fix is not ours to make or to observe, so "fixed" is not a state we can detect |
+
+**Expiry is the workaround for both**, and naming it a workaround is the honest
+description: it approximates a governor we do not have.
+
+#### 4.6.2 The model is the trigger, and the calendar is the backstop
+
+Section 4.1's premise is already stated for every comparison this project makes:
+the model did not change. `mixed_model_engines` enforces it within a run.
+
+**A quarantine entry is a comparison claim**: this case's failure is a known,
+accepted finding about one model. **When the resolved model changes, the claim's
+premise is gone** and the entry says nothing about what is now running. So the
+primary trigger is not a date at all:
+
+| Trigger | Fires when |
+|---|---|
+| **Model change** | The run's resolved model differs from the entry's `observed_model` |
+| Time box | `as_of - quarantined_on >= 21 days` |
+
+**The calendar is the backstop, not the rule.** It catches a model that does not
+move while nobody looks at the entry again. The two together are the same pair
+the live cadence already uses, weekly **or** the model updated, so quarantine
+expiry and re-evaluation stay in step instead of running on unrelated clocks.
+
+**Twenty-one days, and not a calendar month.** The scheduled cadence is weekly,
+so 21 days is three scheduled runs of grace and still two if one is missed for
+quota or a holiday. It is a multiple of seven, so expiry never drifts relative
+to the run day; 30 is not, and an entry would lapse on a different weekday each
+cycle. Twenty-eight would be the same argument with four runs of grace.
+
+**Expired at the window, not after it.** `as_of - quarantined_on >= 21` makes
+day 21 the first failing day, so "valid for 21 days" reads literally. Named at
+the boundary exactly, per `testing-standards.md` section 3.2, by `10113`,
+which already owned this boundary when it was a fixed expiry date and now
+parametrises days 19 through 22. **A second boundary case was inventoried for
+this and withdrawn**: two cases making one claim is the shape section 10.10.1
+records, and extending the case that owns the boundary is what that section
+says to do instead.
+
+**The model comes from the run's own observations, which is what keeps
+`verdict()` pure.** Every observation carries `resolved_model` (A8), so the
+function needs no new input to answer "what is running now":
+
+| The run's observations report | The model trigger |
+|---|---|
+| Exactly one resolved model | Compared against each entry's `observed_model` |
+| None, as a run that recorded none | Cannot be evaluated; the window alone applies |
+| **Several**, a mixed corpus | Cannot be evaluated; the window alone applies |
+
+**A mixed corpus is deliberately not expired on model change.** Which of two
+models an entry should be compared against has no answer, and guessing would
+expire entries on an arbitrary pick. `mixed_model_engines` already reports that
+run as mixed, which is the finding; silently expiring quarantine on top of it
+would attach a second consequence to one cause.
+
+**The window lives in `Thresholds` as `quarantine_window_days`**, so it is
+carried into `effective_thresholds` and a stored verdict stays recomputable.
+That is the same reason the pass floor is there rather than a constant: section
+4.6.2 gives the reasoning for 21, and recording it means a verdict read later
+does not depend on what the constant happens to be then.
+
+
+#### 4.6.3 One file per engine, and an absent file is the default
+
+**Quarantine is per engine**, because a finding is about one model on one
+provider and an entry carries the model it was observed against. The files
+follow the data:
+
+```
+config/quarantine/<engine>.yaml
+```
+
+**An absent file is an empty quarantine**, which is the default state and needs
+no file to say so. That is the general rule for this mechanism: **quarantine is
+assumed empty and is processed only when it holds something.** A run whose
+engine has no file does no expiry work and does not consult the evaluation date.
+
+| | Why |
+|---|---|
+| Per file rather than one keyed by engine | The per-engine state is readable and diffable on its own, and adding an engine adds a file rather than editing a shared one |
+| Absent means empty | The default costs nothing to express, and an empty list in a file is the same statement with a file to maintain |
+| **The candidate engine, not the judge** | An entry records a finding about the model under test. The judge is not under test (section 6.2 of `test_taxonomy.md`) |
+
+#### 4.6.4 An undated entry is our defect, and is never red
+
+An entry missing its `quarantined_on` or its `observed_model` **cannot be
+evaluated**: there is nothing to measure the window against and nothing to
+compare the model to.
+
+**It is reported as `QC_HARNESS_QUARANTINE_UNCONFIRMED` and the run is not made
+red by it.** `framework-rules.md` section 4 is explicit that `QC_HARNESS_*`
+means our code or infrastructure broke and resolves to skip or broken, **never
+fail**. An undated entry is the quarantine mechanism failing, not a finding
+about a model, and failing the run for it would attribute our bookkeeping defect
+to the model under test. That is the same error the consumer-regression gate
+exists to avoid.
+
+**The entry is still honoured while unconfirmed.** Dropping the exclusion would
+let an already-accepted failure fail the run, which is the opposite of what the
+entry records. So the case stays out of the denominator and the condition is
+carried in the record.
+
+**What stops it drifting forever** is that it is loud rather than fatal: the
+count of unconfirmed entries is recorded in run metadata, so an entry that is
+never confirmed is visible in every run that carries it, and the remedy is the
+maintenance tool below rather than a red gate.
+
+#### 4.6.5 The gate reads and a tool writes, because the verdict is pure
+
+Confirming an entry means **re-running the case and writing a date into a
+tracked file**. Section 4.1 makes the verdict a pure function of observations,
+configuration and an injected date: no clock, no filesystem, no environment.
+
+| Does | Where |
+|---|---|
+| Reads quarantine, computes expiry, reports expired and unconfirmed entries. **Writes nothing** | `verdict()`, inside the gate |
+| Re-runs the case, stamps `quarantined_on` and `observed_model` when it still fails, removes the entry when it passes | A maintenance tool, invoked deliberately |
+
+**A gate that rewrote tracked configuration would also race.** Platform and
+band legs run in parallel by design, and two legs writing one quarantine file
+is a lost update with a verdict attached to it.
+
+**The tool re-observes under the escalation policy rather than once.** Section
+4.9.2 sets three observations with two more on a single disagreement; removing
+an entry on one green observation would un-quarantine a flaky case on its lucky
+run, which is precisely the reading the escalation exists to prevent.
+
+#### 4.6.6 The quarantine hash is recorded, because the verdict is uninterpretable without it
+
+Quarantine changes the pass-rate denominator, so a stored pass rate cannot be
+read without knowing which entries were excluded when it was computed. That is
+the argument `10138` already makes for recording the thresholds: **a stored
+result whose standard cannot be recovered is uninterpretable.**
+
+Run metadata therefore carries a **`quarantine_hash`** beside `rule_set_hash`
+and the resolved thresholds, over the entries the run consulted.
+
+| | |
+|---|---|
+| What it detects | That the entries behind a recorded verdict are not the entries present now, whether changed deliberately or by accident |
+| What it does not do | Prevent a change. It makes a verdict attributable to an exact quarantine state, which is what an audit needs |
+| Precedent | `rule_set_hash`, for the same reason, and `QC_HARNESS_FIXTURE_STALE`, where a stored request hash no longer matching means replaying would answer a different question |
+| Only the entries consulted | Hashing an engine that did not participate would imply it did. A run names one candidate engine |
+
+**Over the parsed entries, not the file's bytes**, which is how `rule_set_hash`
+already works and for the reason given there: hashing what was parsed means the
+digest moves when the claim moves. A reworded comment or a reordered file is not
+a different quarantine, and a digest that moved for either would cry wolf until
+nobody read it. **Canonicalised with keys sorted and content normalised to LF**,
+so it does not depend on how a file was checked out (`code-style.md` section 8).
+
+**What this deliberately does not catch**: an edit to a comment, or to anything
+outside the fields an entry is made of. The claim is the entries, so the hash is
+the entries.
+
+**An absent file hashes to the empty string rather than to the digest of
+nothing**, exactly as `rule_set_hash` returns empty for a run with no corpus, so
+"this engine has no quarantine" reads as the default state and not as a
+suspicious zero.
+
+#### 4.6.7 The ticket reference is inert, and that is not the defect section 7.1.0.1 records
+
+An entry may carry a `ticket`: a tracker identifier or a URL. **Nothing reads it
+and nothing is expected to**, pending a tracking system this demo does not run.
+
+**This is deliberately not the shape of `--extra-columns` or `--judge-engine`.**
+Those were defects because each **claimed an effect it did not have**: a
+recorded column policy that was never applied, a named judge that never graded.
+A ticket reference claims no behaviour at all; it carries the human context an
+entry needs and says so.
+
+**It is validated even so.** A present value must be a well-formed tracker
+reference or an absolute URL, because an annotation nothing reads is exactly
+where a typo survives indefinitely, and the point of the field is that somebody
+can follow it later.
+
+#### 4.6.8 Three extractions the rework forced, and one duplication it exposed
+
+Reworking the model took three modules past the thousand-line ceiling, which
+Gate 1 enforces by exit code. The split follows the precedent
+`mqc_uni_instrument.md` records for `mqc_uni_corpus.py` on 2026-10-01: extract
+the subject, not an arbitrary half.
+
+| New | Holds | Relieved |
+|---|---|---|
+| `cmn/quarantine.py` | The entry and the window it is measured against | `cmn/verdict.py`, 1045 to 978 |
+| `tests/cmn/mqc_uni_quarantine.py` | Every quarantine case, including `11218` moved from the CLI module where it was never about the CLI | `mqc_uni_verdict.py` 1030 to 683, `mqc_uni_cli.py` 1054 to 964 |
+| `tests/cmn/verdict_support.py` | The observations, suites and artifacts the three share | All three |
+
+**`V5` stays with the other verdict rules.** The rule registry is what makes a
+rule a rule, so moving one out of the registry's module to sit beside its data
+would split the registry instead of the subject.
+
+**The support module exists because the extraction created a duplication.**
+Copying the helpers into the new test module left three copies of
+`passing_suite` and two of the gated artifact, which pylint's duplicate-code
+check reported. **A duplicated helper is worse than a long module**: a case
+comparing against a stale copy of a passing suite reports about the copy, and
+nothing says which copy is the real one. The name sits outside `pytest.ini`'s
+`mqc_*.py` collection pattern, the same arrangement `AP-Model-QC`'s
+`graded_support.py` uses.
+
+**Renaming the shared artifact builder was not cosmetic.** Imported as
+`artifact`, it was shadowed inside every case that bound a local `artifact`,
+and the failure was an `UnboundLocalError` at the call rather than anything a
+reader would attribute to the import. It is `gated_artifact`, which also says
+what it builds.
+
+**One finding came from pylint and not from the suite.** A removed `typing.Any`
+import left an annotation referring to a name that no longer existed, and the
+suite passed: on 3.14 an annotation is evaluated lazily (PEP 649), so nothing
+read it. `code-style.md` section 2.1 records lazy annotations as the reason the
+`__future__` import is prohibited, and this is the cost of the same mechanism:
+a broken annotation is invisible at runtime and caught only statically.
 
 ### 4.7 All breached rules are reported, not the first
 
@@ -1039,7 +1274,7 @@ properly.
 |---|---|---|
 | `config/engines.yaml` | Engine roster: model IDs, endpoints, parameters, request spacing | Adding an engine is an entry, never a module (B8) |
 | `config/unsupported.yaml` | Declared (test × engine) pairs that cannot run, with reasons | A capability gap must not consume skip budget (A13) |
-| `config/quarantine.yaml` | Quarantined cases with reason and **expiry date** | §4.6 |
+| `config/quarantine/<engine>.yaml` | Quarantined cases per engine, with reason, `quarantined_on`, `observed_model` and an optional ticket. **Absent means empty** | §4.6 |
 
 Credentials are never in configuration. They are read from the environment at runtime and redacted from every log and artifact.
 
@@ -1187,6 +1422,12 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11121` | N | `an_identifier_appearing_twice_in_one_inventory_is_reported` |
 | `11209` | N | `an_identifier_bound_by_two_callables_is_reported` |
 | `11211` | N | `a_workflow_emitting_one_mandated_artifact_is_reported` |
+| `11212` | N | `an_entry_whose_model_changed_is_expired` |
+| `11214` | P | `an_unconfirmed_entry_is_honoured_and_never_red` |
+| `11215` | P | `an_absent_quarantine_file_is_an_empty_quarantine` |
+| `11216` | P | `the_consulted_quarantine_hash_is_recorded` |
+| `11217` | N | `a_malformed_ticket_reference_is_reported` |
+| `11218` | P | `the_named_evaluation_date_reaches_quarantine_expiry` |
 | `11122` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `11123` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `11124` | P | `the_default_judge_engine_is_gemini` |
@@ -1256,7 +1497,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 207 cases, 119 negative, 61 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 213 cases, 121 negative, 65 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

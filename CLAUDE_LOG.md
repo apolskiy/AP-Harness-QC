@@ -7534,3 +7534,92 @@ taken here.
 ### State
 
 653 passing, pylint 10.00/10 exit 0. Two gaps remain, both 2026-11-30.
+
+## 2026-10-02: quarantine expiry became the premise changing, not a deadline
+
+### What the owner's reading changed
+
+The open question was how to cover `--as-of`, and the answer reframed the
+mechanism it measures.
+
+**Quarantine is not normally where failures go to be forgotten.** With a
+tracking system, an entry is linked to a ticket and leaves when the bug is
+fixed, or stays on a recorded decision not to fix; the ticket governs it. Two
+things remove that governor here: this demo runs no tracker, and **we neither
+test nor control the release of the models under test**, so "fixed" is not a
+state we can detect. Expiry is the workaround for both, and the design now says
+so rather than presenting it as a principle.
+
+**The trigger follows from something already in the code.** `verdict.py`
+states that every comparison rests on the premise that the model did not
+change, and `mixed_model_engines` enforces it within a run. A quarantine entry
+**is** a comparison claim about one model, so a changed resolved model is what
+expires it. The 21-day window is the backstop for a model that never moves.
+
+| | |
+|---|---|
+| Primary trigger | The run's resolved model differs from the entry's `observed_model` |
+| Backstop | `as_of - quarantined_on >= 21 days` |
+| Why 21 | Weekly cadence: three runs of grace, two if one is missed, and a multiple of seven so expiry does not drift off the run day |
+
+### V5 could never fire, and the fix was not the one I proposed
+
+`verdict()` defaulted `as_of_date` to `date.min` and `expired` was
+`as_of > expires_on`, so **nothing was ever expired**. The comment defended
+`date.min` as stopping a caller silently picking up today, which it does, and
+paid for that determinism with a rule that cannot fire.
+
+**I proposed refusing a non-empty quarantine with no date. The owner corrected
+it, and `framework-rules.md` section 4 says why**: `QC_HARNESS_*` resolves to
+skip or broken and **never to a failure**. An undated entry is the quarantine
+mechanism failing, not a finding about a model, so failing the run would
+attribute our bookkeeping defect to the model under test. It is reported as
+`QC_HARNESS_QUARANTINE_UNCONFIRMED`, the entry is still honoured, and the
+maintenance tool is what resolves it.
+
+### What shipped
+
+| | |
+|---|---|
+| Schema | `quarantined_on`, `observed_model`, optional `ticket`; `expires_on` gone |
+| Files | `config/quarantine/<engine>.yaml`, **absent means empty** |
+| Record | `quarantine_hash` beside `rule_set_hash`, over parsed entries |
+| Tool | `main` takes a `config_dir`, so `--as-of` is exercisable end to end |
+| Window | `Thresholds.quarantine_window_days`, recorded with the rest of the standard |
+
+**The hash is over parsed entries, not file bytes.** My first design said "the
+content hash of the file", which `rule_set_digest` already shows is wrong for
+this: hashing bytes makes a reworded comment a different quarantine, and a
+digest that cries wolf stops being read. Corrected before it drove the code.
+
+### Three mistakes of my own
+
+**A boundary case inventoried and withdrawn.** I added `11213` for the window
+boundary while `10113` already owned that boundary as a fixed expiry date;
+extending its parametrize to days 19 through 22 was the answer, and minting a
+second case would have been the duplication section 10.10.1 exists to report.
+
+**A duplicated helper, caught by pylint rather than by me.** Extracting the
+quarantine cases left three copies of `passing_suite` and two of the gated
+artifact. A stale copy of a passing suite makes a case report about the copy, so
+the helpers moved to `verdict_support.py`.
+
+**Two too-weak guards in my own edit scripts**, the same shape twice: `if
+"timedelta" not in text` matched the text I had just inserted, so the import
+was never added, and an `assert "Optional" in text` passed against a mention in
+prose. Both surfaced as a `NameError` on the next run. A guard that asks
+whether a name appears anywhere is not asking whether it is imported.
+
+### Still open
+
+**Nothing in production reaches `verdict()`**, so this is design ahead of
+wiring and the `config_dir` change buys testability rather than production
+safety. The maintenance tool of section 4.6.5 is designed and deliberately not
+inventoried: an inventory row without an implementation fails `11205`, so it
+enters with its own case. Wiring the verdict into a gate is its own item.
+
+### State
+
+660 passing, pylint 10.00/10 exit 0, every module back under the thousand-line
+ceiling. Consumer unaffected: 71 preconditions, the 2 known
+`gemini-3.8-flash` findings, pylint 10.00/10.

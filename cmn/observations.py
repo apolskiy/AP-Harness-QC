@@ -58,6 +58,9 @@ class RunContext:
         selection_mode (str): ``full``, ``change_scoped`` or ``manual``.
         preconditions_executed (bool): Whether the precondition layers ran.
         rule_set_hash (str): Which rules produced this run.
+        quarantine_hash (str): Which quarantine entries this run
+            consulted. Quarantine changes the pass-rate denominator, so a
+            stored pass rate cannot be read without it (section 4.6.6).
         effective_thresholds (dict): The standard the run was judged against,
             so a verdict is recomputable from stored artifacts.
         timeout_ms (int): Changing it changes results.
@@ -70,6 +73,7 @@ class RunContext:
     selection_mode: str
     preconditions_executed: bool
     rule_set_hash: str = ""
+    quarantine_hash: str = ""
     effective_thresholds: dict[str, Any] = field(default_factory=dict)
     timeout_ms: int = 0
     cli_flags: dict[str, Any] = field(default_factory=dict)
@@ -131,6 +135,7 @@ class RunContext:
             "selection_mode": self.selection_mode,
             "gated": self.gated,
             "rule_set_hash": self.rule_set_hash,
+            "quarantine_hash": self.quarantine_hash,
             "effective_thresholds": dict(self.effective_thresholds),
             "timeout_ms": self.timeout_ms,
             "cli_flags": dict(self.cli_flags),
