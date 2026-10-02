@@ -51,34 +51,14 @@ flags:
         Repeat observations are A4 and the count is configurable, but no case
         varies it and asserts the population changes.
       expires_on: 2026-11-30
-  "--golden-rules":
-    gap:
-      reason: >-
-        Points the run at a corpus. Exercised implicitly by every graded run
-        using the default, and by nothing that names it.
-      expires_on: 2026-11-30
+  "--golden-rules": {owner: harness}
   "--judge-engine":
     gap:
       reason: >-
         Overrides the configured judge. MQC_CMN_UNI_11190 covers the
         resolution beneath it; nothing covers the flag reaching it.
       expires_on: 2026-11-30
-  # ESTABLISHED 2026-10-01: THE FLAG REACHES NOTHING AND THE BEHAVIOUR
-  # EXISTS. `cmn/options.py` registers it, `ingestion/loaders.py` implements
-  # `unknown_columns` as reject or drop, and no code connects them. This is the
-  # third instance of what produced this file: a flag that names a policy, is
-  # recorded into the invocation record, and acts on nothing.
-  #
-  # NOT A COVERAGE GAP ANY LONGER, SO THE EXPIRY IS SHORT. A case asserting the
-  # flag reaches the loader cannot be written until something wires it, and the
-  # wiring is a behaviour change with its own design, matrix row and injection.
-  "--extra-columns":
-    gap:
-      reason: >-
-        The flag is registered and read by nothing; the loader's reject and
-        drop policy exists and nothing connects them. A run can record a
-        column policy it never applied. Wiring it is the fix, not a case.
-      expires_on: 2026-10-31
+  "--extra-columns": {owner: harness}
   "--as-of":
     gap:
       reason: >-

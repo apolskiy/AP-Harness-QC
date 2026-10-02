@@ -19,6 +19,7 @@ from typing import Any
 import pytest
 
 from ingestion.loaders import (
+    load_corpus,
     UnknownColumnPolicy,
     assert_loaders_agree,
     load_tasks_from_csv,
@@ -27,11 +28,127 @@ from ingestion.loaders import (
 
 pytestmark = pytest.mark.unit
 
+
+def _corpus_with_both_formats(root: Path) -> Path:
+    """Write a corpus holding one YAML task, one CSV task and one rule set.
+
+    Args:
+        root (Path): Where to build it.
+
+    Returns:
+        Path: The corpus root.
+    """
+    (root / "tasks").mkdir(parents=True, exist_ok=True)
+    (root / "rules").mkdir(parents=True, exist_ok=True)
+    (root / "tasks" / "yaml_side.yaml").write_text(
+        "- task_id: MQC_TASK_from_yaml\n"
+        "  rubric_ids: [MQC_RULE_only]\n"
+        "  user_prompt: Summarise this.\n",
+        encoding="utf-8",
+    )
+    (root / "tasks" / "csv_side.csv").write_text(
+        "task_id,rubric_ids,user_prompt\n"
+        "MQC_TASK_from_csv,MQC_RULE_only,Summarise this.\n",
+        encoding="utf-8",
+    )
+    (root / "rules" / "only.yaml").write_text(
+        "- rule_id: MQC_RULE_only\n"
+        "  priority: 2\n"
+        "  priority_conditions: [P2_DOCUMENTED_BEHAVIOUR]\n"
+        "  assertions:\n"
+        "    - assertion_id: A_ONLY\n"
+        "      kind: contains\n"
+        "      parameters: {value: summary}\n"
+        "      taxonomy_code: QC_LLM_INSTRUCTION_DRIFT\n"
+        "      severity: violation\n",
+        encoding="utf-8",
+    )
+    return root
+
+
 _HEADER = "task_id,rubric_ids,user_prompt"
 
 
 class TestMQCCsvLoader:
     """Reading flat task rows without inference or silent alteration."""
+
+
+    def MQC_ING_UNI_10079_a_corpus_directory_loads_each_file_by_its_format(
+        self, tmp_path: Path
+    ) -> None:
+        """A corpus directory loads YAML and CSV task files together.
+
+        The reader comes from each file's suffix, so one corpus may hold both
+        and the objects are indistinguishable afterwards, which is the
+        abstraction ``assert_loaders_agree`` exists to protect.
+
+        Design: ``tier1_ingestion.md`` section 4.5.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        root = _corpus_with_both_formats(tmp_path)
+
+        tasks, rules = load_corpus(root)
+
+        assert sorted(task.task_id for task in tasks) == [
+            "MQC_TASK_from_csv", "MQC_TASK_from_yaml",
+        ]
+        assert [rule.rule_id for rule in rules] == ["MQC_RULE_only"]
+
+        # THE CSV TASK IS A TASK, not a near-miss: the suffix chose a reader and
+        # the reader produced the same kind of object.
+        from_csv = next(task for task in tasks if task.task_id == "MQC_TASK_from_csv")
+        assert from_csv.user_prompt == "Summarise this."
+        assert from_csv.rubric_ids == ["MQC_RULE_only"]
+
+    def MQC_ING_UNI_10080_a_rules_csv_or_an_empty_corpus_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        """A rules file in CSV, an absent directory and an empty one are refused.
+
+        A rule set carries nested anchors and assertions that CSV cannot
+        express, so no reader claims one and the file is refused rather than
+        skipped: a corpus half-loaded reports a smaller suite and not an error.
+
+        An empty corpus is refused for the same reason. Nothing further along
+        can tell it from a wrong path, and a run that measured nothing would
+        otherwise report a clean pass.
+
+        Design: ``tier1_ingestion.md`` section 4.5.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        root = _corpus_with_both_formats(tmp_path / "rules_as_csv")
+        (root / "rules" / "extra.csv").write_text("rule_id\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="QC_DATA_MALFORMED_SOURCE"):
+            load_corpus(root)
+
+        # AN ABSENT DIRECTORY, which is what a wrong --golden-rules looks like.
+        # Tasks are populated so the missing rules directory is what fires: the
+        # loader checks each kind in turn, so an empty tasks folder would report
+        # itself first and this case would not be about the absent one.
+        bare = _corpus_with_both_formats(tmp_path / "bare")
+        for leftover in (bare / "rules").iterdir():
+            leftover.unlink()
+        (bare / "rules").rmdir()
+        with pytest.raises(ValueError, match="names no rules directory"):
+            load_corpus(bare)
+
+        # AND AN EMPTY ONE, which a wrong path also looks like.
+        empty = tmp_path / "empty"
+        (empty / "tasks").mkdir(parents=True)
+        (empty / "rules").mkdir(parents=True)
+        with pytest.raises(ValueError, match="no readable tasks file"):
+            load_corpus(empty)
 
     def MQC_ING_UNI_10016_csv_loader_parses_flat_task_rows(self, write_text_file: Any) -> None:
         """A well-formed file yields one record per row, in file order.

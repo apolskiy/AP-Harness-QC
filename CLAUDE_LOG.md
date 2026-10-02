@@ -7301,3 +7301,76 @@ named it immediately and pylint named it twice.
   * Harness, beside the consumer: 649 passed.
   * The consumer regression reproduced locally before and after: exit 0, no
     harness-attributable outcome, which is what the gate will now actually say.
+
+## 2026-10-02: The CSV path, implemented rather than documented away
+
+The project owner's rule, stated plainly: documented functionality is
+implemented, and a design is not edited down to match what is missing. If
+something exists in the documents and not in the code, the matrix is extended
+and then the implementation is, in that order.
+
+**I had offered to retire the flags instead.** That was the wrong instinct and
+the correction is the better engineering: CSV was a required path for this
+project, and sections 4.1 through 4.4 of `tier1_ingestion.md` had specified it
+all along, down to the code a dropped column emits.
+
+### What existed, and what was missing between the pieces
+
+| Link | Before |
+|---|---|
+| `load_tasks_from_csv`, with the reject and drop policy | Implemented, covered by `ING_0015` and `0016` |
+| Something choosing a reader per file | **Nothing** |
+| `--golden-rules` locating the corpus | **Read by no code** |
+| `--extra-columns` reaching the loader | **Read by no code** |
+| The consumer's corpus path | Hardcoded, globbing `*.yaml` only |
+
+So the CSV loader was reachable only from its own tests, and a `.csv` committed
+to the corpus would have been invisible. **No requirement covered any of the
+middle**, which is why RTM gained `MQC_REQ_HAR_ING_0049` and `0050` before any
+code changed.
+
+### What it now does
+
+`ingestion.loaders.load_corpus` reads a corpus directory and chooses each file's
+reader from its suffix. **By suffix and not by sniffing**: a reader chosen from
+the bytes would make the format a property of the content, so a malformed YAML
+file that parsed as one CSV row would load as a task rather than failing.
+
+`--golden-rules` and `--extra-columns` resolve once when the run is configured,
+through `cmn.pytest_support.corpus_selection`, because the corpus is loaded by
+cached functions that hold no configuration. **The default belongs to the
+consumer**: this repository owns no corpus and cannot know what "repo default"
+means, so an unnamed path resolves to nothing and the consumer substitutes its
+own.
+
+### The end-to-end proof, and the failure that proved it
+
+The whole shipped corpus was re-expressed as CSV, 65 task rows, with rules left
+as YAML because a rule set carries nested anchors CSV cannot express.
+`load_corpus` read it: **65 tasks and 69 rule sets.**
+
+Then the same corpus through the flag, and the run **failed** on R2: the rules
+reference constraints the CSV rows never sent, because the CSV written for this
+exercise carried only three columns. **That failure is the proof.** It could
+only happen if the flag reached the loader, the CSV reader ran, and referential
+integrity still applied to what it produced.
+
+### Two things worth recording about how it went
+
+**A rules file in CSV is refused, not skipped.** A corpus half-loaded reports a
+smaller suite rather than an error, so the suffix no reader claims raises. An
+empty corpus directory is refused for the same reason: nothing further along can
+tell it from a wrong path.
+
+**My own case had the wrong expectation first.** `10080` asserted that an absent
+`rules` directory would be reported, against a fixture whose `tasks` directory
+was also empty, so the tasks check fired first. The loader was right and the
+fixture was wrong, which is the ordinary case and the reason a new case is run
+before it is believed.
+
+* **Code Quality & Compliance Audit:**
+  * Harness: 652 passing, pylint 10.00/10 exit 0.
+  * Harness, isolated checkout: 651 passed, 1 skipped, pylint 10.00/10 exit 0.
+  * Cases: 68 preconditions, pylint 10.00/10 exit 0.
+  * `--extra-columns` and `--golden-rules` move from dated gaps to owners, so
+    `config/flag_coverage.yaml` carries five gaps where it carried seven.

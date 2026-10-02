@@ -138,6 +138,36 @@ Google style docstrings are mandatory across all modules, classes, and functions
 * **Returns Mandatory**: `Returns:` is never omitted, documented as `Returns: None` if the procedure returns nothing.
 * **Sphinx Cross-References**: Use `:class:`, `:meth:`, `:func:`, `:exc:`, and `:mod:` roles in prose. Double backticks for literals.
 
+### 3.1 A docstring states behaviour; the design documents state why
+
+Added 2026-10-01 at the project owner's instruction, after a run of docstrings
+opened with the history of the defect they were written for.
+
+**The first line says what the code does.** Not what went wrong once, not which
+boundary the file sits behind, not what was traded away. A reader opening a
+callable wants its behaviour, and a reader wanting the reasoning is better served
+by the document that owns it.
+
+| | Belongs in |
+|---|---|
+| What it does, what it asserts, what it returns, the boundary values | The docstring |
+| Why it was decided that way, what was rejected, what it cost | The design document |
+| When it was found, what it broke, what the injection showed | `CLAUDE_LOG.md` |
+
+**A pointer is enough.** `Design: cmn_verdict_and_cli.md section 4.9.2.1` carries
+a reader to the reasoning in one line and does not reproduce it. Reproducing it
+is the drift a single registry exists to prevent, applied to prose.
+
+**Context that makes the behaviour legible stays.** The boundary value a case
+sits on, the frame a path resolves in, the reason an assertion reads failures
+rather than the minority: each of those is what the code does and belongs where
+the code is.
+
+**What this is not.** It is not an instruction to write thin docstrings. The
+project's own history is worth recording and is recorded; the question this rule
+answers is **where**, and the answer is not "in the first paragraph of every
+callable that touches the subject".
+
 ## 4. Imports
 * **Three Groups**: Standard library, third-party, and first-party imports, separated by blank lines.
 * **Absolute Imports**: Always use absolute imports (`from ingestion.golden_rules import GoldenRuleParser`).

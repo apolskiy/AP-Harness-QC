@@ -157,6 +157,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_ING_0029` | A failure classification is declared as data, and registries report their contents | Tier 1 section 13.5 |
 | `MQC_REQ_HAR_ING_0015` | Both loaders produce identical objects from equivalent input | Tier 1 section 4 |
 | `MQC_REQ_HAR_ING_0016` | CSV is read without type inference, and a blank cell is not a null | Tier 1 section 4.3 |
+| `MQC_REQ_HAR_ING_0049` | A run loads its corpus from the path --golden-rules names, selecting the loader by each file's format, and falls back to the consumer's own corpus when the flag names nothing | tier1_ingestion.md section 4.5 |
+| `MQC_REQ_HAR_ING_0050` | The unknown-column policy a run declares reaches the CSV loader, so a run that dropped columns is distinguishable from one that rejected them | tier1_ingestion.md section 4.6 |
 | `MQC_REQ_HAR_ING_0017` | Duplicate column headers are detected before they are silently renamed | Tier 1 section 4.3 |
 | `MQC_REQ_HAR_ING_0018` | Ingested content is screened for injection unless declared adversarial | Tier 1 section 7 |
 | `MQC_REQ_HAR_ING_0027` | The ingest screen does not fire on ordinary authored prose | Tier 1 section 7 |

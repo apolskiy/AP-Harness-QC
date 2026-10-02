@@ -296,6 +296,73 @@ The unknown-column policy is a CLI flag (`reject` by default), and **the chosen 
 
 ---
 
+
+### 4.5 One corpus loader, choosing its reader by format
+
+Added 2026-10-02, implementing what sections 4.1 and 4.2 have specified since
+they were written.
+
+**Two loaders existed and nothing chose between them.** `load_tasks_from_yaml`
+and `load_tasks_from_csv` both ship, `assert_loaders_agree` protects the
+abstraction they provide, and `MQC_REQ_HAR_ING_0015` and `0016` cover them. What
+no code did was read a corpus directory and pick a reader per file, so the CSV
+half was reachable only from its own tests.
+
+`load_corpus` takes a directory and returns what it holds, choosing by suffix:
+
+| Suffix | Reader |
+|---|---|
+| `.yaml`, `.yml` | `load_tasks_from_yaml`, `load_rule_sets_from_yaml` |
+| `.csv` | `load_tasks_from_csv`, carrying the unknown-column policy |
+
+**By suffix and not by sniffing.** A reader chosen from the bytes would make the
+format a property of the content, so a malformed YAML file that parsed as one
+CSV row would load as a task rather than failing. The name is the author's
+declaration and is the thing to honour.
+
+**Rules have no CSV reader, and that is section 4.2's reasoning applied.** A
+rule set carries nested anchors, exemplars and assertions; CSV distinguishes
+text-or-blank, so the formats are not equivalent for it and no abstraction is
+being protected. A `.csv` in the rules directory is refused rather than ignored,
+because a silently skipped file is a corpus half-loaded.
+
+**An empty corpus directory is refused.** Nothing else in the chain can tell an
+empty corpus from a wrong path, and a run that measured nothing would otherwise
+report a clean pass.
+
+### 4.6 The policy reaches the loader, and the path reaches the corpus
+
+**Section 4.4 has specified this since it was written**, down to the code a
+dropped column emits. `--extra-columns` and `--golden-rules` were registered,
+recorded into the invocation record, and read by nothing, so the row reading
+"Unknown column, CLI override" described an override no run could express.
+`cmn_verdict_and_cli.md` section 7.1.0.1 records what that cost. Both options
+now travel the way every other one does.
+
+```
+--golden-rules, --extra-columns
+        resolved once at configure time, with the rest of the invocation
+                        |
+            cmn.pytest_support.corpus_selection()
+                        |
+     the consumer substitutes its own corpus for an unnamed path
+                        |
+          ingestion.loaders.load_corpus(root, unknown_columns=...)
+```
+
+**Resolved at configure time rather than read per call.** The corpus is loaded
+by cached functions that no longer hold a configuration, which is the same
+reason `adopt_carried_outcomes` resolves when the run is configured. A reader
+that asked pytest for an option would have to be given the configuration
+everywhere it is reached, and the places it is reached include fixtures that
+have none.
+
+**The default belongs to the consumer, not to the harness.** "Repo default" in
+section 7.3's table means the case repository's own `data/`, and this repository
+cannot know that: it owns no corpus. So `corpus_selection` returns what the flag
+named or nothing, and the consumer substitutes its own.
+
+
 ## 5. Validation Policy
 
 * **Required keys are checked before instantiation**, raising `KeyError` naming every missing field, not merely the first.
@@ -849,6 +916,8 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `20010` | N | `colliding_case_ids_are_rejected_after_the_join` |
 | `20011` | P | `a_tool_expectation_may_itself_check_a_constraint` |
 | `20012` | P | `several_rules_may_divide_a_task_s_constraints_between_them` |
+| `10079` | P | `a_corpus_directory_loads_each_file_by_its_format` |
+| `10080` | N | `a_rules_csv_or_an_empty_corpus_is_refused` |
 
 **`20008` is the positive nobody writes.** Five negatives establish that each check fires; only a fully consistent corpus establishes that all five can be satisfied at once, which is the claim an author relies on when writing a case.
 
@@ -900,7 +969,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 90 cases, 49 negative, 30 positive, 11 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 92 cases, 50 negative, 31 positive, 11 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

@@ -154,6 +154,41 @@ def _flags_named(config: Any) -> frozenset[str]:
     )
 
 
+# RESOLVED WHEN THE RUN IS CONFIGURED, not read per call. The corpus is loaded
+# by cached functions that hold no configuration, which is the same reason
+# `adopt_carried_outcomes` resolves here. Design section 4.6.
+_CORPUS_SELECTION: dict[str, Optional[str]] = {"root": None, "unknown_columns": None}
+
+
+def adopt_corpus_selection(config: Any) -> None:
+    """Record which corpus the run names and how its CSV is to be read.
+
+    Args:
+        config (Any): pytest's configuration.
+
+    Returns:
+        None
+    """
+    named = config.getoption("--golden-rules", None)
+    policy = config.getoption("--extra-columns", None)
+    _CORPUS_SELECTION["root"] = str(named) if named else None
+    _CORPUS_SELECTION["unknown_columns"] = str(policy) if policy else None
+
+
+def corpus_selection() -> tuple[Optional[Path], Optional[str]]:
+    """Return the corpus the run named and its unknown-column policy.
+
+    **Both may be absent, and absent is not a default.** This repository owns no
+    corpus, so it cannot know what "repo default" means; the caller substitutes
+    its own. Design section 4.6.
+
+    Returns:
+        tuple: The named corpus root or ``None``, and the policy or ``None``.
+    """
+    root = _CORPUS_SELECTION["root"]
+    return (Path(root) if root else None), _CORPUS_SELECTION["unknown_columns"]
+
+
 def configure_invocation(config: Any) -> None:
     """Record what the run was invoked with, and warn on a defaulted engine.
 
@@ -176,6 +211,7 @@ def configure_invocation(config: Any) -> None:
     }
     invocation = build_invocation(supplied)
     config.mqc_invocation = invocation
+    adopt_corpus_selection(config)
     for warning in invocation.warnings:
         logger.warning("%s", warning)
 

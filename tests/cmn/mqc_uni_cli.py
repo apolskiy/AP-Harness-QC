@@ -30,7 +30,7 @@ import conftest
 from cmn.config import Consumer, load_consumers, unreachable_consumer_code
 from cmn.observations import RunContext
 from cmn.registries import is_registered_harness_code
-from cmn.pytest_support import configure_invocation
+from cmn.pytest_support import adopt_corpus_selection, corpus_selection, configure_invocation
 from cmn.options import (
     build_invocation,
     defaults,
@@ -740,6 +740,44 @@ class TestMQCThresholdRecording:
 
 class TestMQCConsumerRegistry:
     """What the fan-out reads, and what an unreachable consumer means."""
+
+
+    def MQC_CMN_UNI_11208_the_corpus_selection_is_resolved_at_configure_time(
+        self,
+    ) -> None:
+        """``--golden-rules`` and ``--extra-columns`` arrive through configure.
+
+        Both are readable after the run is configured and without a
+        configuration in hand, which is what the corpus loaders need: they are
+        cached and reached from fixtures that hold none.
+
+        An unnamed option resolves to ``None`` rather than a default, because
+        this repository owns no corpus and cannot know what the default path
+        is; the caller substitutes its own.
+
+        Design: ``tier1_ingestion.md`` section 4.6.
+
+        Returns:
+            None
+        """
+        adopt_corpus_selection(
+            _FakeConfig([], {"--golden-rules": "/elsewhere/data",
+                             "--extra-columns": "drop"})
+        )
+        root, policy = corpus_selection()
+
+        assert root == Path("/elsewhere/data")
+        assert policy == "drop"
+
+        # UNNAMED IS NONE, NOT A DEFAULT. The consumer substitutes its own.
+        adopt_corpus_selection(_FakeConfig([], {}))
+        root, policy = corpus_selection()
+
+        assert root is None, (
+            "an unnamed corpus resolved to a path, so this repository would be "
+            "deciding where a corpus it does not own lives"
+        )
+        assert policy is None
 
     def MQC_CMN_UNI_11115_consumer_registry_loads_every_declared_entry(self) -> None:
         """Adding a consumer is an entry, never a workflow change.

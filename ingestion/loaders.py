@@ -480,3 +480,84 @@ def _reject_colliding_identifiers(
             f"differ only by letter case or Unicode form, and collide on a case-insensitive "
             f"filesystem: {collisions}"
         )
+
+
+# WHICH READER A SUFFIX DECLARES. By name and not by sniffing the bytes: a
+# reader chosen from content would make the format a property of the content, so
+# a malformed YAML file that happened to parse as one CSV row would load as a
+# task rather than failing. Design section 4.5.
+_YAML_SUFFIXES: Final[frozenset[str]] = frozenset({".yaml", ".yml"})
+_CSV_SUFFIX: Final[str] = ".csv"
+
+
+def load_corpus(
+    root: Path, *, unknown_columns: str = UnknownColumnPolicy.REJECT
+) -> tuple[list[TaskDataSet], list[GoldenRuleSet]]:
+    """Load every task and rule a corpus directory holds.
+
+    Reads ``tasks`` and ``rules`` beneath ``root``, choosing each file's reader
+    from its suffix: YAML through the YAML loaders, CSV through
+    :func:`load_tasks_from_csv` carrying ``unknown_columns``.
+
+    **Rules have no CSV reader**, so a ``.csv`` among them is refused rather
+    than skipped: a corpus half-loaded reports a smaller suite and not an error.
+
+    Args:
+        root (Path): The directory holding ``tasks`` and ``rules``.
+        unknown_columns (str): ``reject`` or ``drop``, from
+            :class:`UnknownColumnPolicy`, applied to CSV task files.
+
+    Returns:
+        tuple: Every task, then every rule set, in file order within each kind.
+
+    Raises:
+        ValueError: With ``QC_DATA_MALFORMED_SOURCE`` when a directory is
+            absent, when it holds no readable file, or when a rules file
+            carries a suffix no reader claims. **An empty corpus is refused**,
+            because nothing further along can tell it from a wrong path and a
+            run that measured nothing would report a clean pass.
+    """
+    tasks: list[TaskDataSet] = []
+    rules: list[GoldenRuleSet] = []
+
+    for kind, destination in (("tasks", tasks), ("rules", rules)):
+        folder = root / kind
+        if not folder.is_dir():
+            raise ValueError(
+                f"QC_DATA_MALFORMED_SOURCE: the corpus names no {kind} "
+                f"directory at {folder}"
+            )
+        found = 0
+        for source in sorted(folder.iterdir()):
+            if not source.is_file():
+                continue
+            suffix = source.suffix.lower()
+            if suffix in _YAML_SUFFIXES:
+                destination.extend(
+                    load_tasks_from_yaml(source) if kind == "tasks"
+                    else load_rule_sets_from_yaml(source)
+                )
+            elif suffix == _CSV_SUFFIX and kind == "tasks":
+                tasks.extend(
+                    load_tasks_from_csv(source, unknown_columns=unknown_columns)
+                )
+            elif suffix == _CSV_SUFFIX:
+                raise ValueError(
+                    f"QC_DATA_MALFORMED_SOURCE: {source} is a rules file in CSV, "
+                    f"which no reader claims because a rule set carries nested "
+                    f"anchors and assertions that CSV cannot express"
+                )
+            else:
+                continue
+            found += 1
+        if not found:
+            raise ValueError(
+                f"QC_DATA_MALFORMED_SOURCE: the corpus holds no readable "
+                f"{kind} file at {folder}"
+            )
+
+    logger.info(
+        "Loaded %d tasks and %d rule sets from %s under the %s policy",
+        len(tasks), len(rules), root, unknown_columns,
+    )
+    return tasks, rules
