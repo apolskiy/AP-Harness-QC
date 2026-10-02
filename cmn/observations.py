@@ -354,3 +354,55 @@ def required_result_fields() -> tuple[str, ...]:
         tuple[str, ...]: The required names.
     """
     return _REQUIRED_RESULT_FIELDS
+
+
+# TWO, AND NOT "UNTIL IT IS CERTAIN". Two more takes a case from three
+# observations to five, where one disagreement reads as a fifth. Sampling until
+# some confidence was reached would spend unboundedly on exactly the cases
+# hardest to characterise, and quota is the binding constraint on every
+# recording run this project does. Design section 4.9.2.2.
+_ESCALATION: Final[int] = 2
+
+
+def further_observations(outcomes: list[bool]) -> int:
+    """Return how many more observations a pattern of outcomes earns.
+
+    **Exactly one disagreement earns two more, and nothing else earns any.**
+    Three observations can only put a case at 0, 33, 67 or 100 percent
+    disagreement. Of those, only the 33 is worth refining: zero has nothing to
+    refine, and 67 or 100 is already established far above any ceiling. Design
+    section 4.9.2.1 carries the decision and the arithmetic.
+
+    **It does not change the verdict.** The case is inconsistent either way, by
+    the binary rule in section 4.9.1 which a majority would undo. What the two
+    further observations buy is the **severity**: one in five and three in five
+    are different findings although both fail.
+
+    **It escalates once.** Five observations showing one disagreement are not
+    taken to ten, because the decision is that a fifth is a legible number and
+    not that a tenth is needed. A second escalation is a later decision with its
+    own arithmetic, so this function is not a loop.
+
+    Args:
+        outcomes (list[bool]): Whether each observation so far passed, in the
+            order observed. **Outcomes only**, because the rule reads agreement
+            and nothing else about a result.
+
+    Returns:
+        int: How many further observations to dispatch. **Zero for fewer than
+        two outcomes**: one sample cannot disagree with itself, which is the
+        same answer :func:`consistent` gives for the same reason.
+    """
+    if len(outcomes) < 2:
+        return 0
+    # FAILURES, NOT THE MINORITY. A case is asked to pass every time, so a
+    # disagreement is an observation that failed. Reading the minority instead
+    # made two failures of three escalate, which is already two thirds and
+    # established.
+    failures = len(outcomes) - sum(outcomes)
+    if failures != 1:
+        return 0
+    # ONCE ONLY. Reached five, the rule has said what it has to say.
+    if len(outcomes) >= 2 + _ESCALATION + 1:
+        return 0
+    return _ESCALATION

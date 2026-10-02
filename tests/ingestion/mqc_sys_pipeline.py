@@ -206,23 +206,13 @@ class TestMQCReferentialIntegrity:
     def MQC_ING_SYS_20012_several_rules_may_divide_a_task_s_constraints_between_them(
         self,
     ) -> None:
-        """R3 is a claim about a task and was asked of one rule at a time.
+        """Several rules may divide one task's constraints between them.
 
-        Every task in the corpus named one rule for the project's whole life, so
-        "referenced by at least one check" and "referenced by this rule" were the
-        same sentence. A consumer split one rule into four specialised ones, one
-        constraint each, and R3 reported **twelve violations over a corpus in
-        which every constraint is checked**.
+        R3 is evaluated over every rule the task names, so a rule that checks
+        one constraint and ignores another is not reported. A constraint that no
+        named rule checks is still refused, which ``20003`` also covers.
 
-        **The pair scoping was coercive, not merely wrong.** Satisfying it meant
-        every rule checking every constraint, so one rule carried all four
-        assertions; four graded cases then bound that rule, assertions are
-        conjunctive, and one failing assertion failed all four. An invariant
-        satisfiable only by a worse design is a defect in the invariant.
-
-        **`20003` still reports the real case**, which is what makes this a
-        widening rather than a weakening: a constraint no rule the task names
-        checks remains an instruction sent and never verified.
+        Design: ``tier1_ingestion.md`` section 7.3.1.
 
         Returns:
             None

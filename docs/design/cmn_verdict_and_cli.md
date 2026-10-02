@@ -184,6 +184,103 @@ conclusions stop holding", and there is no evidence yet for a different number.
 **It is configured rather than fixed**, and the first live corpus is what will
 say whether 0.10 is right.
 
+#### 4.9.2.1 The ceiling is 0.20, and a disagreement earns two more observations
+
+Decided 2026-10-01 by the project owner.
+
+**Two rates live here and only one moved.** The distinction is worth stating
+because the question that produced this decision could have meant either.
+
+| | Measures | Shape | Decision |
+|---|---|---|---|
+| `inconsistent_cases` | Whether one case's observations disagree | Binary, any disagreement | **Unchanged** |
+| `inconsistency_ceiling` | What share of measured cases disagree | A rate over the suite | **0.10 to 0.20** |
+
+**The binary rule stays, and section 4.9.1 is why.** A verdict that disagrees is
+unreliable whatever share of the time it does so, and taking a majority would
+discard the finding the repeats exist to produce. The owner's phrasing was that
+verdicts disagreeing at least a tenth of the time are not reliable verdicts;
+the binary rule is stricter than that and deliberately so.
+
+**0.10 was matched to `priority_skip_ceiling` and never derived.** 0.20 is the
+owner's judgement that a suite carrying a fifth of its cases as wobbling has
+still measured something, while one carrying a tenth plainly has. The ceiling is
+a statement about the **run**, not about a case.
+
+**Three observations stay the default, and two more are taken only where one
+disagreed.** This is the owner's correction to a flat five, and it is the better
+design for a reason worth stating: a flat five pays for precision on every case
+in order to get it on the few that need it.
+
+| After three | Disagreement reads | Escalate? | Why |
+|---|---|---|---|
+| 3 agree | 0 percent | No | Nothing to refine |
+| **1 disagrees** | **33 percent** | **Yes, two more** | 33 is above the ceiling and may not be the real rate |
+| 2 disagree | 67 percent | No | Already established far above any ceiling |
+| 3 disagree | 100 percent | No | As above |
+
+**What the escalation buys is the severity, not the verdict.** The case is
+inconsistent either way: the binary rule above does not soften, and the owner's
+standard is that a verdict disagreeing a tenth of the time is already
+unreliable, which one in five is. What changes is the number in the record. One
+in three says "somewhere between a fifth and a half"; one in five says a fifth,
+and three in five says three fifths, **and a model wobbling a fifth of the time
+is a different finding from one wobbling three fifths of the time** even though
+both fail.
+
+**So escalation is a measurement, and it is why the two observations are worth
+dispatching.** Spending them on a case that already agreed three times would buy
+a more precise zero.
+
+| | Dispatches added per engine | Cost across three engines |
+|---|---|---|
+| Flat five, considered | 138 | about 1.82 USD |
+| **Three, escalating on one**, decided | **2 per wobbling case** | **a few cents at present rates** |
+
+**Existing fixtures stay valid.** `FixtureKey` carries the observation index, so
+an escalation adds indices 3 and 4 and invalidates nothing; `--fill-gaps` records
+only what is absent. A case that agreed three times is never asked again, so the
+corpus does not grow where it has nothing to learn.
+
+**And what a score does inside a passing band is still only noted.** The owner's
+ordering is explicit: a score moving within a band interests us less than a
+failing score, and far less than a score crossing from passing to failing.
+Section 4.9.4 already records `score_spread` and gates nothing on it, which is
+that ordering already implemented; a verdict crossing the threshold is a verdict
+disagreement and the machinery above already carries it.
+
+#### 4.9.2.2 Where the escalation rule lives, and who calls it
+
+The rule is a measurement policy, so it belongs to the harness beside the
+ceiling it serves: `cmn.observations.further_observations` takes the outcomes
+seen so far and returns how many more to take. **The consumer calls it and
+decides nothing**, which is the boundary `AP-Model-QC` `CLAUDE.md` states as the
+cases owning no harness code.
+
+| | Owns |
+|---|---|
+| Harness | The rule: how many more observations a pattern of outcomes earns |
+| Consumer | The loop: dispatching them and collecting the results |
+
+**Two, and not "until it is certain".** Two more takes a case from three
+observations to five, where one disagreement reads as a fifth. A rule that kept
+sampling until some confidence was reached would spend unboundedly on exactly
+the cases that are hardest to characterise, and the quota is the binding
+constraint on every recording run this project does.
+
+**It escalates once.** Five observations with one disagreement are not escalated
+to ten, because the decision at 4.9.2.1 is that a fifth is a legible number and
+not that a tenth is needed. A second escalation is a later decision with its own
+arithmetic, not a loop this function runs.
+
+**Zero for a single observation.** One sample cannot disagree with itself, so
+there is nothing to refine, which is the same answer `consistent` gives for the
+same reason.
+
+`MQC_CMN_UNI_11206` covers the rule and `MQC_CAS_UNI_10466` covers the loop
+calling it, which is the division above restated as two cases: a rule nothing
+calls and a loop that decides for itself are the two ways this could be wrong.
+
 #### 4.9.3 Consistency compares verdicts, never responses to each other
 
 Corrected 2026-09-26. **An earlier version of this section claimed the spread of
@@ -266,6 +363,19 @@ Repeat observations of **one** prompt are what A4.1 decided. Repeating a
 **So it is an expansion and not a setting.** The test plan section 9.6.1 states
 the present boundary where it is most likely to be misread: the clarification
 family measures that the model asks, and nothing measures what follows.
+
+**Settled 2026-10-01: the boundary is the demonstration's scope, not a defect.**
+The project owner's statement of it: this suite is single prompt, with multiple
+possible conditions, taking one reply or refusal from the evaluation engine,
+which is then verified against deterministic parameters and judged by a separate
+AI judge. It is potentially expandable to multi-prompt scenarios **and that
+expansion is the harness's, not the corpus's.**
+
+So nothing here is missing. A multi-prompt suite would need conversation state
+seeded and compared, a rubric judging a turn in the light of the turns before
+it, and recalibration because exemplars are single responses. Those are harness
+capabilities, and until they exist a multi-prompt case would have nothing to run
+on.
 
 #### 4.9.6 One corpus, one model, and the quota made that worth checking
 
@@ -961,6 +1071,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11202` | N | `an_untraced_test_is_reported_against_either_matrix` |
 | `11203` | N | `with_prerequisites_under_a_keyword_filter_is_refused` |
 | `11204` | B | `with_prerequisites_without_any_filter_warns_and_proceeds` |
+| `11205` | N | `an_inventory_row_without_an_implementation_is_reported` |
+| `11206` | B | `one_disagreement_earns_two_further_observations` |
 | `11141` | P | `judge_mode_defaults_to_whatever_mode_is` |
 | `11142` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
 | `11143` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
@@ -1003,7 +1115,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 201 cases, 115 negative, 60 positive, 26 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 203 cases, 116 negative, 60 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -1676,6 +1788,32 @@ collision: `11138` says a moved request is refused, and `11201` says the two
 requests never reach one file to be compared. The design is
 `tier2_execution.md` section 7.9.3.
 
+
+#### 10.19.1 An inventory row without an implementation is reported, never gated
+
+Decided 2026-10-01 by the project owner.
+
+`MQC_CMN_UNI_10183` fails a collected case with no inventory row. **Nothing
+checked the reverse**, which is the other half of the same claim and the third
+half-written check this project has found in one day.
+
+**The decision, in the owner's terms:** if there is an inventory row it has to be
+implemented. An unimplemented row **must be reported**, and then implemented on
+any cycle through documentation, design, RTM and implementation. It is never
+removed from the design to make the report go away.
+
+**Reported and not gated**, because an inventory row without an implementation is
+the normal state while a family is being authored, and this project requires the
+design to come first. A hard gate would forbid the order it mandates.
+
+**The audit that decided it.** Across both repositories, 627 inventory rows and
+627 implemented, nothing designed and unbuilt. The first scan said the same thing
+and meant nothing: its row pattern matched three-column tables and the graded
+inventories carry six. **A check that cannot fail is not evidence**, which is why
+the number above is stated with how it was obtained.
+
+`MQC_CMN_UNI_11205` reports the list across both repositories and passes on an
+empty one.
 
 ### 10.20 The header check, extended past Python
 

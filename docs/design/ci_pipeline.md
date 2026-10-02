@@ -120,6 +120,48 @@ Four files also mean four independent answers to "why did this run", which is th
 
 ---
 
+### 2.0.2 When the live run fires, once the jobs are stable
+
+Decided 2026-10-01 by the project owner, settling what section 2.0.1 withdrew.
+
+**The live run measures what the replay run measures.** That is the answer to
+what it is for: the same ladder against the same corpus, dispatched rather than
+replayed. What it additionally buys is the recordings themselves, because a
+newer engine or model version has no fixtures until something live produces
+them, and a replay suite cannot characterise a version it has never met.
+
+**Smoke tests matter**, and they are the part a replay run cannot establish at
+all: whether the harness can still reach a provider.
+
+**Nothing is scheduled until every job is stable.** That is unchanged from
+2.0.1 and is the precondition for the rest of this section.
+
+**The trigger is a conjunction over a disjunction:**
+
+```
+fire when   (7 or more days since the last live run)
+      and   (the weekly slot has come  or  the resolved model version changed)
+```
+
+| Reading | Consequence |
+|---|---|
+| The floor is **and** | Never more than once a week, whichever condition fired it |
+| The conditions are **or** | A new model version does not wait for Sunday |
+| Version compared against | The last version a live run recorded, not the last probe |
+
+**The probe is what makes the second condition cheap.**
+`probe-model-version-nightly.yml` already resolves the served version nightly for
+one request, so a version change is known without a graded run. Comparing against
+the last **live run's** recorded version rather than the last probe's is what
+keeps a single upgrade from firing twice.
+
+**Why a floor and not a cap on cost.** A provider can serve a new version twice
+in a week, and the cost of a live ladder is the corpus times the observation
+count, which section 4.9.2.1 has just raised. The floor bounds spend by
+construction; a budget ceiling bounds it by refusing mid-run, which is worse
+when the run exists to produce fixtures.
+
+
 ## 3. `gate-on-change.yml`: Everything Deterministic, No Quota
 
 ### 3.1 Jobs

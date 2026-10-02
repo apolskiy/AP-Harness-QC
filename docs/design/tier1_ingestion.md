@@ -100,8 +100,16 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 | `rubric` | `Optional[Rubric]` | | `None` | Judged half |
 | `tool_expectation` | `Optional[ToolExpectation]` | | `None` | |
 | `requirement_ids` | `list[str]` | | `[]` | RTM traceability; emitted to result metadata |
+| `vectors` | `dict[str, bool]` | | `{}` | Attack vectors the payload carries, set and unset. Security rules only |
+| `primary` | `Optional[str]` | | `None` | Which declared vector the case is about |
 
 **Invariant G1:** at least one of `assertions`, `rubric`, `tool_expectation` must be present. A rule set that judges nothing is a silent no-op reporting green.
+
+**Invariant G7, added 2026-10-01:** where `primary` is present it names a key of `vectors` whose value is true. A rule declaring an intent it does not declare as a carried vector states two different things about itself.
+
+**`vectors` is a mapping and not a list**, which is the project owner's shape and buys two things. A vector explicitly `false` records that somebody considered it, where absence from a list records nothing. And only the true entries need carrying into a log or an artifact, so the record is the size of what is true rather than the size of the registry. `AP-Model-QC` `model_evaluation_test_plan.md` section 9.10.3.1 carries the decision and what it cost to reach.
+
+**Optional, and empty for every rule outside the security family.** The field answers a question only an attack payload raises, and `GoldenRuleSet` already serves two readers that each ignore most of it.
 
 **Every invariant in this document emits `QC_DATA_INVARIANT_VIOLATION`**, the code registered for data that is structurally complete and semantically contradictory. G1 through G6 and R1 through R5 share it because they share a fix: the author has to rethink the rule set rather than correct a name or a file. See `test_taxonomy.md` section 6.3.1.
 

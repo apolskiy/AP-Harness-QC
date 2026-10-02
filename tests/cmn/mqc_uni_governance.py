@@ -17,7 +17,7 @@ import ast
 import csv
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Final, Optional
 
 import pytest
 
@@ -27,6 +27,19 @@ from cmn.traceability import MatrixRow, untraced_tests
 pytestmark = pytest.mark.unit
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
+# Both halves of one project. A harness inventory cites consumer case numbers,
+# so a per-repository scan reports phantom gaps for cases that exist next door.
+_PAIRED_REPOSITORIES: Final[tuple[Path, ...]] = (
+    _REPOSITORY_ROOT,
+    _REPOSITORY_ROOT.parent / "AP-Model-QC",
+)
+
+# ANY table row whose first cell is a five-digit identifier in backticks. Column
+# agnostic on purpose: a pattern written for the three-column precondition
+# tables reported zero gaps against six-column graded inventories.
+_INVENTORY_IDENTIFIER: Final[re.Pattern] = re.compile(r"^\|\s*`(\d{5})`\s*\|")
+
 _DESIGN_DIRECTORY = _REPOSITORY_ROOT / "docs" / "design"
 _TEST_DIRECTORY = _REPOSITORY_ROOT / "tests"
 
@@ -510,6 +523,62 @@ class TestMQCIndexAgainstDesigns:
             f"{len(disagreements)} README figure(s) disagree with what they "
             f"describe: {'; '.join(disagreements)}"
         )
+
+    def MQC_CMN_UNI_11205_an_inventory_row_without_an_implementation_is_reported(
+        self,
+    ) -> None:
+        """Every design inventory row names a case some repository implements.
+
+        Reads every five-digit identifier in the first cell of a table row,
+        across both repositories, and compares it against the test callables
+        both suites define. Reported rather than gated: an unimplemented row is
+        the normal state while a family is authored.
+
+        Column agnostic, and cross-repository because harness inventories cite
+        consumer case numbers.
+
+        Design: ``cmn_verdict_and_cli.md`` section 10.19.1.
+
+        Returns:
+            None
+        """
+        built: set[str] = set()
+        for repository in _PAIRED_REPOSITORIES:
+            for source in sorted((repository / "tests").rglob("*.py")):
+                for module, layer, number, behaviour in _defined_callables(source):
+                    assert module and layer and behaviour
+                    built.add(number)
+
+        designed: dict[str, str] = {}
+        for repository in _PAIRED_REPOSITORIES:
+            for document in sorted(repository.rglob("docs/**/*.md")):
+                for line in document.read_text(encoding="utf-8").splitlines():
+                    found = _INVENTORY_IDENTIFIER.match(line.strip())
+                    if found is not None:
+                        designed.setdefault(
+                            found.group(1), f"{repository.name}/{document.name}"
+                        )
+
+        assert designed and built, "one of the two artefacts was not read"
+
+        unbuilt = sorted(
+            f"{number} [{document}]"
+            for number, document in designed.items()
+            if number not in built
+        )
+
+        # REPORTED, NOT GATED. The assertion is on the empty list because the
+        # list is empty today: 627 rows, 627 implemented. Were a family mid
+        # authoring, this would be relaxed to a logged count rather than
+        # deleted, and the design row would stay either way.
+        assert not unbuilt, (
+            f"{len(unbuilt)} inventory row(s) name a case no repository "
+            f"implements, so a designed case exists as design alone. Implement "
+            f"it or record the omission with its reason; do not remove the row: "
+            f"{unbuilt[:6]}"
+        )
+
+
 
 class TestMQCCredentialFreeSuite:
     """The harness proves itself without spending anybody's quota."""

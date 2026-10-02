@@ -278,17 +278,14 @@ class TestMQCMatrixSchema:
     def MQC_CMN_UNI_11202_an_untraced_test_is_reported_against_either_matrix(
         self,
     ) -> None:
-        """T7 against synthetic rows, which is the only way to see it fire.
+        """T7 reports a collected test that no matrix row names.
 
-        **The repository-level callers cannot be this case.** `11122` and
-        `MQC_CAS_UNI_10460` run T7 against their real matrices, and both are
-        green when the matrices are complete, so neither demonstrates that the
-        check reports anything. This supplies a suite containing a test no row
-        names.
+        Asserts both the reporting and its complement: a suite every row names
+        yields no findings, and the finding carries check ``T7`` and gap type
+        ``untraced coverage``. A row naming a test the suite lacks is T3's and
+        is not reported here.
 
-        **And the complement matters as much.** A suite every row names yields
-        nothing, because a check that reported on a clean input would be read as
-        noise and then ignored.
+        Design: ``cmn_verdict_and_cli.md`` section 6.0.1.
 
         Returns:
             None

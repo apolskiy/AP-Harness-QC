@@ -120,29 +120,16 @@ class TestMQCClaudeAdapter:
         assert adapter.normalize_response(ordinary, _CASE_ID).finish_reason == "stop"
 
     def MQC_EXE_UNI_10309_a_claude_refusal_is_recorded_as_a_block(self) -> None:
-        """The provider refused, the adapter knew, and the record did not say so.
+        """A Claude refusal is recorded as a block, with the provider's own word.
 
-        Anthropic returns `stop_reason="refusal"`. The adapter mapped it to the
-        canonical `content_filter` and left `block_reason` empty, and **nothing
-        downstream reads the canonical value to decide a refusal**:
-        `tier3_evaluation.md` section 4.2.2 and the consumer's
-        `model_evaluation_test_plan.md` section 9.12 both turn on `blocked_by`.
-        So `MQC_EVL_SEC_50013` was reported as a model failure on all three
-        recorded observations when the provider had declined the prompt.
+        ``stop_reason="refusal"`` yields ``block_reason`` of ``refusal`` and
+        ``block_stage`` of ``response``, alongside the canonical
+        ``content_filter`` finish reason. An ordinary reply claims neither.
 
-        **A case already exercised this input and asserted half of it.**
-        `10259` builds exactly `claude_response(text=..., stop_reason="refusal")`
-        and checks that `finish_reason` becomes `content_filter`. Section 4.3
-        splits the question in two, whether content was withheld and why, and
-        that case tests the first half. The second half had no assertion, so the
-        path was covered and the defect was not.
+        The reason is verbatim, never mapped: the canonical value says content
+        was withheld and this says what the provider called it.
 
-        **And the shape has shipped twice.** `10253` records a gemini double
-        that reported `50015` as a model failure for three recorded runs. Both
-        were corrected inside one adapter rather than stated as an obligation on
-        adapters, which is why `MQC_CAS_UNI_10463` reads the recorded corpus
-        instead: a check satisfied one provider at a time is what let the second
-        one happen.
+        Design: ``tier2_execution.md`` section 4.3.1.
 
         Returns:
             None

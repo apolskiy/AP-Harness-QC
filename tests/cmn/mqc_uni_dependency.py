@@ -834,19 +834,14 @@ class TestMQCPrerequisiteFlagScope:
     def MQC_CMN_UNI_11203_with_prerequisites_under_a_keyword_filter_is_refused(
         self,
     ) -> None:
-        """Two live recording runs selected nothing and said nothing.
+        """``--with-prerequisites`` under ``-k`` is refused at collection.
 
-        `select_priority_bands` returned immediately when `--priority` named no
-        band, so the flag was **never read** under any other selection.
-        Recording one case with `-k 30023` deselected its foundation `30024`,
-        `arrange_dependencies` read a non-executed foundation as unmet, and the
-        case skipped on `QC_HARNESS_DEPENDENCY_UNMET` with the flag set.
+        pytest applies keyword deselection before this hook runs, so the
+        foundations are already gone and no closure computed here can restore
+        them. The refusal carries ``QC_HARNESS_PARSER_ERROR`` and names
+        ``--priority`` as the selection the flag works with.
 
-        **The flag cannot act under `-k` and that is not fixable here.** pytest
-        applies keyword deselection before `pytest_collection_modifyitems`, so
-        the foundation is gone before this code sees the items. A flag whose
-        only honest answer is "not here" must say so, and the symptom of
-        staying quiet is a skip that reads as a corpus defect.
+        Design: ``cmn_verdict_and_cli.md`` section 7.5.2.
 
         Returns:
             None
@@ -866,13 +861,13 @@ class TestMQCPrerequisiteFlagScope:
     def MQC_CMN_UNI_11204_with_prerequisites_without_any_filter_warns_and_proceeds(
         self,
     ) -> None:
-        """A full run carrying the flag is not misconfigured.
+        """``--with-prerequisites`` with no filter warns and selects nothing.
 
-        **The boundary between refusing and warning.** With no `--priority` and
-        no `-k`, every case is collected and no foundation is absent, so the
-        flag is a harmless no-op. Refusing here would break a full run that
-        happens to pass it, and the project refuses what is wrong and warns
-        what is merely unnecessary.
+        With no ``--priority`` and no ``-k``, every case is collected and no
+        foundation is absent, so the flag is a no-op: the item list is returned
+        unchanged rather than the run being refused.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.5.2.
 
         Returns:
             None

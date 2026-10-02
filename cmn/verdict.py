@@ -64,10 +64,14 @@ class Thresholds:
         inconsistency_ceiling (float): Maximum share of measured cases whose
             repeat observations disagree, before the run is unsound
             (a `RUN_UNSOUND` condition, not a numbered verdict rule).
-            **Matched to ``priority_skip_ceiling`` rather than invented**: both
-            answer how much of this a run can carry before its conclusions stop
-            holding, and the first live corpus is what will say whether 0.10 is
-            right (design section 4.9.2).
+            **0.20 as of 2026-10-01**, decided once three corpora had been
+            recorded. It was 0.10, matched to ``priority_skip_ceiling`` rather
+            than derived, and the owner's judgement is that a suite carrying a
+            fifth of its cases as wobbling has still measured something.
+            **A statement about the run, not about a case**: whether one case's
+            observations disagree stays binary, because a majority would discard
+            the finding the repeats exist to produce (design sections 4.9.1 and
+            4.9.2.1).
         p0_share_ceiling (float): Maximum share of case definitions at P0.
         p1_share_ceiling (float): Maximum share at P1.
         combined_share_ceiling (float): Maximum share at P0 and P1 together.
@@ -78,7 +82,7 @@ class Thresholds:
     pass_floor: float = 0.90
     skip_ceiling: float = 0.20
     priority_skip_ceiling: float = 0.10
-    inconsistency_ceiling: float = 0.10
+    inconsistency_ceiling: float = 0.20
     p0_share_ceiling: float = 0.10
     p1_share_ceiling: float = 0.20
     combined_share_ceiling: float = 0.30

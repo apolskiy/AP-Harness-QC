@@ -711,6 +711,16 @@ class GoldenRuleSet:
     rubric: Optional[Rubric] = None
     tool_expectation: Optional[ToolExpectation] = None
     requirement_ids: list[str] = field(default_factory=list)
+    # SECURITY ONLY, AND A MAPPING RATHER THAN A LIST. A vector explicitly
+    # false records that somebody considered it; absence from a list records
+    # nothing, and only the true entries need reaching a log. Design section
+    # 3.5, and the decision in the consumer's test plan section 9.10.3.1.
+    vectors: dict[str, bool] = field(default_factory=dict)
+    # WHICH DECLARED VECTOR THE CASE IS ABOUT. Invariant G7 requires it to name
+    # a vector this rule declares as carried: a payload carrying three vectors
+    # is still a case about one of them, and asserting that a payload matches
+    # some registered vector is satisfied by an incidental match.
+    primary: Optional[str] = None
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "GoldenRuleSet":
@@ -770,6 +780,17 @@ class GoldenRuleSet:
             tool_expectation=expectation,
             requirement_ids=[_normalize_text(entry)
                              for entry in payload.get("requirement_ids", ())],
+            # CAST EXPLICITLY AT THE BOUNDARY, like every other field here. A
+            # YAML `true` is already a bool and a quoted "true" is not, and the
+            # difference would decide whether a vector reads as declared.
+            vectors={
+                _normalize_text(name): bool(state)
+                for name, state in (payload.get("vectors") or {}).items()
+            },
+            primary=(
+                _normalize_text(payload["primary"])
+                if payload.get("primary") is not None else None
+            ),
         )
 
     @staticmethod

@@ -102,19 +102,13 @@ class TestMQCJudgementFixture:
     def MQC_CMN_UNI_11201_two_candidate_engines_judged_by_one_judge_do_not_share(
         self, tmp_path: Path
     ) -> None:
-        """One judge scoring two candidates produces two judgements.
+        """A judgement is keyed by candidate engine as well as judge engine.
 
-        **The companion to `11136`, from the other side.** That case asserts
-        two judges scoring one observation do not overwrite each other; this
-        one asserts two candidates scored by one judge do not either. The key
-        carried the first half and not the second, and recording `gpt-4.1`
-        replaced 96 gemini judgements in place.
+        Two candidate engines graded by one judge occupy two files, so recording
+        a second engine does not displace the first. The stored request hash
+        still refuses a judgement whose request moved.
 
-        **What stopped it being a wrong score was the hash, not the key.** The
-        overwritten files were refused as stale, so the loss was data rather
-        than a published result. A guard that detects a collision after it has
-        destroyed what it guarded has prevented the wrong answer and not the
-        loss, which is why the key is the fix and `11138` is not.
+        Design: ``tier2_execution.md`` section 7.9.3.
 
         Args:
             tmp_path (Path): pytest's temporary directory.

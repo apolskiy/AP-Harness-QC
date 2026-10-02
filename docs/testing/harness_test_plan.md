@@ -360,6 +360,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0094` | Base outcomes established by one band execution are carried to the next without re-running the cases, so a dependent resolves against a foundation it did not collect and still skips when that foundation did not hold | cmn_verdict_and_cli.md section 7.6 |
 | `MQC_REQ_HAR_CMN_0095` | A carried outcome record is admitted only when the rules, harness commit, corpus commit, engine, mode and platform match the current run, and a mismatch refuses naming the field that moved | cmn_verdict_and_cli.md section 7.6.1 |
 | `MQC_REQ_HAR_CMN_0096` | The consumer regression replays the consumer's graded layers and fails only on harness-attributable outcomes, so a finding about the model under test does not turn a harness regression red | ci_pipeline.md sections 3B.3 and 3B.3.1 |
+| `MQC_REQ_HAR_CMN_0097` | Every inventory row in a design document names a case the suite implements, reported so an unbuilt design is visible rather than forgotten | cmn_verdict_and_cli.md section 10.19.1 |
+| `MQC_REQ_HAR_CMN_0098` | A case whose first observations show exactly one disagreement earns two further observations, so the recorded disagreement rate is a fifth or three fifths rather than an unrefined third, and a case that agreed is never asked again | cmn_verdict_and_cli.md sections 4.9.2.1 and 4.9.2.2 |
 
 ---
 
