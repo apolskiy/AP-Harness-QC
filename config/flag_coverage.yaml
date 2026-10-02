@@ -35,19 +35,14 @@ flags:
 
   # --- declared gaps, dated ------------------------------------------------
   #
-  # THE TWO THAT PRODUCED THIS FILE. Both were declared, documented and read
-  # generically into the invocation record while acting on nothing:
-  # `--max-spend` accepted a ceiling that could not stop a request, and
-  # `--priority` named a band and ran every band. Both are being closed now,
-  # which is why their expiry is short.
-  "--max-spend":
-    gap:
-      reason: >-
-        The ceiling is covered by MQC_EXE_UNI_10301 and 10303, which test the
-        session and the fail-closed rule. Nothing yet proves the flag reaches
-        them, which is the half that was broken.
-      expires_on: 2026-10-31
+  # CLOSED 2026-10-01 by MQC_CAS_UNI_10467. The consumer reads the flag into
+  # the dispatch session's ceiling, and that is the half that was broken: the
+  # session and the fail-closed rule were already covered by MQC_EXE_UNI_10301
+  # and 10303, while nothing proved the flag reached them.
+  "--max-spend": {owner: consumer}
 
+  # --- declared gaps, dated ------------------------------------------------
+  #
   # A RUN-SHAPING FLAG WITH NO CASE. Each changes what a run measures or where
   # it reports, and none is currently demonstrated by anything.
   "--observations":
@@ -68,27 +63,49 @@ flags:
         Overrides the configured judge. MQC_CMN_UNI_11190 covers the
         resolution beneath it; nothing covers the flag reaching it.
       expires_on: 2026-11-30
+  # ESTABLISHED 2026-10-01: THE FLAG REACHES NOTHING AND THE BEHAVIOUR
+  # EXISTS. `cmn/options.py` registers it, `ingestion/loaders.py` implements
+  # `unknown_columns` as reject or drop, and no code connects them. This is the
+  # third instance of what produced this file: a flag that names a policy, is
+  # recorded into the invocation record, and acts on nothing.
+  #
+  # NOT A COVERAGE GAP ANY LONGER, SO THE EXPIRY IS SHORT. A case asserting the
+  # flag reaches the loader cannot be written until something wires it, and the
+  # wiring is a behaviour change with its own design, matrix row and injection.
   "--extra-columns":
     gap:
       reason: >-
-        Documented at section 7.3 as defaulting to reject. Whether any code
-        acts on it is itself unestablished.
-      expires_on: 2026-11-30
+        The flag is registered and read by nothing; the loader's reject and
+        drop policy exists and nothing connects them. A run can record a
+        column policy it never applied. Wiring it is the fix, not a case.
+      expires_on: 2026-10-31
   "--as-of":
     gap:
       reason: >-
         Read by the verdict tool as parsed.as_of, so it is acted upon; no case
         passes it on a command line.
       expires_on: 2026-11-30
+  # ESTABLISHED 2026-10-01: NO READER ANYWHERE, AND NO IMPLEMENTATION EITHER.
+  # Unlike `--extra-columns` there is no behaviour sitting unwired: pytest's own
+  # `--junitxml` and `--alluredir` are what the workflows pass and what writes
+  # the artifacts. So the question is whether this flag should exist, which is a
+  # decision rather than a defect.
   "--out-dir":
     gap:
       reason: >-
-        Where a run writes. Workflows pass --junitxml and --alluredir instead,
-        so this may have no behaviour at all and the finding would be that.
-      expires_on: 2026-11-30
+        Registered and read by nothing, with no unwired implementation behind
+        it. Either it gains behaviour or it is retired and section 7.3 loses
+        the row; both need a decision before a case can be written.
+      expires_on: 2026-10-31
+  # ESTABLISHED 2026-10-01: IT IS A WORKFLOW INPUT AND NOT A PYTEST FLAG.
+  # The debug workflow turns it into a `-k` expression before pytest runs, so
+  # nothing in either test tree can pass it and reach anything. The coverage
+  # question is whether the workflow translates it correctly, which is a
+  # workflow case rather than an invocation one.
   "--tests":
     gap:
       reason: >-
-        A debug workflow input. The workflow turns it into a selection before
-        pytest sees it, so there may be nothing here for a case to reach.
+        A debug workflow input translated into a selection before pytest sees
+        it, so no invocation case can exercise it. What is coverable is the
+        workflow's translation.
       expires_on: 2026-11-30

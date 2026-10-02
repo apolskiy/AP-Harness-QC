@@ -534,6 +534,41 @@ The two files therefore share one schema with `families` optional, and the harne
 
 **Every flag that can change a result is recorded in result metadata.** A run that dropped three columns, replayed instead of executing live, or used a revised rule set must be distinguishable from one that did not. This is the same principle as A6 (replay marking) and A8 (resolved model version), applied to the invocation itself.
 
+
+#### 7.1.0.1 Three gaps read, and two of them were the same defect again
+
+Added 2026-10-01, reading the code behind each dated gap rather than restating
+what was unknown about it.
+
+| Flag | Registered | Behaviour exists | Connected |
+|---|---|---|---|
+| `--extra-columns` | Yes | **Yes**, `ingestion/loaders.py` `unknown_columns` | **No** |
+| `--out-dir` | Yes | No | Not applicable |
+| `--tests` | As a workflow input | In the workflow | Not a pytest flag |
+
+**`--extra-columns` is the third instance of what produced this file.**
+`--max-spend` accepted a ceiling that could not stop a request and `--priority`
+named a band and ran every band. This one names a column policy, is recorded
+into the invocation record, and reaches no code, while the loader that
+implements reject and drop sits beside it. **A run can therefore record a
+policy it never applied**, which is the same shape as the two that came before:
+not a missing feature, a claim in the record that nothing backs.
+
+**`--out-dir` has no unwired implementation behind it**, which makes it a
+different question. pytest's own `--junitxml` and `--alluredir` write the
+artifacts and are what the workflows pass. So either the flag gains behaviour or
+it is retired and section 7.3 loses its row, and that is a decision rather than
+a defect to fix.
+
+**`--tests` is not a pytest flag at all.** The debug workflow translates it into
+a selection before pytest starts, so no case in either tree can pass it. What is
+coverable is the translation, which belongs to a workflow case.
+
+**The expiry on the first two moved to 2026-10-31**, matching `--max-spend`.
+Each is now a known defect or a known decision rather than an unread gap, and a
+dated absence whose reason has been superseded should not sit for another month
+behind the old date.
+
 ### 7.1 Two surfaces, one option registry
 
 The flags reach the harness through two entry points, and they must not drift.
