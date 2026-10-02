@@ -430,7 +430,7 @@ Precedence, highest first:
 
 | Source | Use |
 |---|---|
-| `--judge-engine` | One run, without editing a file |
+| `--judge-engine` | One run, without editing a file. **Inert until 2026-10-02**, section 5A.3 |
 | `judge.engine` in `engines.yaml` | The project's standing choice |
 | The built-in fallback, `gemini` | An unconfigured clone still runs |
 
@@ -646,6 +646,46 @@ to move together is not a guard.
 
 `MQC_EVL_UNI_10391` asserts the reason with a judge deliberately bound, which
 is the configuration that crashed.
+
+
+#### 5A.3 The precedence is implemented here and was unreachable from the caller
+
+Added 2026-10-02, reading `--judge-engine` the way section 7.1.0.2 of
+`cmn_verdict_and_cli.md` read `--out-dir`: against the claim it serves rather
+than against itself.
+
+**Three places state the same precedence.** Section 5A's table offers
+`--judge-engine` as the way to change judge for "one run, without editing a
+file"; `cmn/config.py` says the flag "overrides both"; `config/engines.yaml`
+writes the order out as `--judge-engine`, then the roster entry, then the
+built-in gemini.
+
+**This side implements it correctly.** `judge_channel_from_roster` takes an
+`engine` parameter and resolves `engine or load_judge_engine(roster_path)`,
+which is that order exactly, and it drops the configured model when an override
+is given so the named engine uses its own default rather than the primary's.
+`MQC_CMN_UNI_11190` covers the resolution and `10151` the refusals.
+
+**No caller passed it.** The only production construction site is the
+consumer's, and it passed a literal empty string, so the first and highest term
+of a three-term precedence could not be selected from a command line. The flag
+parsed, validated and recorded, and the roster's judge graded every run. The
+defect and its fix are the consumer's, recorded in `consumer_ci.md` section
+4.13.
+
+**What makes this one worse than a flag that merely does nothing.** The option
+is `recorded`, so `--judge-engine openai` produced metadata naming openai as
+the judge while gemini graded. **A durable record attributing scores to the
+wrong instrument**, and this project's headline measurement is self-preference,
+which is a comparison of candidate against judge. A judge misattribution does
+not degrade that measurement, it inverts what it means.
+
+**It was latent and is still worth the same treatment.** No workflow passes the
+flag and no case did, so nothing shipped is corrupted; the recorded
+self-preference figures were produced by runs that named no judge and therefore
+got the one the metadata claims. What was wrong was reachable by anyone
+following section 5A's own table.
+
 
 ### 5B.1 Four checks, and each names a different defect
 

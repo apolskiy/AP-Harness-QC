@@ -45,19 +45,22 @@ flags:
   #
   # A RUN-SHAPING FLAG WITH NO CASE. Each changes what a run measures or where
   # it reports, and none is currently demonstrated by anything.
-  "--observations":
-    gap:
-      reason: >-
-        Repeat observations are A4 and the count is configurable, but no case
-        varies it and asserts the population changes.
-      expires_on: 2026-11-30
+  # CLOSED 2026-10-02 by MQC_CAS_UNI_10471. The flag was already read into
+  # observation_count as an override above the roster entry, so this was a
+  # coverage gap and not a defect. The case also pins that an override still
+  # earns escalation, which keeps a named count meaning what a configured one
+  # means. Design `consumer_ci.md` section 4.13.1.
+  "--observations": {owner: consumer}
   "--golden-rules": {owner: harness}
-  "--judge-engine":
-    gap:
-      reason: >-
-        Overrides the configured judge. MQC_CMN_UNI_11190 covers the
-        resolution beneath it; nothing covers the flag reaching it.
-      expires_on: 2026-11-30
+  # CLOSED 2026-10-02 by MQC_CAS_UNI_10470, AND IT WAS A DEFECT. The gap said
+  # nothing covered the flag reaching the resolution, which was accurate and
+  # read as a coverage gap. It was not: `judge_binding` passed a literal empty
+  # string, so `--judge-engine openai` graded with gemini while the flag, being
+  # recorded, named openai in the metadata. The harness resolver implemented
+  # the documented precedence correctly and was reached with an empty first
+  # term. Design `consumer_ci.md` section 4.13 and harness
+  # `tier3_evaluation.md` section 5A.3.
+  "--judge-engine": {owner: consumer}
   "--extra-columns": {owner: harness}
   "--as-of":
     gap:

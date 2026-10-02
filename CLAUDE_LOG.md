@@ -7463,3 +7463,74 @@ is recorded as a dated gap rather than quietly corrected.
 
 653 passing, pylint 10.00/10 exit 0. `--out-dir` leaves `flag_coverage.yaml`'s
 gap list; four gaps remain, all dated 2026-11-30.
+
+## 2026-10-02: `--judge-engine` named a judge that never graded
+
+### What the flag gaps were worth reading for
+
+Four dated gaps remained in `flag_coverage.yaml`. Reading each against the claim
+it serves, rather than against whether a case names it, closed two and found one
+defect.
+
+| Flag | Was | Is |
+|---|---|---|
+| `--judge-engine` | "nothing covers the flag reaching it" | **A defect.** Closed by `MQC_CAS_UNI_10470` |
+| `--observations` | "no case varies it" | A coverage gap, accurately described. Closed by `10471` |
+| `--as-of` | "no case passes it on a command line" | Still open, and now with a concrete reason |
+| `--tests` | A workflow input, not a pytest flag | Unchanged |
+
+### The defect
+
+Three places state one precedence: section 5A's table offers `--judge-engine`
+as the way to change judge for "one run, without editing a file",
+`cmn/config.py` says it "overrides both", and `config/engines.yaml` writes the
+order out. **This side implements it correctly**: `judge_channel_from_roster`
+resolves `engine or load_judge_engine(roster_path)` and drops the configured
+model when an override is given.
+
+**The only production caller passed a literal empty string.** Probed directly:
+
+| Passed | Graded by |
+|---|---|
+| nothing | gemini |
+| `--judge-engine openai` | **gemini** |
+| `--judge-engine claude` | **gemini** |
+
+**The option is `recorded`, which is what raises this above a dead flag.** A run
+naming a judge produced metadata naming it while a different engine graded, so
+the artifact attributed scores to an instrument that did not produce them. This
+project's headline measurement is self-preference, a comparison of candidate
+against judge; a judge misattribution does not weaken that reading, it changes
+what it means.
+
+**Latent, and treated identically.** No workflow passes the flag and no case
+did, so no shipped figure is affected: the recorded self-preference counts came
+from runs that named no judge and therefore got the one the metadata claims.
+What was wrong was reachable by anyone following section 5A's own table.
+
+### Why the gap entry did not catch it
+
+The entry said "nothing covers the flag reaching it". **That was accurate, and
+it reads as a coverage gap rather than as a description of a defect.** An
+unproven flag and an inert flag produce the same sentence, and only reading the
+code distinguishes them. The same wording had been correct about
+`--extra-columns`, which was also inert, and about `--out-dir`, which was not
+yet implemented.
+
+`--observations` is the control: the identical sentence was written about it and
+it genuinely works, which is why `10471` passed on its first run and `10470`
+failed.
+
+### `--as-of` has a reason now rather than a restatement
+
+The flag is wired: `verdict_tool.main` parses it and passes it to `compute`,
+which reaches the quarantine expiry decision. **What blocks a command-line case
+is that nothing can expire.** `config/quarantine.yaml` is `quarantine: []`, and
+`main` takes no `config_dir` although `compute` does, so a case cannot supply an
+entry that expires between two dates. Closing it means `main` gaining the
+parameter `compute` already has. Recorded for the next increment rather than
+taken here.
+
+### State
+
+653 passing, pylint 10.00/10 exit 0. Two gaps remain, both 2026-11-30.
