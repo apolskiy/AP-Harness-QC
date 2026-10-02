@@ -704,6 +704,38 @@ carried record happens to exist. Inferring it would make a CI misconfiguration
 silently become a standalone run: the band would pass, having quietly re-run and
 re-established its own foundations, and nothing in the result would say so.
 
+#### 7.5.2 The flag acts through `--priority`, and refuses where it cannot act
+
+Added 2026-10-01, after two live recording runs selected nothing.
+
+`select_priority_bands` returns immediately when `--priority` names no band, so
+`--with-prerequisites` was **never read** under any other selection. Recording a
+single case with `-k 30023` deselected its foundation `30024`,
+`arrange_dependencies` read a non-executed foundation as unmet, and the case
+skipped on `QC_HARNESS_DEPENDENCY_UNMET` with the flag set on the command line.
+
+**The flag cannot act under `-k`, and that is not a fixable omission.** pytest
+applies keyword deselection before `pytest_collection_modifyitems` runs, so by
+the time this code sees the items the foundation is already gone. A flag whose
+only honest answer is "not here" must say so.
+
+| Selection | What the flag can do |
+|---|---|
+| `--priority 2,3,4` | Compute the closure and re-admit the foundations |
+| `-k <expression>` | **Nothing. pytest has already deselected them** |
+| No filter at all | Nothing, and nothing is needed: every case is collected |
+
+So `--with-prerequisites` with `-k` and no `--priority` is refused at collection
+with `QC_HARNESS_PARSER_ERROR`, naming `--priority` as the selection it works
+with. **Refused rather than warned**, because the symptom of proceeding is a
+skip that reads as a corpus defect, and because both attempts here were live
+runs: the flag's silence cost two dispatch attempts that recorded nothing.
+
+**With no filter at all it warns instead of refusing.** The flag is then a
+harmless no-op, and a full run that happens to carry it is not misconfigured.
+
+`MQC_CMN_UNI_11203` covers the refusal and `11204` the warning.
+
 ### 7.6 Carried prerequisite outcomes, and the provenance that admits them
 
 Specified 2026-09-29.
@@ -927,6 +959,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11140` | N | `a_document_or_data_file_without_an_spdx_header_is_reported` |
 | `11201` | N | `two_candidate_engines_judged_by_one_judge_do_not_share` |
 | `11202` | N | `an_untraced_test_is_reported_against_either_matrix` |
+| `11203` | N | `with_prerequisites_under_a_keyword_filter_is_refused` |
+| `11204` | B | `with_prerequisites_without_any_filter_warns_and_proceeds` |
 | `11141` | P | `judge_mode_defaults_to_whatever_mode_is` |
 | `11142` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
 | `11143` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
@@ -969,7 +1003,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 199 cases, 114 negative, 60 positive, 25 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 201 cases, 115 negative, 60 positive, 26 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

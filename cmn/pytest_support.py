@@ -642,8 +642,26 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
     Returns:
         None
     """
+    carry = bool(config.getoption("--with-prerequisites", False))
     bands = selected_bands(str(config.getoption("--priority") or ""))
     if not bands:
+        # THE FLAG ACTS ONLY THROUGH `--priority`, AND SAYS SO. pytest applies
+        # `-k` before this hook, so the foundations are already gone and no
+        # closure computed here can bring them back. Proceeding silently cost
+        # two live recording runs that dispatched nothing and reported a skip
+        # indistinguishable from a corpus defect. Design section 7.5.2.
+        if carry and str(config.getoption("keyword", "") or ""):
+            raise ValueError(
+                "QC_HARNESS_PARSER_ERROR: --with-prerequisites selects "
+                "foundations through --priority, and -k has already "
+                "deselected them before collection reaches here. Name the "
+                "band with --priority, or drop -k"
+            )
+        if carry:
+            logger.warning(
+                "--with-prerequisites has nothing to do: no --priority was "
+                "given, so every case is collected and no foundation is absent"
+            )
         return
 
     graded = sum(1 for item in items if item_priority(item) is not None)
@@ -658,7 +676,6 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
         if item_priority(item) not in (None, *bands)
         and case_identifier(item.name) in needed
     }
-    carry = bool(config.getoption("--with-prerequisites", False))
     # A CARRIED FOUNDATION NEEDS NEITHER. An earlier band published whether it
     # held, so this band is resolvable without collecting it and without being
     # asked to run it again, which is the whole point of the carry.

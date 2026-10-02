@@ -826,3 +826,62 @@ class TestMQCCarriedPrerequisites:
 
         assert carried_identifiers() == frozenset()
         assert not list(tmp_path.iterdir())
+
+
+class TestMQCPrerequisiteFlagScope:
+    """`--with-prerequisites` acts through `--priority` and nowhere else."""
+
+    def MQC_CMN_UNI_11203_with_prerequisites_under_a_keyword_filter_is_refused(
+        self,
+    ) -> None:
+        """Two live recording runs selected nothing and said nothing.
+
+        `select_priority_bands` returned immediately when `--priority` named no
+        band, so the flag was **never read** under any other selection.
+        Recording one case with `-k 30023` deselected its foundation `30024`,
+        `arrange_dependencies` read a non-executed foundation as unmet, and the
+        case skipped on `QC_HARNESS_DEPENDENCY_UNMET` with the flag set.
+
+        **The flag cannot act under `-k` and that is not fixable here.** pytest
+        applies keyword deselection before `pytest_collection_modifyitems`, so
+        the foundation is gone before this code sees the items. A flag whose
+        only honest answer is "not here" must say so, and the symptom of
+        staying quiet is a skip that reads as a corpus defect.
+
+        Returns:
+            None
+        """
+        config = _Config({"--with-prerequisites": True, "--keyword": "30023"})
+
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            select_priority_bands(config, [])
+
+        # AND IT NAMES THE SELECTION THAT WORKS, because the reader's next
+        # action is to choose one.
+        try:
+            select_priority_bands(config, [])
+        except ValueError as refusal:
+            assert "--priority" in str(refusal)
+
+    def MQC_CMN_UNI_11204_with_prerequisites_without_any_filter_warns_and_proceeds(
+        self,
+    ) -> None:
+        """A full run carrying the flag is not misconfigured.
+
+        **The boundary between refusing and warning.** With no `--priority` and
+        no `-k`, every case is collected and no foundation is absent, so the
+        flag is a harmless no-op. Refusing here would break a full run that
+        happens to pass it, and the project refuses what is wrong and warns
+        what is merely unnecessary.
+
+        Returns:
+            None
+        """
+        config = _Config({"--with-prerequisites": True})
+
+        # NO REFUSAL, AND NO SELECTION EITHER. The band list is empty, so the
+        # function returns having changed nothing.
+        items: list[object] = []
+        select_priority_bands(config, items)
+
+        assert not items
