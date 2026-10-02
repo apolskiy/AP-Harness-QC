@@ -28,17 +28,14 @@ pytestmark = pytest.mark.unit
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
-# Both halves of one project. A harness inventory cites consumer case numbers,
-# so a per-repository scan reports phantom gaps for cases that exist next door.
-_PAIRED_REPOSITORIES: Final[tuple[Path, ...]] = (
-    _REPOSITORY_ROOT,
-    _REPOSITORY_ROOT.parent / "AP-Model-QC",
+# AN INVENTORY ROW CARRIES A CATEGORY AND A BEHAVIOUR NAME. A citation in
+# ordinary prose carries neither, and harness documents cite consumer case
+# numbers freely. Matching any row whose first cell is an identifier counted
+# those citations, which is what sent the first version of this check reading
+# the sibling checkout. Design section 10.19.2.
+_INVENTORY_IDENTIFIER: Final[re.Pattern] = re.compile(
+    r"^\|\s*`(\d{5})`\s*\|\s*[PNB]\s*\|\s*`[a-z0-9_]+`"
 )
-
-# ANY table row whose first cell is a five-digit identifier in backticks. Column
-# agnostic on purpose: a pattern written for the three-column precondition
-# tables reported zero gaps against six-column graded inventories.
-_INVENTORY_IDENTIFIER: Final[re.Pattern] = re.compile(r"^\|\s*`(\d{5})`\s*\|")
 
 _DESIGN_DIRECTORY = _REPOSITORY_ROOT / "docs" / "design"
 _TEST_DIRECTORY = _REPOSITORY_ROOT / "tests"
@@ -529,13 +526,14 @@ class TestMQCIndexAgainstDesigns:
     ) -> None:
         """Every design inventory row names a case some repository implements.
 
-        Reads every five-digit identifier in the first cell of a table row,
-        across both repositories, and compares it against the test callables
-        both suites define. Reported rather than gated: an unimplemented row is
-        the normal state while a family is authored.
+        Reads this repository's inventory rows, which carry a category and a
+        behaviour name, and compares them against the test callables this suite
+        defines. Reported rather than gated: an unimplemented row is the normal
+        state while a family is authored.
 
-        Column agnostic, and cross-repository because harness inventories cite
-        consumer case numbers.
+        A citation in prose carries no category, so it is not counted, and the
+        scan needs no second checkout. ``MQC_CAS_UNI_10468`` does the same for
+        the consumer's inventories.
 
         Design: ``cmn_verdict_and_cli.md`` section 10.19.1.
 
@@ -543,23 +541,24 @@ class TestMQCIndexAgainstDesigns:
             None
         """
         built: set[str] = set()
-        for repository in _PAIRED_REPOSITORIES:
-            for source in sorted((repository / "tests").rglob("*.py")):
-                for module, layer, number, behaviour in _defined_callables(source):
-                    assert module and layer and behaviour
-                    built.add(number)
+        for source in sorted((_REPOSITORY_ROOT / "tests").rglob("*.py")):
+            for module, layer, number, behaviour in _defined_callables(source):
+                assert module and layer and behaviour
+                built.add(number)
 
         designed: dict[str, str] = {}
-        for repository in _PAIRED_REPOSITORIES:
-            for document in sorted(repository.rglob("docs/**/*.md")):
-                for line in document.read_text(encoding="utf-8").splitlines():
-                    found = _INVENTORY_IDENTIFIER.match(line.strip())
-                    if found is not None:
-                        designed.setdefault(
-                            found.group(1), f"{repository.name}/{document.name}"
-                        )
+        for document in sorted(_REPOSITORY_ROOT.rglob("docs/**/*.md")):
+            for line in document.read_text(encoding="utf-8").splitlines():
+                found = _INVENTORY_IDENTIFIER.match(line.strip())
+                if found is not None:
+                    designed.setdefault(found.group(1), document.name)
 
         assert designed and built, "one of the two artefacts was not read"
+
+        assert len(designed) > 400, (
+            f"only {len(designed)} inventory rows were recognised, so the row "
+            f"pattern no longer matches the inventories it is checking"
+        )
 
         unbuilt = sorted(
             f"{number} [{document}]"
@@ -572,8 +571,8 @@ class TestMQCIndexAgainstDesigns:
         # authoring, this would be relaxed to a logged count rather than
         # deleted, and the design row would stay either way.
         assert not unbuilt, (
-            f"{len(unbuilt)} inventory row(s) name a case no repository "
-            f"implements, so a designed case exists as design alone. Implement "
+            f"{len(unbuilt)} inventory row(s) name a case this suite does "
+            f"not implement, so a designed case exists as design alone. Implement "
             f"it or record the omission with its reason; do not remove the row: "
             f"{unbuilt[:6]}"
         )

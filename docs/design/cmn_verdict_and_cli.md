@@ -1841,14 +1841,49 @@ removed from the design to make the report go away.
 the normal state while a family is being authored, and this project requires the
 design to come first. A hard gate would forbid the order it mandates.
 
-**The audit that decided it.** Across both repositories, 627 inventory rows and
-627 implemented, nothing designed and unbuilt. The first scan said the same thing
-and meant nothing: its row pattern matched three-column tables and the graded
-inventories carry six. **A check that cannot fail is not evidence**, which is why
-the number above is stated with how it was obtained.
+**Each repository checks its own inventories**, which is the boundary
+`CLAUDE.md` states: a harness check reading a file the case repository owns is a
+violation, and the installed wheel ships no tests, so neither side can ask about
+the other's. `MQC_CMN_UNI_11205` reads the harness, and `MQC_CAS_UNI_10468` the
+consumer.
 
-`MQC_CMN_UNI_11205` reports the list across both repositories and passes on an
-empty one.
+**An inventory row carries a category and a behaviour name; a citation does
+not.** That is what separates them, and it is the whole of why this check can be
+per repository. Harness design prose cites consumer case numbers in ordinary
+tables, `40001` and `50001` among them, and those are references rather than
+claims about what the harness implements.
+
+| Row | Shape | Counted |
+|---|---|---|
+| Harness inventory | `id`, category, behaviour | Yes |
+| Consumer graded inventory | `id`, priority, condition, category, behaviour, traces | Yes, by the consumer |
+| A citation in prose | `id` and whatever the table is about | **No** |
+
+**The first version of this check read the sibling checkout**, which exists on a
+developer's disk and never in CI, so it passed locally and failed on both
+platforms the moment it was pushed. The nine identifiers that drove it there were
+citations, and widening the row pattern to catch them was the error: a pattern
+that matches any row whose first cell is an identifier cannot tell an inventory
+from a reference. Section 10.19.2 records what that cost.
+
+#### 10.19.2 A check that can only pass on one machine
+
+The reasoning that produced the defect is worth keeping because it was almost
+right. A per-repository scan reported nine unimplemented rows; those nine do
+exist as cases, in the other repository; therefore the scan needed both
+repositories. Every step follows and the conclusion is wrong, because the
+premise was a row pattern that counted citations.
+
+**The boundary was the evidence and I read it as an obstacle.** CLAUDE.md names
+this exact failure, "a check here that reads a file that repository owns", and
+records that it shipped undetected once before until the split made it real. It
+shipped again.
+
+**What makes it unreachable now is the pattern, not a conditional.** Guarding the
+sibling read with `is_dir()` would have kept CI green and left the check meaning
+two different things depending on the checkout. The strict pattern means the same
+thing everywhere, and the harness scan needs no sibling at all: 500 rows, 500
+implemented.
 
 ### 10.20 The header check, extended past Python
 
