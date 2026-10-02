@@ -543,7 +543,7 @@ what was unknown about it.
 | Flag | Registered | Behaviour exists | Connected |
 |---|---|---|---|
 | `--extra-columns` | Yes | **Yes**, `ingestion/loaders.py` `unknown_columns` | Since 2026-10-02, `tier1_ingestion.md` section 4.6 |
-| `--out-dir` | Yes | No | Not applicable |
+| `--out-dir` | Yes | Since 2026-10-02 | Section 7.1.0.2 |
 | `--tests` | As a workflow input | In the workflow | Not a pytest flag |
 
 **`--extra-columns` is the third instance of what produced this file.**
@@ -560,6 +560,13 @@ artifacts and are what the workflows pass. So either the flag gains behaviour or
 it is retired and section 7.3 loses its row, and that is a decision rather than
 a defect to fix.
 
+**Corrected 2026-10-02, and the error is worth keeping.** Reading the flag
+against the workflows established that the artifacts did get written; reading it
+against `testing-standards.md` section 5 establishes that **four invocations
+write only one of the two the contract mandates**. The decision was real and
+section 7.1.0.2 takes it. The claim that no defect sat behind it came from
+scoping the question to the flag instead of to the contract the flag serves.
+
 **`--tests` is not a pytest flag at all.** The debug workflow translates it into
 a selection before pytest starts, so no case in either tree can pass it. What is
 coverable is the translation, which belongs to a workflow case.
@@ -568,6 +575,101 @@ coverable is the translation, which belongs to a workflow case.
 Each is now a known defect or a known decision rather than an unread gap, and a
 dated absence whose reason has been superseded should not sit for another month
 behind the old date.
+
+#### 7.1.0.2 `--out-dir` names the directory both mandated artifacts go in
+
+Implemented 2026-10-02. **This section corrects what 7.1.0.1 said about the
+flag**, which was that it had no unwired implementation behind it and so posed a
+decision rather than a defect. The decision was real; the absence of a defect
+was not.
+
+**Both artifacts are mandated, and `testing-standards.md` section 5 is where.**
+"The Contract Is The Artifact ... Emit **both** JUnit XML and Allure raw
+results." They are not two renderings of one result to pick between, because
+they are read by different people for different purposes:
+
+| Artifact | Read by | For |
+|---|---|---|
+| JUnit XML | Developers and QA | Triaging a failure: durable, per-test, and parsed by every CI interface without configuration |
+| Allure raw results | Reporting and release review | Steps, labels, severity and parameters, which is what a report is assembled from and what readiness is judged against |
+
+Dropping either does not lose a format, it loses a reader. A run with no Allure
+results produces no report, and a release question answered from JUnit alone is
+answered without the evidence section 5 exists to require.
+
+**Four invocations emit JUnit and no Allure**, which is the defect 7.1.0.1
+missed by reasoning about the flag in isolation instead of against the contract:
+
+| Invocation | `--out-dir` | `--junitxml` | `--alluredir` |
+|---|---|---|---|
+| `debug-failures-on-demand.yml` | Yes | Yes | **No** |
+| Consumer `debug-cases-on-demand.yml` | Yes | Yes | **No** |
+| `regress-consumers-on-merge.yml`, deterministic gates | No | Yes | **No** |
+| `regress-consumers-on-merge.yml`, graded replay | No | Yes | **No** |
+| `diagnose-on-demand.yml` | Yes | Yes | Yes |
+| Every gating workflow in both repositories | No | Yes | Yes |
+
+The gating paths were correct throughout. **The half-emitting invocations are
+the debug, diagnostic and consumer-regression paths**, which is the worst place
+for it: those are the runs someone reaches for when something has already gone
+wrong, and they are the runs that arrive without a report.
+
+**Implementing the flag closes the first two by itself.** Both debug workflows
+already pass `--out-dir`, so a flag that derives the Allure destination makes
+them emit both without either workflow changing. That is the argument for
+implementing rather than retiring, and it is a stronger one than the tidiness
+argument this section first carried.
+
+**It derives each mandated destination the caller did not name.**
+
+| Given | JUnit lands at | Allure lands at |
+|---|---|---|
+| `--out-dir d/` | `d/junit.xml` | `d/allure-results` |
+| `--out-dir d/ --junitxml=e/x.xml` | `e/x.xml`, explicit wins | `d/allure-results` |
+| `--out-dir d/ --alluredir=e/a` | `d/junit.xml` | `e/a`, explicit wins |
+
+**Explicit may redirect one artifact and never suppress the other**, which is
+why the two destinations are resolved independently rather than as a pair. The
+consumer-regression steps are the case that requires it: they give each JUnit
+file a distinct name so four matrix legs do not overwrite one file, and they
+must keep those names while gaining Allure. A flag that stepped aside entirely
+once any artifact flag appeared would leave them exactly as they are.
+
+**Set when the run is configured.** The JUnit plugin builds its writer in its
+own `pytest_configure`, so a conftest hook is early enough to redirect it and
+nothing later is. Confirmed by writing an artifact to a named directory before
+this design was settled, rather than assuming the hook order.
+
+**Guarded on the Allure plugin being loaded.** `allure-pytest` is a `[dev]`
+dependency and the consumer installs the harness `--no-deps` in one path, so the
+option may be absent. A missing plugin means no Allure flag to set, not a
+failure: the plugin's absence is the operator's choice and this flag does not
+overrule it.
+
+**It names a directory and not a file**, because two artifacts go in it and
+section 5 permits a third. A flag naming one file would need a sibling per
+format, which is the duplication it exists to remove.
+
+### 7.1.0.3 The mandate was right and nothing established it was met
+
+The four half-emitting invocations sat in plain sight across both repositories
+because **no check reads what a workflow passes to pytest against section 5's
+requirement**. `11193` asks the opposite question, whether a registered flag is
+named by any case, and every artifact check downstream reads artifacts that were
+produced rather than asking whether they all were.
+
+`11211` scans every workflow in both repositories and fails an invocation that
+emits one mandated artifact without the other, counting `--out-dir` as
+supplying both. **A negative case**, because the positive it would replace,
+these workflows running at all, was passing while four of them emitted half the
+contract.
+
+**This is the seventh instance of the shape this file keeps recording**, and the
+first where the thing nothing established was a written standard rather than a
+flag: a ceiling that stopped nothing, a band selector that selected everything,
+a column policy wired to nothing, an assertion covering one of two halves, a
+gate that could not start, an identifier deduplicated away, and now a mandate
+with no reader.
 
 ### 7.1 Two surfaces, one option registry
 
@@ -1023,7 +1125,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `10154` | N | `diagnostic_run_returns_no_verdict_code` |
 | `10155` | P | `run_context_and_gated_flag_recorded_in_metadata` |
 | `10156` | N | `verdict_tool_refuses_artifacts_marked_ungated` |
-| `10157` | P | `out_dir_isolates_diagnostic_artifacts` |
+| `10157` | P | `out_dir_names_where_both_artifacts_are_written` |
 | `10158` | P | `run_scoped_fields_emitted_per_result_not_in_a_manifest_alone` |
 | `10159` | P | `observation_assembled_from_tier_results_and_case_metadata` |
 | `10160` | N | `truncated_duration_excluded_from_latency_statistics` |
@@ -1083,6 +1185,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11119` | B | `an_unnamed_harness_branch_falls_back_to_the_default_ref` |
 | `11120` | P | `a_named_harness_branch_resolves_to_its_paired_consumer_ref` |
 | `11121` | N | `an_identifier_appearing_twice_in_one_inventory_is_reported` |
+| `11209` | N | `an_identifier_bound_by_two_callables_is_reported` |
+| `11211` | N | `a_workflow_emitting_one_mandated_artifact_is_reported` |
 | `11122` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `11123` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `11124` | P | `the_default_judge_engine_is_gemini` |
@@ -1152,7 +1256,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 205 cases, 117 negative, 61 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 207 cases, 119 negative, 61 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -1580,6 +1684,75 @@ than one inventory row. **It is a negative case**, because the positive it
 replaces, every row having a valid identifier, is already covered and was
 already passing while this held.
 
+
+#### 10.10.1 The same defect on the suite's side of the line, and why nothing saw it
+
+Added 2026-10-02, after `10157` was found bound by two different cases.
+
+`11121` closed section 10.10 for **inventories**: it scans module designs and
+fails an identifier appearing in more than one row. It reads documents, and this
+duplicate was in the suite, where nothing was looking.
+
+**Every suite-side check builds a set, so a duplicate collapses before anything
+compares it.** That is the same lesson as 10.10 in a new place: those checks
+were keyed on a row and could not see a relationship between two rows, and these
+are keyed on an identifier and cannot see two bindings of one identifier.
+
+| Check | Asks | Sees two callables sharing an identifier? |
+|---|---|---|
+| `11121` | Does an inventory bind one twice? | No, it reads documents |
+| `11122`, `10460` | Is a collected test in some matrix row? | **No**, both entered the set as one |
+| `11205`, `10183` | Does an inventory row have an implementation? | **No**, the first found satisfies it |
+| `10146` | Do the stated totals match the row count? | No, the rows stayed consistent |
+| `11209` | How many callables bind this identifier? | Yes |
+
+`11209` counts bindings across both trees rather than collecting them into a
+set. **A negative case**, for the reason 10.10 gives: the positive it would
+replace, every collected test carrying a valid identifier, was already covered
+and already passing while this held.
+
+**What the duplicate was: two unrelated cases, and the name fitted neither.**
+One asserted that `--out-dir` reaches result metadata and carries an empty
+default. The other asserted that a diagnostic artifact's **name** does not match
+the collector's pattern, which is the artifact-naming mechanism of section 5 and
+has nothing to do with the flag. The shared name,
+`out_dir_isolates_diagnostic_artifacts`, described neither, and **no case
+anywhere established the isolation it claimed** until 7.1.0.2.
+
+**Only one of the two was a case.** Reading the second binding's three
+assertions decided what to do with it, and renumbering it would have been wrong:
+
+| Assertion | Carries |
+|---|---|
+| `not matches_collector_pattern(name)` | Nothing. `10166` asserts the same fact four lines above it, in **both** directions |
+| `(tmp_path / name).parent == tmp_path` | **Nothing at all.** True of every single-segment string, and `tmp_path` was requested only for it |
+| `name.startswith("diagnostic-local")` | A real fact `10166` misses: it pins the literal prefix, where a pattern check still passes if both prefixes are renamed together |
+
+Its `RunContext("ci_debug", "manual", True)` also suggested a second selection
+mode mattered here. It does not: `artifact_name` reads `run_context` alone, so
+`manual` and `full` produce the same name and the distinction was decorative.
+
+**So it is absorbed rather than renumbered.** `10166` already owns this
+mechanism and already tests both directions; it gains the literal prefix and the
+suffixed form, and the duplicate and the tautology go. Minting `11210` for what
+is left would have given an accidental duplicate an identifier of its own and
+recorded a 208th case that re-asserts a 207th.
+
+| Was | Now |
+|---|---|
+| `10157`, `mqc_uni_cli.py` | `10157`, `out_dir_names_where_both_artifacts_are_written` |
+| `10157`, `mqc_uni_metadata.py` | Gone; its one real assertion is in `10166` |
+
+**Keeping the `--out-dir` meaning on `10157` is not a free choice.**
+`testing-standards.md` forbids rebinding an identifier to different behaviour so
+that downstream history stays readable, and `10157` has one inventory row and
+one matrix trace, both claiming the flag. The metadata binding was never
+inventoried at all, which is the sense in which it was never a case: it had an
+implementation and no row, while the row it borrowed described something else.
+
+**A name describing neither binding is how this stayed unread.** Had either
+binding been called what it asserted, the collision would have been visible to a
+reader on sight, without a check.
 
 ### 10.11 The check that fed itself its own data
 

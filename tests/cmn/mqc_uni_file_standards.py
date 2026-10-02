@@ -29,6 +29,7 @@ import yaml
 
 from tools.consumer_regression import harness_faults
 from cmn.code_standards import (
+    artifact_mandate_gaps,
     flag_coverage_problems,
     annotation_gaps,
     encoding_gaps,
@@ -228,6 +229,38 @@ class TestMQCMarkupHeaders:
             f"a generated file was read as an authored one: "
             f"{[str(source.relative_to(tmp_path)) for source in found]}"
         )
+
+class TestMQCArtifactContract:
+    """The downstream artifact contract, checked against what the workflows run."""
+
+    def MQC_CMN_UNI_11211_a_workflow_emitting_one_mandated_artifact_is_reported(
+        self,
+    ) -> None:
+        """Every workflow invocation writing an artifact writes both of them.
+
+        ``testing-standards.md`` section 5 mandates JUnit XML and Allure raw
+        results together, and they are read by different people: JUnit for
+        triaging a failure, Allure for the report a release is judged from. An
+        invocation naming ``--out-dir`` satisfies both, since the flag derives
+        each destination.
+
+        **This repository's own workflows only.** The consumer owns its
+        workflows, so the scanner is shared and
+        ``MQC_CAS_UNI_10469`` calls it with the other root.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.1.0.3.
+
+        Returns:
+            None
+        """
+        gaps = artifact_mandate_gaps(Path(__file__).resolve().parents[2])
+
+        assert not gaps, (
+            "workflow invocations emit one of the two mandated artifacts, so "
+            "the run produces no report to judge readiness from: "
+            + "; ".join(gaps)
+        )
+
 
 class TestMQCRunbook:
     """The operating procedure, checked against the workflows it describes."""

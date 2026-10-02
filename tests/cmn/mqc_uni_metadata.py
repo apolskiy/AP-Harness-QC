@@ -423,6 +423,13 @@ class TestMQCArtifactSeparation:
         assert matches_collector_pattern(artifact_name(gated)) is True
         assert matches_collector_pattern(artifact_name(debug)) is False
 
+        # THE LITERAL PREFIX, which the pattern check alone does not pin: both
+        # prefixes renamed together would satisfy the two assertions above.
+        # Absorbed from a second callable that duplicated this identifier,
+        # design section 10.10.1.
+        assert artifact_name(debug).startswith("diagnostic-local")
+        assert not matches_collector_pattern(artifact_name(debug, suffix="ubuntu"))
+
     def MQC_CMN_UNI_10167_debug_rows_carry_ci_debug_context_and_ungated_flag(self) -> None:
         """Row marking, the second mechanism, on every row rather than once.
 
@@ -434,23 +441,6 @@ class TestMQCArtifactSeparation:
 
         assert fields["run_context"] == "ci_debug"
         assert fields["gated"] is False
-
-    def MQC_CMN_UNI_10157_out_dir_isolates_diagnostic_artifacts(self, tmp_path: Path) -> None:
-        """A diagnostic run writes where a collector does not read.
-
-        Args:
-            tmp_path (Path): pytest's temporary directory.
-
-        Returns:
-            None
-        """
-        debug = RunContext("ci_debug", "manual", True)
-        name = artifact_name(debug, suffix="ubuntu")
-
-        assert name.startswith("diagnostic-local")
-        assert not matches_collector_pattern(name)
-        assert (tmp_path / name).parent == tmp_path
-
 
 class TestMQCDiagnosticSummary:
     """What a debug summary says, starting with what the run is not."""

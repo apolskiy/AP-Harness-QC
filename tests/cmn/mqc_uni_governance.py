@@ -364,6 +364,55 @@ class TestMQCInventoryNames:
         )
 
 
+class TestMQCOneIdentifierOneCallable:
+    """Two callables may not claim one identifier, which a set cannot see."""
+
+    def MQC_CMN_UNI_11209_an_identifier_bound_by_two_callables_is_reported(
+        self,
+    ) -> None:
+        """Each module, layer and number names at most one test callable.
+
+        **Counts bindings rather than collecting them.** Every other suite-side
+        check keys on an identifier, so two callables claiming one enter a
+        mapping as a single entry and the comparison balances; this one groups
+        by identifier and reports any group holding more than one definition.
+
+        Keyed by module, layer and number together, not by the number alone:
+        the five-digit blocks are partitioned per module, so
+        ``MQC_EVL_UNI_10309`` and ``MQC_EXE_UNI_10309`` are two cases and not a
+        collision.
+
+        Design: ``cmn_verdict_and_cli.md`` section 10.10.1.
+
+        Returns:
+            None
+        """
+        bindings: dict[str, list[str]] = {}
+        for module in sorted(_TEST_DIRECTORY.rglob("*.py")):
+            for code, layer, number, behaviour in _defined_callables(module):
+                identifier = f"MQC_{code}_{layer}_{number}"
+                bindings.setdefault(identifier, []).append(
+                    f"{module.relative_to(_REPOSITORY_ROOT).as_posix()}"
+                    f"::{identifier}_{behaviour}"
+                )
+
+        assert bindings, "no test callables were found, so this check read nothing"
+
+        doubled = {
+            identifier: sites
+            for identifier, sites in bindings.items()
+            if len(sites) > 1
+        }
+        assert not doubled, (
+            "identifiers are bound by more than one test callable, so every "
+            "check keyed on an identifier silently reads one of them: "
+            + "; ".join(
+                f"{identifier} bound at {' and '.join(sorted(sites))}"
+                for identifier, sites in sorted(doubled.items())
+            )
+        )
+
+
 class TestMQCLiveMatrixAgainstTheSuite:
     """The matrix checked against something that is not the matrix."""
 

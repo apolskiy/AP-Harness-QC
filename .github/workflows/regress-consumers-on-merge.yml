@@ -180,10 +180,19 @@ jobs:
           python -m pip install --quiet --editable "./harness[dev]"
           python -m pip install --quiet --no-deps --editable ./consumer
 
+      # `--out-dir` SUPPLIES THE ALLURE DESTINATION AND LEAVES THE JUNIT NAME
+      # ALONE. Both artifacts are mandated by `testing-standards.md` section 5
+      # and this step emitted only JUnit, so the consumer regression produced
+      # no report to read. The distinct JUnit name is kept because an explicit
+      # flag wins: four matrix legs would otherwise overwrite one file.
+      # Design `cmn_verdict_and_cli.md` section 7.1.0.2.
       - name: Run the consumer's deterministic gates
         if: steps.fetch.outcome == 'success'
         working-directory: consumer
-        run: ${{ matrix.consumer.command }} --junitxml=reports/junit_consumer.xml
+        run: >-
+          ${{ matrix.consumer.command }}
+          --out-dir reports/
+          --junitxml=reports/junit_consumer.xml
 
       # THE GRADED PATH TOO, AND IT WAS NOT RUN BEFORE. Two of the three
       # harness defects that reached the consumer on 2026-09-28 broke this and
@@ -203,6 +212,7 @@ jobs:
           pytest -m "evaluator or tool or sec" \
             --engine gemini \
             --mode replay \
+            --out-dir reports/ \
             --junitxml=reports/junit_consumer_graded.xml
 
       # OUR CODES FAIL THIS JOB, NOT THE COUNT. A `QC_LLM_*` failure is a

@@ -364,6 +364,9 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0096` | The consumer regression replays the consumer's graded layers and fails only on harness-attributable outcomes, so a finding about the model under test does not turn a harness regression red | ci_pipeline.md sections 3B.3 and 3B.3.1 |
 | `MQC_REQ_HAR_CMN_0097` | Every inventory row in a design document names a case the suite implements, reported so an unbuilt design is visible rather than forgotten | cmn_verdict_and_cli.md section 10.19.1 |
 | `MQC_REQ_HAR_CMN_0098` | A case whose first observations show exactly one disagreement earns two further observations, so the recorded disagreement rate is a fifth or three fifths rather than an unrefined third, and a case that agreed is never asked again | cmn_verdict_and_cli.md sections 4.9.2.1 and 4.9.2.2 |
+| `MQC_REQ_HAR_CMN_0099` | A run given an output directory writes both mandated artifacts there, deriving each destination the caller did not name, so an explicit pytest flag redirects one artifact without suppressing the other | cmn_verdict_and_cli.md section 7.1.0.2 |
+| `MQC_REQ_HAR_CMN_0100` | A five-digit case identifier is bound by exactly one test callable across the suite, so an accidental duplicate is reported rather than collapsing into a set | cmn_verdict_and_cli.md section 10.10.1 |
+| `MQC_REQ_HAR_CMN_0101` | Every workflow invocation emits both JUnit XML and Allure raw results, so a diagnostic or regression run produces the reporting evidence the downstream artifact contract requires and not half of it | cmn_verdict_and_cli.md section 7.1.0.3 |
 
 ---
 

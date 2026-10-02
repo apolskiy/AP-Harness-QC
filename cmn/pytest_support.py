@@ -189,6 +189,54 @@ def corpus_selection() -> tuple[Optional[Path], Optional[str]]:
     return (Path(root) if root else None), _CORPUS_SELECTION["unknown_columns"]
 
 
+# WHAT EACH MANDATED ARTIFACT IS CALLED UNDER `--out-dir`, and the pytest option
+# each destination lives in. `testing-standards.md` section 5 mandates both, so
+# this is a pair and not a list to choose from. Design section 7.1.0.2.
+_ARTIFACT_DESTINATIONS: Final[tuple[tuple[str, str], ...]] = (
+    ("xmlpath", "junit.xml"),
+    ("allure_report_dir", "allure-results"),
+)
+
+
+def adopt_artifact_destinations(config: Any) -> list[str]:
+    """Point each unnamed artifact destination inside the named output directory.
+
+    Reads ``--out-dir`` and sets pytest's ``xmlpath`` and the Allure report
+    directory to ``junit.xml`` and ``allure-results`` beneath it. **A
+    destination the caller named is left alone**, so an explicit ``--junitxml``
+    redirects that artifact while the other is still written.
+
+    Does nothing when ``--out-dir`` is absent, and skips a destination whose
+    option pytest does not have: ``allure-pytest`` is a ``[dev]`` dependency, so
+    its option is missing when the plugin is not loaded.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.1.0.2.
+
+    Args:
+        config (Any): pytest's configuration.
+
+    Returns:
+        list: The destinations set, as ``option=path`` strings, for the record.
+    """
+    named = config.getoption("out_dir", "")
+    if not named:
+        return []
+
+    root = Path(str(named))
+    adopted: list[str] = []
+    for attribute, leaf in _ARTIFACT_DESTINATIONS:
+        if not hasattr(config.option, attribute):
+            continue
+        if getattr(config.option, attribute):
+            continue
+        setattr(config.option, attribute, str(root / leaf))
+        adopted.append(f"{attribute}={root / leaf}")
+
+    if adopted:
+        logger.info("Artifacts derived from --out-dir %s: %s", root, ", ".join(adopted))
+    return adopted
+
+
 def configure_invocation(config: Any) -> None:
     """Record what the run was invoked with, and warn on a defaulted engine.
 
@@ -212,6 +260,7 @@ def configure_invocation(config: Any) -> None:
     invocation = build_invocation(supplied)
     config.mqc_invocation = invocation
     adopt_corpus_selection(config)
+    adopt_artifact_destinations(config)
     for warning in invocation.warnings:
         logger.warning("%s", warning)
 

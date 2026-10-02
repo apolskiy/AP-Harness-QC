@@ -7374,3 +7374,92 @@ before it is believed.
   * Cases: 68 preconditions, pylint 10.00/10 exit 0.
   * `--extra-columns` and `--golden-rules` move from dated gaps to owners, so
     `config/flag_coverage.yaml` carries five gaps where it carried seven.
+
+## 2026-10-02: `--out-dir` implemented, an identifier unbound, and a mandate nobody read
+
+### What was asked
+
+Implement `--out-dir`, split the duplicated `10157`, and add a check for an
+identifier bound by more than one test callable. Documentation, then RTM, then
+implementation.
+
+### What reading the design changed
+
+The 2026-10-01 note in `cmn_verdict_and_cli.md` section 7.1.0.1 concluded that
+`--out-dir` had no live defect behind it: the workflows passed pytest's own
+`--junitxml` and `--alluredir`, so the artifacts landed where intended and the
+only question was whether the flag should exist. **That conclusion was wrong,
+and the reason is instructive**: it scoped the question to the flag instead of
+to the contract the flag serves.
+
+`testing-standards.md` section 5 mandates **both** JUnit XML and Allure raw
+results. Measured against it, four invocations emitted one:
+
+| Invocation | Emitted |
+|---|---|
+| `debug-failures-on-demand.yml` | JUnit only |
+| Consumer `debug-cases-on-demand.yml` | JUnit only |
+| `regress-consumers-on-merge.yml`, deterministic gates | JUnit only |
+| `regress-consumers-on-merge.yml`, graded replay | JUnit only |
+
+Every gating workflow was correct. The half-emitting ones were the debug,
+diagnostic and consumer-regression paths: the runs someone reaches for when
+something has already gone wrong, arriving without a report.
+
+**Implementing the flag closed two of the four without either workflow
+changing**, because both debug workflows already passed it. That is a better
+argument for implementing than the tidiness argument section 7.1.0.1 offered,
+and it is the argument the design now carries.
+
+### The duplicate was not two cases
+
+`11209` was written first and failed on the live duplicate, naming both sites.
+Then reading the second binding decided what to do with it, and renumbering it
+would have been wrong:
+
+| Assertion | Carried |
+|---|---|
+| `not matches_collector_pattern(name)` | Nothing. `10166` asserts it four lines above, in both directions |
+| `(tmp_path / name).parent == tmp_path` | **Nothing at all**, true of every single-segment string |
+| `name.startswith("diagnostic-local")` | A real fact `10166` missed: the literal prefix |
+
+Its `RunContext("ci_debug", "manual", True)` also implied a second selection
+mode mattered. `artifact_name` reads `run_context` alone, so it did not.
+
+So `10166` absorbed the one real assertion and the duplicate went. Minting a
+new identifier for the remainder would have given an accidental duplicate a
+number of its own.
+
+### The seventh instance of one shape, and a new flavour
+
+`10157` was **reachable and deduplicated away**: every suite-side check keys on
+an identifier, so two callables claiming one enter a mapping as one entry and
+every comparison balances. That differs from the five unreachable cases before
+it, and the remedy differs too: those needed connecting, this needed counting.
+
+The artifact mandate is the seventh and the first where the unestablished thing
+was a written standard rather than a flag. `11211` reads what each workflow
+passes against section 5.
+
+### Two mistakes worth recording
+
+**The check under-reported on its first run.** `11211` keyed on the word
+`pytest`, and the deterministic-gates step takes its command from
+`${{ matrix.consumer.command }}` and never spells it. One of the two gaps it
+exists for was invisible to it. Keyed on the artifact flags instead, which is
+what the mandate actually governs.
+
+**My own design contained a boundary violation.** It said the scanner reads
+"every workflow in both repositories", which CLAUDE.md forbids: a harness check
+reading files the consumer owns. Corrected to the one-implementation-two-callers
+arrangement the encoding and header rules already use.
+
+**And two stale counts found incidentally.** `DESIGN.md` claimed 205 harness and
+77 model requirements against 213 and 83. `11180` checks the README's figures
+and `11123` the per-design counts; that summary table is checked by nothing, and
+is recorded as a dated gap rather than quietly corrected.
+
+### State
+
+653 passing, pylint 10.00/10 exit 0. `--out-dir` leaves `flag_coverage.yaml`'s
+gap list; four gaps remain, all dated 2026-11-30.

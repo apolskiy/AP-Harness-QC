@@ -315,6 +315,67 @@ def runbook_problems(root: Path) -> list[str]:
     return problems
 
 
+# THE TWO MANDATED ARTIFACTS, as the flags that write them.
+# `testing-standards.md` section 5 requires both, so these are a pair and not
+# a menu. Design `cmn_verdict_and_cli.md` section 7.1.0.3.
+_JUNIT_FLAG: Final[str] = "--junitxml"
+_ALLURE_FLAG: Final[str] = "--alluredir"
+
+# `--out-dir` supplies both destinations at once, so an invocation naming it
+# satisfies the mandate without either flag.
+_DERIVES_BOTH: Final[str] = "--out-dir"
+
+def artifact_mandate_gaps(root: Path) -> list[str]:
+    """Report every workflow step emitting one mandated artifact and not both.
+
+    Reads each workflow's ``run:`` blocks and reports a step naming
+    ``--junitxml`` without ``--alluredir``, or the reverse, unless it names
+    ``--out-dir``, which supplies both destinations.
+
+    **Keyed on the artifact flags, not on the word pytest.** A step whose
+    command comes from a matrix value never spells the runner, and one of the
+    gaps this check exists for is exactly that shape. What the mandate governs
+    is the artifacts a step emits, which the flags name directly.
+
+    **A step naming neither flag is not reported**: it writes no artifact, so
+    it is a selection probe or a resolver rather than a half-emitted result.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.1.0.3.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per step, naming the workflow, the step and which
+        artifact is missing. An empty list means every step that writes an
+        artifact writes both.
+    """
+    folder = root / ".github" / "workflows"
+    if not folder.is_dir():
+        return []
+
+    gaps: list[str] = []
+    for workflow in sorted(folder.glob("*.yml")):
+        parsed = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+        for job_name, job in (parsed.get("jobs") or {}).items():
+            for step in (job or {}).get("steps") or []:
+                script = str((step or {}).get("run") or "")
+                if _DERIVES_BOTH in script:
+                    continue
+                has_junit = _JUNIT_FLAG in script
+                has_allure = _ALLURE_FLAG in script
+                if has_junit == has_allure:
+                    continue
+                missing = _ALLURE_FLAG if has_junit else _JUNIT_FLAG
+                named = str((step or {}).get("name") or "an unnamed step")
+                gaps.append(
+                    f"{workflow.name} job {job_name} step {named!r} names "
+                    f"{_JUNIT_FLAG if has_junit else _ALLURE_FLAG} and not "
+                    f"{missing}, so it emits half the artifact contract"
+                )
+    return gaps
+
+
 def _dispatch_commands(text: str) -> list[str]:
     """Return every fenced line that dispatches a workflow.
 

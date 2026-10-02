@@ -65,18 +65,14 @@ flags:
         Read by the verdict tool as parsed.as_of, so it is acted upon; no case
         passes it on a command line.
       expires_on: 2026-11-30
-  # ESTABLISHED 2026-10-01: NO READER ANYWHERE, AND NO IMPLEMENTATION EITHER.
-  # Unlike `--extra-columns` there is no behaviour sitting unwired: pytest's own
-  # `--junitxml` and `--alluredir` are what the workflows pass and what writes
-  # the artifacts. So the question is whether this flag should exist, which is a
-  # decision rather than a defect.
-  "--out-dir":
-    gap:
-      reason: >-
-        Registered and read by nothing, with no unwired implementation behind
-        it. Either it gains behaviour or it is retired and section 7.3 loses
-        the row; both need a decision before a case can be written.
-      expires_on: 2026-10-31
+  # IMPLEMENTED 2026-10-02, AND THE 2026-10-01 READING ABOVE WAS WRONG.
+  # It concluded no defect sat behind the flag because the workflows passed
+  # pytest's own `--junitxml` and `--alluredir`. Measured against
+  # `testing-standards.md` section 5, which mandates BOTH artifacts, four
+  # invocations emitted only JUnit. The flag now derives both destinations,
+  # which closed two of them by itself: both debug workflows already passed it.
+  # Design `cmn_verdict_and_cli.md` section 7.1.0.2.
+  "--out-dir": {owner: harness}
   # ESTABLISHED 2026-10-01: IT IS A WORKFLOW INPUT AND NOT A PYTEST FLAG.
   # The debug workflow turns it into a `-k` expression before pytest runs, so
   # nothing in either test tree can pass it and reach anything. The coverage

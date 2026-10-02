@@ -22,7 +22,8 @@ A failure here is our defect, so the module carries no priority marker, per
 import json
 from datetime import date
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, Optional
 
 import pytest
 
@@ -30,7 +31,12 @@ import conftest
 from cmn.config import Consumer, load_consumers, unreachable_consumer_code
 from cmn.observations import RunContext
 from cmn.registries import is_registered_harness_code
-from cmn.pytest_support import adopt_corpus_selection, corpus_selection, configure_invocation
+from cmn.pytest_support import (
+    adopt_artifact_destinations,
+    adopt_corpus_selection,
+    configure_invocation,
+    corpus_selection,
+)
 from cmn.options import (
     build_invocation,
     defaults,
@@ -172,18 +178,30 @@ class _FakeConfig:
     session to ask it would make the case slower and less specific.
     """
 
-    def __init__(self, args: list[str], values: dict[str, Any]) -> None:
-        """Hold the command line and the parsed values.
+    def __init__(
+        self,
+        args: list[str],
+        values: dict[str, Any],
+        option_values: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """Hold the command line, the parsed values and the option namespace.
+
+        ``option_values`` becomes ``config.option``, holding only the keys
+        given, so a plugin that is not loaded is modelled by leaving its
+        destination out rather than by setting it to ``None``.
 
         Args:
             args (list[str]): The raw command line.
             values (dict[str, Any]): What pytest would have parsed from it.
+            option_values (Optional[dict]): The attributes ``config.option``
+                carries.
 
         Returns:
             None
         """
         self.invocation_params = _FakeInvocationParams(args)
         self._values = values
+        self.option = SimpleNamespace(**(option_values or {}))
         self.mqc_invocation: Any = None
 
     def getoption(self, name: str, default: Any = None) -> Any:
@@ -679,8 +697,19 @@ class TestMQCDiagnosticRuns:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             validate_value("engine", "not_an_engine")
 
-    def MQC_CMN_UNI_10157_out_dir_isolates_diagnostic_artifacts(self, tmp_path: Path) -> None:
-        """A diagnostic run writes somewhere a collector does not read.
+    def MQC_CMN_UNI_10157_out_dir_names_where_both_artifacts_are_written(
+        self, tmp_path: Path
+    ) -> None:
+        """``--out-dir`` derives each artifact destination the caller omitted.
+
+        Both JUnit XML and Allure raw results are mandated, so the flag sets
+        both and a destination the caller named is left alone: an explicit
+        ``--junitxml`` redirects that artifact while the other is still
+        written. An absent flag derives nothing, and a destination whose
+        pytest option is missing is skipped, which is how an unloaded
+        ``allure-pytest`` is handled rather than failed.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.1.0.2.
 
         Args:
             tmp_path (Path): pytest's temporary directory.
@@ -688,8 +717,53 @@ class TestMQCDiagnosticRuns:
         Returns:
             None
         """
-        invocation = build_invocation({"out_dir": str(tmp_path / "diagnostic")})
-        assert invocation.as_metadata()["out_dir"] == str(tmp_path / "diagnostic")
+        named = tmp_path / "diagnostic"
+        both = {"xmlpath": None, "allure_report_dir": None}
+
+        config = _FakeConfig([], {"out_dir": str(named)}, dict(both))
+        adopt_artifact_destinations(config)
+
+        assert config.option.xmlpath == str(named / "junit.xml")
+        assert config.option.allure_report_dir == str(named / "allure-results")
+
+        # EXPLICIT REDIRECTS ONE AND SUPPRESSES NEITHER. The consumer-regression
+        # steps are why: they give each JUnit file a distinct name so four
+        # matrix legs do not overwrite one file, and must still emit Allure.
+        config = _FakeConfig(
+            [], {"out_dir": str(named)},
+            {"xmlpath": "elsewhere/mine.xml", "allure_report_dir": None},
+        )
+        adopt_artifact_destinations(config)
+
+        assert config.option.xmlpath == "elsewhere/mine.xml"
+        assert config.option.allure_report_dir == str(named / "allure-results")
+
+        config = _FakeConfig(
+            [], {"out_dir": str(named)},
+            {"xmlpath": None, "allure_report_dir": "elsewhere/allure"},
+        )
+        adopt_artifact_destinations(config)
+
+        assert config.option.xmlpath == str(named / "junit.xml")
+        assert config.option.allure_report_dir == "elsewhere/allure"
+
+        # NO FLAG DERIVES NOTHING, so an ordinary run is unaffected.
+        config = _FakeConfig([], {}, dict(both))
+        assert not adopt_artifact_destinations(config)
+        assert config.option.xmlpath is None
+        assert config.option.allure_report_dir is None
+
+        # AN ABSENT PLUGIN IS SKIPPED, NOT FAILED: allure-pytest is a `[dev]`
+        # dependency and the consumer installs the harness `--no-deps`.
+        config = _FakeConfig([], {"out_dir": str(named)}, {"xmlpath": None})
+        adopt_artifact_destinations(config)
+
+        assert config.option.xmlpath == str(named / "junit.xml")
+        assert not hasattr(config.option, "allure_report_dir")
+
+        # AND IT IS STILL RECORDED, which is what makes a run reproducible.
+        invocation = build_invocation({"out_dir": str(named)})
+        assert invocation.as_metadata()["out_dir"] == str(named)
         assert option("out-dir").default == ""
 
 

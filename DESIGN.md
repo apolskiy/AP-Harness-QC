@@ -227,7 +227,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 92 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 205 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 207 cases | **Implemented** |
 | `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 114 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 102 cases | **Implemented** |
@@ -447,7 +447,7 @@ much as overstating it**.
 | Harness cases | **639**: 616 precondition (`UNI`) and 23 system (`SYS`), across `ING`, `EXE`, `EVL` and `CMN` |
 | Case-repository preconditions | **58** (`CAS_UNI`), guarding the corpus, the excerpts, the pin and how the harness is located |
 | Model evaluation cases | **69, inventory and suite agreeing**: 40 `EVAL`, 8 `TOOL`, 21 `SEC` |
-| Requirements traced | 205 harness, 77 model, both directions checked by `MQC_CMN_UNI_11122` |
+| Requirements traced | 213 harness, 83 model, both directions checked by `MQC_CMN_UNI_11122`. **These two figures are checked by nothing** and had drifted by eight and six when read on 2026-10-02. `11180` checks the README's equivalent figures and `11123` the per-design case counts, so what is uncovered is this summary table rather than the counts themselves. Recorded as a known gap, expiring 2026-10-31 |
 | Recorded fixtures | **195 candidate responses and 108 judgements**, three observations per case per A4.1. The corpus replays offline with no credential, which is what makes a graded gate free |
 | Graded result | **2 findings about `gemini-3.8-flash`**, reproducing identically on both platforms: a sourced figure overstated on instruction conflict, 3 of 3; and a silent-zero defect identified in 1 of 3. Triaged from eight failures, the other six being defects in the suite itself |
 | Consumer gate topology | **One job per priority band per platform**, so a red names its own remedy. `AP-Model-QC` `consumer_ci.md` section 3.12 |
