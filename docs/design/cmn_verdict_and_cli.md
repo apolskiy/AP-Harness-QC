@@ -318,6 +318,60 @@ reference or an absolute URL, because an annotation nothing reads is exactly
 where a typo survives indefinitely, and the point of the field is that somebody
 can follow it later.
 
+#### 4.6.9 The data is the consumer's, and this repository ships none of it
+
+Established 2026-10-02, while designing the maintenance tool. **Quarantine is
+not harness data at all**, and the file this repository shipped was a mistake
+rather than an empty default.
+
+| | |
+|---|---|
+| Quarantine excludes from the **pass-rate** denominator | `_build_population` filters `graded` alone |
+| A precondition cannot be quarantined | It must pass 100 percent with zero skips, so excluding it from a denominator it is not in changes nothing |
+| **This repository holds no graded case** | `ci_pipeline.md` section 3B.2 |
+| An entry names a case identifier | Which is the case repository's data |
+
+So a quarantine entry here could never be about anything this repository owns.
+`config/quarantine.yaml` shipped carrying `quarantine: []` and **is deleted**:
+after section 4.6.3 made an absent file the empty default, it was a file nothing
+read, which is the shape section 7.1.0.1 exists to record. The directory lives
+in the consumer, at `config/quarantine/<engine>.yaml`.
+
+**This is the `--golden-rules` boundary applied again.** The harness owns the
+mechanism, the schema, the loader, `V5` and the digest; the consumer owns the
+data and passes its own directory. `CLAUDE.md` states the rule the other way
+round and it binds here: a check that reads the case repository's files is a
+boundary violation, and so is shipping a stub of its data.
+
+#### 4.6.10 Confirming an entry splits at the same boundary
+
+Section 4.6.5 names a maintenance tool that re-runs a case and stamps or drops
+its entry. **Re-running a case needs the cases**, so the tool cannot live here.
+What lives here is the decision, as a pure function:
+
+```
+cmn.quarantine.reconcile(entries, outcomes, as_of, resolved_model)
+        -> the updated entries, and one action per entry
+```
+
+| What the run observed | Action |
+|---|---|
+| Every observation passed | **Drop the entry.** The finding no longer reproduces |
+| Any observation failed | **Stamp** `quarantined_on` and `observed_model` |
+| Nothing observed for that case | **Keep unchanged**, and report it. Nothing was measured, so nothing is decided |
+
+**The third row is why this returns actions and not just entries.** A case that
+was not run looks identical to a case that passed if the only output is the
+surviving entries, and the difference is between "fixed" and "not asked".
+
+**Any failure re-stamps rather than a majority.** Section 4.9.1 keeps the
+within-case rule binary: a case whose observations disagree has a finding, and
+a majority vote would discard the disagreement the repeats exist to produce.
+
+**Pure, for the reason section 4.1 gives.** The decision is a function of
+observations, a date and a model, so it is testable without running a case or
+writing a file; the consumer's tool does both.
+
 #### 4.6.8 Three extractions the rework forced, and one duplication it exposed
 
 Reworking the model took three modules past the thousand-line ceiling, which
@@ -1274,7 +1328,7 @@ properly.
 |---|---|---|
 | `config/engines.yaml` | Engine roster: model IDs, endpoints, parameters, request spacing | Adding an engine is an entry, never a module (B8) |
 | `config/unsupported.yaml` | Declared (test × engine) pairs that cannot run, with reasons | A capability gap must not consume skip budget (A13) |
-| `config/quarantine/<engine>.yaml` | Quarantined cases per engine, with reason, `quarantined_on`, `observed_model` and an optional ticket. **Absent means empty** | §4.6 |
+| `config/quarantine/<engine>.yaml` | Quarantined cases per engine, with reason, `quarantined_on`, `observed_model` and an optional ticket. **Absent means empty, and the directory belongs to the consumer**, which owns the graded cases an entry can be about | §4.6, §4.6.9 |
 
 Credentials are never in configuration. They are read from the environment at runtime and redacted from every log and artifact.
 
@@ -1428,6 +1482,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11216` | P | `the_consulted_quarantine_hash_is_recorded` |
 | `11217` | N | `a_malformed_ticket_reference_is_reported` |
 | `11218` | P | `the_named_evaluation_date_reaches_quarantine_expiry` |
+| `11219` | P | `reconciling_decides_each_entry_from_what_was_observed` |
 | `11122` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `11123` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `11124` | P | `the_default_judge_engine_is_gemini` |
@@ -1497,7 +1552,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 213 cases, 121 negative, 65 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 214 cases, 121 negative, 66 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

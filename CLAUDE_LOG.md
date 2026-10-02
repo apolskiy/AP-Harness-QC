@@ -7623,3 +7623,64 @@ enters with its own case. Wiring the verdict into a gate is its own item.
 660 passing, pylint 10.00/10 exit 0, every module back under the thousand-line
 ceiling. Consumer unaffected: 71 preconditions, the 2 known
 `gemini-3.8-flash` findings, pylint 10.00/10.
+
+## 2026-10-02: the quarantine tool, and the session that did not survive a run
+
+### The boundary decided where the tool goes
+
+Quarantine excludes from the **pass-rate** denominator, so it only ever applies
+to a graded case. A precondition must pass 100 percent with zero skips, and
+**this repository holds no graded case**, so a quarantine entry here could never
+be about anything it owns. `config/quarantine.yaml` shipped carrying
+`quarantine: []` and **is deleted**: once section 4.6.3 made an absent file the
+empty default, it was a file nothing read, which is the shape this file keeps
+recording. I created that one four hours earlier.
+
+So the split follows `--golden-rules`: the harness owns the mechanism and the
+consumer owns the data.
+
+| Here | There |
+|---|---|
+| The schema, the loader, `V5`, the digest, and `reconcile` as a pure function | `config/quarantine/<engine>.yaml`, and `tools/quarantine.py` which runs and writes |
+
+`reconcile` returns the surviving entries **and an action per entry**, because a
+case nobody ran and a case that passed are indistinguishable from the survivors
+alone, and the difference is between fixed and not asked.
+
+### What building it found
+
+**`--max-spend` was the first instance of the recurring shape, and it was never
+closed.** `MQC_CAS_UNI_10467` established that the flag reaches
+`DispatchSession.max_spend`, which it does. **`dispatch_session` carried no
+cache and `observe` called it per dispatch**, so `spent` reset to 0.0 every
+observation and the ceiling could never be reached. Request spacing and the
+circuit breaker reset with it.
+
+| Established by `10467` | Established by nothing until now |
+|---|---|
+| The flag reaches the session's ceiling | That the session holding it survives more than one dispatch |
+
+**`_channel`'s own docstring asserted the opposite**, explaining its cache as
+"the same reason `DispatchSession` outlives one dispatch". It did not outlive
+one dispatch. A docstring claiming a property the code lacks is the design
+failure `testing-standards.md` names, found in prose.
+
+**And `served` was hooked in the wrong place, twice over.** `reconcile` stamps
+the model a re-observation ran against, and nothing could report it: the
+resolved model reached `record_spend`, was priced with and dropped. I added
+`served` there, and **a replayed response never reaches `record_spend`**, so the
+tool stamped an empty model from a replay whose fixture names one. It records in
+`note_outcome`, which every outcome reaches in either mode.
+`mixed_model_engines` already states that rule for the same reason: a replayed
+corpus is included, not exempt, because fixtures carry the model that produced
+them.
+
+**Found by running the tool, not by the suite.** `10474` passed against
+`record_spend` because it called `record_spend`. The end-to-end run printed
+"the run resolved no single model" against a corpus with exactly one, which is
+what sent me back to the hook. The case now drives `note_outcome` and covers
+the replay path that was the defect.
+
+### State
+
+661 passing, pylint 10.00/10 exit 0.

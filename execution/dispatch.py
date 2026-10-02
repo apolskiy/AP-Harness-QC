@@ -233,6 +233,10 @@ class DispatchSession:
     usage: TokenUsage = field(default_factory=TokenUsage)
     prices: Optional[PriceTable] = None
     priced_on: Optional[date] = None
+    # EVERY MODEL A RESPONSE REPORTED. `record_spend` already receives it
+    # for pricing and dropped it; `unpriced` kept only what it could not
+    # price. Two entries mean a mixed corpus. Design section 8.6.5.
+    served: set[str] = field(default_factory=set)
     unpriced: set[str] = field(default_factory=set)
 
     def wait_for_slot(self) -> None:
@@ -327,6 +331,16 @@ class DispatchSession:
             CircuitBreakerTripped: On an auth error immediately, or once the
                 consecutive-failure streak reaches its threshold.
         """
+        # WHAT THIS RUN RAN AGAINST, recorded here because every outcome
+        # reaches this in either mode. `record_spend` was the wrong hook: a
+        # replayed response never reaches it, so a replay recorded no model
+        # while its fixture names one. `mixed_model_engines` states the rule
+        # this follows, that a replayed corpus is included and not exempt.
+        # Design section 8.6.5.
+        served = str(getattr(outcome.response, "resolved_model", "") or "")
+        if served:
+            self.served.add(served)
+
         self.rate_limit_encounters += outcome.rate_limit_encounters
         if outcome.measured:
             self.consecutive_failures = 0

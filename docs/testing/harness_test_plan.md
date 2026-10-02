@@ -371,6 +371,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0103` | A quarantine entry missing the date or the model it was observed against is reported as a harness condition and still excludes its case, so a defect in our bookkeeping neither fails the run nor silently reinstates an accepted failure | cmn_verdict_and_cli.md section 4.6.4 |
 | `MQC_REQ_HAR_CMN_0104` | Quarantine is read per engine and an absent file is an empty quarantine, so the default state needs no file and a run whose engine has none does no expiry work | cmn_verdict_and_cli.md section 4.6.3 |
 | `MQC_REQ_HAR_CMN_0105` | The quarantine entries a run consulted are recorded in its metadata by hash, so a stored pass rate can be read against the exclusions that produced it | cmn_verdict_and_cli.md section 4.6.6 |
+| `MQC_REQ_HAR_CMN_0106` | Re-observing a quarantined case decides its entry as a pure function of what was observed: a case that passed throughout loses its entry, one that failed is re-stamped with the date and model, and one that was not observed is left alone and reported | cmn_verdict_and_cli.md section 4.6.10 |
 
 ---
 

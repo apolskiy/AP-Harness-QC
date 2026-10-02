@@ -1469,6 +1469,31 @@ distinction in prose, and this makes it a code.
 **Environmental, like the no-credit variant of 429** (section 8.6), so nothing
 retries it: no wait a run can afford produces funds.
 
+
+#### 8.6.5 The session reports the models it served
+
+Added 2026-10-02. The resolved model reached `record_spend`, was priced with and
+dropped; `unpriced` kept only the ones it could not price.
+
+`served` records every model the session saw, which answers "what did this run
+run against" without a caller re-deriving it from observations. The quarantine
+tool needs it to stamp an entry with the model a re-observation measured
+(`cmn_verdict_and_cli.md` section 4.6.10), and the question is general enough
+that the session is the right place for it.
+
+**Recorded in `note_outcome`, not in `record_spend`.** The first attempt hooked
+spending, and a replayed response never reaches it: the tool then stamped an
+empty model from a replay while the fixture it replayed names one. Every
+outcome reaches `note_outcome` in either mode, which is what this needs.
+
+**A replay is included, not exempt**, which is the rule `mixed_model_engines`
+already states for the same reason: fixtures carry the model that produced them,
+so a replay does answer what it ran against.
+
+**It is a set, so two entries mean a mixed corpus**, the same condition
+`mixed_model_engines` reports from the other direction.
+
+
 ## 9. Conformance Suite
 
 Per `extensibility_standard.md` section 10, registration enrols an adapter automatically. The battery asserts:

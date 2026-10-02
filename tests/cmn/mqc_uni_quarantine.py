@@ -25,6 +25,7 @@ import pytest
 from cmn.config import load_quarantine_for
 from cmn.observations import Observation, RunContext
 from cmn.prerequisites import quarantine_digest
+from cmn.quarantine import DROPPED, STAMPED, UNDECIDED, reconcile
 from cmn.verdict import QuarantineEntry, VerdictConfig, verdict
 from cmn.verdict_tool import EXIT_GREEN, EXIT_RED, main
 from tests.cmn.verdict_support import (
@@ -407,3 +408,84 @@ class TestMQCQuarantineThroughTheTool:
             "the named date did not reach quarantine expiry, so the flag "
             "decided nothing and an entry could never lapse"
         )
+
+
+class TestMQCQuarantineReconciliation:
+    """What re-observing a quarantined case decides about its entry."""
+
+    def MQC_CMN_UNI_11219_reconciling_decides_each_entry_from_what_was_observed(
+        self,
+    ) -> None:
+        """Each entry is dropped, re-stamped or left alone by what was observed.
+
+        A case that passed throughout loses its entry; one that failed any
+        observation is re-stamped with the date and model of this run; one that
+        produced no observations is kept unchanged and reported as undecided,
+        because nothing was measured and so nothing is decided.
+
+        **Any failure re-stamps rather than a majority.** The within-case rule
+        is binary, so a case failing one of five still has a finding.
+
+        **Undecided is why an action accompanies each entry.** A case nobody
+        ran and a case that passed are indistinguishable from the surviving
+        entries alone, and the difference is between fixed and not asked.
+
+        Design: ``cmn_verdict_and_cli.md`` section 4.6.10.
+
+        Returns:
+            None
+        """
+        stale = date(2026, 9, 1)
+        entries = [
+            QuarantineEntry("MQC_TASK_fixed::MQC_RULE_r", "flaky", stale,
+                            observed_model="gemini-3.8-flash", ticket="MQC-7"),
+            QuarantineEntry("MQC_TASK_still::MQC_RULE_r", "flaky", stale,
+                            observed_model="gemini-3.8-flash"),
+            QuarantineEntry("MQC_TASK_unrun::MQC_RULE_r", "flaky", stale,
+                            observed_model="gemini-3.8-flash"),
+        ]
+        remaining, actions = reconcile(
+            entries,
+            {
+                "MQC_TASK_fixed::MQC_RULE_r": [True, True, True],
+                "MQC_TASK_still::MQC_RULE_r": [True, False, True, True, True],
+                "MQC_TASK_unrun::MQC_RULE_r": [],
+            },
+            TODAY,
+            "gemini-4.0-pro",
+        )
+
+        assert actions == {
+            "MQC_TASK_fixed::MQC_RULE_r": DROPPED,
+            "MQC_TASK_still::MQC_RULE_r": STAMPED,
+            "MQC_TASK_unrun::MQC_RULE_r": UNDECIDED,
+        }
+        assert [entry.case_id for entry in remaining] == [
+            "MQC_TASK_still::MQC_RULE_r", "MQC_TASK_unrun::MQC_RULE_r",
+        ]
+
+        # THE SURVIVOR CARRIES THIS RUN, which is what makes its window restart
+        # and its model comparison current.
+        restamped = remaining[0]
+        assert restamped.quarantined_on == TODAY
+        assert restamped.observed_model == "gemini-4.0-pro"
+
+        # AND THE UNDECIDED ONE IS UNTOUCHED, so a run that did not ask cannot
+        # silently extend an entry's window.
+        untouched = remaining[1]
+        assert untouched.quarantined_on == stale
+        assert untouched.observed_model == "gemini-3.8-flash"
+
+        # A CASE MISSING FROM THE MAPPING IS NOT MEASURED EITHER, which is what
+        # a selection narrower than the file produces.
+        remaining, actions = reconcile(entries, {}, TODAY, "gemini-4.0-pro")
+        assert set(actions.values()) == {UNDECIDED}
+        assert len(remaining) == len(entries)
+
+        # THE ENTRY IS REPLACED, NEVER MUTATED: the record is frozen and the
+        # ticket survives a re-stamp.
+        assert entries[0].quarantined_on == stale
+        stamped_ticket = reconcile(
+            entries[:1], {"MQC_TASK_fixed::MQC_RULE_r": [False]}, TODAY, "gemini-4.0-pro"
+        )[0][0]
+        assert stamped_ticket.ticket == "MQC-7"

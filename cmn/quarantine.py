@@ -10,7 +10,8 @@ one subject; ``V5`` stays with the other verdict rules, because the rule
 registry is what makes a rule a rule.
 """
 
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 from datetime import date
 from typing import Final, Optional
 
@@ -84,3 +85,68 @@ class QuarantineEntry:
         if resolved_model and resolved_model != self.observed_model:
             return True
         return (as_of - self.quarantined_on).days >= window_days
+
+
+# WHAT RECONCILING DECIDED ABOUT ONE ENTRY. Returned alongside the entries
+# because a case nobody ran looks identical to a case that passed if the only
+# output is the survivors, and the difference is "fixed" against "not asked".
+# Design section 4.6.10.
+DROPPED: Final[str] = "dropped"
+STAMPED: Final[str] = "stamped"
+UNDECIDED: Final[str] = "undecided"
+
+
+def reconcile(
+    entries: Sequence[QuarantineEntry],
+    outcomes: Mapping[str, Sequence[bool]],
+    as_of: date,
+    resolved_model: str,
+) -> tuple[list[QuarantineEntry], dict[str, str]]:
+    """Decide what each quarantine entry becomes after re-observing its case.
+
+    An entry whose case passed every observation is dropped; one whose case
+    failed any observation is re-stamped with ``as_of`` and ``resolved_model``;
+    one whose case produced no observations is kept unchanged and reported as
+    undecided.
+
+    **Any failure re-stamps rather than a majority**, because the within-case
+    rule is binary: a case whose observations disagree has a finding, and a
+    majority would discard the disagreement the repeats exist to produce.
+
+    Pure, and therefore testable without running a case or writing a file. The
+    running and the writing belong to the case repository, which owns the cases
+    and the entries.
+
+    Design: ``cmn_verdict_and_cli.md`` section 4.6.10.
+
+    Args:
+        entries (Sequence[QuarantineEntry]): The entries as they stand.
+        outcomes (Mapping[str, Sequence[bool]]): Per case identifier, whether
+            each observation passed. A case absent from this mapping, or
+            present with no observations, was not measured.
+        as_of (date): The date to stamp a surviving entry with.
+        resolved_model (str): The model the re-observation ran against.
+
+    Returns:
+        tuple: The entries that remain, in their input order, and one action
+        per entry keyed by case identifier, each
+        :data:`DROPPED`, :data:`STAMPED` or :data:`UNDECIDED`.
+    """
+    remaining: list[QuarantineEntry] = []
+    actions: dict[str, str] = {}
+
+    for entry in entries:
+        observed = list(outcomes.get(entry.case_id) or ())
+        if not observed:
+            actions[entry.case_id] = UNDECIDED
+            remaining.append(entry)
+            continue
+        if all(observed):
+            actions[entry.case_id] = DROPPED
+            continue
+        actions[entry.case_id] = STAMPED
+        remaining.append(
+            replace(entry, quarantined_on=as_of, observed_model=resolved_model)
+        )
+
+    return remaining, actions

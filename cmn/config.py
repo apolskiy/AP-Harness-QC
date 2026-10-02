@@ -8,7 +8,9 @@ Specified by ``docs/design/cmn_verdict_and_cli.md`` section 8.
 |---|---|
 | ``engines.yaml`` | Adding an engine is an entry, never a module (B8) |
 | ``unsupported.yaml`` | A capability gap must not consume skip budget (A13) |
-| ``quarantine.yaml`` | An entry expires, and an expired one fails the run |
+| ``quarantine/<engine>.yaml`` | An entry expires by model change or by the
+  window, and an expired one fails the run. **The consumer's directory**, which
+  owns the graded cases an entry can be about (design section 4.6.9) |
 
 **Credentials are never in configuration.** They are read from the environment
 at runtime and redacted from every log and artifact, so a configuration file
