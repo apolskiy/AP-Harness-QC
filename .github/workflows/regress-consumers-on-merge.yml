@@ -211,7 +211,13 @@ jobs:
       # carries the table.
       - name: Fail only on harness-attributable outcomes
         if: steps.fetch.outcome == 'success'
-        run: python tools/consumer_regression.py consumer/reports/junit_consumer_graded.xml
+        # THE HARNESS IS CHECKED OUT TO `harness/`, so the tool is not at the
+        # workspace root. Design section 3B.3.2: this step invoked the root
+        # path and could never start, which left the gate reporting success
+        # while evaluating nothing.
+        run: >-
+          python harness/tools/consumer_regression.py
+          consumer/reports/junit_consumer_graded.xml
 
       - uses: actions/upload-artifact@v6
         if: always() && steps.fetch.outcome == 'success'

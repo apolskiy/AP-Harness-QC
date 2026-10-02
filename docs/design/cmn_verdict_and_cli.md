@@ -1108,6 +1108,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11204` | B | `with_prerequisites_without_any_filter_warns_and_proceeds` |
 | `11205` | N | `an_inventory_row_without_an_implementation_is_reported` |
 | `11206` | B | `one_disagreement_earns_two_further_observations` |
+| `11207` | N | `a_workflow_step_running_an_absent_script_is_reported` |
 | `11141` | P | `judge_mode_defaults_to_whatever_mode_is` |
 | `11142` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
 | `11143` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
@@ -1150,7 +1151,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 203 cases, 116 negative, 60 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 204 cases, 117 negative, 60 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

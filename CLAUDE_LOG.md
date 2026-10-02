@@ -7239,3 +7239,65 @@ inventory and confirming each names its own.
     design when the consumer is absent.
   * Harness, beside the consumer: 648 passed.
   * Cases: 68 preconditions, pylint 10.00/10 exit 0.
+
+## 2026-10-02: The consumer regression gate had never run
+
+Run 37035084057. `regress-consumers-on-merge` failed in the step that exists to
+decide the job, and the reason was not a finding at all:
+
+```
+python: can't open file '.../AP-Harness-QC/tools/consumer_regression.py'
+```
+
+**The job checks this repository out to `harness/`.** The step carries no
+`working-directory`, so it runs from the workspace root, where
+`tools/consumer_regression.py` does not exist. Every run of that step ended the
+same way.
+
+**So the gate has never evaluated a report.** The replay before it carries
+`continue-on-error` by design, because a model finding belongs to the consumer's
+own gate. That is what kept the job green while the gate did nothing: the only
+step that could fail was the one that could not start.
+
+| | Covered by | Before |
+|---|---|---|
+| The tool fails only on `QC_HARNESS_*` | `MQC_CMN_UNI_11200` | Yes |
+| The workflow can reach the tool | **Nothing** | **No** |
+
+### The fifth instance of one shape
+
+`--max-spend` accepted a ceiling that stopped nothing. `--priority` named a band
+and ran every band. `--extra-columns` names a policy and reaches no code.
+`MQC_EXE_UNI_10259` asserted one half of what design section 4.3 splits in two.
+And now a gate whose logic is proven and whose invocation was not. **Each time
+the thing itself was right and nothing established it was reachable.**
+
+### My first version of the check was vacuous, and the injection said so
+
+`MQC_CMN_UNI_11207` resolves every literal `python <path>.py` a workflow step
+runs. The first version resolved each path **against the repository root**,
+which is the wrong frame and the precise reason it passed against the broken
+path: `tools/consumer_regression.py` does exist relative to the repository, and
+the step runs from the workspace root.
+
+**That is the defect's whole shape.** A path valid in one frame and invalid in
+the step's, so a check using the first frame reports success. Rewritten to read
+each job's own checkout step, from the parsed YAML rather than line patterns,
+and to require our scripts be reached through the path that checkout declares.
+
+Injection: restoring the shipped path, and the case names the job and the prefix
+it expected.
+
+### And I deleted a module constant again
+
+Removing the first version's helpers took `_REPOSITORY_LICENCE` with them,
+because the range I cut ran from my comment to the next class and that constant
+sat in between. **The same error as `_UNMET` yesterday**, one day apart: a range
+delete between two landmarks assumes nothing lives in the middle. Two checks
+named it immediately and pylint named it twice.
+
+* **Code Quality & Compliance Audit:**
+  * Harness, isolated checkout: 648 passed, 1 skipped, pylint 10.00/10 exit 0.
+  * Harness, beside the consumer: 649 passed.
+  * The consumer regression reproduced locally before and after: exit 0, no
+    harness-attributable outcome, which is what the gate will now actually say.

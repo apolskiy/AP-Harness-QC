@@ -20,10 +20,12 @@ the case repository runs the identical implementation against MIT.
 A failure here is our defect, so the module carries no priority marker.
 """
 
+import re
 from datetime import date
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tools.consumer_regression import harness_faults
 from cmn.code_standards import (
@@ -43,6 +45,38 @@ pytestmark = pytest.mark.unit
 # the same checks against MIT, which is the whole point of naming it rather
 # than accepting any SPDX tag.
 _REPOSITORY_LICENCE = "Apache-2.0"
+
+
+# A `python <path>.py` invocation inside a `run:` block. A literal path only: an
+# expression is not known until the run, and `-m module` is not a path.
+_WORKFLOW_SCRIPT = re.compile(r"\bpython[0-9.]*\s+(?!-)([A-Za-z0-9_./-]+\.py)\b")
+
+
+def _own_checkout_path(job: dict) -> str:
+    """Return where a job checks this repository out, or empty for the root.
+
+    **This repository's checkout is the one naming no `repository`.** A step
+    that names one is fetching somebody else, and where that lands says nothing
+    about where our own files are.
+
+    Args:
+        job (dict): One job of a parsed workflow.
+
+    Returns:
+        str: The checkout path, or empty when the job uses the workspace root.
+    """
+    for step in job.get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        if not str(step.get("uses") or "").startswith("actions/checkout"):
+            continue
+        settings = step.get("with") or {}
+        if settings.get("repository"):
+            continue
+        return str(settings.get("path") or "")
+    return ""
+
+
 
 
 class TestMQCAnnotationCoverage:
@@ -197,6 +231,68 @@ class TestMQCMarkupHeaders:
 
 class TestMQCRunbook:
     """The operating procedure, checked against the workflows it describes."""
+
+    def MQC_CMN_UNI_11207_a_workflow_step_running_an_absent_script_is_reported(
+        self,
+    ) -> None:
+        """Every script a workflow step runs resolves where the step runs.
+
+        A step with no ``working-directory`` runs from the workspace root. Where
+        its job checks this repository out under a path, our own files are
+        reached through that path, so a bare ``tools/x.py`` resolves to nothing
+        even though it exists in the repository.
+
+        That is the shape of the defect: the path is valid relative to the
+        repository and invalid relative to the step, so resolving it against the
+        repository reports success.
+
+        Steps carrying a ``working-directory`` are skipped, their frame being
+        that directory rather than the workspace.
+
+        Design: ``ci_pipeline.md`` section 3B.3.2.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        workflows = sorted((root / ".github" / "workflows").glob("*.yml"))
+        assert workflows, "no workflow was read"
+
+        unresolved: list[str] = []
+        examined = 0
+        for workflow in workflows:
+            parsed = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+            for name, job in (parsed.get("jobs") or {}).items():
+                if not isinstance(job, dict):
+                    continue
+                prefix = _own_checkout_path(job)
+                for step in job.get("steps") or []:
+                    if not isinstance(step, dict) or step.get("working-directory"):
+                        continue
+                    script_block = str(step.get("run") or "")
+                    if "${{" in script_block:
+                        continue
+                    for found in _WORKFLOW_SCRIPT.finditer(script_block):
+                        script = found.group(1)
+                        examined += 1
+                        wanted = (
+                            script[len(prefix) + 1:]
+                            if prefix and script.startswith(f"{prefix}/")
+                            else script if not prefix else None
+                        )
+                        if wanted is None or not (root / wanted).is_file():
+                            unresolved.append(
+                                f"{workflow.name} job {name!r} runs {script!r}"
+                                + (f", expected under {prefix!r}" if prefix else "")
+                            )
+
+        assert examined, "no workflow step invoked a literal script"
+
+        assert not unresolved, (
+            f"{len(unresolved)} workflow step(s) run a script that does not "
+            f"resolve where the step runs, so the step cannot start and its job "
+            f"can report success while the step evaluated nothing: {unresolved}"
+        )
 
     def MQC_CMN_UNI_11143_a_runbook_command_naming_an_undeclared_input_is_reported(
         self,

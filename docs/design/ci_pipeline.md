@@ -414,6 +414,38 @@ the codes.
 
 ---
 
+#### 3B.3.2 The gate ran for the first time on 2026-10-02, and failed to start
+
+The step invoked `python tools/consumer_regression.py` from the workspace root.
+**The job checks this repository out to `harness/`**, so the path does not
+exist there and every run of the step ended:
+
+```
+python: can't open file '.../AP-Harness-QC/tools/consumer_regression.py'
+```
+
+**So the gate has never evaluated a report.** The replay step before it carries
+`continue-on-error`, by design, because a model finding is the consumer's
+business. That is what kept the job green while the gate did nothing: the only
+step that could fail was the one that could not run.
+
+| | Covered by | Before |
+|---|---|---|
+| The tool fails only on `QC_HARNESS_*` | `MQC_CMN_UNI_11200` | Yes |
+| The workflow can reach the tool | **Nothing** | **No** |
+
+**This is the fifth instance of one shape in this project.** `--max-spend`
+accepted a ceiling that stopped nothing, `--priority` named a band and ran every
+band, `--extra-columns` names a policy and reaches no code, `MQC_EXE_UNI_10259`
+asserted half of what section 4.3 splits in two, and now a gate whose logic is
+proven and whose invocation is not. **Each time the thing itself was right and
+nothing established that it was reachable.**
+
+`MQC_CMN_UNI_11207` resolves every script path a workflow step runs, against
+the checkout layout that step executes in, so a path that cannot exist fails the
+unit gate rather than passing silently in a job that reports success.
+
+
 ## 3C. Branch Topology, And Which Harness A Case Set Runs Against
 
 Added 2026-09-23. Two repositories each carrying branches means a run is defined
