@@ -189,10 +189,59 @@ class ClaudeAdapter(ConfiguredAdapter):
                 tool_calls=self.extract_tool_calls(response),
                 usage=self.read_usage(response),
                 finish_reason=_FINISH_REASONS.get(response.stop_reason, "unknown"),
+                block_reason=self._block_reason(response),
+                block_stage=self._block_stage(response),
                 raw_reference=self.raw_reference_of(response),
                 resolved_model=self.resolve_model_version(response),
             ),
         )
+
+    @staticmethod
+    def _block_reason(response: Any) -> str:
+        """Return the provider's own word for refusing, or empty.
+
+        **Verbatim, never mapped**, which is what `ProviderFacts` requires: the
+        canonical vocabulary answers whether content was withheld and this
+        answers why, so mapping it here would collapse the two again.
+
+        **A block is a stop reason the canonical table calls a refusal**, read
+        from that one table rather than from a second list. Registering a new
+        refusal-shaped word extends the mapping and this together, where two
+        lists would eventually disagree about what a refusal is. Design
+        section 4.3.1.
+
+        Args:
+            response (Any): The provider response.
+
+        Returns:
+            str: The stop reason as the provider spelled it, empty where the
+            turn was not refused.
+        """
+        reported = str(getattr(response, "stop_reason", "") or "")
+        if _FINISH_REASONS.get(reported) != "content_filter":
+            return ""
+        return reported
+
+    @staticmethod
+    def _block_stage(response: Any) -> str:
+        """Return where the provider refused, or empty.
+
+        **Always ``response`` for this provider.** Anthropic refuses while
+        generating rather than declining to read the prompt, so nothing is
+        withheld before the request is accepted. Recorded although both stages
+        count the same today, for the reason section 4.3 gives: a corpus storing
+        only "blocked" could not be split if the requirement changed.
+
+        Args:
+            response (Any): The provider response.
+
+        Returns:
+            str: ``response`` on a refusal, empty otherwise.
+        """
+        reported = str(getattr(response, "stop_reason", "") or "")
+        if _FINISH_REASONS.get(reported) != "content_filter":
+            return ""
+        return "response"
 
     def usage_from(self, usage: Any) -> TokenUsage:
         """Return Anthropic's counts.

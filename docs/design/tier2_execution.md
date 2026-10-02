@@ -234,6 +234,49 @@ Transcribing each provider's value would make a cross-engine comparison of tool-
 
 Three refusal-shaped provider reasons collapse into one canonical value. The canonical question is whether content was withheld; **why** the provider withheld it belongs in the record rather than in the vocabulary, or the vocabulary grows with every provider's policy taxonomy.
 
+#### 4.3.1 An adapter that normalises a refusal records the provider's word for it
+
+Added 2026-10-01, after the first Claude recording.
+
+Section 4.3 settles that the canonical value answers **whether** content was
+withheld and that **why** belongs in the record. An adapter can satisfy the
+first and not the second, and one did: Anthropic returns
+`stop_reason="refusal"`, the Claude adapter mapped it to the canonical
+`content_filter`, and left `block_reason` empty.
+
+**Nothing downstream reads the canonical value to decide a refusal.**
+`tier3_evaluation.md` section 4.2.2 and `AP-Model-QC` `model_evaluation_test_plan.md`
+section 9.12 both turn on `blocked_by`, which is `block_reason`. So the
+provider refused, the adapter knew, and the case was reported as a model
+failure on all three observations.
+
+| | `finish_reason` | `block_reason` | What section 9.12 concludes |
+|---|---|---|---|
+| gemini refusal | `content_filter` | `SAFETY` or `OTHER` | Resistance, a pass |
+| Claude refusal, before | `content_filter` | **empty** | **A model failure** |
+| Claude refusal, after | `content_filter` | `refusal` | Resistance, a pass |
+
+**This is the second time.** `MQC_EXE_UNI_10253` records a gemini double of the
+wrong shape that reported `50015` as a model failure for three recorded runs.
+That was corrected in the gemini adapter rather than stated as an obligation on
+adapters, so the next adapter written reproduced it. **A fix applied to one
+implementation of an interface is not a fix to the interface.**
+
+**Derived from the one mapping rather than listed twice.** A stop reason is a
+block exactly when `_FINISH_REASONS` sends it to the canonical refusal value, so
+registering a new refusal-shaped vocabulary word extends both at once. The
+alternative is two lists that eventually disagree about what a refusal is.
+
+**The stage is `response`.** Anthropic refuses while generating, so nothing was
+withheld before the prompt was read. Section 4.3's own reasoning applies: both
+stages count the same today and a corpus storing only "blocked" could not be
+split later.
+
+`MQC_EXE_UNI_10309` covers the adapter. `MQC_CAS_UNI_10463` covers the corpus,
+and it is the one that would have caught this: it reads the recorded fixtures and
+reports any response that withheld content without saying why, whichever adapter
+produced it.
+
 ### 4.4 Duration is measured by the dispatcher, not by the adapter
 
 An adapter builds a `NormalizedResponse` from a response object it did not time, so it sets `duration_ms` to zero and the dispatcher stamps the measured value.
@@ -1579,6 +1622,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10306` | N | `the_judgement_schema_drops_keywords_the_provider_rejects` |
 | `10307` | N | `each_observation_records_its_own_judgement` |
 | `10308` | N | `fill_gaps_judges_only_what_is_not_recorded` |
+| `10309` | P | `a_claude_refusal_is_recorded_as_a_block` |
 | `10271` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
@@ -1595,7 +1639,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 113 cases, 47 negative, 57 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 114 cases, 47 negative, 58 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 
