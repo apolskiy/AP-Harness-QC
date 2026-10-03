@@ -739,6 +739,157 @@ Every observation is emitted with the fields required by `test_taxonomy.md` §9:
 
 Emitted as Allure parameters and labels, and through JUnit XML test names, so both reach a downstream collector without changes on its side.
 
+
+### 5.1 One of the fields reached the artifact, and the section said all of them did
+
+Established 2026-10-02 by reading a real Allure raw result rather than the code
+that was supposed to produce it.
+
+```
+name:       MQC_EVL_EVAL_30015_overstating_a_sourced_figure_is_rejected
+status:     failed
+parameters: None
+labels:     feature, severity, epic, story, tag, parentSuite, suite, subSuite,
+            host, thread, framework, language, package
+```
+
+**`parameters` is empty and `severity` is the only field of section 9 present.**
+A search for `allure.dynamic`, `dynamic.parameter`, `dynamic.label` and
+`allure.attach` across both repositories returns nothing: no parameter, no
+runtime label and no attachment is emitted anywhere. The only emission is
+`label_priority_severity`, which translates the priority marker into a severity
+label at collection.
+
+| | |
+|---|---|
+| Built | **Everything.** `emit_result` returns the whole section 9 mapping and `RunContext.as_fields` the run-scoped half |
+| Emitted | `priority`, as `severity` |
+
+**The records were never the gap.** Section 9.1.1 records the same shape one
+field at a time, where `rule_set_hash` was carried, serialised and never
+computed. This is that defect applied to the step after: the mapping is
+complete and nothing hands it to the artifact.
+
+**What it costs is larger than the verdict.** A collector reading these
+artifacts cannot say which engine produced a result, which mode it ran in, or
+which taxonomy code it carried. **The three-engine comparison is unattributable
+from the artifact**, and the findings this project reports were read from runs
+rather than recovered from the contract that exists to carry them. A reviewer
+or an analysis has to be able to say which candidate and which judge a result
+came from, which is also why the engines get separate jobs.
+
+**`phase0_project_ambiguities.md` section A7.2's mechanism does not exist.** It
+states that "pytest parameterization supplies both automatically:
+`MQC_EVAL_30001_...[gemini]` appears in the JUnit XML `name` attribute and in
+Allure `parameters[]`". The engine is a **command-line flag, not a
+parameterisation**, so no identifier carries a suffix and no parameter is
+produced. That section is corrected rather than deleted: the requirement it
+states is right and the mechanism it names was wrong.
+
+### 5.2 Emitted at runtime, because that is when the values exist
+
+`engine` and `mode` are known once the run is configured, but `resolved_model`
+is known only after the provider answers (A8), and `outcome`, `taxonomy_code`,
+`duration` and the token counts only after the case runs. So the emission is
+per observation at runtime, not a collection-time marker.
+
+| Field group | Emitted as |
+|---|---|
+| Everything `emit_result` returns | An Allure **parameter** each, so a collector reads a column rather than parsing prose |
+| `taxonomy_code` | Also a **label**, which `testing-standards.md` section 4 already requires so root-cause class is filterable |
+| `priority` | Already a severity label, unchanged |
+
+**Parameters rather than one attached blob.** A parameter is a field a
+collector ingests without knowing this project; an attachment has to be opened
+and parsed. The attachment below is for the one thing that cannot be a column.
+
+### 5.3 A failing case carries every call it made, not the one that failed
+
+**A finding is filed with the provider, so the artifact has to hold the
+reproduction.** Every vulnerability and every quality finding this project
+reports is reported to the engine's provider, and a ticket needs the exact
+call: the model asked for and the model served, the prompt, the parameters, the
+tool declarations, the response and its finish reason. Reading those out of a
+run by hand is the step that does not survive contact with more than one
+finding.
+
+**The report is per case, over every observation, and that is the part worth
+getting right.** A4.1 sends three observations and a single disagreement earns
+two more, so **the failing call is frequently not the first one**: a case can
+fail at observation two of three, or one of five. Two consequences:
+
+| | |
+|---|---|
+| One request cannot represent the case | The ticket would describe a call that succeeded, or a call whose siblings it does not mention |
+| **`QC_LLM_INCONSISTENT` is a finding about the set** | "This model answers the same question three ways" is unreportable from any single call, because each one on its own looks fine or looks broken |
+
+So a failing case attaches the **history**: every observation in index order,
+each carrying its composed request, its normalized response, its outcome and
+the model that served it. A provider reading it sees what we sent every time
+and what came back every time, which is what makes an inconsistency claim
+checkable rather than asserted.
+
+| | |
+|---|---|
+| On a failing case | Attached once, covering every observation including the ones that passed |
+| On a passing case | **Not attached.** Nothing is filed about it, and prompts are large |
+| Credentials | Passed through `cmn.config.redact` first, which already walks a structure for credential-shaped keys |
+
+**The request is retained on every `DispatchOutcome`**, because the case's
+verdict is not known while the observations are being taken: the passing
+observations of a failing case are exactly the ones the report needs, and a
+record kept only on a failing call could not produce them. The condition is on
+the attachment, not on the record.
+
+**It is an Allure attachment and not a file this project invents.**
+`testing-standards.md` section 5 prohibits a hand-rolled summary file and names
+Allure raw results as a standard format; an attachment is part of that format,
+so the reproduction travels inside the contract rather than beside it.
+
+### 5.4 The harness builds the record and the consumer attaches it
+
+The harness owns no graded case, so the emission happens where the cases are,
+through the arrangement the encoding and header rules already use.
+
+| Here | There |
+|---|---|
+| `cmn.reporting` builds the records, purely. `cmn.pytest_support` stashes and publishes them from the reporting hook | `observe` records what the tiers measured |
+
+**Pure builders, because the question is what the record says.** A function that
+called into Allure could only be tested by running a reporter; one that returns
+a mapping is tested by reading it.
+
+#### 5.4.1 The emission is a reporting hook, not a call inside `observe`
+
+**Corrected 2026-10-02, while wiring it.** This section first put the emission
+in `observe` and the attachment in `observe_repeatedly`. Implementing that
+established it cannot work: **`observe` holds only half of an observation.**
+
+`assemble_observation` already states the split, and its own case says where the
+halves meet: "Tier 3 never receives priority, so it cannot produce a complete
+observation; the orchestrating test holds the case metadata and has no access to
+what dispatch measured. **The reporting hook is where the two meet.**"
+
+| Half | Held by | Fields |
+|---|---|---|
+| What was measured | `observe`, from the dispatch outcome | `engine`, `mode`, `requested_model`, `resolved_model`, `outcome`, `duration`, `output_tokens`, `taxonomy_code` |
+| What the case is | The **pytest item**, from its markers and its module | `layer`, `priority`, `priority_conditions`, `family`, `requirement_ids` |
+
+`observe` receives a configuration, not an item, so it cannot read a marker.
+So `observe` **records** the measured half against the run, and the reporting
+hook, which has the item, merges it with the case half and publishes.
+
+**This also puts the vendor report in the right place.** A case's verdict is
+known at report time and not inside the loop that takes its observations, and
+the hook is the first point that knows whether the case failed.
+
+**The chain was designed and entirely unconnected.**
+`assemble_observation`, `emit_result` and `require_complete_result` all ship,
+all have cases, and had **no caller outside the test suite**. The emission is
+not new machinery; it is the join the design has always described, and
+`conftest.py` has said so in prose since the metadata model was written: "The
+reporting hook that assembles observations is not here yet."
+
 ---
 
 ## 6. RTM Integrity
@@ -1483,6 +1634,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11217` | N | `a_malformed_ticket_reference_is_reported` |
 | `11218` | P | `the_named_evaluation_date_reaches_quarantine_expiry` |
 | `11219` | P | `reconciling_decides_each_entry_from_what_was_observed` |
+| `11220` | P | `every_required_result_field_is_emitted` |
+| `11221` | P | `a_failing_case_reports_every_call_it_made` |
+| `11222` | N | `a_registered_adapter_off_the_roster_is_reported` |
 | `11122` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `11123` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `11124` | P | `the_default_judge_engine_is_gemini` |
@@ -1552,7 +1706,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `11173` | N | `a_credential_no_engine_reads_is_reported` |
 | `11174` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 214 cases, 121 negative, 66 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 217 cases, 122 negative, 68 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

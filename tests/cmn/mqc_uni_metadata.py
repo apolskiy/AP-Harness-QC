@@ -81,7 +81,7 @@ _FAMILY_ROW = re.compile(
 # not a row and reporting it would be the over-reporting that trains a check
 # away on its second run.
 _INVENTORY_ROW = re.compile(
-    r"^\|\s*`(?P<identifier>\d{5})`\s*\|\s*[PNB]\s*\|\s*`(?P<behaviour>\w+)`\s*\|$"
+    r"^\|\s*`(?P<identifier>\d{5,6})`\s*\|\s*[PNB]\s*\|\s*`(?P<behaviour>\w+)`\s*\|$"
 )
 
 
@@ -218,7 +218,7 @@ class TestMQCTaxonomyRegistryConsistency:
             )
             if stated is None:
                 continue
-            categories = re.findall(r"^\| `\d{5}` \| ([PNB]) \|", text, re.M)
+            categories = re.findall(r"^\| `\d{5,6}` \| ([PNB]) \|", text, re.M)
             assert int(stated.group(1)) == len(categories), document.name
             assert int(stated.group(2)) == categories.count("N"), document.name
             assert int(stated.group(3)) == categories.count("P"), document.name

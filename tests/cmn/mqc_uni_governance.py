@@ -34,7 +34,7 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 # those citations, which is what sent the first version of this check reading
 # the sibling checkout. Design section 10.19.2.
 _INVENTORY_IDENTIFIER: Final[re.Pattern] = re.compile(
-    r"^\|\s*`(\d{5})`\s*\|\s*[PNB]\s*\|\s*`[a-z0-9_]+`"
+    r"^\|\s*`(\d{5,6})`\s*\|\s*[PNB]\s*\|\s*`[a-z0-9_]+`"
 )
 
 _DESIGN_DIRECTORY = _REPOSITORY_ROOT / "docs" / "design"
@@ -53,7 +53,7 @@ _TEST_DIRECTORY = _REPOSITORY_ROOT / "tests"
 # regex over text cannot tell the two apart. A module embedding a sub-suite as
 # a fixture is the case that proved it could not.
 _TEST_CALLABLE = re.compile(
-    r"^MQC_([A-Z]{3})_([A-Z]{3,5})_(\d{5})_([a-z0-9_]{3,60})$"
+    r"^MQC_([A-Z]{3})_([A-Z]{3,5})_(\d{5,6})_([a-z0-9_]{3,60})$"
 )
 
 
@@ -88,11 +88,11 @@ def _defined_callables(module: Path) -> list[tuple[str, str, str, str]]:
     return found
 
 # An inventory row, as every module design writes one.
-_INVENTORY_ROW = re.compile(r"^\|\s*`(\d{5})`\s*\|\s*[PNB]\s*\|")
+_INVENTORY_ROW = re.compile(r"^\|\s*`(\d{5,6})`\s*\|\s*[PNB]\s*\|")
 
 # A row that also quotes its behaviour name. Rows explaining a case in prose
 # carry no name and are not candidates for the comparison below.
-_NAMED_ROW = re.compile(r"^\|\s*`(\d{5})`\s*\|\s*[PNB]\s*\|\s*`([a-z0-9_]+)`")
+_NAMED_ROW = re.compile(r"^\|\s*`(\d{5,6})`\s*\|\s*[PNB]\s*\|\s*`([a-z0-9_]+)`")
 
 # The behaviour suffix .pylintrc permits on a callable.
 _BEHAVIOUR_LIMITS = (3, 60)

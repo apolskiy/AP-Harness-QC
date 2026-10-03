@@ -151,6 +151,64 @@ An adapter composes, sends and normalizes. It does not score, judge, retry into 
 
 ---
 
+### 3.4 Adding an evaluated engine is declarative, and one step was unchecked
+
+Added 2026-10-02 at the project owner's instruction: the evaluated-engine API
+has to be expandable, because the findings are per engine and the set of engines
+worth evaluating grows.
+
+**Three declarations, no code outside the adapter.**
+
+| Step | Where | Checked by |
+|---|---|---|
+| Register the adapter | `@register_adapter` on the class, which declares its engine name, default model and credential variable | `register_adapter` refuses a duplicate claim |
+| Name the credential | `API_KEY_ENV` on the adapter, surfaced by `credential_variables()` | The credential checks read that list |
+| **Put the engine on the roster** | `config/engines.yaml` | **Nothing** |
+
+**The third step is unreachable and silent, and `grok` is in that state now.**
+The adapter ships, registers under `grok`, declares `grok-4` and
+`XAI_API_KEY`, and `credential_variables()` already reports that variable. The
+roster names `gemini`, `openai` and `claude` and does not name `grok`, so
+`load_engines` never yields it and `--engine grok` is refused as absent from the
+roster.
+
+| | |
+|---|---|
+| An adapter exists and registers | Yes |
+| Its credential is expected by the credential surface | Yes |
+| The engine can be selected | **No** |
+| Anything reports the gap | **No** |
+
+So "adding an engine is an entry, never a module" (B8) is true of the design and
+had a step that could be skipped without a word. That is the shape this project
+keeps recording: the mechanism is right and nothing establishes it is reachable.
+
+**Every registered adapter is either on the roster or a recorded absence.** The
+remedy is the one `flag_coverage.yaml` already uses for flags: an adapter that
+is deliberately not rostered carries a reason and a date, so the omission is a
+decision rather than a silence, and an undated one fails the run.
+
+```yaml
+# config/engines.yaml, a sibling of `engines:` and `judge:`
+not_rostered:
+  grok:
+    reason: >-
+      The adapter and its conformance cases ship; no fixtures are recorded
+      and no credential is held, so a run naming it would refuse at preflight.
+    expires_on: 2026-11-30
+```
+
+**A sibling key rather than an entry under `engines:`.** `load_engines` refuses
+an entry naming no model, on the ground that an engine with no model would
+dispatch against the adapter default and record a model nobody configured. A
+declared absence is not an engine, so it must not sit where engines are read.
+
+**Why a recorded absence rather than simply adding the entry.** A roster entry
+is a claim that the engine can be evaluated, and evaluating one needs a
+credential, recorded fixtures and a priced model, none of which `grok` has yet.
+An entry added without them turns a declarative gap into a run that fails at
+preflight, which reads as a broken harness rather than as work not done.
+
 ## 4. Adding a Test Layer
 
 A layer declares its properties at registration; the verdict function reads them rather than naming the layer.

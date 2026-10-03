@@ -83,7 +83,7 @@ Enforced by `module-rgx` in `.pylintrc`, which also refuses `mqc_<component>.py`
 
 | Layer | Marker | ID block | Under test | Failure means |
 |---|---|---|---|---|
-| `MQC_UNI_` | `unit` | 10001 to 19999 | Parsers, validators, helpers. No network. **Ungraded precondition.** | Our code is wrong |
+| `MQC_UNI_` | `unit` | 111000 to 119999, by module per 3.2.1 | Parsers, validators, helpers. No network. **Ungraded precondition.** | Our code is wrong |
 | `MQC_SYS_` | `system` | 20001 to 29999 | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode.** | Our code is wrong |
 | `MQC_EVAL_` | `evaluator` | 30001 to 39999 | LLM-as-a-Judge rubric scoring, golden-rule enforcement | The model is deficient |
 | `MQC_TOOL_` | `tool` | 40001 to 49999 | Tool-use compliance: required tools invoked, forbidden tools avoided (A9) | The model is deficient |
@@ -120,19 +120,145 @@ The dividing line is **what a failure tells you**, not where the code lives.
 ### 3.2 ID assignment rules
 
 * IDs are assigned **in the test design document** before code exists, never chosen at implementation time.
-* An ID is assigned **once** and is **never reused**, including after the test is deleted. A retired ID stays retired so that downstream history never silently rebinds an identifier to different behaviour.
+* An ID is assigned **once** and is **never reused**, including after the test is deleted. A retired ID stays retired so that downstream history never silently rebinds an identifier to different behaviour. **Amended 2026-10-02 for one recorded exception**: the move to six digits rebound every identifier at once, totally and invertibly, with the mapping kept in `docs/testing/identifier_map.csv`. Section 3.2.1.2 states why that is a different act from reusing a number.
 * The behaviour suffix is lowercase `snake_case`, minimum 3 characters, and states what is asserted rather than what is called.
 
-#### 3.2.1 Blocks are partitioned by module, not only by layer
+#### 3.2.1 Six digits, positional, and why the hundred-slot partition had to go
 
-Specified 2026-09-23, after implementation collided. **This rule was implicit in the allocation from the first case and had never been written down**, which is precisely how it came to be broken.
+Rewritten 2026-10-02. The previous scheme gave each module a **hundred-slot**
+block inside its layer's range, and by the time it was measured it had run out
+and been broken in three places at once.
 
-Section 3.1 assigns each layer a range. Within that range each module takes a hundred-slot block:
+| module/layer | cases | allocated | outside its own block |
+|---|---|---|---|
+| `CMN`/`UNI` | 213 | 198 | **21**, past `11199` with nothing allocating `11200` upward |
+| `EXE`/`UNI` | 110 | 99 | **11**, sitting inside `EVL`'s block |
+| `EVL`/`UNI` | 98 | 99 | **4**, sitting inside `CAS`'s block |
+| `EVL`/`EVAL`, `TOOL`, `SEC` | 69 | **none** | the graded layers were never partitioned at all |
+
+**Nothing checked it.** `MQC_CMN_UNI_11209` asks whether an identifier is bound
+by two callables, which is a different question and passes here: two modules
+using one number are two identifiers. So the allocation drifted silently, which
+is the state section 3.2.1 was written in 2026-09-23 to end and did not.
+
+**An identifier is now six digits and positional.**
+
+```
+1 L M C NN
+```
+
+| Position | Carries | Values |
+|---|---|---|
+| 1, `D` | The **domain** | `1` functional and security quality, `2` performance, `3` networking and resilience, `4`-`9` unallocated |
+| 2, `L` | The layer | `1` UNI, `2` SYS, `3` EVAL, `4` TOOL, `5` SEC, `6`-`9` unallocated |
+| 3, `M` | The module | `1` ING, `2` CMN, `3` EXE, `4` EVL, `5` CAS, `6`-`9` unallocated |
+| 4, `C` | The category within the module | `0`-`9`, a hundred slots each |
+| 5-6 | The case within its category | `00`-`99` |
+
+**Capacity: nine domains, nine layers, nine modules, ten categories, a hundred
+cases each.** Against a largest present category of 35 and a largest module of
+213, that is room for the expansion the previous scheme had already run out of.
+
+#### 3.2.1.0 The leading digit is a domain, so an unmeasured family does not compete for slots
+
+Added 2026-10-02 at the project owner's instruction. Everything this project
+measures today is one domain: whether the model answers correctly, follows
+instructions, and resists an attack. **Families nobody has measured yet are not
+more categories inside that domain**, and squeezing them into a category slot
+would be the hundred-slot mistake repeated one level up.
+
+| Domain | Covers | State |
+|---|---|---|
+| `1` | Functional and security quality. Every case that exists | In use |
+| `2` | **Performance**: latency against a budget, how it scales with output length, cost per unit of work | Reserved, unmeasured |
+| `3` | **Networking and resilience**: behaviour under timeout, retry, gateway failure and partial response | Reserved, unmeasured |
+| `4`-`9` | Unallocated | |
+
+**A domain is a programme, and a layer is a kind of check inside one.** The
+distinction decides which axis an addition takes: performance measured on a
+model is its own programme, with its own thresholds, its own cadence and its own
+idea of what a failure means, so it takes a domain. A new kind of check on what
+this project already measures takes one of the free **layer** digits instead,
+which is the extensibility the layer registry in section 3 already states.
+
+**Which axis an addition takes is decided when it is allocated**, not now.
+Recording the two reserved domains is not a commitment to measure them; it is a
+commitment not to spend their numbers on something else.
+
+**Positional rather than sequential**, because a reader seeing `112103` should
+be able to say what it is without a lookup: functional quality, a unit
+precondition, in `CMN`, category 1, case 3. The old scheme encoded the layer in the first digit and the
+module nowhere, which is why a module could silently occupy another's block.
+
+Within domain `1`:
 
 | Layer | `ING` | `CMN` | `EXE` | `EVL` | `CAS` |
 |---|---|---|---|---|---|
-| `UNI` | 10001-10099 | 10101-10199, then 11101-11199 | 10201-10299 | 10301-10399 | 10401-10499 |
-| `SYS` | 20001-20099 | 20301-20399 | 20101-20199 | 20201-20299 | 20401-20499 |
+| `UNI` | 111000-111999 | 112000-112999 | 113000-113999 | 114000-114999 | 115000-115999 |
+| `SYS` | 121000-121999 | 122000-122999 | 123000-123999 | 124000-124999 | 125000-125999 |
+| `EVAL` | 131000-131999 | 132000-132999 | 133000-133999 | 134000-134999 | 135000-135999 |
+| `TOOL` | 141000-141999 | 142000-142999 | 143000-143999 | 144000-144999 | 145000-145999 |
+| `SEC` | 151000-151999 | 152000-152999 | 153000-153999 | 154000-154999 | 155000-155999 |
+
+**Requirements remain four digits**, so the two registers stay distinguishable
+by width alone as section "Requirements And Test Cases Are Two Registers" in
+`testing-standards.md` requires. Four against six is a wider margin than four
+against five was.
+
+#### 3.2.1.1 A category is a subject, not a file
+
+A module's ten categories group its cases by what they are about. For most
+modules that is one test module per category; `CMN` has eighteen test modules
+against ten slots, so there the category is the subject they share.
+
+| `CMN`/`UNI` category | Subject | Test modules |
+|---|---|---|
+| `1120xx` | The verdict and its rules | `verdict`, `consistency`, `quarantine` |
+| `1121xx` | Invocation and the CLI | `cli`, `extensibility` |
+| `1122xx` | The result record | `metadata`, `reporting`, `pricing` |
+| `1123xx` | Governance and traceability | `governance`, `traceability`, `registries`, `model_coherence` |
+| `1124xx` | The dependency cascade | `dependency` |
+| `1125xx` | Project standards | `file_standards`, `credentials`, `branch_policy` |
+| `1126xx` | Judge resolution | `judge_selection`, `judgement_replay` |
+| `1127xx`-`1129xx` | Unallocated | |
+
+**Grouped by subject rather than split by file count**, because a category a
+reader cannot name is a category nobody will allocate from correctly. The
+grouping follows the design sections these cases are inventoried under, which
+is the division the documents already make.
+
+#### 3.2.1.2 The renumber rebinds every identifier, and the mapping is recorded
+
+Section 3.2 says an identifier is assigned once and never reused, so that
+downstream history never silently rebinds an identifier to different
+behaviour. **This change rebinds all 669 of them**, and the rule is amended
+rather than quietly broken:
+
+* **The rebinding is total.** Every five-digit identifier maps to exactly one
+  six-digit identifier and no six-digit identifier is reached from two, so
+  nothing is reused and nothing is ambiguous.
+* **The mapping is recorded** in `docs/testing/identifier_map.csv` and is
+  therefore invertible. History carrying a five-digit identifier stays readable
+  by looking it up, which is the property the never-reuse rule exists to
+  protect, and is more than a silent renumber would have left.
+* **It happens once.** The scheme it moves to has the capacity the previous one
+  lacked, which is what makes a second renumber avoidable rather than merely
+  unplanned.
+
+**The patterns are widened before anything is renamed.** Eighteen places across
+both repositories match an identifier with a five-digit pattern, including both
+`.pylintrc` files and ten regexes that parse inventory rows. Each accepts five
+or six digits first, so every check still works on the old identifiers and on
+the new ones, and only then are the identifiers changed.
+
+**The order matters because a narrow pattern fails silently.** The consumer's
+`_BACKTICKED_ID` matches a five-digit number in backticks; against six-digit
+identifiers it matches nothing and the check that uses it reports no problems
+because it found no identifiers. That is the failure this project has recorded
+repeatedly, and the near-miss in `testing-standards.md` under "Requirements And
+Test Cases Are Two Registers" was the same operation: a rename widening
+requirement numbers matched the leading digits of every case identifier and was
+stopped by a lookahead added late.
 
 #### 3.2.2 `CAS` is a module in another repository, and shares this registry
 

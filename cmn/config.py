@@ -708,6 +708,60 @@ class HarnessConfig:
         return frozenset(pair.key for pair in self.unsupported)
 
 
+def unrostered_adapters(path: Path, registered: Iterable[str], as_of: date) -> list[str]:
+    """Report every registered adapter that can neither run nor explain itself.
+
+    An adapter absent from the roster cannot be selected. That is permitted
+    while it is recorded under ``not_rostered`` with a reason and an expiry,
+    and reported once the entry is missing or has lapsed.
+
+    **The expiry is the point.** A list with no expiry is where an adapter goes
+    to be forgotten, which is the reasoning ``flag_coverage.yaml`` already
+    carries for flags.
+
+    Design: ``extensibility_standard.md`` section 3.4.
+
+    Args:
+        path (Path): The engine roster file.
+        registered (Iterable[str]): Every engine name an adapter claims.
+        as_of (date): The date expiries are judged against, injected so a case
+            can sit on the boundary without waiting for a calendar.
+
+    Returns:
+        list[str]: One entry per problem. Empty when every registered adapter
+        is rostered or currently excused.
+    """
+    loaded = load_yaml_config(path)
+    rostered = set(loaded.get("engines") or {})
+    declared = loaded.get("not_rostered") or {}
+
+    problems: list[str] = []
+    for engine in sorted(set(registered)):
+        if engine in rostered:
+            continue
+        entry = declared.get(engine)
+        if not entry:
+            problems.append(
+                f"{engine} registers an adapter and is absent from the roster "
+                f"in {path.name}, so it cannot be selected and nothing records "
+                f"why"
+            )
+            continue
+        if not str(entry.get("reason") or "").strip():
+            problems.append(f"{engine} is excused from the roster with no reason")
+        expires = entry.get("expires_on")
+        if not isinstance(expires, date):
+            problems.append(
+                f"{engine} is excused from the roster with no expiry date, and "
+                f"an absence that never lapses is an adapter nobody will revisit"
+            )
+        elif expires < as_of:
+            problems.append(
+                f"{engine} has been excused from the roster since "
+                f"{expires.isoformat()}, which has passed"
+            )
+    return problems
+
 def load_harness_config(config_dir: Optional[Path] = None) -> HarnessConfig:
     """Load all three configuration files from one directory.
 

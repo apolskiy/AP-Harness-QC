@@ -850,3 +850,68 @@ class TestMQCRecordingEconomy:
             f"the connection journal was {journal}, so an attempt inherited "
             f"the connection state of the one before it"
         )
+
+
+class TestMQCRetainedRequest:
+    """The call a finding is filed from, kept where the outcome is."""
+
+    def MQC_EXE_UNI_10310_an_outcome_carries_the_request_that_produced_it(
+        self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path
+    ) -> None:
+        """Every dispatch outcome carries the composed request.
+
+        A finding is filed with the provider, and a ticket needs the exact
+        call rather than a description of it. The request was hashed for the
+        fixture store and discarded with the context that held it.
+
+        **On every outcome, not only a failing one.** A case's verdict is not
+        known while its observations are being taken, and the passing
+        observations of a failing case are what its report needs.
+
+        **Including an outcome that measured nothing**, because a harness event
+        is the case where knowing what was sent matters most.
+
+        Design: ``tier2_execution.md`` section 7.8.
+
+        Args:
+            minimal_case (Any): The case to dispatch.
+            session (DispatchSession): The run's session.
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        plan = _plan(tmp_path, mode="replay")
+        adapter = ClaudeAdapter()
+        composed = adapter.compose_request(minimal_case)
+        stored = adapter.normalize_response(claude_response(), minimal_case.case_id)
+        record_fixture(
+            tmp_path,
+            FixtureKey(minimal_case.case_id, "claude", 0),
+            hash_request(composed),
+            stored.as_mapping(),
+            stored.resolved_model,
+        )
+
+        replayed = dispatch_case(minimal_case, "claude", plan, session, 0)
+
+        assert replayed.measured
+        assert replayed.request == composed, (
+            "a measured outcome carries no request, so a finding cannot be "
+            "filed from the artifact without reconstructing the call by hand"
+        )
+
+        # AND WHEN NOTHING WAS MEASURED. Observation 1 has no fixture, so this
+        # is the missing-fixture path, which is a harness event.
+        unmeasured = dispatch_case(minimal_case, "claude", plan, session, 1)
+
+        assert not unmeasured.measured
+        assert unmeasured.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING"
+        assert unmeasured.request == composed, (
+            "an outcome that measured nothing carries no request, which is the "
+            "case where what was sent matters most"
+        )
+
+        # THE REQUEST IS SERIALIZABLE, which `hash_request` already requires: a
+        # provider object here would have escaped the adapter.
+        assert hash_request(replayed.request) == hash_request(composed)

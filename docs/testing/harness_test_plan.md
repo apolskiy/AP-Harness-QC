@@ -357,6 +357,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0091` | The harness ships its own configuration inside the distribution and exposes where it landed, so a consumer reads the roster from the installed package rather than from an adjacent checkout | cmn_verdict_and_cli.md section 10.37 |
 | `MQC_REQ_HAR_EVL_0040` | An injection vector matches text directed at the grader and not text that reports a score, so a response answering a scoring task is evaluated rather than aborted | tier3_evaluation.md section 5B.5 |
 | `MQC_REQ_HAR_EXE_0082` | A live judged run with --fill-gaps replays a judgement that loads cleanly and asks the judge only where none is recorded or the stored one is stale | tier2_execution.md section 7.10.3 |
+| `MQC_REQ_HAR_EXE_0083` | A dispatch outcome carries the composed request that produced it, so the exact call is recoverable after the fact | tier2_execution.md section 7.8 |
 | `MQC_REQ_HAR_CMN_0092` | Every registered execution flag is named by at least one case, or is a declared coverage gap carrying a reason and an expiry that fails the run once it lapses | cmn_verdict_and_cli.md section 7.1.0 |
 | `MQC_REQ_HAR_CMN_0093` | A run selects the priority bands named by --priority and no others, refuses a malformed band rather than selecting everything, and carries the foundations a band rests on only when --with-prerequisites asks for them | cmn_verdict_and_cli.md sections 7.5 and 7.5.1 |
 | `MQC_REQ_HAR_CMN_0094` | Base outcomes established by one band execution are carried to the next without re-running the cases, so a dependent resolves against a foundation it did not collect and still skips when that foundation did not hold | cmn_verdict_and_cli.md section 7.6 |
@@ -372,6 +373,9 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0104` | Quarantine is read per engine and an absent file is an empty quarantine, so the default state needs no file and a run whose engine has none does no expiry work | cmn_verdict_and_cli.md section 4.6.3 |
 | `MQC_REQ_HAR_CMN_0105` | The quarantine entries a run consulted are recorded in its metadata by hash, so a stored pass rate can be read against the exclusions that produced it | cmn_verdict_and_cli.md section 4.6.6 |
 | `MQC_REQ_HAR_CMN_0106` | Re-observing a quarantined case decides its entry as a pure function of what was observed: a case that passed throughout loses its entry, one that failed is re-stamped with the date and model, and one that was not observed is left alone and reported | cmn_verdict_and_cli.md section 4.6.10 |
+| `MQC_REQ_HAR_CMN_0108` | A failing case attaches every call it made in observation order, each with its request, response, outcome and served model, credential redacted, so a finding is filed with the provider from the artifact rather than from a run somebody watched | cmn_verdict_and_cli.md section 5.3 |
+| `MQC_REQ_HAR_CMN_0109` | Every registered provider adapter is either named on the engine roster or carries a dated, reasoned absence, so an adapter cannot ship unselectable without a word | extensibility_standard.md section 3.4 |
+| `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---
 

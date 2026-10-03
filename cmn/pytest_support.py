@@ -310,7 +310,7 @@ _CARRIED: set[str] = set()
 _UNMET: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
 
 # Identifiers look like MQC_<MODULE>_<LAYER>_<5 digits>_<behaviour>.
-_IDENTIFIER = re.compile(r"MQC_[A-Z]+_[A-Z]{3,5}_(\d{5})_")
+_IDENTIFIER = re.compile(r"MQC_[A-Z]+_[A-Z]{3,5}_(\d{5,6})_")
 
 
 def case_identifier(name: str) -> Optional[str]:

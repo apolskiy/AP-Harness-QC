@@ -88,6 +88,12 @@ class DispatchOutcome:
         attempts (int): Requests issued, so a retried case is visible.
         rate_limit_encounters (int): Counted rather than absorbed by retry.
         response (Optional[NormalizedResponse]): Absent exactly when skipped.
+        request (Optional[dict]): The composed request that produced it,
+            retained so a finding can be filed with the provider from the
+            artifact. **On every outcome, not only a failing one**: a
+            case's verdict is not known while its observations are being
+            taken, and the passing ones are what its report needs
+            (design section 7.8).
         taxonomy_code (Optional[str]): Present exactly when skipped.
     """
 
@@ -100,6 +106,7 @@ class DispatchOutcome:
     rate_limit_encounters: int
     response: Optional[NormalizedResponse] = None
     taxonomy_code: Optional[str] = None
+    request: Optional[dict[str, Any]] = None
 
     def __post_init__(self) -> None:
         """Refuse an outcome that is both a measurement and a skip, or neither.
@@ -546,7 +553,7 @@ def _replay_case(context: _CaseContext) -> DispatchOutcome:
         return DispatchOutcome(
             case_id=case_id, engine=engine, mode="replay", duration_ms=0,
             duration_kind="measured", attempts=0, rate_limit_encounters=0,
-            taxonomy_code=code,
+            taxonomy_code=code, request=context.request,
         )
 
     replayed = NormalizedResponse.from_mapping(stored.response).replace(
@@ -555,7 +562,7 @@ def _replay_case(context: _CaseContext) -> DispatchOutcome:
     return DispatchOutcome(
         case_id=case_id, engine=engine, mode="replay",
         duration_ms=replayed.duration_ms, duration_kind="measured", attempts=0,
-        rate_limit_encounters=0, response=replayed,
+        rate_limit_encounters=0, response=replayed, request=context.request,
     )
 
 
@@ -687,6 +694,7 @@ def _measured(
         attempts=tally.attempts,
         rate_limit_encounters=tally.rate_limits,
         response=response,
+        request=context.request,
     )
 
 
@@ -720,6 +728,7 @@ def _skip(
         attempts=tally.attempts,
         rate_limit_encounters=tally.rate_limits,
         taxonomy_code=tally.code,
+        request=context.request,
     )
 
 

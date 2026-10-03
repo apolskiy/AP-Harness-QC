@@ -347,7 +347,7 @@ def _shipped_cases() -> set[str]:
         set[str]: The identifiers, read from parsed function definitions so a
         name inside a string literal is data rather than a case.
     """
-    pattern = re.compile(r"^MQC_[A-Z]+_[A-Z]{3,5}_\d{5}_[a-z0-9_]+$")
+    pattern = re.compile(r"^MQC_[A-Z]+_[A-Z]{3,5}_\d{5,6}_[a-z0-9_]+$")
     found: set[str] = set()
     for root in _repository_roots():
         for source in (root / "tests").rglob("*.py"):

@@ -19,10 +19,12 @@ A failure here is our defect, so the module carries no priority marker, per
 """
 
 from datetime import date
+from pathlib import Path
 from typing import Any, Iterator
 
 import pytest
 
+from cmn.config import unrostered_adapters
 from cmn.demotion import DemotionCandidate, count_demoted, demotion_order, exceeds_ceiling
 from cmn.layers import (
     LayerProperties,
@@ -43,8 +45,13 @@ from cmn.verdict import (
     unregister_verdict_rule,
     verdict,
 )
+from execution.adapters.registry import registered_engines
 
 pytestmark = pytest.mark.unit
+
+# The date the roster's declared absences are judged against. Injected
+# rather than read from the clock, so a lapse is testable at its boundary.
+_AS_OF = date(2026, 10, 2)
 
 _TODAY = date(2026, 9, 23)
 
@@ -316,3 +323,88 @@ class TestMQCDemotionOrdering:
         assert exceeds_ceiling(overclaimed) is True
         assert exceeds_ceiling(unmatched) is True
         assert exceeds_ceiling(legitimate) is False
+
+
+class TestMQCEngineExpansion:
+    """Adding an evaluated engine is declarative, and every step is checked."""
+
+    def MQC_CMN_UNI_11222_a_registered_adapter_off_the_roster_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A registered adapter is rostered or carries a dated reason.
+
+        An adapter absent from the roster cannot be selected. That is allowed
+        while it is recorded under ``not_rostered`` with a reason and an
+        expiry, and reported once the record is missing or has lapsed.
+
+        **The shipped roster is included**, because the gap this covers was
+        real: ``grok`` registered, declared its credential variable, and was
+        absent from the roster, so the engine could not be selected and nothing
+        said so.
+
+        Design: ``extensibility_standard.md`` section 3.4.
+
+        Args:
+            tmp_path (Path): For the negative controls.
+
+        Returns:
+            None
+        """
+        shipped = Path(__file__).resolve().parents[2] / "config" / "engines.yaml"
+        registered = sorted(registered_engines())
+
+        assert "grok" in registered, (
+            "this case reads the shipped adapters and found no grok, so it is "
+            "no longer exercising the gap it was written for"
+        )
+        assert not unrostered_adapters(shipped, registered, _AS_OF), (
+            "a registered adapter can neither run nor explain itself: "
+            + "; ".join(unrostered_adapters(shipped, registered, _AS_OF))
+        )
+
+        # AN ADAPTER NOBODY DECLARED AT ALL, which is what shipping one and
+        # forgetting the roster entry looks like.
+        roster = tmp_path / "engines.yaml"
+        roster.write_text(
+            "engines:\n  gemini:\n    model: gemini-3.8-flash\n", encoding="utf-8"
+        )
+        problems = unrostered_adapters(roster, ["gemini", "mistral"], _AS_OF)
+
+        assert len(problems) == 1
+        assert "mistral" in problems[0]
+        assert "nothing records why" in problems[0]
+
+        # AN ABSENCE THAT NEVER LAPSES, which is where an adapter goes to be
+        # forgotten. The reason alone does not excuse it.
+        roster.write_text(
+            "engines:\n  gemini:\n    model: gemini-3.8-flash\n"
+            "not_rostered:\n  mistral:\n    reason: no fixtures recorded\n",
+            encoding="utf-8",
+        )
+        problems = unrostered_adapters(roster, ["gemini", "mistral"], _AS_OF)
+
+        assert len(problems) == 1
+        assert "no expiry date" in problems[0]
+
+        # AND ONE THAT HAS LAPSED, measured against the injected date rather
+        # than the clock so the boundary is testable.
+        roster.write_text(
+            "engines:\n  gemini:\n    model: gemini-3.8-flash\n"
+            "not_rostered:\n  mistral:\n    reason: no fixtures recorded\n"
+            "    expires_on: 2026-09-30\n",
+            encoding="utf-8",
+        )
+        problems = unrostered_adapters(roster, ["gemini", "mistral"], _AS_OF)
+
+        assert len(problems) == 1
+        assert "has passed" in problems[0]
+
+        # A CURRENT EXCUSE REPORTS NOTHING, which is what makes the check a
+        # record of decisions rather than a prohibition on shipping an adapter.
+        roster.write_text(
+            "engines:\n  gemini:\n    model: gemini-3.8-flash\n"
+            "not_rostered:\n  mistral:\n    reason: no fixtures recorded\n"
+            "    expires_on: 2026-11-30\n",
+            encoding="utf-8",
+        )
+        assert not unrostered_adapters(roster, ["gemini", "mistral"], _AS_OF)

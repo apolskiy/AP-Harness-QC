@@ -73,3 +73,23 @@ judge:
   # judge registers as a version change and dispatches a live run, because a
   # different judge is a different instrument.
   model: gemini-3.8-flash
+
+# ADAPTERS THAT SHIP AND ARE DELIBERATELY NOT SELECTABLE. A registered adapter
+# absent from the roster above cannot be selected, and before this existed
+# nothing said so: `grok` registered, declared XAI_API_KEY, and `--engine grok`
+# was refused as absent from a roster it was never added to.
+#
+# A SIBLING OF `engines:`, NOT AN ENTRY IN IT. `load_engines` refuses an entry
+# naming no model, and a declared absence is not an engine.
+#
+# AN ENTRY CARRIES A REASON AND AN EXPIRY, exactly as `flag_coverage.yaml` does,
+# because a list with no expiry is where unproven things go to be forgotten.
+# `extensibility_standard.md` section 3.4.
+not_rostered:
+  grok:
+    reason: >-
+      The adapter and its conformance cases ship. No fixtures are recorded, no
+      credential is held and the model is unpriced, so a roster entry would
+      turn a declared gap into a run that refuses at preflight and reads as a
+      broken harness rather than as work not done.
+    expires_on: 2026-11-30

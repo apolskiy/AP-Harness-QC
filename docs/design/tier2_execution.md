@@ -1016,6 +1016,29 @@ The objective is evaluation, never load-testing a provider. On a free tier, paci
 
 **Replay mode applies no spacing** and consumes no quota, which is why the deterministic gates run identically on a pull request and on a schedule.
 
+
+#### 7.8 The outcome carries the call that produced it
+
+Added 2026-10-02. `_CaseContext.request` is the composed request, hashed for the
+fixture store and discarded with the context.
+
+`DispatchOutcome` now carries it, because **a finding is filed with the
+provider** and a ticket needs the exact call rather than a description of it
+(`cmn_verdict_and_cli.md` section 5.3).
+
+**Retained on every outcome, attached only for a failing case.** A case's
+verdict is not known while its observations are being taken, and the passing
+observations of a failing case are exactly the ones its report needs, so a
+record kept only on a failing call could not produce them. The request is
+already in memory and the field is a reference, so retaining it costs nothing;
+what costs artifact size is the attachment.
+
+**It is serializable by construction.** `hash_request` already refuses a
+request carrying a provider object, with the reasoning that such an object
+should have stopped at the adapter, so what reaches this field is a structure a
+report can carry.
+
+
 ### 8.1 What a dispatch returns
 
 A dispatch produces an outcome rather than a response, because a skipped case is a result the run has to carry forward and an exception is not.
@@ -1648,6 +1671,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `10307` | N | `each_observation_records_its_own_judgement` |
 | `10308` | N | `fill_gaps_judges_only_what_is_not_recorded` |
 | `10309` | P | `a_claude_refusal_is_recorded_as_a_block` |
+| `10310` | P | `an_outcome_carries_the_request_that_produced_it` |
 | `10271` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
@@ -1664,7 +1688,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 114 cases, 47 negative, 58 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 115 cases, 47 negative, 59 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 
