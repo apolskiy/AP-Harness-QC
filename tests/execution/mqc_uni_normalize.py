@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the canonical shapes Tier 3 receives.
 
-Covers `MQC_EXE_UNI_10204` through `10213` and `10218`, inventoried in
+Covers `MQC_EXE_UNI_113400` through `113407` and `113408`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.
 
 **These shapes are the whole boundary.** A vendor object reaching Tier 3 would
@@ -57,7 +57,7 @@ def _response(**overrides: object) -> NormalizedResponse:
 class TestMQCToolCallShape:
     """Tool-call intent, captured in one shape whatever the provider sent."""
 
-    def MQC_EXE_UNI_10205_parses_tool_arguments_supplied_as_json_string(self) -> None:
+    def MQC_EXE_UNI_113401_parses_tool_arguments_supplied_as_json_string(self) -> None:
         """A provider sending arguments as text must not leak that upward.
 
         Returns:
@@ -67,7 +67,7 @@ class TestMQCToolCallShape:
         assert call.arguments == {"query": "grounding"}
         assert isinstance(call.arguments, dict)
 
-    def MQC_EXE_UNI_10206_parses_tool_arguments_supplied_as_object(self) -> None:
+    def MQC_EXE_UNI_113402_parses_tool_arguments_supplied_as_object(self) -> None:
         """A provider sending a mapping produces the identical shape.
 
         The two cases exist as a pair deliberately: the point is not that each
@@ -81,7 +81,7 @@ class TestMQCToolCallShape:
         assert from_text == from_object
 
     @pytest.mark.parametrize("supplied", ["{not json", '"a string"', "[1, 2]", "42"])
-    def MQC_EXE_UNI_10207_malformed_tool_arguments_map_to_model_finding_not_harness(
+    def MQC_EXE_UNI_113403_malformed_tool_arguments_map_to_model_finding_not_harness(
         self, supplied: Any
     ) -> None:
         """The provider transported correctly; the model emitted bad JSON.
@@ -99,7 +99,7 @@ class TestMQCToolCallShape:
         with pytest.raises(ValueError, match="QC_LLM_SCHEMA_VIOLATION"):
             ToolCall.from_provider("search", supplied, sequence=0)
 
-    def MQC_EXE_UNI_10210_preserves_tool_call_sequence_order(self) -> None:
+    def MQC_EXE_UNI_113405_preserves_tool_call_sequence_order(self) -> None:
         """Order within the response is carried, not inferred later.
 
         Returns:
@@ -114,7 +114,7 @@ class TestMQCToolCallShape:
             "search", "fetch", "summarise"
         ]
 
-    def MQC_EXE_UNI_10242_call_id_is_optional_because_providers_differ(self) -> None:
+    def MQC_EXE_UNI_113409_call_id_is_optional_because_providers_differ(self) -> None:
         """An absent provider identifier stays absent rather than inventing one.
 
         Returns:
@@ -127,7 +127,7 @@ class TestMQCToolCallShape:
 class TestMQCNormalizedResponseShape:
     """The one record that crosses into Tier 3."""
 
-    def MQC_EXE_UNI_10204_rejects_response_missing_required_canonical_field(self) -> None:
+    def MQC_EXE_UNI_113400_rejects_response_missing_required_canonical_field(self) -> None:
         """A record Tier 3 could not interpret is refused on construction.
 
         Validation lives on the record rather than at the boundary because
@@ -146,7 +146,7 @@ class TestMQCNormalizedResponseShape:
             NormalizedResponse(**incomplete)
 
     @pytest.mark.parametrize("mode", ["cached", "dry-run", "", "LIVE"])
-    def MQC_EXE_UNI_10243_mode_outside_the_registered_set_is_rejected(self, mode: str) -> None:
+    def MQC_EXE_UNI_113410_mode_outside_the_registered_set_is_rejected(self, mode: str) -> None:
         """A replayed result must never be mistaken for an observation (A6).
 
         Args:
@@ -158,7 +158,7 @@ class TestMQCNormalizedResponseShape:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             _response(mode=mode)
 
-    def MQC_EXE_UNI_10244_finish_reason_outside_the_registered_set_is_rejected(self) -> None:
+    def MQC_EXE_UNI_113411_finish_reason_outside_the_registered_set_is_rejected(self) -> None:
         """Providers spell one outcome differently, so the set is closed.
 
         Leaving the vocabulary open would make a downstream comparison of
@@ -172,7 +172,7 @@ class TestMQCNormalizedResponseShape:
         assert registered_finish_reasons() >= {"stop", "length", "tool_calls"}
         assert registered_execution_modes() == {"live", "replay"}
 
-    def MQC_EXE_UNI_10209_returns_empty_tool_call_list_when_none_present(self) -> None:
+    def MQC_EXE_UNI_113404_returns_empty_tool_call_list_when_none_present(self) -> None:
         """No tool calls is an empty list, never absent or null.
 
         Returns:
@@ -180,7 +180,7 @@ class TestMQCNormalizedResponseShape:
         """
         assert not _response().tool_calls
 
-    def MQC_EXE_UNI_10211_records_resolved_model_version_not_requested(self) -> None:
+    def MQC_EXE_UNI_113406_records_resolved_model_version_not_requested(self) -> None:
         """Both are carried, and the resolved one is what a score attaches to.
 
         Returns:
@@ -192,7 +192,7 @@ class TestMQCNormalizedResponseShape:
         assert response.requested_model == "gemini-flash-latest"
         assert response.resolved_model == "gemini-flash-002"
 
-    def MQC_EXE_UNI_10213_records_both_when_resolved_differs_from_requested(self) -> None:
+    def MQC_EXE_UNI_113407_records_both_when_resolved_differs_from_requested(self) -> None:
         """A floated alias is the signal, not an error.
 
         Aliases move, and a score change across a run where this is true has an
@@ -206,7 +206,7 @@ class TestMQCNormalizedResponseShape:
         ).model_alias_floated is True
         assert _response().model_alias_floated is False
 
-    def MQC_EXE_UNI_10218_no_vendor_type_appears_in_normalized_output(self) -> None:
+    def MQC_EXE_UNI_113408_no_vendor_type_appears_in_normalized_output(self) -> None:
         """Every field is a built-in type or a record this module defines.
 
         Asserted structurally rather than by inspecting one adapter's output,
@@ -225,7 +225,7 @@ class TestMQCNormalizedResponseShape:
             if isinstance(value, list):
                 assert all(type(entry) in permitted for entry in value)
 
-    def MQC_EXE_UNI_10245_raw_reference_is_a_pointer_not_a_payload(self) -> None:
+    def MQC_EXE_UNI_113412_raw_reference_is_a_pointer_not_a_payload(self) -> None:
         """Carrying the vendor object forward would defeat the boundary.
 
         Discarding it entirely would make a normalization defect

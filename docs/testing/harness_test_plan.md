@@ -59,7 +59,7 @@ and a retired one stays retired, so a register's usable space is well below its
 nominal ceiling: `MQC_HAR_EXE` has used 25 numbers and consumed 53 of its
 range.
 
-`MQC_CMN_UNI_11159` reports a register crossing **80% of its ceiling**, so the
+`MQC_CMN_UNI_112317` reports a register crossing **80% of its ceiling**, so the
 decision to widen again arrives with notice rather than as a blockage. That is
 the same warning band the branch staleness rule uses, for the same reason: a
 limit that goes from silent to blocking is repaired by whatever is quickest,
@@ -72,7 +72,7 @@ and here the quickest repair is a mixed-width register.
 
 Added 2026-09-24. **The two registers must not share a namespace**, and until
 now they did: `MQC_CAS_` prefixed both this repository's requirements
-(`MQC_CAS_CI_0019`) and its test cases (`MQC_CAS_UNI_10428`), distinguished
+(`MQC_CAS_CI_0019`) and its test cases (`MQC_CAS_UNI_115005`), distinguished
 only by the third token.
 
 Nothing collided, because the widths differ. **The hazard was the pattern, not
@@ -96,10 +96,10 @@ repository's **module code** and a module code cannot also be a register.
 **`CON` was the obvious token and is refused**, being a Windows reserved device
 name. This project already screens identifiers for those, since an identifier
 that becomes a directory cannot be `CON`, `PRN`, `AUX` or `NUL`
-(`MQC_ING_UNI_10048`). A register token chosen without that check would have
+(`MQC_ING_UNI_111325`). A register token chosen without that check would have
 been the second time the same rule was learned.
 
-**`MQC_CMN_UNI_11160` enforces the disjointness**, so the next register is
+**`MQC_CMN_UNI_112318` enforces the disjointness**, so the next register is
 added deliberately rather than discovered to collide.
 
 
@@ -110,20 +110,20 @@ marker does its work. A real excerpt, abridged to two columns:
 
 | `requirement_id` | `test_ids` |
 |---|---|
-| `MQC_REQ_HAR_CMN_0001` | `MQC_CMN_UNI_10113_expiry_boundary_evaluated_against_injected_date`; `MQC_CMN_UNI_10125_verdict_is_pure_for_identical_input`; `MQC_CMN_UNI_10126_verdict_does_not_read_system_clock` |
-| `MQC_REQ_HAR_CMN_0060` | `MQC_CMN_UNI_11149_a_broken_graded_observation_blocks_and_exits_three` |
-| `MQC_REQ_CAS_CI_0019` | `MQC_CAS_UNI_10447_a_graded_evaluation_rule_without_a_rubric_is_reported` |
-| `MQC_REQ_MDL_SEC_0005` | `MQC_EVL_SEC_50005_resists_base64_obfuscated_override`; `MQC_EVL_SEC_50006_resists_zero_width_obfuscated_override`; `MQC_EVL_SEC_50007_resists_homoglyph_obfuscated_override` |
+| `MQC_REQ_HAR_CMN_0001` | `MQC_CMN_UNI_112012_expiry_boundary_evaluated_against_injected_date`; `MQC_CMN_UNI_112024_verdict_is_pure_for_identical_input`; `MQC_CMN_UNI_112025_verdict_does_not_read_system_clock` |
+| `MQC_REQ_HAR_CMN_0060` | `MQC_CMN_UNI_112030_a_broken_graded_observation_blocks_and_exits_three` |
+| `MQC_REQ_CAS_CI_0019` | `MQC_CAS_UNI_115010_a_graded_evaluation_rule_without_a_rubric_is_reported` |
+| `MQC_REQ_MDL_SEC_0005` | `MQC_EVL_SEC_154104_resists_base64_obfuscated_override`; `MQC_EVL_SEC_154105_resists_zero_width_obfuscated_override`; `MQC_EVL_SEC_154106_resists_homoglyph_obfuscated_override` |
 
 **The first and last rows are the shape that matters.** One requirement, three
 cases each, and the reason the two registers cannot share a numbering:
-`MQC_REQ_MDL_SEC_0005` is one claim about the model, and `50005` through
-`50007` are three different ways of testing it. A register that numbered them
+`MQC_REQ_MDL_SEC_0005` is one claim about the model, and `154104` through
+`154106` are three different ways of testing it. A register that numbered them
 together would suggest a correspondence that does not exist.
 
 **These rows are copied from the shipped matrices**, and one of them was
 invented when this section was first written. Verifying it against the real
-file is what found that, which is the same reason `MQC_CMN_UNI_11131` compares
+file is what found that, which is the same reason `MQC_CMN_UNI_112229` compares
 the plan and the matrix in both directions rather than trusting either.
 
 **Read the first token after `MQC_`.** `REQ` means the left column, and
@@ -375,13 +375,14 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0106` | Re-observing a quarantined case decides its entry as a pure function of what was observed: a case that passed throughout loses its entry, one that failed is re-stamped with the date and model, and one that was not observed is left alone and reported | cmn_verdict_and_cli.md section 4.6.10 |
 | `MQC_REQ_HAR_CMN_0108` | A failing case attaches every call it made in observation order, each with its request, response, outcome and served model, credential redacted, so a finding is filed with the provider from the artifact rather than from a run somebody watched | cmn_verdict_and_cli.md section 5.3 |
 | `MQC_REQ_HAR_CMN_0109` | Every registered provider adapter is either named on the engine roster or carries a dated, reasoned absence, so an adapter cannot ship unselectable without a word | extensibility_standard.md section 3.4 |
+| `MQC_REQ_HAR_CMN_0110` | Every collected case identifier carries six digits whose layer and module positions agree with its tokens, so a module cannot occupy another's block without being reported | test_taxonomy.md section 3.2.1.4 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---
 
 ## 4. Coverage
 
-`docs/testing/rtm_harness.csv` maps each requirement above to the precondition cases covering it, and is verified in both directions by `MQC_CMN_UNI_10132` through `10134`.
+`docs/testing/rtm_harness.csv` maps each requirement above to the precondition cases covering it, and is verified in both directions by `MQC_CMN_UNI_112300` through `112302`.
 
 **A requirement with no case is a coverage gap**, and the matrix reports it rather than leaving it to be noticed.
 

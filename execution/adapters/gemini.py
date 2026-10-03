@@ -207,7 +207,7 @@ class GeminiAdapter(ConfiguredAdapter):
         """Return the provider's reason for refusing, at either stage.
 
         **Zero candidates is the shape of a prompt-stage block here**, not a
-        candidate carrying empty content. `50015` was reported as a model failure
+        candidate carrying empty content. `154002` was reported as a model failure
         for three runs because the harness saw an empty response while the reason
         sat unread in `prompt_feedback`.
 

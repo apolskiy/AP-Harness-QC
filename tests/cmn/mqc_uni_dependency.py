@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """A failing foundational case stops its dependents rather than failing them.
 
-Covers ``MQC_CMN_UNI_11153`` through ``11155``, inventoried in
+Covers ``MQC_CMN_UNI_112400`` through ``112402``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.28 and specified by
 ``framework-rules.md`` section 3.4.
 
@@ -10,7 +10,7 @@ Covers ``MQC_CMN_UNI_11153`` through ``11155``, inventoried in
 marker was registered, two tests carried it, and no hook read it, so the
 cascade the design promised did not exist.
 
-``11153`` runs a real pytest in a subprocess. The other two exercise the
+``112400`` runs a real pytest in a subprocess. The other two exercise the
 functions directly. **Both levels are needed**: the functions can be correct
 while nothing calls them, which is the defect this module exists because of.
 
@@ -68,7 +68,7 @@ class _Config:
 
         **Keyed by the flag as a user types it**, dashes included, so a case
         names the thing under test rather than the field it lands in. That is
-        also what `MQC_CMN_UNI_11193` looks for: a case exercising an option
+        also what `MQC_CMN_UNI_112522` looks for: a case exercising an option
         through its record alone leaves the flag ungreppable, and the flag is
         what a reader has.
 
@@ -312,7 +312,7 @@ markers =
 class TestMQCDependencyCascade:
     """The marker was registered and decorative for the whole project."""
 
-    def MQC_CMN_UNI_11153_a_dependent_of_a_failed_base_case_is_skipped_not_failed(
+    def MQC_CMN_UNI_112400_a_dependent_of_a_failed_base_case_is_skipped_not_failed(
         self, tmp_path: Path
     ) -> None:
         """Run a real pytest, because the functions can be right and unused.
@@ -357,7 +357,7 @@ class TestMQCDependencyCascade:
         assert "the dependent executed" not in output
         assert _UNMET in output, "the skip carried no taxonomy code"
 
-    def MQC_CMN_UNI_11166_a_base_case_skipped_in_setup_is_recorded_for_its_dependents(
+    def MQC_CMN_UNI_112404_a_base_case_skipped_in_setup_is_recorded_for_its_dependents(
         self, tmp_path: Path
     ) -> None:
         """A middle link that never ran must still record that it did not hold.
@@ -369,7 +369,7 @@ class TestMQCDependencyCascade:
         whose report carries `when == "setup"`, and the hook recorded only the
         call phase.
 
-        **Run as a real pytest**, for the same reason `11153` is: the
+        **Run as a real pytest**, for the same reason `112400` is: the
         recording function can be correct and the hook can not call it, which
         is precisely the shape of this defect.
 
@@ -419,7 +419,7 @@ class TestMQCDependencyCascade:
         assert "the last link executed" not in output
         assert _UNMET in output, "the skips carried no taxonomy code"
 
-    def MQC_CMN_UNI_11154_a_dependent_of_a_passing_base_case_runs_normally(
+    def MQC_CMN_UNI_112401_a_dependent_of_a_passing_base_case_runs_normally(
         self,
     ) -> None:
         """The cascade must not stop anything when the foundation held.
@@ -455,7 +455,7 @@ class TestMQCDependencyCascade:
                 _Item("MQC_CMN_UNI_90004_dependent", depends=("90003",))
             )
 
-    def MQC_CMN_UNI_11155_a_dependency_naming_no_collected_case_is_reported(
+    def MQC_CMN_UNI_112402_a_dependency_naming_no_collected_case_is_reported(
         self,
     ) -> None:
         """An unknown identifier is an error, never a silent pass.
@@ -496,12 +496,12 @@ class TestMQCDependencyCascade:
         # THE IDENTIFIER IS THE HANDLE, and it is read from the name rather
         # than from the behaviour suffix, which changes when a behaviour is
         # reworded.
-        assert case_identifier("MQC_EVL_SEC_50001_resists_direct_override") == "50001"
-        assert case_identifier("MQC_CAS_UNI_10428_anything") == "10428"
+        assert case_identifier("MQC_EVL_SEC_154100_resists_direct_override") == "154100"
+        assert case_identifier("MQC_CAS_UNI_115005_anything") == "115005"
         assert case_identifier("helper_function") is None
 
 
-    def MQC_CMN_UNI_11168_a_dependent_collected_before_its_base_is_reordered(
+    def MQC_CMN_UNI_112405_a_dependent_collected_before_its_base_is_reordered(
         self, tmp_path: Path
     ) -> None:
         """The suite shuffles on purpose, so the cascade cannot hope for order.
@@ -571,7 +571,7 @@ class TestMQCDependencyCascade:
 class TestMQCHomoglyphVector:
     """Confusable letters, which writing the security corpus found missing."""
 
-    def MQC_CMN_UNI_11156_a_mixed_script_word_is_a_homoglyph_and_one_script_is_not(
+    def MQC_CMN_UNI_112403_a_mixed_script_word_is_a_homoglyph_and_one_script_is_not(
         self,
     ) -> None:
         """The boundary is mixed script inside one word, named on both sides.
@@ -617,14 +617,14 @@ class TestMQCPriorityBands:
             list: Stand-in items.
         """
         return [
-            _Item("MQC_EVL_SEC_50001_blocking", priority=0),
-            _Item("MQC_EVL_EVAL_30015_foundation", priority=1, base=True),
-            _Item("MQC_EVL_EVAL_30016_rests_on_it", priority=2, depends=("30015",)),
-            _Item("MQC_EVL_EVAL_30040_informational", priority=4),
+            _Item("MQC_EVL_SEC_154100_blocking", priority=0),
+            _Item("MQC_EVL_EVAL_134205_foundation", priority=1, base=True),
+            _Item("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",)),
+            _Item("MQC_EVL_EVAL_134111_informational", priority=4),
             _Item("MQC_CMN_UNI_11001_precondition"),
         ]
 
-    def MQC_CMN_UNI_11194_a_band_selects_only_its_own_cases(self) -> None:
+    def MQC_CMN_UNI_112406_a_band_selects_only_its_own_cases(self) -> None:
         """The flag named a band and the run measured everything.
 
         `--priority` was in the registry, in the CLI table and quoted in
@@ -641,15 +641,15 @@ class TestMQCPriorityBands:
         select_priority_bands(config, items)
         kept = [item.name for item in items]
 
-        assert "MQC_EVL_SEC_50001_blocking" in kept
+        assert "MQC_EVL_SEC_154100_blocking" in kept
         # THE PRECONDITION SURVIVES. It carries no priority and establishes
         # that the corpus loads at all, so a band measured without it is
         # measured against something unchecked.
         assert "MQC_CMN_UNI_11001_precondition" in kept
-        assert "MQC_EVL_EVAL_30040_informational" not in kept
+        assert "MQC_EVL_EVAL_134111_informational" not in kept
         assert len(config.deselected) == 3
 
-    def MQC_CMN_UNI_11195_a_malformed_band_is_refused_not_ignored(self) -> None:
+    def MQC_CMN_UNI_112407_a_malformed_band_is_refused_not_ignored(self) -> None:
         """An unparseable band selecting everything is the original defect again.
 
         Returns:
@@ -662,7 +662,7 @@ class TestMQCPriorityBands:
             with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
                 selected_bands(malformed)
 
-    def MQC_CMN_UNI_11196_a_band_takes_its_foundations_only_when_asked(self) -> None:
+    def MQC_CMN_UNI_112408_a_band_takes_its_foundations_only_when_asked(self) -> None:
         """Re-running a foundation the previous band just ran is waste.
 
         The cascade crosses bands: a P2 case depends on a P1 case, which is
@@ -687,8 +687,8 @@ class TestMQCPriorityBands:
         )
         kept = [item.name for item in asked]
 
-        assert "MQC_EVL_EVAL_30016_rests_on_it" in kept
-        assert "MQC_EVL_EVAL_30015_foundation" in kept, (
+        assert "MQC_EVL_EVAL_134000_rests_on_it" in kept
+        assert "MQC_EVL_EVAL_134205_foundation" in kept, (
             "the band dropped the foundation it rests on, so the suite cannot "
             "resolve and the band cannot run alone"
         )
@@ -719,7 +719,7 @@ class TestMQCCarriedPrerequisites:
         fields.update(overrides)
         return Provenance(**fields)
 
-    def MQC_CMN_UNI_11197_a_carried_foundation_is_not_run_again(
+    def MQC_CMN_UNI_112409_a_carried_foundation_is_not_run_again(
         self, tmp_path: Path
     ) -> None:
         """A P2 band re-ran the P1 case the previous band had just reported.
@@ -739,7 +739,7 @@ class TestMQCCarriedPrerequisites:
         """
         record = tmp_path / "reports" / "base_outcomes.json"
         reset_dependency_state()
-        write_outcomes(record, self._provenance(), {"30015": True, "30019": False})
+        write_outcomes(record, self._provenance(), {"134205": True, "134400": False})
 
         reset_dependency_state()
         carried = read_outcomes(record, self._provenance(band="2"))
@@ -747,19 +747,19 @@ class TestMQCCarriedPrerequisites:
 
         # THE DEPENDENT IS RESOLVABLE WITHOUT COLLECTING ITS BASE, which is
         # what lets a band run without the one before it.
-        dependent = _Item("MQC_EVL_EVAL_30016_rests_on_it", priority=2, depends=("30015",))
+        dependent = _Item("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",))
         assert unknown_dependencies([dependent]) == []
-        assert "30015" in carried_identifiers()
+        assert "134205" in carried_identifiers()
 
         # AND A FOUNDATION THAT DID NOT HOLD STILL GATES. Treating an absent
         # base as non-gating would let a case report a measurement that
         # presupposes something known to be false.
-        failing = _Item("MQC_EVL_EVAL_30020_rests_on_a_failure", priority=2, depends=("30019",))
+        failing = _Item("MQC_EVL_EVAL_134401_rests_on_a_failure", priority=2, depends=("134400",))
         with pytest.raises(pytest.skip.Exception, match=_UNMET):
             enforce_dependencies(failing)
         reset_dependency_state()
 
-    def MQC_CMN_UNI_11198_a_record_whose_provenance_moved_is_refused(
+    def MQC_CMN_UNI_112410_a_record_whose_provenance_moved_is_refused(
         self, tmp_path: Path
     ) -> None:
         """A stale record would pass a dependent on a foundation from elsewhere.
@@ -780,7 +780,7 @@ class TestMQCCarriedPrerequisites:
             None
         """
         record = tmp_path / "carried.json"
-        write_outcomes(record, self._provenance(), {"30015": True})
+        write_outcomes(record, self._provenance(), {"134205": True})
 
         # ABSENT IS NOT STALE. The first band of a job has nothing to read, and
         # that is a starting condition rather than a fault.
@@ -804,10 +804,10 @@ class TestMQCCarriedPrerequisites:
         # AND THE BAND IS NOT GUARDED, deliberately: a later band reading an
         # earlier band's record is the whole mechanism.
         assert read_outcomes(record, self._provenance(band="2,3,4")).outcomes == {
-            "30015": True
+            "134205": True
         }
 
-    def MQC_CMN_UNI_11199_no_carry_file_named_changes_nothing(
+    def MQC_CMN_UNI_112411_no_carry_file_named_changes_nothing(
         self, tmp_path: Path
     ) -> None:
         """The mechanism is opt-in, so an ordinary run is untouched.
@@ -831,7 +831,7 @@ class TestMQCCarriedPrerequisites:
 class TestMQCPrerequisiteFlagScope:
     """`--with-prerequisites` acts through `--priority` and nowhere else."""
 
-    def MQC_CMN_UNI_11203_with_prerequisites_under_a_keyword_filter_is_refused(
+    def MQC_CMN_UNI_112412_with_prerequisites_under_a_keyword_filter_is_refused(
         self,
     ) -> None:
         """``--with-prerequisites`` under ``-k`` is refused at collection.
@@ -846,7 +846,7 @@ class TestMQCPrerequisiteFlagScope:
         Returns:
             None
         """
-        config = _Config({"--with-prerequisites": True, "--keyword": "30023"})
+        config = _Config({"--with-prerequisites": True, "--keyword": "134404"})
 
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             select_priority_bands(config, [])
@@ -858,7 +858,7 @@ class TestMQCPrerequisiteFlagScope:
         except ValueError as refusal:
             assert "--priority" in str(refusal)
 
-    def MQC_CMN_UNI_11204_with_prerequisites_without_any_filter_warns_and_proceeds(
+    def MQC_CMN_UNI_112413_with_prerequisites_without_any_filter_warns_and_proceeds(
         self,
     ) -> None:
         """``--with-prerequisites`` with no filter warns and selects nothing.

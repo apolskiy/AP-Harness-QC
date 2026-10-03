@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the YAML and CSV loaders.
 
-Covers `MQC_ING_UNI_10016` through `10029`, inventoried in
+Covers `MQC_ING_UNI_111200` through `111213`, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.1.
 
 **The CSV cases carry most of the weight**, because CSV is where the loaders
@@ -73,7 +73,7 @@ class TestMQCCsvLoader:
     """Reading flat task rows without inference or silent alteration."""
 
 
-    def MQC_ING_UNI_10079_a_corpus_directory_loads_each_file_by_its_format(
+    def MQC_ING_UNI_111219_a_corpus_directory_loads_each_file_by_its_format(
         self, tmp_path: Path
     ) -> None:
         """A corpus directory loads YAML and CSV task files together.
@@ -105,7 +105,7 @@ class TestMQCCsvLoader:
         assert from_csv.user_prompt == "Summarise this."
         assert from_csv.rubric_ids == ["MQC_RULE_only"]
 
-    def MQC_ING_UNI_10080_a_rules_csv_or_an_empty_corpus_is_refused(
+    def MQC_ING_UNI_111220_a_rules_csv_or_an_empty_corpus_is_refused(
         self, tmp_path: Path
     ) -> None:
         """A rules file in CSV, an absent directory and an empty one are refused.
@@ -150,7 +150,7 @@ class TestMQCCsvLoader:
         with pytest.raises(ValueError, match="no readable tasks file"):
             load_corpus(empty)
 
-    def MQC_ING_UNI_10016_csv_loader_parses_flat_task_rows(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111200_csv_loader_parses_flat_task_rows(self, write_text_file: Any) -> None:
         """A well-formed file yields one record per row, in file order.
 
         Args:
@@ -166,7 +166,7 @@ class TestMQCCsvLoader:
         assert [task.task_id for task in tasks] == ["MQC_TASK_one", "MQC_TASK_two"]
         assert tasks[0].rubric_ids == ["R1", "R2"]
 
-    def MQC_ING_UNI_10017_csv_loader_rejects_duplicate_column_headers(
+    def MQC_ING_UNI_111201_csv_loader_rejects_duplicate_column_headers(
         self,
         write_text_file: Any,
     ) -> None:
@@ -186,7 +186,9 @@ class TestMQCCsvLoader:
             load_tasks_from_csv(path)
         assert "task_id" in str(caught.value)
 
-    def MQC_ING_UNI_10018_csv_blank_cell_takes_declared_default(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111202_csv_blank_cell_takes_declared_default(
+        self, write_text_file: Any
+    ) -> None:
         """A blank cell equals an absent field, because CSV cannot express null.
 
         Args:
@@ -204,7 +206,7 @@ class TestMQCCsvLoader:
         assert tasks[0].system_instruction == "Be terse"
         assert tasks[1].system_instruction is None
 
-    def MQC_ING_UNI_10019_csv_absent_optional_column_takes_default(
+    def MQC_ING_UNI_111203_csv_absent_optional_column_takes_default(
         self,
         write_text_file: Any,
     ) -> None:
@@ -219,7 +221,7 @@ class TestMQCCsvLoader:
         path = write_text_file("min.csv", f"{_HEADER}\nMQC_TASK_one,R1,Rewrite it\n")
         assert load_tasks_from_csv(path)[0].tags == frozenset()
 
-    def MQC_ING_UNI_10020_csv_absent_required_column_is_rejected(
+    def MQC_ING_UNI_111204_csv_absent_required_column_is_rejected(
         self,
         write_text_file: Any,
     ) -> None:
@@ -236,7 +238,7 @@ class TestMQCCsvLoader:
             load_tasks_from_csv(path)
         assert "rubric_ids" in str(caught.value)
 
-    def MQC_ING_UNI_10021_csv_unknown_column_rejected_by_default(
+    def MQC_ING_UNI_111205_csv_unknown_column_rejected_by_default(
         self,
         write_text_file: Any,
     ) -> None:
@@ -253,7 +255,7 @@ class TestMQCCsvLoader:
             load_tasks_from_csv(path)
         assert "notes" in str(caught.value)
 
-    def MQC_ING_UNI_10022_csv_unknown_column_dropped_under_override(
+    def MQC_ING_UNI_111206_csv_unknown_column_dropped_under_override(
         self,
         write_text_file: Any,
     ) -> None:
@@ -273,7 +275,7 @@ class TestMQCCsvLoader:
         tasks = load_tasks_from_csv(path, unknown_columns=UnknownColumnPolicy.DROP)
         assert tasks[0].task_id == "MQC_TASK_one"
 
-    def MQC_ING_UNI_10023_csv_entirely_blank_column_treated_as_absent(
+    def MQC_ING_UNI_111207_csv_entirely_blank_column_treated_as_absent(
         self,
         write_text_file: Any,
     ) -> None:
@@ -291,7 +293,7 @@ class TestMQCCsvLoader:
         )
         assert all(task.tags == frozenset() for task in load_tasks_from_csv(path))
 
-    def MQC_ING_UNI_10024_csv_preserves_leading_zeros_without_inference(
+    def MQC_ING_UNI_111208_csv_preserves_leading_zeros_without_inference(
         self,
         write_text_file: Any,
     ) -> None:
@@ -306,7 +308,7 @@ class TestMQCCsvLoader:
         path = write_text_file("zeros.csv", f"{_HEADER}\nMQC_TASK_007,R1,Rewrite it\n")
         assert load_tasks_from_csv(path)[0].task_id == "MQC_TASK_007"
 
-    def MQC_ING_UNI_10025_csv_blank_cell_is_empty_string_not_nan(
+    def MQC_ING_UNI_111209_csv_blank_cell_is_empty_string_not_nan(
         self,
         write_text_file: Any,
     ) -> None:
@@ -329,7 +331,7 @@ class TestMQCCsvLoader:
         assert loaded.system_instruction is None
         assert "nan" not in str(loaded.system_instruction).lower()
 
-    def MQC_ING_UNI_10026_csv_strips_surrounding_whitespace(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111210_csv_strips_surrounding_whitespace(self, write_text_file: Any) -> None:
         """Whitespace is removed as a documented transformation, not silently.
 
         Args:
@@ -343,7 +345,7 @@ class TestMQCCsvLoader:
         assert loaded.task_id == "MQC_TASK_one"
         assert loaded.user_prompt == "Rewrite it"
 
-    def MQC_ING_UNI_10027_csv_tolerates_utf8_bom_in_header(self, tmp_path: Path) -> None:
+    def MQC_ING_UNI_111211_csv_tolerates_utf8_bom_in_header(self, tmp_path: Path) -> None:
         """A byte order mark must not become part of the first column name.
 
         Written as bytes deliberately: the defect this guards appears only when
@@ -360,7 +362,7 @@ class TestMQCCsvLoader:
         path.write_bytes(f"\ufeff{_HEADER}\nMQC_TASK_one,R1,Rewrite it\n".encode("utf-8"))
         assert load_tasks_from_csv(path)[0].task_id == "MQC_TASK_one"
 
-    def MQC_ING_UNI_10052_csv_rejects_a_yaml_only_column(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111214_csv_rejects_a_yaml_only_column(self, write_text_file: Any) -> None:
         """A nested field has no honest flat encoding, so the file is refused.
 
         Accepting it would mean inventing one, and the two loaders would stop
@@ -383,7 +385,7 @@ class TestMQCCsvLoader:
 class TestMQCLoaderAgreement:
     """The two loaders provide one abstraction, and that claim is checked."""
 
-    def MQC_ING_UNI_10028_loaders_produce_identical_objects_for_equivalent_input(
+    def MQC_ING_UNI_111212_loaders_produce_identical_objects_for_equivalent_input(
         self, write_text_file: Any
     ) -> None:
         """Equivalent YAML and CSV yield equal records.
@@ -407,7 +409,7 @@ class TestMQCLoaderAgreement:
         assert from_csv == from_yaml
         assert_loaders_agree(from_yaml, from_csv)
 
-    def MQC_ING_UNI_10029_loader_divergence_is_reported(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111213_loader_divergence_is_reported(self, write_text_file: Any) -> None:
         """A difference is named rather than tolerated.
 
         Args:
@@ -429,7 +431,7 @@ class TestMQCLoaderAgreement:
 class TestMQCYamlLoader:
     """Reading the format that carries everything CSV cannot."""
 
-    def MQC_ING_UNI_10053_yaml_rejects_an_unparseable_document(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111215_yaml_rejects_an_unparseable_document(self, write_text_file: Any) -> None:
         """A syntax error is a malformed source, reported with its file.
 
         Args:
@@ -442,7 +444,7 @@ class TestMQCYamlLoader:
         with pytest.raises(ValueError, match="QC_DATA_MALFORMED_SOURCE"):
             load_tasks_from_yaml(path)
 
-    def MQC_ING_UNI_10054_yaml_rejects_a_document_of_the_wrong_shape(
+    def MQC_ING_UNI_111216_yaml_rejects_a_document_of_the_wrong_shape(
         self,
         write_text_file: Any,
     ) -> None:
@@ -458,7 +460,7 @@ class TestMQCYamlLoader:
         with pytest.raises(ValueError, match="QC_DATA_MALFORMED_SOURCE"):
             load_tasks_from_yaml(path)
 
-    def MQC_ING_UNI_10055_yaml_accepts_a_single_mapping_or_a_list(
+    def MQC_ING_UNI_111217_yaml_accepts_a_single_mapping_or_a_list(
         self,
         write_text_file: Any,
     ) -> None:
@@ -478,7 +480,7 @@ class TestMQCYamlLoader:
         )
         assert load_tasks_from_yaml(single) == load_tasks_from_yaml(listed)
 
-    def MQC_ING_UNI_10056_identifiers_colliding_by_case_are_rejected(
+    def MQC_ING_UNI_111218_identifiers_colliding_by_case_are_rejected(
         self,
         write_text_file: Any,
     ) -> None:

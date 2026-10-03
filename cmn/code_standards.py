@@ -619,3 +619,72 @@ def flag_coverage_problems(
                 f"establishes that it does anything"
             )
     return problems
+
+
+# THE POSITIONAL SCHEME, as `test_taxonomy.md` section 3.2.1 states it. Held
+# here rather than in the document alone, because a scheme nothing reads is the
+# state the hundred-slot partition was in when it broke in three places.
+_LAYER_DIGIT: Final[dict[str, str]] = {
+    "UNI": "1", "SYS": "2", "EVAL": "3", "TOOL": "4", "SEC": "5",
+}
+_MODULE_DIGIT: Final[dict[str, str]] = {
+    "ING": "1", "CMN": "2", "EXE": "3", "EVL": "4", "CAS": "5",
+}
+
+_IDENTIFIED = re.compile(r"^MQC_([A-Z]{3})_([A-Z]{3,5})_(\d+)_[a-z0-9_]+$")
+
+
+def identifier_block_problems(root: Path) -> list[str]:
+    """Report every collected callable whose digits contradict its tokens.
+
+    An identifier is six positional digits: the domain, the layer, the module,
+    the category and the case. This reads the layer and module tokens from the
+    name and checks the digits that encode them.
+
+    **It compares two halves of one name**, which is what makes it different
+    from the duplicate-binding check: two modules occupying one block are two
+    distinct identifiers, so counting bindings cannot see it.
+
+    Design: ``test_taxonomy.md`` section 3.2.1.4.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per disagreement. Empty when every identifier's
+        digits say what its tokens say.
+    """
+    problems: list[str] = []
+    for source in sorted((root / "tests").rglob("*.py")):
+        if "__pycache__" in source.parts:
+            continue
+        try:
+            tree = ast.parse(source.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            matched = _IDENTIFIED.match(node.name)
+            if matched is None:
+                continue
+            module, layer, digits = matched.groups()
+            where = f"{source.relative_to(root).as_posix()}::{node.name}"
+            if len(digits) != 6:
+                problems.append(
+                    f"{where} carries {len(digits)} digits, and the scheme is six"
+                )
+                continue
+            expected_layer = _LAYER_DIGIT.get(layer)
+            expected_module = _MODULE_DIGIT.get(module)
+            if expected_layer is not None and digits[1] != expected_layer:
+                problems.append(
+                    f"{where} says layer {layer}, whose digit is "
+                    f"{expected_layer}, and carries {digits[1]}"
+                )
+            if expected_module is not None and digits[2] != expected_module:
+                problems.append(
+                    f"{where} says module {module}, whose digit is "
+                    f"{expected_module}, and carries {digits[2]}"
+                )
+    return problems

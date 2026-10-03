@@ -46,7 +46,7 @@ dev = [
     "allure-pytest>=2.13,<3.0",
     "pylint>=3.3,<4.0",
     # READS THE PINS ABOVE, so it cannot be one of the things drifting. pylint
-    # and pytest both pull it in transitively, and MQC_CMN_UNI_11181 imports it
+    # and pytest both pull it in transitively, and MQC_CMN_UNI_112231 imports it
     # to compare an installed version against a declared specifier: relying on
     # a transitive arrival is the same arrangement the note below calls the
     # worse of the two.
@@ -80,7 +80,7 @@ build-backend = "setuptools.build_meta"
 #
 # Discovery rather than a hand-written list, so a package added later is
 # included by being on disk instead of by being remembered.
-# MQC_CMN_UNI_11114 asserts what is configured against what is on disk.
+# MQC_CMN_UNI_112225 asserts what is configured against what is on disk.
 [tool.setuptools.packages.find]
 include = ["ingestion*", "execution*", "evaluation*", "cmn*", "tools*", "config*"]
 exclude = ["tests*", "docs*"]

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions that hold the suite to its own governance.
 
-Covers `MQC_CMN_UNI_10183`, specified in ``docs/design/cmn_verdict_and_cli.md``
+Covers `MQC_CMN_UNI_112303`, specified in ``docs/design/cmn_verdict_and_cli.md``
 section 10.2.
 
 **This module tests the project rather than the product.** Everything else here
@@ -34,7 +34,7 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 # those citations, which is what sent the first version of this check reading
 # the sibling checkout. Design section 10.19.2.
 _INVENTORY_IDENTIFIER: Final[re.Pattern] = re.compile(
-    r"^\|\s*`(\d{5,6})`\s*\|\s*[PNB]\s*\|\s*`[a-z0-9_]+`"
+    r"^\|\s*`(\d{6})`\s*\|\s*[PNB]\s*\|\s*`[a-z0-9_]+`"
 )
 
 _DESIGN_DIRECTORY = _REPOSITORY_ROOT / "docs" / "design"
@@ -53,7 +53,7 @@ _TEST_DIRECTORY = _REPOSITORY_ROOT / "tests"
 # regex over text cannot tell the two apart. A module embedding a sub-suite as
 # a fixture is the case that proved it could not.
 _TEST_CALLABLE = re.compile(
-    r"^MQC_([A-Z]{3})_([A-Z]{3,5})_(\d{5,6})_([a-z0-9_]{3,60})$"
+    r"^MQC_([A-Z]{3})_([A-Z]{3,5})_(\d{6})_([a-z0-9_]{3,60})$"
 )
 
 
@@ -88,11 +88,11 @@ def _defined_callables(module: Path) -> list[tuple[str, str, str, str]]:
     return found
 
 # An inventory row, as every module design writes one.
-_INVENTORY_ROW = re.compile(r"^\|\s*`(\d{5,6})`\s*\|\s*[PNB]\s*\|")
+_INVENTORY_ROW = re.compile(r"^\|\s*`(\d{6})`\s*\|\s*[PNB]\s*\|")
 
 # A row that also quotes its behaviour name. Rows explaining a case in prose
 # carry no name and are not candidates for the comparison below.
-_NAMED_ROW = re.compile(r"^\|\s*`(\d{5,6})`\s*\|\s*[PNB]\s*\|\s*`([a-z0-9_]+)`")
+_NAMED_ROW = re.compile(r"^\|\s*`(\d{6})`\s*\|\s*[PNB]\s*\|\s*`([a-z0-9_]+)`")
 
 # The behaviour suffix .pylintrc permits on a callable.
 _BEHAVIOUR_LIMITS = (3, 60)
@@ -278,7 +278,7 @@ def _reads_environ(func: ast.Attribute) -> bool:
 class TestMQCAuthoringOrder:
     """The suite refuses to ship a test its design never mentioned."""
 
-    def MQC_CMN_UNI_10183_collected_test_absent_from_an_inventory_fails_the_run(self) -> None:
+    def MQC_CMN_UNI_112303_collected_test_absent_from_an_inventory_fails_the_run(self) -> None:
         """Every collected test identifier appears in a design inventory.
 
         A12 requires a design change to be documented before it is built. The
@@ -313,7 +313,7 @@ class TestMQCAuthoringOrder:
 class TestMQCInventoryNames:
     """A design can specify a name nothing may carry, and a test can drift."""
 
-    def MQC_CMN_UNI_10186_inventory_name_violating_the_callable_pattern_is_reported(self) -> None:
+    def MQC_CMN_UNI_112305_inventory_name_violating_the_callable_pattern_is_reported(self) -> None:
         """An inventory row must name something a callable may be called.
 
         A design specifying an unimplementable name is a defect in the design,
@@ -337,10 +337,10 @@ class TestMQCInventoryNames:
             )
         )
 
-    def MQC_CMN_UNI_10187_test_name_disagreeing_with_its_inventory_row_is_reported(self) -> None:
+    def MQC_CMN_UNI_112306_test_name_disagreeing_with_its_inventory_row_is_reported(self) -> None:
         """An implemented behaviour name matches the one its design gives it.
 
-        `10183` compares identifiers and says nothing about names, so a test
+        `112303` compares identifiers and says nothing about names, so a test
         renamed without its row being updated satisfies it completely. The code
         and the document then describe the same case differently, which is the
         authoring order failing from the direction it is least expected.
@@ -367,7 +367,7 @@ class TestMQCInventoryNames:
 class TestMQCOneIdentifierOneCallable:
     """Two callables may not claim one identifier, which a set cannot see."""
 
-    def MQC_CMN_UNI_11209_an_identifier_bound_by_two_callables_is_reported(
+    def MQC_CMN_UNI_112326_an_identifier_bound_by_two_callables_is_reported(
         self,
     ) -> None:
         """Each module, layer and number names at most one test callable.
@@ -379,7 +379,7 @@ class TestMQCOneIdentifierOneCallable:
 
         Keyed by module, layer and number together, not by the number alone:
         the five-digit blocks are partitioned per module, so
-        ``MQC_EVL_UNI_10309`` and ``MQC_EXE_UNI_10309`` are two cases and not a
+        ``MQC_EVL_UNI_114605`` and ``MQC_EXE_UNI_113022`` are two cases and not a
         collision.
 
         Design: ``cmn_verdict_and_cli.md`` section 10.10.1.
@@ -416,12 +416,12 @@ class TestMQCOneIdentifierOneCallable:
 class TestMQCLiveMatrixAgainstTheSuite:
     """The matrix checked against something that is not the matrix."""
 
-    def MQC_CMN_UNI_11122_a_collected_test_named_in_no_matrix_row_is_reported(
+    def MQC_CMN_UNI_112313_a_collected_test_named_in_no_matrix_row_is_reported(
         self,
     ) -> None:
         """A check whose inputs come from its subject proves only self-consistency.
 
-        `10197` runs the real matrix through T1 to T5 and derives both
+        `112312` runs the real matrix through T1 to T5 and derives both
         ``declared`` and ``named`` from that same matrix, so T1 and T3 cannot
         fail and T4 receives the matrix as the suite. A test the suite contains
         and the matrix omits is invisible to it.
@@ -451,7 +451,7 @@ class TestMQCLiveMatrixAgainstTheSuite:
 
         # ONE IMPLEMENTATION, TWO CALLERS. The consumer rebuilt this comparison
         # inline and asserted one direction of it, so two of its own cases ran
-        # untraced while its preconditions stayed green. `MQC_CAS_UNI_10460`
+        # untraced while its preconditions stayed green. `MQC_CAS_UNI_115602`
         # now calls the same function against the other matrix.
         untraced = untraced_tests(rows, collected)
 
@@ -465,12 +465,12 @@ class TestMQCLiveMatrixAgainstTheSuite:
 class TestMQCIndexAgainstDesigns:
     """The document map checked against the documents it maps."""
 
-    def MQC_CMN_UNI_11123_an_index_case_count_disagreeing_with_its_design_is_reported(
+    def MQC_CMN_UNI_112314_an_index_case_count_disagreeing_with_its_design_is_reported(
         self,
     ) -> None:
         """Each design was internally consistent and the index was not.
 
-        `10146` checks a design's stated total against its own rows and was
+        `112203` checks a design's stated total against its own rows and was
         passing throughout, because it is scoped to a document while this drift
         is between documents.
 
@@ -513,18 +513,18 @@ class TestMQCIndexAgainstDesigns:
         )
 
 
-    def MQC_CMN_UNI_11180_a_readme_count_disagreeing_with_the_designs_is_reported(
+    def MQC_CMN_UNI_112323_a_readme_count_disagreeing_with_the_designs_is_reported(
         self,
     ) -> None:
         """The README is the front door and its two numbers had both drifted.
 
         It claimed 498 cases against 462 inventoried, and 144 requirements
-        against 184 traced. **Neither was ever checked.** `11123` compares the
-        index to the designs and `10146` compares a design to its own rows, and
+        against 184 traced. **Neither was ever checked.** `112314` compares the
+        index to the designs and `112203` compares a design to its own rows, and
         the README sat outside both while being the first thing a reader sees.
 
         **The numbers stay and are checked** rather than being removed, for the
-        reason `11123` gives: a front page whose value is showing the shape of
+        reason `112314` gives: a front page whose value is showing the shape of
         the project cannot do that without them.
 
         Returns:
@@ -570,7 +570,7 @@ class TestMQCIndexAgainstDesigns:
             f"describe: {'; '.join(disagreements)}"
         )
 
-    def MQC_CMN_UNI_11205_an_inventory_row_without_an_implementation_is_reported(
+    def MQC_CMN_UNI_112325_an_inventory_row_without_an_implementation_is_reported(
         self,
     ) -> None:
         """Every design inventory row names a case some repository implements.
@@ -581,7 +581,7 @@ class TestMQCIndexAgainstDesigns:
         state while a family is authored.
 
         A citation in prose carries no category, so it is not counted, and the
-        scan needs no second checkout. ``MQC_CAS_UNI_10468`` does the same for
+        scan needs no second checkout. ``MQC_CAS_UNI_115405`` does the same for
         the consumer's inventories.
 
         Design: ``cmn_verdict_and_cli.md`` section 10.19.1.
@@ -631,7 +631,7 @@ class TestMQCIndexAgainstDesigns:
 class TestMQCCredentialFreeSuite:
     """The harness proves itself without spending anybody's quota."""
 
-    def MQC_CMN_UNI_11128_a_harness_test_reading_a_credential_is_reported(
+    def MQC_CMN_UNI_112315_a_harness_test_reading_a_credential_is_reported(
         self,
     ) -> None:
         """Documented in four places, protected in CI, asserted by nothing.

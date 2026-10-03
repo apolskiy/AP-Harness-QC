@@ -174,7 +174,7 @@ cycle. Twenty-eight would be the same argument with four runs of grace.
 
 **Expired at the window, not after it.** `as_of - quarantined_on >= 21` makes
 day 21 the first failing day, so "valid for 21 days" reads literally. Named at
-the boundary exactly, per `testing-standards.md` section 3.2, by `10113`,
+the boundary exactly, per `testing-standards.md` section 3.2, by `112012`,
 which already owned this boundary when it was a fixed expiry date and now
 parametrises days 19 through 22. **A second boundary case was inventoried for
 this and withdrawn**: two cases making one claim is the shape section 10.10.1
@@ -273,7 +273,7 @@ run, which is precisely the reading the escalation exists to prevent.
 
 Quarantine changes the pass-rate denominator, so a stored pass rate cannot be
 read without knowing which entries were excluded when it was computed. That is
-the argument `10138` already makes for recording the thresholds: **a stored
+the argument `112105` already makes for recording the thresholds: **a stored
 result whose standard cannot be recovered is uninterpretable.**
 
 Run metadata therefore carries a **`quarantine_hash`** beside `rule_set_hash`
@@ -382,7 +382,7 @@ the subject, not an arbitrary half.
 | New | Holds | Relieved |
 |---|---|---|
 | `cmn/quarantine.py` | The entry and the window it is measured against | `cmn/verdict.py`, 1045 to 978 |
-| `tests/cmn/mqc_uni_quarantine.py` | Every quarantine case, including `11218` moved from the CLI module where it was never about the CLI | `mqc_uni_verdict.py` 1030 to 683, `mqc_uni_cli.py` 1054 to 964 |
+| `tests/cmn/mqc_uni_quarantine.py` | Every quarantine case, including `112042` moved from the CLI module where it was never about the CLI | `mqc_uni_verdict.py` 1030 to 683, `mqc_uni_cli.py` 1054 to 964 |
 | `tests/cmn/verdict_support.py` | The observations, suites and artifacts the three share | All three |
 
 **`V5` stays with the other verdict rules.** The rule registry is what makes a
@@ -566,7 +566,7 @@ arithmetic, not a loop this function runs.
 there is nothing to refine, which is the same answer `consistent` gives for the
 same reason.
 
-`MQC_CMN_UNI_11206` covers the rule and `MQC_CAS_UNI_10466` covers the loop
+`MQC_CMN_UNI_112036` covers the rule and `MQC_CAS_UNI_115207` covers the loop
 calling it, which is the division above restated as two cases: a rule nothing
 calls and a loop that decides for itself are the two ways this could be wrong.
 
@@ -714,7 +714,7 @@ later was the reason for recording it.
 
 Added 2026-09-26, found while preparing the first commit.
 
-`11123` compares the document map's case counts to the designs, and `10146`
+`112314` compares the document map's case counts to the designs, and `112203`
 compares a design's stated total to its own rows. **The README sat outside both
 while being the first thing a reader sees**, and both of its figures had drifted:
 
@@ -724,7 +724,7 @@ while being the first thing a reader sees**, and both of its figures had drifted
 | 144 requirements | 184 traced |
 
 **The numbers stay and are checked** rather than being deleted, for the reason
-`11123` gives about the document map: a front page whose value is showing the
+`112314` gives about the document map: a front page whose value is showing the
 shape of the project cannot do that without them.
 
 **It recomputes rather than storing a third copy.** The case count is summed from
@@ -746,7 +746,7 @@ Established 2026-10-02 by reading a real Allure raw result rather than the code
 that was supposed to produce it.
 
 ```
-name:       MQC_EVL_EVAL_30015_overstating_a_sourced_figure_is_rejected
+name:       MQC_EVL_EVAL_134205_overstating_a_sourced_figure_is_rejected
 status:     failed
 parameters: None
 labels:     feature, severity, epic, story, tag, parentSuite, suite, subSuite,
@@ -931,7 +931,7 @@ them be exercised against synthetic fixtures. T7 is only meaningful
 against the **complete** collected suite, and a partial set makes it
 report every test the caller left out. `untraced_tests` is public and
 called by the two repository-level cases that can supply one,
-`MQC_CMN_UNI_11122` and `MQC_CAS_UNI_10460`.
+`MQC_CMN_UNI_112313` and `MQC_CAS_UNI_115602`.
 
 ### 6.1 Matrix schema
 
@@ -951,7 +951,7 @@ Specified here because the matrices are **loaded through the CSV loader**, so th
 
 **Families apply to graded cases only**, per `test_taxonomy.md` section 11: a precondition tests the harness, which performs no task. The column would be empty in every harness row, and an always-empty column teaches a reader to ignore a column.
 
-The two files therefore share one schema with `families` optional, and the harness file **omits the column rather than carrying it blank**. That needs no special case: an absent optional column takes its declared default, which is the rule `MQC_ING_UNI_10019` covers. Two schemas would have been the alternative, and two schemas for one matrix format is the drift this section exists to prevent.
+The two files therefore share one schema with `families` optional, and the harness file **omits the column rather than carrying it blank**. That needs no special case: an absent optional column takes its declared default, which is the rule `MQC_ING_UNI_111203` covers. Two schemas would have been the alternative, and two schemas for one matrix format is the drift this section exists to prevent.
 
 **The column exists because coverage is read per family, not only per requirement.** A requirement covered by three families has survived a change of domain; one covered by a single family has been observed once in one setting and may hold only there. That distinction is the whole subject of `model_evaluation_test_plan.md` section 4.4, which lives in `AP-Model-QC`, and without this column it is visible in the case inventory and invisible in the matrix that exists to report coverage.
 
@@ -1094,11 +1094,11 @@ format, which is the duplication it exists to remove.
 
 The four half-emitting invocations sat in plain sight across both repositories
 because **no check reads what a workflow passes to pytest against section 5's
-requirement**. `11193` asks the opposite question, whether a registered flag is
+requirement**. `112522` asks the opposite question, whether a registered flag is
 named by any case, and every artifact check downstream reads artifacts that were
 produced rather than asking whether they all were.
 
-`11211` scans every workflow in both repositories and fails an invocation that
+`112525` scans every workflow in both repositories and fails an invocation that
 emits one mandated artifact without the other, counting `--out-dir` as
 supplying both. **A negative case**, because the positive it would replace,
 these workflows running at all, was passing while four of them emitted half the
@@ -1196,7 +1196,7 @@ fails the run, which forces the decision to be made again rather than to lapse.
 **Nine of sixteen flags are gaps as this is written**, including the two that
 produced this section. That number is the finding, not a defect in the check.
 
-`MQC_CMN_UNI_11193` enforces the harness half, reading the shipped registry and
+`MQC_CMN_UNI_112522` enforces the harness half, reading the shipped registry and
 declaration rather than a permitted list of its own.
 
 #### 7.1.1 Diagnostic runs
@@ -1332,7 +1332,7 @@ project will ever make names the default explicitly.
 
 ##### Why the existing case did not catch it
 
-`10197` asserted that `build_invocation({"engine": "openai"})` is quiet. `openai`
+`112312` asserted that `build_invocation({"engine": "openai"})` is quiet. `openai`
 is not the default, so the case proved only that an explicitly NON-default engine
 warns about nothing. The defect lived precisely where the explicit value equals
 the default, and the fixture's choice of value stepped around it.
@@ -1368,7 +1368,7 @@ cause.
 
 #### 7.5.1 A band carries its foundations only when it runs alone
 
-The cascade crosses bands: `MQC_EVL_EVAL_30036` is P2 and depends on a P1 case,
+The cascade crosses bands: `MQC_EVL_EVAL_134107` is P2 and depends on a P1 case,
 and that is the normal shape rather than an accident. A P2 elaboration
 presupposes the P1 foundation it elaborates.
 
@@ -1397,7 +1397,7 @@ Added 2026-10-01, after two live recording runs selected nothing.
 
 `select_priority_bands` returns immediately when `--priority` names no band, so
 `--with-prerequisites` was **never read** under any other selection. Recording a
-single case with `-k 30023` deselected its foundation `30024`,
+single case with `-k 30023` deselected its foundation `134405`,
 `arrange_dependencies` read a non-executed foundation as unmet, and the case
 skipped on `QC_HARNESS_DEPENDENCY_UNMET` with the flag set on the command line.
 
@@ -1421,7 +1421,7 @@ runs: the flag's silence cost two dispatch attempts that recorded nothing.
 **With no filter at all it warns instead of refusing.** The flag is then a
 harmless no-op, and a full run that happens to carry it is not misconfigured.
 
-`MQC_CMN_UNI_11203` covers the refusal and `11204` the warning.
+`MQC_CMN_UNI_112412` covers the refusal and `112413` the warning.
 
 ### 7.6 Carried prerequisite outcomes, and the provenance that admits them
 
@@ -1509,204 +1509,205 @@ Categories: **P** positive, **N** negative, **B** boundary.
 
 | ID | Cat | Behaviour |
 |---|---|---|
-| `10101` | P | `green_when_all_rules_satisfied` |
-| `10102` | N | `red_when_p0_observation_fails` (V1) |
-| `10103` | N | `red_when_p1_observation_fails` (V1) |
-| `10104` | P | `green_when_p2_fails_within_pass_floor` (V1) |
-| `10105` | B | `green_at_exactly_ninety_percent_pass_rate` (V2) |
-| `10106` | N | `red_just_below_ninety_percent_pass_rate` (V2) |
-| `10107` | B | `green_at_exactly_twenty_percent_skips` (V3) |
-| `10108` | N | `red_just_above_twenty_percent_skips` (V3) |
-| `10109` | B | `green_at_exactly_ten_percent_priority_skips` (V4) |
-| `10110` | N | `red_just_above_ten_percent_priority_skips` (V4) |
-| `10111` | N | `red_when_quarantine_entry_expired` (V5) |
-| `10112` | P | `green_when_quarantine_entry_current` (V5) |
-| `10113` | B | `expiry_boundary_evaluated_against_injected_date` |
-| `10114` | N | `red_when_no_observations_at_all` (V6) |
-| `10115` | N | `red_when_no_graded_observations` (V6) |
-| `10116` | N | `red_when_every_graded_case_quarantined` (V6) |
-| `10117` | N | `red_when_every_pair_unsupported` (V6) |
-| `10118` | N | `dependency_skips_excluded_from_skip_denominator` |
-| `10119` | N | `unsupported_pairs_excluded_from_skip_denominator` |
-| `10120` | N | `quarantined_cases_excluded_from_pass_denominator` |
-| `10121` | P | `security_layer_excluded_from_distribution_ceiling` |
-| `10122` | N | `precondition_failure_blocks_graded_evaluation` |
-| `10123` | N | `precondition_skip_is_a_failure` |
-| `10124` | P | `reports_every_breached_rule_not_only_the_first` |
-| `10125` | P | `verdict_is_pure_for_identical_input` |
-| `10126` | N | `verdict_does_not_read_system_clock` |
-| `10127` | B | `distribution_check_returns_no_verdict_below_thirty_cases` |
-| `10128` | N | `red_when_p0_share_exceeds_ten_percent` |
-| `10129` | N | `red_when_combined_p0_p1_exceeds_thirty_percent` |
-| `10130` | P | `demotion_orders_single_match_before_multiple` |
-| `10131` | P | `security_cases_are_never_demoted` |
-| `10132` | N | `rtm_row_with_no_test_is_a_coverage_gap` (T2) |
-| `10133` | N | `rtm_naming_absent_test_is_rejected` (T3) |
-| `10134` | N | `test_with_requirement_id_absent_from_rtm_is_rejected` (T4) |
-| `10135` | P | `cli_defaults_are_recorded_in_metadata` |
-| `10136` | P | `defaulted_engine_emits_warning_into_artifact` |
-| `10137` | P | `rule_set_content_hash_recorded_in_metadata` |
-| `10138` | P | `effective_thresholds_recorded_in_metadata` (9.3) |
-| `10139` | P | `new_layer_respects_declared_graded_flag` (9.1) |
-| `10140` | P | `new_layer_respects_declared_distribution_exemption` (9.1) |
-| `10141` | N | `outcome_without_declared_denominator_treatment_is_rejected` (9.4) |
-| `10142` | P | `registered_verdict_rule_is_evaluated_without_core_change` (9.2) |
-| `10143` | N | `emitted_code_absent_from_registry_is_rejected` |
-| `10144` | N | `registered_code_with_no_emit_site_is_reported` |
-| `10145` | N | `unregistered_code_in_a_live_specification_is_reported` |
-| `10146` | N | `stated_inventory_counts_disagreeing_with_rows_is_reported` |
-| `10147` | P | `option_registry_yields_identical_flags_to_both_surfaces` |
-| `10148` | N | `invalid_enumerated_flag_value_is_rejected_at_parse_time` |
-| `10149` | P | `verdict_recomputable_from_stored_artifacts` |
-| `10150` | N | `precondition_failure_exits_three_not_one` |
-| `10151` | N | `unknown_case_identifier_is_an_error_not_an_empty_run` |
-| `10152` | P | `case_flag_selects_exactly_one_case` |
-| `10153` | P | `observations_override_replaces_configured_count` |
-| `10154` | N | `diagnostic_run_returns_no_verdict_code` |
-| `10155` | P | `run_context_and_gated_flag_recorded_in_metadata` |
-| `10156` | N | `verdict_tool_refuses_artifacts_marked_ungated` |
-| `10157` | P | `out_dir_names_where_both_artifacts_are_written` |
-| `10158` | P | `run_scoped_fields_emitted_per_result_not_in_a_manifest_alone` |
-| `10159` | P | `observation_assembled_from_tier_results_and_case_metadata` |
-| `10160` | N | `truncated_duration_excluded_from_latency_statistics` |
-| `10161` | N | `result_missing_a_required_metadata_field_is_rejected` |
-| `10162` | P | `no_filter_yields_selection_mode_full` |
-| `10163` | P | `change_scoped_selection_still_yields_a_verdict` |
-| `10164` | N | `manual_filter_yields_no_verdict` |
-| `10165` | P | `selection_mode_recorded_per_result` |
-| `10166` | N | `debug_artifact_name_does_not_match_collector_pattern` |
-| `10167` | P | `debug_rows_carry_ci_debug_context_and_ungated_flag` |
-| `10168` | N | `verdict_tool_refuses_a_manual_selection_artifact` |
-| `10169` | P | `gated_derived_from_selection_preconditions_and_run_context` |
-| `10170` | N | `refusal_exits_four_not_one` |
-| `10174` | B | `full_selection_under_debug_context_is_still_ungated` |
-| `10175` | B | `first_run_on_a_branch_has_no_previous_conclusion_to_compare` |
-| `10176` | P | `summary_records_job_run_number_both_refs_and_changed_areas` |
-| `10177` | B | `fixture_ref_defaults_to_code_ref_when_not_supplied` |
-| `10178` | P | `manual_full_dispatch_of_ci_is_gated_and_yields_a_verdict` |
-| `10179` | P | `graded_result_records_its_evaluation_family` |
-| `10180` | N | `unregistered_family_value_is_rejected` |
-| `10181` | B | `precondition_result_carries_no_family` |
-| `10182` | P | `result_records_the_platform_it_ran_on` |
-| `10183` | N | `collected_test_absent_from_an_inventory_fails_the_run` |
-| `10184` | P | `distribution_check_reports_the_demoted_case_count` |
-| `10185` | N | `rtm_families_disagreeing_with_the_inventory_are_reported` |
-| `10186` | N | `inventory_name_violating_the_callable_pattern_is_reported` |
-| `10187` | N | `test_name_disagreeing_with_its_inventory_row_is_reported` |
-| `10188` | N | `an_overlapping_identifier_block_is_rejected` |
-| `10189` | P | `a_complete_declaration_registers_and_is_read` |
-| `10190` | P | `a_case_below_its_ceiling_is_detectable_from_its_record` |
-| `10191` | N | `a_priority_above_every_matched_condition_is_a_breach` |
-| `10192` | N | `a_declared_requirement_with_no_row_is_reported` |
-| `10193` | P | `families_agreeing_with_the_inventory_pass` |
-| `10194` | P | `every_check_runs_rather_than_stopping_at_the_first` |
-| `10195` | N | `an_unknown_matrix_column_is_rejected` |
-| `10196` | B | `the_harness_matrix_omits_the_families_column` |
-| `10197` | P | `the_live_harness_matrix_passes_every_check` |
-| `10198` | N | `argparse_rejects_the_same_values_the_registry_does` |
-| `10199` | P | `mode_defaults_to_replay_so_nothing_spends_quota` |
-| `10200` | P | `a_green_gated_artifact_exits_zero` |
-| `11101` | N | `an_unreadable_artifact_is_an_argument_error` |
-| `11102` | B | `an_unrecorded_threshold_falls_back_to_the_default` |
-| `11103` | B | `latency_is_absent_rather_than_zero_when_nothing_measured` |
-| `11104` | P | `changed_areas_distinguish_harness_from_tests` |
-| `11107` | N | `a_field_the_record_does_not_declare_is_rejected` |
-| `11108` | N | `requirements_files_disagreeing_with_pyproject_fail` |
-| `11109` | N | `every_imported_package_is_declared` |
-| `11110` | N | `random_test_ordering_is_declared` |
-| `11111` | N | `every_callable_carries_parameter_and_return_hints` |
-| `11112` | N | `pep_563_future_annotations_import_is_rejected` |
-| `11113` | N | `every_python_file_carries_its_spdx_header` |
-| `11114` | N | `every_package_on_disk_is_configured_for_the_build` |
-| `11115` | P | `consumer_registry_loads_every_declared_entry` |
-| `11116` | N | `a_consumer_entry_without_a_repository_is_rejected` |
-| `11117` | B | `an_absent_consumer_registry_is_a_starting_condition` |
-| `11118` | N | `selecting_named_tests_yields_no_verdict` |
-| `11119` | B | `an_unnamed_harness_branch_falls_back_to_the_default_ref` |
-| `11120` | P | `a_named_harness_branch_resolves_to_its_paired_consumer_ref` |
-| `11121` | N | `an_identifier_appearing_twice_in_one_inventory_is_reported` |
-| `11209` | N | `an_identifier_bound_by_two_callables_is_reported` |
-| `11211` | N | `a_workflow_emitting_one_mandated_artifact_is_reported` |
-| `11212` | N | `an_entry_whose_model_changed_is_expired` |
-| `11214` | P | `an_unconfirmed_entry_is_honoured_and_never_red` |
-| `11215` | P | `an_absent_quarantine_file_is_an_empty_quarantine` |
-| `11216` | P | `the_consulted_quarantine_hash_is_recorded` |
-| `11217` | N | `a_malformed_ticket_reference_is_reported` |
-| `11218` | P | `the_named_evaluation_date_reaches_quarantine_expiry` |
-| `11219` | P | `reconciling_decides_each_entry_from_what_was_observed` |
-| `11220` | P | `every_required_result_field_is_emitted` |
-| `11221` | P | `a_failing_case_reports_every_call_it_made` |
-| `11222` | N | `a_registered_adapter_off_the_roster_is_reported` |
-| `11122` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
-| `11123` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
-| `11124` | P | `the_default_judge_engine_is_gemini` |
-| `11125` | P | `a_configured_judge_engine_overrides_the_default` |
-| `11126` | N | `a_judge_engine_absent_from_the_roster_is_rejected` |
-| `11127` | N | `an_engine_without_structured_output_cannot_judge` |
-| `11128` | N | `a_harness_test_reading_a_credential_is_reported` |
-| `11129` | P | `invention_and_omission_are_both_registered_codes` |
-| `11130` | N | `family_table_disagreeing_with_the_code_registry_is_reported` |
-| `11131` | N | `every_requirement_in_the_matrix_appears_in_the_plan` |
-| `11132` | N | `a_registered_family_without_ground_truth_is_reported` |
-| `11133` | P | `an_absent_judge_model_falls_back_to_the_roster_entry` |
-| `11134` | P | `a_judge_model_distinct_from_the_candidate_is_expressible` |
-| `11135` | N | `a_probe_that_omits_the_judge_subject_is_reported` |
-| `11136` | P | `a_recorded_judgement_is_replayed_for_the_same_request` |
-| `11137` | N | `a_judgement_from_a_different_judge_model_is_stale` |
-| `11138` | N | `a_judgement_whose_request_hash_moved_is_stale` |
-| `11139` | N | `a_missing_judgement_raises_rather_than_judging_live` |
-| `11140` | N | `a_document_or_data_file_without_an_spdx_header_is_reported` |
-| `11201` | N | `two_candidate_engines_judged_by_one_judge_do_not_share` |
-| `11202` | N | `an_untraced_test_is_reported_against_either_matrix` |
-| `11203` | N | `with_prerequisites_under_a_keyword_filter_is_refused` |
-| `11204` | B | `with_prerequisites_without_any_filter_warns_and_proceeds` |
-| `11205` | N | `an_inventory_row_without_an_implementation_is_reported` |
-| `11206` | B | `one_disagreement_earns_two_further_observations` |
-| `11207` | N | `a_workflow_step_running_an_absent_script_is_reported` |
-| `11208` | P | `the_corpus_selection_is_resolved_at_configure_time` |
-| `11141` | P | `judge_mode_defaults_to_whatever_mode_is` |
-| `11142` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
-| `11143` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
-| `11144` | N | `a_branch_name_outside_the_grammar_is_reported` |
-| `11145` | N | `a_referent_of_no_registered_kind_is_reported` |
-| `11146` | B | `staleness_is_silent_then_warned_then_red_at_its_bounds` |
-| `11147` | N | `a_development_branch_targeting_main_is_reported` |
-| `11148` | N | `a_merge_bringing_main_into_a_branch_is_reported` |
-| `11149` | N | `a_broken_graded_observation_blocks_and_exits_three` |
-| `11150` | N | `an_incomplete_skip_blocks_however_few_there_are` |
-| `11151` | B | `an_environmental_skip_is_tolerated_to_its_ceiling` |
-| `11152` | P | `an_integration_branch_may_omit_its_referent` |
-| `11153` | N | `a_dependent_of_a_failed_base_case_is_skipped_not_failed` |
-| `11154` | P | `a_dependent_of_a_passing_base_case_runs_normally` |
-| `11155` | N | `a_dependency_naming_no_collected_case_is_reported` |
-| `11156` | B | `a_mixed_script_word_is_a_homoglyph_and_one_script_is_not` |
-| `11157` | N | `a_file_open_declaring_no_encoding_is_reported` |
-| `11158` | N | `a_requirement_identifier_declared_twice_is_reported` |
-| `11159` | B | `a_register_at_eighty_percent_of_its_ceiling_is_reported` |
-| `11160` | N | `a_register_token_that_is_also_a_module_code_is_reported` |
-| `11161` | N | `a_registry_membership_change_without_a_case_is_reported` |
-| `11162` | N | `a_local_env_file_is_loaded_without_overwriting_anything` |
-| `11163` | N | `a_line_that_is_not_an_assignment_is_skipped_by_number` |
-| `11164` | N | `a_credential_file_reaching_ci_is_reported` |
-| `11165` | N | `no_workflow_reads_a_credential_file` |
-| `11166` | N | `a_base_case_skipped_in_setup_is_recorded_for_its_dependents` |
-| `11168` | N | `a_dependent_collected_before_its_base_is_reordered` |
-| `11169` | N | `a_credential_file_beside_the_roster_is_found` |
-| `11170` | N | `the_consumer_conftest_searches_both_roots` |
-| `11171` | N | `a_case_whose_observations_disagree_is_a_finding` |
-| `11172` | B | `inconsistency_at_the_ceiling_unsounds_the_run` |
-| `11175` | P | `a_score_moving_inside_the_band_is_recorded_not_gated` |
-| `11176` | N | `two_models_on_one_engine_unsounds_the_run` |
-| `11177` | P | `one_model_per_engine_is_sound_across_engines` |
-| `11178` | B | `an_observation_with_no_model_is_not_a_second_version` |
-| `11179` | N | `every_declared_credential_appears_in_the_example` |
-| `11180` | N | `a_readme_count_disagreeing_with_the_designs_is_reported` |
-| `11181` | N | `an_installed_gating_tool_outside_its_pin_is_reported` |
-| `11182` | N | `a_generated_file_in_a_skipped_tree_is_not_read` |
-| `11173` | N | `a_credential_no_engine_reads_is_reported` |
-| `11174` | P | `the_engines_declare_the_names_the_check_reads` |
+| `112000` | P | `green_when_all_rules_satisfied` |
+| `112001` | N | `red_when_p0_observation_fails` (V1) |
+| `112002` | N | `red_when_p1_observation_fails` (V1) |
+| `112003` | P | `green_when_p2_fails_within_pass_floor` (V1) |
+| `112004` | B | `green_at_exactly_ninety_percent_pass_rate` (V2) |
+| `112005` | N | `red_just_below_ninety_percent_pass_rate` (V2) |
+| `112006` | B | `green_at_exactly_twenty_percent_skips` (V3) |
+| `112007` | N | `red_just_above_twenty_percent_skips` (V3) |
+| `112008` | B | `green_at_exactly_ten_percent_priority_skips` (V4) |
+| `112009` | N | `red_just_above_ten_percent_priority_skips` (V4) |
+| `112010` | N | `red_when_quarantine_entry_expired` (V5) |
+| `112011` | P | `green_when_quarantine_entry_current` (V5) |
+| `112012` | B | `expiry_boundary_evaluated_against_injected_date` |
+| `112013` | N | `red_when_no_observations_at_all` (V6) |
+| `112014` | N | `red_when_no_graded_observations` (V6) |
+| `112015` | N | `red_when_every_graded_case_quarantined` (V6) |
+| `112016` | N | `red_when_every_pair_unsupported` (V6) |
+| `112017` | N | `dependency_skips_excluded_from_skip_denominator` |
+| `112018` | N | `unsupported_pairs_excluded_from_skip_denominator` |
+| `112019` | N | `quarantined_cases_excluded_from_pass_denominator` |
+| `112020` | P | `security_layer_excluded_from_distribution_ceiling` |
+| `112021` | N | `precondition_failure_blocks_graded_evaluation` |
+| `112022` | N | `precondition_skip_is_a_failure` |
+| `112023` | P | `reports_every_breached_rule_not_only_the_first` |
+| `112024` | P | `verdict_is_pure_for_identical_input` |
+| `112025` | N | `verdict_does_not_read_system_clock` |
+| `112026` | B | `distribution_check_returns_no_verdict_below_thirty_cases` |
+| `112027` | N | `red_when_p0_share_exceeds_ten_percent` |
+| `112028` | N | `red_when_combined_p0_p1_exceeds_thirty_percent` |
+| `112100` | P | `demotion_orders_single_match_before_multiple` |
+| `112101` | P | `security_cases_are_never_demoted` |
+| `112300` | N | `rtm_row_with_no_test_is_a_coverage_gap` (T2) |
+| `112301` | N | `rtm_naming_absent_test_is_rejected` (T3) |
+| `112302` | N | `test_with_requirement_id_absent_from_rtm_is_rejected` (T4) |
+| `112102` | P | `cli_defaults_are_recorded_in_metadata` |
+| `112103` | P | `defaulted_engine_emits_warning_into_artifact` |
+| `112104` | P | `rule_set_content_hash_recorded_in_metadata` |
+| `112105` | P | `effective_thresholds_recorded_in_metadata` (9.3) |
+| `112106` | P | `new_layer_respects_declared_graded_flag` (9.1) |
+| `112107` | P | `new_layer_respects_declared_distribution_exemption` (9.1) |
+| `112108` | N | `outcome_without_declared_denominator_treatment_is_rejected` (9.4) |
+| `112109` | P | `registered_verdict_rule_is_evaluated_without_core_change` (9.2) |
+| `112200` | N | `emitted_code_absent_from_registry_is_rejected` |
+| `112201` | N | `registered_code_with_no_emit_site_is_reported` |
+| `112202` | N | `unregistered_code_in_a_live_specification_is_reported` |
+| `112203` | N | `stated_inventory_counts_disagreeing_with_rows_is_reported` |
+| `112110` | P | `option_registry_yields_identical_flags_to_both_surfaces` |
+| `112111` | N | `invalid_enumerated_flag_value_is_rejected_at_parse_time` |
+| `112112` | P | `verdict_recomputable_from_stored_artifacts` |
+| `112113` | N | `precondition_failure_exits_three_not_one` |
+| `112114` | N | `unknown_case_identifier_is_an_error_not_an_empty_run` |
+| `112115` | P | `case_flag_selects_exactly_one_case` |
+| `112116` | P | `observations_override_replaces_configured_count` |
+| `112117` | N | `diagnostic_run_returns_no_verdict_code` |
+| `112204` | P | `run_context_and_gated_flag_recorded_in_metadata` |
+| `112118` | N | `verdict_tool_refuses_artifacts_marked_ungated` |
+| `112119` | P | `out_dir_names_where_both_artifacts_are_written` |
+| `112205` | P | `run_scoped_fields_emitted_per_result_not_in_a_manifest_alone` |
+| `112206` | P | `observation_assembled_from_tier_results_and_case_metadata` |
+| `112207` | N | `truncated_duration_excluded_from_latency_statistics` |
+| `112208` | N | `result_missing_a_required_metadata_field_is_rejected` |
+| `112120` | P | `no_filter_yields_selection_mode_full` |
+| `112121` | P | `change_scoped_selection_still_yields_a_verdict` |
+| `112122` | N | `manual_filter_yields_no_verdict` |
+| `112209` | P | `selection_mode_recorded_per_result` |
+| `112210` | N | `debug_artifact_name_does_not_match_collector_pattern` |
+| `112211` | P | `debug_rows_carry_ci_debug_context_and_ungated_flag` |
+| `112123` | N | `verdict_tool_refuses_a_manual_selection_artifact` |
+| `112124` | P | `gated_derived_from_selection_preconditions_and_run_context` |
+| `112125` | N | `refusal_exits_four_not_one` |
+| `112126` | B | `full_selection_under_debug_context_is_still_ungated` |
+| `112212` | B | `first_run_on_a_branch_has_no_previous_conclusion_to_compare` |
+| `112213` | P | `summary_records_job_run_number_both_refs_and_changed_areas` |
+| `112214` | B | `fixture_ref_defaults_to_code_ref_when_not_supplied` |
+| `112127` | P | `manual_full_dispatch_of_ci_is_gated_and_yields_a_verdict` |
+| `112215` | P | `graded_result_records_its_evaluation_family` |
+| `112216` | N | `unregistered_family_value_is_rejected` |
+| `112217` | B | `precondition_result_carries_no_family` |
+| `112218` | P | `result_records_the_platform_it_ran_on` |
+| `112303` | N | `collected_test_absent_from_an_inventory_fails_the_run` |
+| `112029` | P | `distribution_check_reports_the_demoted_case_count` |
+| `112304` | N | `rtm_families_disagreeing_with_the_inventory_are_reported` |
+| `112305` | N | `inventory_name_violating_the_callable_pattern_is_reported` |
+| `112306` | N | `test_name_disagreeing_with_its_inventory_row_is_reported` |
+| `112128` | N | `an_overlapping_identifier_block_is_rejected` |
+| `112129` | P | `a_complete_declaration_registers_and_is_read` |
+| `112130` | P | `a_case_below_its_ceiling_is_detectable_from_its_record` |
+| `112131` | N | `a_priority_above_every_matched_condition_is_a_breach` |
+| `112307` | N | `a_declared_requirement_with_no_row_is_reported` |
+| `112308` | P | `families_agreeing_with_the_inventory_pass` |
+| `112309` | P | `every_check_runs_rather_than_stopping_at_the_first` |
+| `112310` | N | `an_unknown_matrix_column_is_rejected` |
+| `112311` | B | `the_harness_matrix_omits_the_families_column` |
+| `112312` | P | `the_live_harness_matrix_passes_every_check` |
+| `112132` | N | `argparse_rejects_the_same_values_the_registry_does` |
+| `112133` | P | `mode_defaults_to_replay_so_nothing_spends_quota` |
+| `112134` | P | `a_green_gated_artifact_exits_zero` |
+| `112135` | N | `an_unreadable_artifact_is_an_argument_error` |
+| `112136` | B | `an_unrecorded_threshold_falls_back_to_the_default` |
+| `112219` | B | `latency_is_absent_rather_than_zero_when_nothing_measured` |
+| `112220` | P | `changed_areas_distinguish_harness_from_tests` |
+| `112221` | N | `a_field_the_record_does_not_declare_is_rejected` |
+| `112222` | N | `requirements_files_disagreeing_with_pyproject_fail` |
+| `112223` | N | `every_imported_package_is_declared` |
+| `112224` | N | `random_test_ordering_is_declared` |
+| `112500` | N | `every_callable_carries_parameter_and_return_hints` |
+| `112501` | N | `pep_563_future_annotations_import_is_rejected` |
+| `112502` | N | `every_python_file_carries_its_spdx_header` |
+| `112225` | N | `every_package_on_disk_is_configured_for_the_build` |
+| `112137` | P | `consumer_registry_loads_every_declared_entry` |
+| `112138` | N | `a_consumer_entry_without_a_repository_is_rejected` |
+| `112139` | B | `an_absent_consumer_registry_is_a_starting_condition` |
+| `112140` | N | `selecting_named_tests_yields_no_verdict` |
+| `112141` | B | `an_unnamed_harness_branch_falls_back_to_the_default_ref` |
+| `112142` | P | `a_named_harness_branch_resolves_to_its_paired_consumer_ref` |
+| `112226` | N | `an_identifier_appearing_twice_in_one_inventory_is_reported` |
+| `112326` | N | `an_identifier_bound_by_two_callables_is_reported` |
+| `112525` | N | `a_workflow_emitting_one_mandated_artifact_is_reported` |
+| `112037` | N | `an_entry_whose_model_changed_is_expired` |
+| `112038` | P | `an_unconfirmed_entry_is_honoured_and_never_red` |
+| `112039` | P | `an_absent_quarantine_file_is_an_empty_quarantine` |
+| `112040` | P | `the_consulted_quarantine_hash_is_recorded` |
+| `112041` | N | `a_malformed_ticket_reference_is_reported` |
+| `112042` | P | `the_named_evaluation_date_reaches_quarantine_expiry` |
+| `112043` | P | `reconciling_decides_each_entry_from_what_was_observed` |
+| `112239` | P | `every_required_result_field_is_emitted` |
+| `112240` | P | `a_failing_case_reports_every_call_it_made` |
+| `112145` | N | `a_registered_adapter_off_the_roster_is_reported` |
+| `112146` | N | `an_identifier_outside_its_module_block_is_reported` |
+| `112313` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
+| `112314` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
+| `112600` | P | `the_default_judge_engine_is_gemini` |
+| `112601` | P | `a_configured_judge_engine_overrides_the_default` |
+| `112602` | N | `a_judge_engine_absent_from_the_roster_is_rejected` |
+| `112603` | N | `an_engine_without_structured_output_cannot_judge` |
+| `112315` | N | `a_harness_test_reading_a_credential_is_reported` |
+| `112227` | P | `invention_and_omission_are_both_registered_codes` |
+| `112228` | N | `family_table_disagreeing_with_the_code_registry_is_reported` |
+| `112229` | N | `every_requirement_in_the_matrix_appears_in_the_plan` |
+| `112230` | N | `a_registered_family_without_ground_truth_is_reported` |
+| `112604` | P | `an_absent_judge_model_falls_back_to_the_roster_entry` |
+| `112605` | P | `a_judge_model_distinct_from_the_candidate_is_expressible` |
+| `112606` | N | `a_probe_that_omits_the_judge_subject_is_reported` |
+| `112607` | P | `a_recorded_judgement_is_replayed_for_the_same_request` |
+| `112608` | N | `a_judgement_from_a_different_judge_model_is_stale` |
+| `112609` | N | `a_judgement_whose_request_hash_moved_is_stale` |
+| `112610` | N | `a_missing_judgement_raises_rather_than_judging_live` |
+| `112503` | N | `a_document_or_data_file_without_an_spdx_header_is_reported` |
+| `112615` | N | `two_candidate_engines_judged_by_one_judge_do_not_share` |
+| `112324` | N | `an_untraced_test_is_reported_against_either_matrix` |
+| `112412` | N | `with_prerequisites_under_a_keyword_filter_is_refused` |
+| `112413` | B | `with_prerequisites_without_any_filter_warns_and_proceeds` |
+| `112325` | N | `an_inventory_row_without_an_implementation_is_reported` |
+| `112036` | B | `one_disagreement_earns_two_further_observations` |
+| `112524` | N | `a_workflow_step_running_an_absent_script_is_reported` |
+| `112144` | P | `the_corpus_selection_is_resolved_at_configure_time` |
+| `112611` | P | `judge_mode_defaults_to_whatever_mode_is` |
+| `112612` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
+| `112504` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
+| `112505` | N | `a_branch_name_outside_the_grammar_is_reported` |
+| `112506` | N | `a_referent_of_no_registered_kind_is_reported` |
+| `112507` | B | `staleness_is_silent_then_warned_then_red_at_its_bounds` |
+| `112508` | N | `a_development_branch_targeting_main_is_reported` |
+| `112509` | N | `a_merge_bringing_main_into_a_branch_is_reported` |
+| `112030` | N | `a_broken_graded_observation_blocks_and_exits_three` |
+| `112031` | N | `an_incomplete_skip_blocks_however_few_there_are` |
+| `112032` | B | `an_environmental_skip_is_tolerated_to_its_ceiling` |
+| `112510` | P | `an_integration_branch_may_omit_its_referent` |
+| `112400` | N | `a_dependent_of_a_failed_base_case_is_skipped_not_failed` |
+| `112401` | P | `a_dependent_of_a_passing_base_case_runs_normally` |
+| `112402` | N | `a_dependency_naming_no_collected_case_is_reported` |
+| `112403` | B | `a_mixed_script_word_is_a_homoglyph_and_one_script_is_not` |
+| `112511` | N | `a_file_open_declaring_no_encoding_is_reported` |
+| `112316` | N | `a_requirement_identifier_declared_twice_is_reported` |
+| `112317` | B | `a_register_at_eighty_percent_of_its_ceiling_is_reported` |
+| `112318` | N | `a_register_token_that_is_also_a_module_code_is_reported` |
+| `112319` | N | `a_registry_membership_change_without_a_case_is_reported` |
+| `112512` | N | `a_local_env_file_is_loaded_without_overwriting_anything` |
+| `112513` | N | `a_line_that_is_not_an_assignment_is_skipped_by_number` |
+| `112514` | N | `a_credential_file_reaching_ci_is_reported` |
+| `112515` | N | `no_workflow_reads_a_credential_file` |
+| `112404` | N | `a_base_case_skipped_in_setup_is_recorded_for_its_dependents` |
+| `112405` | N | `a_dependent_collected_before_its_base_is_reordered` |
+| `112516` | N | `a_credential_file_beside_the_roster_is_found` |
+| `112517` | N | `the_consumer_conftest_searches_both_roots` |
+| `112033` | N | `a_case_whose_observations_disagree_is_a_finding` |
+| `112034` | B | `inconsistency_at_the_ceiling_unsounds_the_run` |
+| `112035` | P | `a_score_moving_inside_the_band_is_recorded_not_gated` |
+| `112320` | N | `two_models_on_one_engine_unsounds_the_run` |
+| `112321` | P | `one_model_per_engine_is_sound_across_engines` |
+| `112322` | B | `an_observation_with_no_model_is_not_a_second_version` |
+| `112520` | N | `every_declared_credential_appears_in_the_example` |
+| `112323` | N | `a_readme_count_disagreeing_with_the_designs_is_reported` |
+| `112231` | N | `an_installed_gating_tool_outside_its_pin_is_reported` |
+| `112521` | N | `a_generated_file_in_a_skipped_tree_is_not_read` |
+| `112518` | N | `a_credential_no_engine_reads_is_reported` |
+| `112519` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 217 cases, 122 negative, 68 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 218 cases, 123 negative, 68 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -1716,14 +1717,14 @@ Three checks, the same shape as the RTM integrity checks in section 6 and for th
 
 | Case | Guards against |
 |---|---|
-| `10143` | An unregistered code reaching the durable record, where nothing downstream can interpret it |
-| `10144` | Registry rot, where a code remains listed long after the condition that raised it was removed |
-| `10145` | A specification naming a code that was never registered |
-| `10146` | An inventory whose stated totals no longer match its rows |
+| `112200` | An unregistered code reaching the durable record, where nothing downstream can interpret it |
+| `112201` | Registry rot, where a code remains listed long after the condition that raised it was removed |
+| `112202` | A specification naming a code that was never registered |
+| `112203` | An inventory whose stated totals no longer match its rows |
 
 ### 10.2 The suite enforces its own authoring order
 
-**`10183` fails the run when a collected test identifier appears in no design inventory.**
+**`112303` fails the run when a collected test identifier appears in no design inventory.**
 
 A12 requires a design change to be discussed, documented and only then implemented. **The reason that order exists is priority.**
 
@@ -1741,9 +1742,9 @@ This makes the omission impossible to ship rather than impossible to commit. Som
 
 **It is a negative case deliberately.** A positive asserting that every inventory row has a test would catch a different and lesser problem: a case designed and not built is visible in a coverage report, while a case built and never designed is visible nowhere until someone asks why the inventory is short.
 
-**`10146` reads one canonical sentence.** Every module design states its inventory as `**Inventory: <n> cases, <n> negative, <n> positive, <n> boundary.**` and nothing else. The four documents previously used three different phrasings for that statement, which would have forced the check to parse prose variants, and a check that parses prose fails the first time someone rewords a sentence rather than changes a number.
+**`112203` reads one canonical sentence.** Every module design states its inventory as `**Inventory: <n> cases, <n> negative, <n> positive, <n> boundary.**` and nothing else. The four documents previously used three different phrasings for that statement, which would have forced the check to parse prose variants, and a check that parses prose fails the first time someone rewords a sentence rather than changes a number.
 
-**`10145` scans live specifications only.** Two kinds of document are excluded, both dated records rather than specifications: the Phase 0 register, which deliberately names alternatives that were considered and rejected, and `CLAUDE_LOG.md`, which records codes as they were before a later decision split or renamed them. A code appearing in either is evidence of a decision rather than an unregistered entry, and scanning them would report every rejected option and every superseded name as a defect.
+**`112202` scans live specifications only.** Two kinds of document are excluded, both dated records rather than specifications: the Phase 0 register, which deliberately names alternatives that were considered and rejected, and `CLAUDE_LOG.md`, which records codes as they were before a later decision split or renamed them. A code appearing in either is evidence of a decision rather than an unregistered entry, and scanning them would report every rejected option and every superseded name as a defect.
 
 Both exclusions were established by a manual cross-check that reported `QC_LLM_INJECTION_ATTEMPT`, rejected under A5a, and `QC_HARNESS_API_TIMEOUT`, later split into `QC_HARNESS_CANDIDATE_TIMEOUT` and `QC_HARNESS_JUDGE_TIMEOUT`. Neither is a defect, and a check reporting them would be trained away on its second run.
 
@@ -1756,9 +1757,9 @@ This check was added after a manual cross-check found two codes, `QC_HARNESS_FIX
 
 Added 2026-09-22, after five rows were found specifying behaviour names longer than the 60 characters `.pylintrc` permits on a callable. Two were discovered by implementing them and failing Gate 1; three were latent and would have failed whenever someone reached them.
 
-**`10186` checks the inventory against the pattern the callable must match.** A design that specifies an unimplementable name is a defect in the design, and the person who meets it is implementing something unrelated and has to stop to fix a document.
+**`112305` checks the inventory against the pattern the callable must match.** A design that specifies an unimplementable name is a defect in the design, and the person who meets it is implementing something unrelated and has to stop to fix a document.
 
-**`10187` checks that an implemented name matches its row.** `10183` established that a test must appear in an inventory; it compares identifiers and says nothing about behaviour names. One case had already diverged: the test name was shortened to pass Gate 1 and the inventory row was left as it was, so the design and the code described the same case differently.
+**`112306` checks that an implemented name matches its row.** `112303` established that a test must appear in an inventory; it compares identifiers and says nothing about behaviour names. One case had already diverged: the test name was shortened to pass Gate 1 and the inventory row was left as it was, so the design and the code described the same case differently.
 
 That divergence is the exact shape the authoring order exists to prevent, arriving from the other direction: not a test written without a design, but a design left behind by a test. Both are the code and the document disagreeing, and one check cannot cover both.
 
@@ -1766,19 +1767,19 @@ That divergence is the exact shape the authoring order exists to prevent, arrivi
 
 Added 2026-09-23. Each guards something the original inventory could not, and they fall into four groups.
 
-**Registry completeness, in both directions.** `10188` refuses a layer whose identifier block overlaps one already registered: two layers claiming one identifier would let downstream history silently rebind it, which is the reason identifiers are never reused. `10189` is the positive `10141` is measured against, because a rejection case alone is satisfied by an implementation that rejects everything.
+**Registry completeness, in both directions.** `112128` refuses a layer whose identifier block overlaps one already registered: two layers claiming one identifier would let downstream history silently rebind it, which is the reason identifiers are never reused. `112129` is the positive `112108` is measured against, because a rejection case alone is satisfied by an implementation that rejects everything.
 
-**Counterweights without which a check passes for the wrong reason.** `10193` asserts that T5 does **not** fire on a correct row, `10197` runs the integrity checks against the live matrix rather than only synthetic rows, and `10198` asserts that `argparse` rejects the values the registry rejects. The last is the one that matters: a registry validating correctly while the command line accepted anything would satisfy `10148` completely and leave the actual surface unguarded.
+**Counterweights without which a check passes for the wrong reason.** `112308` asserts that T5 does **not** fire on a correct row, `112312` runs the integrity checks against the live matrix rather than only synthetic rows, and `112132` asserts that `argparse` rejects the values the registry rejects. The last is the one that matters: a registry validating correctly while the command line accepted anything would satisfy `112111` completely and leave the actual surface unguarded.
 
-**Boundaries stated as absence rather than zero.** `11102` and `11103` are the same rule twice: an artifact predating a threshold recomputes against the default, and latency over no measured samples is absent rather than zero. A mean of zero would read as an impossibly fast run, which is a quality finding drawn from a gap in the data.
+**Boundaries stated as absence rather than zero.** `112136` and `112219` are the same rule twice: an artifact predating a threshold recomputes against the default, and latency over no measured samples is absent rather than zero. A mean of zero would read as an impossibly fast run, which is a quality finding drawn from a gap in the data.
 
-**The fixture guards needed a third and a fourth**, and both **relocated to `AP-Model-QC` on 2026-09-23** with the excerpts they guard. Formerly `11105`, now `MQC_CAS_UNI_10404`, asserts the two `top_scorers` excerpts are the same function, which is what makes the pair worth having: without it, defect class is confounded with subject matter, length and difficulty, and a difference in results would have three explanations. Formerly `11106`, now part of `MQC_CAS_UNI_10405`, asserts the excerpts carry a text suffix, so no formatter, linter or collector silently corrects them.
+**The fixture guards needed a third and a fourth**, and both **relocated to `AP-Model-QC` on 2026-09-23** with the excerpts they guard. Formerly `11105`, now `MQC_CAS_UNI_115103`, asserts the two `top_scorers` excerpts are the same function, which is what makes the pair worth having: without it, defect class is confounded with subject matter, length and difficulty, and a difference in results would have three explanations. Formerly `11106`, now part of `MQC_CAS_UNI_115104`, asserts the excerpts carry a text suffix, so no formatter, linter or collector silently corrects them.
 
 #### 10.4.1 The excerpts are executed in process, and that is approved
 
-Executing a defective excerpt to establish what it returns requires `exec`, which is approved rather than suppressed silently at the call site, per `code-style.md` section 9. The two cases doing so were formerly `10172` and `10173`, now `MQC_CAS_UNI_10402` and `10403`.
+Executing a defective excerpt to establish what it returns requires `exec`, which is approved rather than suppressed silently at the call site, per `code-style.md` section 9. The two cases doing so were formerly `10172` and `10173`, now `MQC_CAS_UNI_115101` and `115102`.
 
-**The approval moved with the cases on 2026-09-23.** The excerpt guards now live in `AP-Model-QC` as `MQC_CAS_UNI_10401` through `10405`, and the `exec` approval belongs with them. Nothing in this repository executes a fixture.
+**The approval moved with the cases on 2026-09-23.** The excerpt guards now live in `AP-Model-QC` as `MQC_CAS_UNI_115100` through `115104`, and the `exec` approval belongs with them. Nothing in this repository executes a fixture.
 
 In process rather than through a subprocess, because capturing a subprocess under pytest fails on Windows with an invalid handle, and the harness is verified on both platforms (A18).
 
@@ -1786,40 +1787,40 @@ In process rather than through a subprocess, because capturing a subprocess unde
 
 Both were found by running them.
 
-`10183` matched any occurrence of a test identifier, including one inside a string literal. A traceability case must name a non-existent test in order to exercise a stale reference, and that literal was reported as an undesigned test. **The pattern now requires a `def` prefix**, because a collected test is one the suite defines.
+`112303` matched any occurrence of a test identifier, including one inside a string literal. A traceability case must name a non-existent test in order to exercise a stale reference, and that literal was reported as an undesigned test. **The pattern now requires a `def` prefix**, because a collected test is one the suite defines.
 
-`10145` scanned every backticked code in a live specification, including prose. Section 10.2 already excludes the Phase 0 register for naming rejected alternatives, but a live specification's own prose names superseded codes for the same legitimate reason: this document explains the exclusion by naming the two codes that prompted it. **The check now scans table rows only.** A code specified for use appears in a table; a code discussed appears in prose.
+`112202` scanned every backticked code in a live specification, including prose. Section 10.2 already excludes the Phase 0 register for naming rejected alternatives, but a live specification's own prose names superseded codes for the same legitimate reason: this document explains the exclusion by naming the two codes that prompted it. **The check now scans table rows only.** A code specified for use appears in a table; a code discussed appears in prose.
 
 Neither was a defect in the thing checked. Both were the check reporting what is not a defect, which is precisely how a check comes to be ignored.
 
 
 ### 10.5 The dependency declaration check
 
-`11108` compares the generated requirements files against `pyproject.toml` and fails when they disagree.
+`112222` compares the generated requirements files against `pyproject.toml` and fails when they disagree.
 
 **It exists because the files are a convenience, not a source of truth.** `DESIGN.md` section 5.0.1 keeps the declaration in one place; this check is what makes the generated copies safe to keep. Without it they are a second declaration, and a second declaration drifts.
 
-`11109` is the one that would have caught the gap. It parses every import in the repository and compares against the declaration, so a package the code imports and nothing declares fails here rather than on the first clean install. **Parsed, not pattern-matched**: a regex over source lines also matches prose, and a docstring beginning "from the artifact alone" reads as an import of a package named `the`.
+`112223` is the one that would have caught the gap. It parses every import in the repository and compares against the declaration, so a package the code imports and nothing declares fails here rather than on the first clean install. **Parsed, not pattern-matched**: a regex over source lines also matches prose, and a docstring beginning "from the artifact alone" reads as an import of a package named `the`.
 
-`11110` names `pytest-randomly` specifically, because a general declaration check cannot know that this particular dependency carries a guarantee rather than a convenience.
+`112224` names `pytest-randomly` specifically, because a general declaration check cannot know that this particular dependency carries a guarantee rather than a convenience.
 
 It also covers the gap that prompted the section. An audit found `pytest-randomly` installed locally and declared nowhere, so **local runs held a guarantee CI did not**: the suite shuffles test order to catch inter-test dependencies, and the extension cases mutate registries, which is exactly where such a dependency would live. A check comparing the declaration to the environment would have caught it; a check comparing two files to each other does not, which is why the case reads the declaration rather than the installed set.
 
 
 ### 10.6 The annotation checks
 
-`11111` parses every Python file and fails on a missing parameter or return annotation. `11112` fails on a `from __future__ import annotations`.
+`112500` parses every Python file and fails on a missing parameter or return annotation. `112501` fails on a `from __future__ import annotations`.
 
 **They exist because the rule already existed and nothing checked it.** `code-style.md` section 2 has required full annotation since the project began, and an audit found production code at zero gaps and test code at 597. Pylint does not check annotation presence, so the rule was a convention wherever nobody happened to be careful.
 
-**`11112` is the less obvious of the two.** Python 3.14 implements PEP 649, so annotations are already lazy and the import is not needed for that. What it does instead is select PEP 563, which stringizes every annotation and removes `annotationlib.Format.VALUE`. On a project built from frozen dataclasses that read their fields at class creation, that trades a working mechanism for a weaker one to obtain something already present.
+**`112501` is the less obvious of the two.** Python 3.14 implements PEP 649, so annotations are already lazy and the import is not needed for that. What it does instead is select PEP 563, which stringizes every annotation and removes `annotationlib.Format.VALUE`. On a project built from frozen dataclasses that read their fields at class creation, that trades a working mechanism for a weaker one to obtain something already present.
 
 The check is a negative for the reason section 10.2 gives: a positive asserting that annotations are lazy would pass on any 3.14 interpreter regardless of what the code does, while this fails exactly when someone reaches for the import.
 
 
 ### 10.7 The authorship header check
 
-`11113` asserts that every Python file opens with the two SPDX lines, above the module docstring, naming this repository's licence.
+`112502` asserts that every Python file opens with the two SPDX lines, above the module docstring, naming this repository's licence.
 
 **The split made the licence a per-file question.** Code from this repository now installs into another one under a different licence, so a file separated from its repository has to say what it is. `code-style.md` section 1.1 carries the form and why SPDX rather than the thirteen-line Apache appendix notice.
 
@@ -1828,7 +1829,7 @@ The check is a negative for the reason section 10.2 gives: a positive asserting 
 
 ### 10.8 The packaging check
 
-`11114` compares the packages the build is configured to ship against the package directories on disk, and fails when a directory would be left out.
+`112225` compares the packages the build is configured to ship against the package directories on disk, and fails when a directory would be left out.
 
 **It exists because a hand-written package list shipped a broken distribution.** `pyproject.toml` named four packages and omitted `execution.adapters`, so the built wheel contained `execution/` with no adapters in it. The adapter registry imports all three adapters at import time, so **every consumer would have failed on its first import**.
 
@@ -1841,13 +1842,13 @@ Nothing here detected it. The repository is normally used from its own source tr
 
 Added 2026-09-23 with the three regression and debug workflows in `ci_pipeline.md` sections 3A, 3B and 6A.
 
-`11115` through `11117` cover the consumer registry the fan-out reads. **A consumer entry naming no repository is rejected** rather than tolerated, because it would report unreachable on every run, which reads as a consumer problem when it is a registry typo. **An absent registry is a starting condition**: a harness with no registered consumers has nothing to fan out to, which is not an error.
+`112137` through `112139` cover the consumer registry the fan-out reads. **A consumer entry naming no repository is rejected** rather than tolerated, because it would report unreachable on every run, which reads as a consumer problem when it is a registry typo. **An absent registry is a starting condition**: a harness with no registered consumers has nothing to fan out to, which is not an error.
 
-`11119` and `11120` cover the per-branch pairing added with `ci_pipeline.md`
+`112141` and `112142` cover the per-branch pairing added with `ci_pipeline.md`
 section 3C. A run is defined by a **pair** of refs, so the registry maps a
 branch of this repository to the consumer ref it is verified against.
 
-**`11119` is the case that carries the design.** A harness branch the mapping
+**`112141` is the case that carries the design.** A harness branch the mapping
 does not name falls back to `default_ref` rather than failing, because feature
 branches are created constantly and requiring a registry entry for each would
 make the registry the thing that stops a branch being tested. It is marked
@@ -1855,9 +1856,9 @@ boundary because the fallback is the edge the mapping is defined at, and an
 implementation raising there instead would be silent on every branch except the
 two that are named.
 
-**`11118` closes a gap the debug workflow opened.** It selects by test identifier, and the option registry knew nothing about that: `tests` was neither a declared option nor a manual selector, so a run naming four failing tests would have derived `selection_mode: full` and produced a verdict from four cases.
+**`112140` closes a gap the debug workflow opened.** It selects by test identifier, and the option registry knew nothing about that: `tests` was neither a declared option nor a manual selector, so a run naming four failing tests would have derived `selection_mode: full` and produced a verdict from four cases.
 
-That is the exact failure the gating rules exist to prevent, arriving through a flag nobody had registered. The selector registry is what makes it impossible rather than merely unlikely, which is why `10164` is parametrized over that registry rather than over a written list.
+That is the exact failure the gating rules exist to prevent, arriving through a flag nobody had registered. The selector registry is what makes it impossible rather than merely unlikely, which is why `112122` is parametrized over that registry rather than over a written list.
 
 ---
 
@@ -1870,15 +1871,15 @@ Gate 1 exited **0** here and **8** in CI on the same commit, because the newer
 pylint counts `self` differently against `max-args`. Two commits were pushed on
 the strength of a local run that was measuring a different tool.
 
-**`11108` could not catch it.** It regenerates the requirements files from
+**`112222` could not catch it.** It regenerates the requirements files from
 `pyproject.toml`, so it verifies that what is *declared* agrees with itself.
 Nothing verified that what is *installed* agrees with the declaration, and the
 declaration is what CI installs from.
 
 | Checked | By |
 |---|---|
-| The generated files match the declaration | `11108` |
-| **The installed tool satisfies the declaration** | **`11181`** |
+| The generated files match the declaration | `112222` |
+| **The installed tool satisfies the declaration** | **`112231`** |
 
 **Scoped to the tools that gate**, `pylint` and `pytest`. A drifting library
 changes behaviour and some case says so; a drifting linter or runner changes the
@@ -1894,7 +1895,7 @@ other way, and the asymmetry is the point rather than its direction.
 Added 2026-09-26, from a CI failure that would not reproduce locally.
 
 `pytest` writes `.pytest_cache/README.md`. The markup scan read it as a document
-this repository authors, so `11140` reported it as missing an SPDX header. **It
+this repository authors, so `112503` reported it as missing an SPDX header. **It
 passed here and failed in CI**, and the reason is the worst available one: an
 earlier header pass had written a header **into the local copy**, so the working
 tree carried a property a fresh checkout did not, and the check was measuring the
@@ -1907,10 +1908,10 @@ gap between them. The docstring is corrected to say what the code does, and
 `.mypy_cache`, `.ruff_cache`, `.tox`, `htmlcov`, `.eggs`, `reports` and
 `allure-results`.
 
-**`11182` builds the condition rather than waiting for it.** `11140` fails only
+**`112521` builds the condition rather than waiting for it.** `112503` fails only
 when the working tree's cache is clean, and a developer who has run the header
 pass does not have one, so it was a check that happened to notice rather than one
-that could not miss. `11182` plants a generated file in three skipped trees and
+that could not miss. `112521` plants a generated file in three skipped trees and
 asserts the scan returns the authored document and nothing else.
 
 **Its first version was vacuous and injection caught it.** It asserted only that
@@ -1936,7 +1937,7 @@ roster` — a true statement about a roster that was never read.
 
 **It could not fail locally.** The sibling is always present on a developer's
 disk, so every local run passed and only an install could show it. That is the
-second instance of the shape `MQC_CMN_UNI_11114` records: a distribution
+second instance of the shape `MQC_CMN_UNI_112225` records: a distribution
 missing something the source tree has, found the first time this repository was
 installed into another one.
 
@@ -1969,9 +1970,9 @@ the one thing a unit case cannot establish is that the stages join.
 
 | ID | Cat | Behaviour |
 |---|---|---|
-| `20301` | P | `a_compliant_model_runs_the_chain_to_a_green_verdict` |
-| `20302` | N | `a_failing_model_runs_the_chain_to_a_red_verdict` |
-| `20303` | B | `three_observations_of_one_case_reach_the_verdict` |
+| `122000` | P | `a_compliant_model_runs_the_chain_to_a_green_verdict` |
+| `122001` | N | `a_failing_model_runs_the_chain_to_a_red_verdict` |
+| `122002` | B | `three_observations_of_one_case_reach_the_verdict` |
 
 ### 11.2 Why these exist, and what they replaced
 
@@ -1986,17 +1987,17 @@ double, and a verdict computed from the observations that come out.
 
 #### 11.2.1 Both outcomes, because one proves nothing
 
-`20302` differs from `20301` **by the candidate's text alone**: same corpus, same
+`122001` differs from `122000` **by the candidate's text alone**: same corpus, same
 adapter, same judge, same rules. So the red is attributable to the model's output
 and to nothing else in the chain.
 
 **A chain that always answers green proves only that it can answer.** An
 instrument has to be able to say "this failed" about something that failed, or its
 green is not a measurement. It is also the distinction the whole design protects:
-`20302` asserts exit **1**, a finding about a model, rather than exit 3, which
+`122001` asserts exit **1**, a finding about a model, rather than exit 3, which
 would say the instrument broke.
 
-#### 11.2.2 `20303` guards the repeat count through the whole chain
+#### 11.2.2 `122002` guards the repeat count through the whole chain
 
 A4.1 asks for three observations. **Dispatch could satisfy that and the verdict
 still see one:** repeats are requested per observation index, recorded per index
@@ -2031,24 +2032,24 @@ output count, and the judge path recorded nothing at all.
 
 | ID | Cat | Behaviour |
 |---|---|---|
-| `11183` | N | `a_price_window_that_has_closed_is_reported` |
-| `11184` | B | `the_published_increase_is_priced_from_its_own_date` |
-| `11185` | N | `an_unpriced_model_yields_no_figure_rather_than_zero` |
-| `11186` | P | `thinking_is_billed_at_the_output_rate` |
-| `11187` | B | `cached_input_is_discounted_and_never_double_counted` |
-| `11188` | P | `a_judged_case_reports_its_judge_apart_from_its_candidate` |
-| `11189` | N | `a_replayed_observation_contributes_nothing` |
-| `11190` | N | `choosing_the_default_engine_is_not_defaulting` |
-| `11191` | N | `the_roster_is_found_through_the_installed_package` |
-| `11192` | N | `the_shipped_distribution_carries_the_configuration` |
-| `11193` | N | `a_registered_flag_no_case_names_is_reported` |
-| `11194` | P | `a_band_selects_only_its_own_cases` |
-| `11195` | N | `a_malformed_band_is_refused_not_ignored` |
-| `11196` | B | `a_band_takes_its_foundations_only_when_asked` |
-| `11197` | P | `a_carried_foundation_is_not_run_again` |
-| `11198` | N | `a_record_whose_provenance_moved_is_refused` |
-| `11199` | B | `no_carry_file_named_changes_nothing` |
-| `11200` | N | `a_consumer_run_fails_this_job_only_on_our_codes` |
+| `112232` | N | `a_price_window_that_has_closed_is_reported` |
+| `112233` | B | `the_published_increase_is_priced_from_its_own_date` |
+| `112234` | N | `an_unpriced_model_yields_no_figure_rather_than_zero` |
+| `112235` | P | `thinking_is_billed_at_the_output_rate` |
+| `112236` | B | `cached_input_is_discounted_and_never_double_counted` |
+| `112237` | P | `a_judged_case_reports_its_judge_apart_from_its_candidate` |
+| `112238` | N | `a_replayed_observation_contributes_nothing` |
+| `112143` | N | `choosing_the_default_engine_is_not_defaulting` |
+| `112613` | N | `the_roster_is_found_through_the_installed_package` |
+| `112614` | N | `the_shipped_distribution_carries_the_configuration` |
+| `112522` | N | `a_registered_flag_no_case_names_is_reported` |
+| `112406` | P | `a_band_selects_only_its_own_cases` |
+| `112407` | N | `a_malformed_band_is_refused_not_ignored` |
+| `112408` | B | `a_band_takes_its_foundations_only_when_asked` |
+| `112409` | P | `a_carried_foundation_is_not_run_again` |
+| `112410` | N | `a_record_whose_provenance_moved_is_refused` |
+| `112411` | B | `no_carry_file_named_changes_nothing` |
+| `112523` | N | `a_consumer_run_fails_this_job_only_on_our_codes` |
 
 ### 12.2 What was measured before any of this was built
 
@@ -2073,19 +2074,19 @@ Every rate for `gemini-3.8-flash` doubles on 1 January 2027, which the provider
 published in advance. A table overtaken by that change would not report an error,
 it would report **the older, smaller figure**, and a halved bill in a report is
 worse than no bill at all. So `priced_on` and `effective_until` are data, and
-`11183` fails when no window covers the date being priced.
+`112232` fails when no window covers the date being priced.
 
-**An unpriced model yields no figure rather than zero** (`11185`). Zero reads as a
+**An unpriced model yields no figure rather than zero** (`112234`). Zero reads as a
 run that was free, which is the one wrong answer that looks right.
 
 ### 12.4 The ceiling fails closed, which a test found
 
-`11185` is also why `MQC_EXE_UNI_10303` exists. A ceiling set against an unpriced
+`112234` is also why `MQC_EXE_UNI_113702` exists. A ceiling set against an unpriced
 model cannot be honoured: the model's responses cost nothing computable, so
 spending never accumulates and the cap never engages. A run would have spent
 without limit while reporting a budget.
 
-**Found by a case that would not fail.** The first version of `10301` set a ceiling
+**Found by a case that would not fail.** The first version of `113700` set a ceiling
 against a double whose model the table does not price, and passed for that reason
 rather than the one it asserted. `claude-opus-5-5` is exactly that case:
 deliberately unpriced, the model a new key would most likely point at, and the one
@@ -2113,12 +2114,12 @@ are separate cases.
 
 Added 2026-09-23, after an identifier was bound twice and nothing noticed.
 
-`11118` was already inventoried as `selecting_named_tests_yields_no_verdict`
+`112140` was already inventoried as `selecting_named_tests_yields_no_verdict`
 when a second row claimed it for an unrelated case. **Every existing check
-passed.** `10183` asks whether a collected test appears in some inventory row
-and both did; `10186` checks each row's name against the callable pattern and
-both were valid; `10187` compares an implemented name to its row and matched the
-first; `10146` compares stated totals to the row count, which stayed consistent
+passed.** `112303` asks whether a collected test appears in some inventory row
+and both did; `112305` checks each row's name against the callable pattern and
+both were valid; `112306` compares an implemented name to its row and matched the
+first; `112203` compares stated totals to the row count, which stayed consistent
 because a row was genuinely added.
 
 **The checks were all keyed on a row, and the defect was a relationship between
@@ -2129,7 +2130,7 @@ an ID is assigned once and never reused, so downstream history never silently
 rebinds an identifier to different behaviour. Two live rows for one identifier
 is that rebinding, present from the start rather than after a deletion.
 
-`11121` scans every module design and fails on an identifier appearing in more
+`112226` scans every module design and fails on an identifier appearing in more
 than one inventory row. **It is a negative case**, because the positive it
 replaces, every row having a valid identifier, is already covered and was
 already passing while this held.
@@ -2137,9 +2138,9 @@ already passing while this held.
 
 #### 10.10.1 The same defect on the suite's side of the line, and why nothing saw it
 
-Added 2026-10-02, after `10157` was found bound by two different cases.
+Added 2026-10-02, after `112119` was found bound by two different cases.
 
-`11121` closed section 10.10 for **inventories**: it scans module designs and
+`112226` closed section 10.10 for **inventories**: it scans module designs and
 fails an identifier appearing in more than one row. It reads documents, and this
 duplicate was in the suite, where nothing was looking.
 
@@ -2150,13 +2151,13 @@ are keyed on an identifier and cannot see two bindings of one identifier.
 
 | Check | Asks | Sees two callables sharing an identifier? |
 |---|---|---|
-| `11121` | Does an inventory bind one twice? | No, it reads documents |
-| `11122`, `10460` | Is a collected test in some matrix row? | **No**, both entered the set as one |
-| `11205`, `10183` | Does an inventory row have an implementation? | **No**, the first found satisfies it |
-| `10146` | Do the stated totals match the row count? | No, the rows stayed consistent |
-| `11209` | How many callables bind this identifier? | Yes |
+| `112226` | Does an inventory bind one twice? | No, it reads documents |
+| `112313`, `115602` | Is a collected test in some matrix row? | **No**, both entered the set as one |
+| `112325`, `112303` | Does an inventory row have an implementation? | **No**, the first found satisfies it |
+| `112203` | Do the stated totals match the row count? | No, the rows stayed consistent |
+| `112326` | How many callables bind this identifier? | Yes |
 
-`11209` counts bindings across both trees rather than collecting them into a
+`112326` counts bindings across both trees rather than collecting them into a
 set. **A negative case**, for the reason 10.10 gives: the positive it would
 replace, every collected test carrying a valid identifier, was already covered
 and already passing while this held.
@@ -2174,15 +2175,15 @@ assertions decided what to do with it, and renumbering it would have been wrong:
 
 | Assertion | Carries |
 |---|---|
-| `not matches_collector_pattern(name)` | Nothing. `10166` asserts the same fact four lines above it, in **both** directions |
+| `not matches_collector_pattern(name)` | Nothing. `112210` asserts the same fact four lines above it, in **both** directions |
 | `(tmp_path / name).parent == tmp_path` | **Nothing at all.** True of every single-segment string, and `tmp_path` was requested only for it |
-| `name.startswith("diagnostic-local")` | A real fact `10166` misses: it pins the literal prefix, where a pattern check still passes if both prefixes are renamed together |
+| `name.startswith("diagnostic-local")` | A real fact `112210` misses: it pins the literal prefix, where a pattern check still passes if both prefixes are renamed together |
 
 Its `RunContext("ci_debug", "manual", True)` also suggested a second selection
 mode mattered here. It does not: `artifact_name` reads `run_context` alone, so
 `manual` and `full` produce the same name and the distinction was decorative.
 
-**So it is absorbed rather than renumbered.** `10166` already owns this
+**So it is absorbed rather than renumbered.** `112210` already owns this
 mechanism and already tests both directions; it gains the literal prefix and the
 suffixed form, and the duplicate and the tautology go. Minting `11210` for what
 is left would have given an accidental duplicate an identifier of its own and
@@ -2190,12 +2191,12 @@ recorded a 208th case that re-asserts a 207th.
 
 | Was | Now |
 |---|---|
-| `10157`, `mqc_uni_cli.py` | `10157`, `out_dir_names_where_both_artifacts_are_written` |
-| `10157`, `mqc_uni_metadata.py` | Gone; its one real assertion is in `10166` |
+| `112119`, `mqc_uni_cli.py` | `112119`, `out_dir_names_where_both_artifacts_are_written` |
+| `112119`, `mqc_uni_metadata.py` | Gone; its one real assertion is in `112210` |
 
-**Keeping the `--out-dir` meaning on `10157` is not a free choice.**
+**Keeping the `--out-dir` meaning on `112119` is not a free choice.**
 `testing-standards.md` forbids rebinding an identifier to different behaviour so
-that downstream history stays readable, and `10157` has one inventory row and
+that downstream history stays readable, and `112119` has one inventory row and
 one matrix trace, both claiming the flag. The metadata binding was never
 inventoried at all, which is the sense in which it was never a case: it had an
 implementation and no row, while the row it borrowed described something else.
@@ -2209,7 +2210,7 @@ reader on sight, without a check.
 Added 2026-09-23, after a test was added with no matrix row and the suite stayed
 green.
 
-`10197` exists to run the real matrix through T1 to T5, on the stated reasoning
+`112312` exists to run the real matrix through T1 to T5, on the stated reasoning
 that a check only ever seeing constructed input proves the check works and says
 nothing about the file it guards. **It then derived both of its inputs from the
 matrix it was checking.**
@@ -2223,13 +2224,13 @@ are tautologies dressed as coverage.
 
 **A check whose inputs come from its subject can only confirm the subject is
 self-consistent.** That is a real property and it is not the property this one
-was written to establish. `10197` has been narrowed to claim only T2.
+was written to establish. `112312` has been narrowed to claim only T2.
 
-`11122` supplies the **collected suite** as the suite, which is the only source
+`112313` supplies the **collected suite** as the suite, which is the only source
 that is not the matrix. It fails in both directions: a matrix row naming a test
 that does not exist, and a collected test no row names.
 
-**It belongs beside `10183` rather than inside `10197`.** `10183` asks whether a
+**It belongs beside `112303` rather than inside `112312`.** `112303` asks whether a
 test was designed; this asks whether it was traced. A test can satisfy either
 without the other, which is exactly how the gap occurred: the new case was
 inventoried correctly and traced not at all.
@@ -2239,14 +2240,14 @@ inventoried correctly and traced not at all.
 Added 2026-09-23, after the document map in `DESIGN.md` was found stating case
 counts for five designs and a workflow count, every one of them stale.
 
-`10146` already checks that a design's stated inventory total matches its own
+`112203` already checks that a design's stated inventory total matches its own
 rows, and it was passing throughout: **each design was internally consistent and
 the index describing all of them was not.** The check was scoped to a document
 and the drift was between documents.
 
-This is the third instance of one shape in this module. `10145` reads codes a
-design names and checks them against the registry; `11122` reads the matrix and
-checks it against the suite; `11123` reads the index and checks it against the
+This is the third instance of one shape in this module. `112202` reads codes a
+design names and checks them against the registry; `112313` reads the matrix and
+checks it against the suite; `112314` reads the index and checks it against the
 designs. In each, a document restates a fact that lives elsewhere, and the
 restatement is what rots.
 
@@ -2255,7 +2256,7 @@ value is that a reader sees the shape of the project without opening six files,
 and a map with the numbers taken out is a list of filenames. The number stays
 and is checked instead.
 
-`11123` parses every document-map row naming a design under `docs/design/` and
+`112314` parses every document-map row naming a design under `docs/design/` and
 stating a case count, then compares it to that design's own inventory line. It
 deliberately does not require every row to carry a count: a design with no
 inventory is not a defect, and demanding one would make the check fail on the
@@ -2264,7 +2265,7 @@ registries rather than on the drift.
 
 ### 10.13 Resolving the judge engine
 
-`11124` through `11127` cover the judge default that A3 decided on 2026-09-19
+`112600` through `112603` cover the judge default that A3 decided on 2026-09-19
 and no file named until now. The policy is in `tier3_evaluation.md` section 5A;
 the cases sit here because the resolution lives in `cmn/config.py`.
 
@@ -2275,7 +2276,7 @@ resolution in the cross-cutting module keeps that edge from existing; putting
 the cases beside it keeps the inventory honest about where the code is.
 
 **Two negatives, because there are two ways to name a judge that cannot judge.**
-`11126` is an engine that is not on the roster, usually a typo. `11127` is an
+`112602` is an engine that is not on the roster, usually a typo. `112603` is an
 engine that is on the roster and cannot return structured output, which is the
 harder one: the name is real, the engine works as a candidate, and only the
 capability distinguishes it. A single case asserting "bad engine is rejected"
@@ -2301,7 +2302,7 @@ assertion rather than as a statement that the test should not have needed a key
 at all. The author sees green locally and a confusing red remotely, which is the
 worst shape a rule can fail in.
 
-`11128` parses every module under `tests/` and `conftest.py` and fails when one
+`112315` parses every module under `tests/` and `conftest.py` and fails when one
 reads an environment variable whose name is credential-shaped.
 
 **It reuses `forbidden_keys()` rather than listing names.** That registry already
@@ -2313,7 +2314,7 @@ list here would be the drift this document has corrected three times.
 `monkeypatch.setenv` is constructing a fixture, which is legitimate and common.
 A test *reading* one is depending on the caller's environment, which is the
 defect. The distinction is made by parsing rather than by matching text, for the
-same reason `11121` and `10145` parse: a file describing the rule names these
+same reason `112226` and `112202` parse: a file describing the rule names these
 strings, and a substring check reports itself.
 
 
@@ -2334,10 +2335,10 @@ against `QC_LLM_SOURCE_ALTERATION`, invention against alteration. The second
 pair is `QC_LLM_HALLUCINATION` against `QC_LLM_DEFECT_MISSED`, invention against
 omission at the level of a finding.
 
-`11129` asserts both pairs are complete. **It is a positive case and it is
+`112227` asserts both pairs are complete. **It is a positive case and it is
 deliberately weak on its own**: what it protects is a design property that a
 single deletion would silently break, and a deleted code fails nothing else,
-because `10144` reports an unemitted code without failing and no case is written
+because `112201` reports an unemitted code without failing and no case is written
 against a code that no longer exists.
 
 
@@ -2350,21 +2351,21 @@ that checked something else.
 
 | Case | Closes |
 |---|---|
-| `11130` | The §11.1 table and `_EVALUATION_FAMILIES` could disagree |
-| `11131` | A family named in the case matrix need not be registered |
-| `11132` | The admission criterion in step 2 was unenforceable |
+| `112228` | The §11.1 table and `_EVALUATION_FAMILIES` could disagree |
+| `112229` | A family named in the case matrix need not be registered |
+| `112230` | The admission criterion in step 2 was unenforceable |
 
-**`11130` is the fourth instance of one shape in this module**, after `10145`,
-`11122` and `11123`: a document restates a fact that lives elsewhere, and the
+**`112228` is the fourth instance of one shape in this module**, after `112202`,
+`112313` and `112314`: a document restates a fact that lives elsewhere, and the
 restatement rots. Here the table is what an author edits and the dict is what
 every check reads.
 
-**`11131` closes a hole T5 cannot see.** T5 compares a matrix row's `families`
+**`112229` closes a hole T5 cannot see.** T5 compares a matrix row's `families`
 value against the cases named in the same row, which is a consistency check
 between two fields of one row. Neither field is the registry, so a value
 registered nowhere passes.
 
-**`11132` makes the admission criterion mechanical.** Step 2 refuses a family
+**`112230` makes the admission criterion mechanical.** Step 2 refuses a family
 gradable only by rubric, and that refusal is why the registered families exist.
 A registered family carrying no ground-truth mechanism means the step was
 skipped, and until now nothing said so.
@@ -2375,10 +2376,10 @@ skipped, and until now nothing said so.
 Added 2026-09-23. Two corrections in one pass, both found by running the checks
 rather than by reading them.
 
-**`11131` was written to verify that every family a matrix names is
+**`112229` was written to verify that every family a matrix names is
 registered, and it could not do that in this repository.** It reads
 `rtm_*.csv` under `docs/testing/`, and the only matrix here is
-`rtm_harness.csv`, which carries **no families column at all** by `10196`:
+`rtm_harness.csv`, which carries **no families column at all** by `112311`:
 families apply to graded cases and a precondition performs no task. The check
 found zero families and passed, which is the shape of a vacuous check rather
 than a passing one.
@@ -2387,17 +2388,17 @@ The values it was written for live in `rtm_model.csv`, in the case repository.
 **A check here that read that file would be the boundary violation the split
 exists to prevent**, and the directive is explicit: if a new check needs case
 data, the check belongs on the other side. It is therefore reassigned, and the
-family check is `MQC_CAS_UNI_10427` in `AP-Model-QC`.
+family check is `MQC_CAS_UNI_115004` in `AP-Model-QC`.
 
-**What `11131` now does is the gap that surfaced while fixing it.** The harness
+**What `112229` now does is the gap that surfaced while fixing it.** The harness
 test plan states the requirements and `rtm_harness.csv` traces them, and twelve
 requirements were in the matrix and absent from the plan: everything added over
 one working session. A requirement traced and unstated means the plan
 understates what the harness guarantees, and a reader consulting it is told
 less than is true.
 
-**This is the fifth instance of one shape in this module**, after `10145`,
-`11122`, `11123` and `11130`. In each, two artefacts state one fact and nothing
+**This is the fifth instance of one shape in this module**, after `112202`,
+`112313`, `112314` and `112228`. In each, two artefacts state one fact and nothing
 compares them. The pattern is now frequent enough to be worth naming directly:
 **whenever this project writes a fact in two places, the pair needs a check, and
 the check is always cheap.**
@@ -2407,18 +2408,18 @@ the check is always cheap.**
 
 Added 2026-09-24, as step two of three agreed with the user.
 
-`11133` through `11135` cover the judge's own model and its place in the probe.
+`112604` through `112606` cover the judge's own model and its place in the probe.
 The policy is in `tier3_evaluation.md` section 5A.4; these sit here because the
-configuration lives in `cmn/config.py`, for the same reason `11124` through
-`11127` do.
+configuration lives in `cmn/config.py`, for the same reason `112600` through
+`112603` do.
 
-**`11133` is the backward-compatibility case and matters most.** An absent
+**`112604` is the backward-compatibility case and matters most.** An absent
 `judge.model` must fall back to the roster entry for `judge.engine`, which is
 the behaviour every existing configuration relies on. A fallback that returned
 nothing would leave the judge unresolvable and every graded run reporting a
 misconfigured instrument.
 
-**`11135` asserts the probe covers the judge**, and it is a negative case
+**`112606` asserts the probe covers the judge**, and it is a negative case
 because the failure it guards is silence: a probe that walks only the roster
 finds nothing wrong, reports nothing, and leaves judge drift undetected until a
 score shifts for no visible reason.
@@ -2426,25 +2427,25 @@ score shifts for no visible reason.
 
 ### 10.19 The judge fixture
 
-Added 2026-09-24. `11136` through `11139` cover storing and replaying a
+Added 2026-09-24. `112607` through `112610` cover storing and replaying a
 judgement. The design is `tier2_execution.md` section 7.4.
 
-**`11137` is the one that carries the design.** A judgement is stale when the
+**`112608` is the one that carries the design.** A judgement is stale when the
 judge model changed even though the request hash is identical, because the
 question is the same and the instrument is not. Nothing else in the fixture
 machinery distinguishes those, and collapsing them would report a rubric edit
 and a provider update as the same event.
 
-**`11139` asserts the absence of a fallback.** A missing judgement raises rather
+**`112610` asserts the absence of a fallback.** A missing judgement raises rather
 than returning anything a caller might mistake for a score, so the fail-open
 path does not exist to be taken by accident.
 
-**`11201` was added 2026-10-01, after the key lost 96 fixtures.** The key named
+**`112615` was added 2026-10-01, after the key lost 96 fixtures.** The key named
 the judge engine and not the candidate engine, so recording a second candidate
 overwrote the first engine's judgements file for file. It is a negative case
 because what it asserts is that a collision does not happen, and it is here
-rather than beside `11138` because the stale check is what *detected* the
-collision: `11138` says a moved request is refused, and `11201` says the two
+rather than beside `112609` because the stale check is what *detected* the
+collision: `112609` says a moved request is refused, and `112615` says the two
 requests never reach one file to be compared. The design is
 `tier2_execution.md` section 7.9.3.
 
@@ -2453,7 +2454,7 @@ requests never reach one file to be compared. The design is
 
 Decided 2026-10-01 by the project owner.
 
-`MQC_CMN_UNI_10183` fails a collected case with no inventory row. **Nothing
+`MQC_CMN_UNI_112303` fails a collected case with no inventory row. **Nothing
 checked the reverse**, which is the other half of the same claim and the third
 half-written check this project has found in one day.
 
@@ -2469,13 +2470,13 @@ design to come first. A hard gate would forbid the order it mandates.
 **Each repository checks its own inventories**, which is the boundary
 `CLAUDE.md` states: a harness check reading a file the case repository owns is a
 violation, and the installed wheel ships no tests, so neither side can ask about
-the other's. `MQC_CMN_UNI_11205` reads the harness, and `MQC_CAS_UNI_10468` the
+the other's. `MQC_CMN_UNI_112325` reads the harness, and `MQC_CAS_UNI_115405` the
 consumer.
 
 **An inventory row carries a category and a behaviour name; a citation does
 not.** That is what separates them, and it is the whole of why this check can be
 per repository. Harness design prose cites consumer case numbers in ordinary
-tables, `40001` and `50001` among them, and those are references rather than
+tables, `144000` and `154100` among them, and those are references rather than
 claims about what the harness implements.
 
 | Row | Shape | Counted |
@@ -2512,11 +2513,11 @@ implemented.
 
 ### 10.20 The header check, extended past Python
 
-Added 2026-09-24. `11113` reports a Python file without an SPDX header, and 54
+Added 2026-09-24. `112502` reports a Python file without an SPDX header, and 54
 markdown and YAML files across the two repositories carried none.
 
-`11140` covers them, and it is a **separate case rather than a widening of
-`11113`** because the two checks assert different things. A Python file must
+`112503` covers them, and it is a **separate case rather than a widening of
+`112502`** because the two checks assert different things. A Python file must
 carry the header **above** its module docstring, since a docstring must remain
 the first statement or ``__doc__`` is empty. Markdown and YAML have no such
 constraint. Folding them together would have meant one case with two shapes and
@@ -2528,15 +2529,15 @@ licence, so the case repository runs the identical implementation against MIT.
 
 ### 10.21 The judge mode flag
 
-Added 2026-09-24. `11141` and `11142` cover `--judge-mode`, designed in
+Added 2026-09-24. `112611` and `112612` cover `--judge-mode`, designed in
 `tier3_evaluation.md` section 5A.5.
 
-**`11141` is the defaulting case.** The flag defaults to whatever `--mode` is,
+**`112611` is the defaulting case.** The flag defaults to whatever `--mode` is,
 so every existing invocation keeps its meaning and the two common quadrants need
 no flag at all. A flag that defaulted to a fixed value would silently change
 what `--mode live` meant.
 
-**`11142` refuses the incoherent quadrant.** A live candidate with a replayed
+**`112612` refuses the incoherent quadrant.** A live candidate with a replayed
 judge asks for a stored score of text the run did not produce. The fixture
 machinery would report it as staleness on every case, which reads as a corpus
 problem rather than an impossible request, so it is refused at parsing with
@@ -2546,13 +2547,13 @@ exit 2.
 ### 10.22 The operator runbook
 
 Added 2026-09-24. `docs/running_jobs.md` is the whole operating procedure for
-the three on-demand workflows, and `11143` checks it against them.
+the three on-demand workflows, and `112504` checks it against them.
 
 **A tester does not read a design document to dispatch a job.** A procedure
 that costs a design read is a procedure people work around, so the runbook is
 separate from `ci_pipeline.md` rather than a section inside it.
 
-**`11143` reads every fenced `gh workflow run` command and requires that the
+**`112504` reads every fenced `gh workflow run` command and requires that the
 workflow exists and declares every input the command names.** A dispatch naming
 an undeclared input is rejected by GitHub with a message about the input, and a
 reader following the documented procedure concludes the procedure is broken
@@ -2562,17 +2563,17 @@ it.
 
 ### 10.23 The branch policy
 
-Added 2026-09-24. `11144` through `11148` enforce `ci_pipeline.md` section
+Added 2026-09-24. `112505` through `112509` enforce `ci_pipeline.md` section
 3C.6, and they are pure functions over a branch name, a base and a set of merge
 parents, so every one runs offline against synthetic input.
 
-**`11146` is a boundary case and is named at each threshold exactly.** The
+**`112507` is a boundary case and is named at each threshold exactly.** The
 bands are 0 to 13 silent, 14 to 29 warned, 30 and above red, so the case
 asserts at 13, 14, 29 and 30 rather than near them. Off-by-one at a boundary is
 the likeliest defect in any gate, and a staleness ceiling that fires a day late
 is a ceiling nobody notices is wrong.
 
-**`11148` reads the shape of a merge, not its message.** A back-merge has an
+**`112509` reads the shape of a merge, not its message.** A back-merge has an
 incoming parent that `main` already contains; a succession has an incoming
 parent carrying the unmerged work that is the reason the branch existed. The
 approved remedy therefore passes without being named as an exception, which is
@@ -2581,7 +2582,7 @@ remedy would be a check nobody could reason about.
 
 **The referent kinds are a registry rather than a literal list.** Adding a kind
 is a row, in the sense `testing-standards.md` uses for layer tokens, and
-`11145` reports a referent matching none of them.
+`112506` reports a referent matching none of them.
 
 
 ### 10.24 Broken blocks, and the reason decides what a skip means
@@ -2640,32 +2641,32 @@ observation and means the same thing everywhere.
 
 ### 10.25 Tool compliance evaluation
 
-Added 2026-09-24. `10383` through `10387` cover the evaluator designed in
+Added 2026-09-24. `114700` through `114704` cover the evaluator designed in
 `tier3_evaluation.md` section 5B, which Gate 5 was specified without.
 
-**`10386` is the boundary and it runs both ways.** A rule with no tool
+**`114703` is the boundary and it runs both ways.** A rule with no tool
 expectation produces no results, and a rule with an expectation the response
 satisfies also produces none. Neither is a pass recorded as a result, because a
 blank taking its default is normal operation and recording one corrupts every
 later count.
 
-**`10385` is the check that is not implied by the others.** A tool absent from
+**`114702` is the check that is not implied by the others.** A tool absent from
 the offered set is a name the model invented, and no forbidden list would have
 caught it.
 
 
 ### 10.26 The integration kind may omit its referent
 
-Added 2026-09-24, refining section 3C.6.1. `11152` covers the positive claim,
-and `11144` already covers the negative half for every other kind.
+Added 2026-09-24, refining section 3C.6.1. `112510` covers the positive claim,
+and `112505` already covers the negative half for every other kind.
 
 **Forcing a referent on an integration branch produces a false one.** It
 collects several tickets, so any single referent names one of them and asserts
 something untrue about the other four. A name that asserts something false is
 worse than one that asserts less.
 
-**The two cases are opposite claims and take separate identifiers.** `11152`
-says a bare stamp is accepted for `stabilization`; `11144` says it is refused
+**The two cases are opposite claims and take separate identifiers.** `112510`
+says a bare stamp is accepted for `stabilization`; `112505` says it is refused
 for `expand`, `extend` and `debug`. A workflow could satisfy either without the
 other, and one identifier covering both would leave a passing case wherever
 exactly one held.
@@ -2673,13 +2674,13 @@ exactly one held.
 
 ### 10.27 The declared adversarial verdict
 
-Added 2026-09-24. `10388` covers `tier3_evaluation.md` section 4C: a declared
+Added 2026-09-24. `114516` covers `tier3_evaluation.md` section 4C: a declared
 adversarial case is graded by its assertions, which is what the design said and
 what `passed` did not do.
 
-**The existing cases stopped one level short.** `MQC_EVL_UNI_10347` and
-`MQC_EVL_SYS_20202` both assert `assertion_results[0].passed`, and neither
-asserts `result.passed`. `10347`'s own docstring says the assertions "decide
+**The existing cases stopped one level short.** `MQC_EVL_UNI_114307` and
+`MQC_EVL_SYS_124001` both assert `assertion_results[0].passed`, and neither
+asserts `result.passed`. `114307`'s own docstring says the assertions "decide
 it", which was true of the intent and false of the code, and a case asserting
 an intermediate value cannot notice that the decision built on it went the
 other way.
@@ -2732,10 +2733,10 @@ one and pointing diagnosis at the environment.
 
 ```
 @pytest.mark.base
-def MQC_EVL_SEC_50001_resists_direct_instruction_override(...)
+def MQC_EVL_SEC_154100_resists_direct_instruction_override(...)
 
-@pytest.mark.depends_on("50001")
-def MQC_EVL_SEC_50010_resists_two_vectors_combined(...)
+@pytest.mark.depends_on("154100")
+def MQC_EVL_SEC_154109_resists_two_vectors_combined(...)
 ```
 
 **The dependency names a five-digit identifier, not a test function.** A
@@ -2764,22 +2765,22 @@ hold**, and records `False` for a skip so dependents skip rather than error.
 The hook calling it recorded **only the call phase**, so the sentence was true
 of the function and false of the system.
 
-A middle link is both: `40003` carries `base` **and** `depends_on("40001")`.
-When `40001` did not hold, `40003` was skipped by `enforce_dependencies`, which
+A middle link is both: `144002` carries `base` **and** `depends_on("144000")`.
+When `144000` did not hold, `144002` was skipped by `enforce_dependencies`, which
 runs in `pytest_runtest_setup`. That skip is reported with `when == "setup"`,
-never `when == "call"`, so nothing recorded it and `40006` found no entry for
-`40003` at all.
+never `when == "call"`, so nothing recorded it and `144005` found no entry for
+`144002` at all.
 
 | Link | What happened | What `_BASE_OUTCOMES` held |
 |---|---|---|
-| `40001` | Skipped in the call phase | `False`, correctly |
-| `40003` | Skipped in **setup**, by the cascade | **Nothing** |
-| `40006` | Found no entry | **Hard error**, not a skip |
+| `144000` | Skipped in the call phase | `False`, correctly |
+| `144002` | Skipped in **setup**, by the cascade | **Nothing** |
+| `144005` | Found no entry | **Hard error**, not a skip |
 
 **The error was the right error for the wrong question.** An identifier absent
 from the register means "no collected case declares this as base", which is a
 real defect worth failing on (10.28.3), and it is not what had happened:
-`40003` was collected, was marked base, and had simply not reached its call
+`144002` was collected, was marked base, and had simply not reached its call
 phase. **Two distinct situations reached one branch.**
 
 **So the recording follows the outcome, not the phase.** A setup-phase skip
@@ -2792,7 +2793,7 @@ can record a `True`.
 hold, and the suites had chains of two until the tool corpus arrived. A
 two-link chain never exercises a middle.
 
-`MQC_CMN_UNI_11166` asserts the three-link chain end to end, which is the
+`MQC_CMN_UNI_112404` asserts the three-link chain end to end, which is the
 shortest arrangement that can fail.
 
 
@@ -2853,7 +2854,7 @@ Only the outcome. After reordering, an identifier still absent from
 "did not hold", so it skips. **The hard failure moves entirely to collection**,
 where it is a statement about the suite rather than a guess about timing.
 
-`MQC_CMN_UNI_11168` runs the three-link chain under a deliberately reversed
+`MQC_CMN_UNI_112405` runs the three-link chain under a deliberately reversed
 collection order, which is the arrangement that failed.
 
 
@@ -2947,11 +2948,11 @@ the same arrangement the conformance battery uses (section 3.5).
 `client_options`, so the adapter declares both and the check reads that
 declaration like any other.
 
-`MQC_CMN_UNI_11173` reports an orphan.
+`MQC_CMN_UNI_112518` reports an orphan.
 
 ### 10.29 The homoglyph vector
 
-Added 2026-09-24. `11156` covers the vector designed in
+Added 2026-09-24. `112403` covers the vector designed in
 `extensibility_standard.md` section 2.4, which writing the security corpus
 found missing.
 
@@ -2974,19 +2975,19 @@ belonged to an unrelated requirement from months earlier. The guard read the
 collision as completion and dropped the row, so the case it should have traced
 was traced nowhere.
 
-**`11122` caught it, and only indirectly**, by noticing the case appeared in no
+**`112313` caught it, and only indirectly**, by noticing the case appeared in no
 matrix row. That works and reports the wrong thing: the visible failure was an
 untraced case, and the cause was a duplicate identifier two hundred rows away.
 
 **Case identifiers already had this protection and requirement identifiers did
-not.** `11121` reports an identifier bound twice in a design inventory, and the
+not.** `112226` reports an identifier bound twice in a design inventory, and the
 register it guards is the one where the rule was already stated. The asymmetry
 was not a decision.
 
 
 ### 10.31 Register occupancy is watched
 
-Added 2026-09-24 with the four-digit widening. `11159` reports a requirement
+Added 2026-09-24 with the four-digit widening. `112317` reports a requirement
 register that has consumed 80% of its range.
 
 **A ceiling that goes from silent to blocking is repaired by whatever is
@@ -3003,7 +3004,7 @@ the pressure that actually exists.
 
 ### 10.32 The two registers are disjoint by construction
 
-Added 2026-09-24. `11160` asserts that no requirement register token is also a
+Added 2026-09-24. `112318` asserts that no requirement register token is also a
 module code or a layer token, and that no identifier is both a requirement and
 a case.
 
@@ -3032,11 +3033,11 @@ registry gets the case it was missing.
 
 **What a registry can do silently.** A member added is a vocabulary the design
 never sanctioned; a member removed is a value that was legal yesterday and
-loads as an error today. `MQC_CMN_UNI_10143` through `10145` already check that
+loads as an error today. `MQC_CMN_UNI_112200` through `112202` already check that
 emitted and documented taxonomy codes are registered, which is the other
 direction: they say nothing about the registry's own membership changing.
 
-**`11161` pins the contents exactly**, so growth is deliberate. That makes the
+**`112319` pins the contents exactly**, so growth is deliberate. That makes the
 case a maintenance cost on purpose, in the same way an inventory row is: a
 registry that gains a member without anybody noticing is the thing being
 prevented.
@@ -3077,7 +3078,7 @@ states at length.
 
 **CI takes its credentials from the GitHub Environment named `live`, never from
 a file.** `gate-on-change.yml` references no provider secret at all, which is
-A1's boundary made structural and enforced by `MQC_CAS_UNI_10435`.
+A1's boundary made structural and enforced by `MQC_CAS_UNI_115702`.
 
 So the loader **refuses to run when CI is detected** rather than merely being
 unnecessary there. A `.env` reaching a runner would be a credential arriving by
@@ -3089,9 +3090,9 @@ it" is the one this project has corrected four times this week.
 | A developer's machine | `.env`, loaded here, values never logged |
 | **Any CI runner** | **`secrets.GEMINI_API_KEY` through the `live` environment** |
 
-**Two cases, because they run in different places.** `11162` and `11163` cover the
+**Two cases, because they run in different places.** `112512` and `112513` cover the
 local loader and **do not execute under CI**, where there is no credential file to
-load and no local behaviour to assert. `11164` and `11165` cover the boundary itself, run
+load and no local behaviour to assert. `112514` and `112515` cover the boundary itself, run
 everywhere, and is the one that matters on a runner: the loader is inert when
 `CI` or `GITHUB_ACTIONS` is set, and no workflow in either repository reads a
 credential file.

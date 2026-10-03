@@ -112,7 +112,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       # From pyproject.toml, the single declaration. requirements.txt is
-      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_112222
       # fails the run when the two disagree.
       - name: Install
         run: python -m pip install --editable ".[dev]"

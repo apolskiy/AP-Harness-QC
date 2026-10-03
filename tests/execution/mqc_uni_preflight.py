@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for model version resolution and the nightly probe.
 
-Covers `MQC_EXE_UNI_10212` and `10235` through `10238`, inventoried in
+Covers `MQC_EXE_UNI_113500` and `113501` through `113504`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.
 
 **The probe decides whether to spend quota**, which is logic rather than
@@ -35,7 +35,7 @@ class TestMQCVersionResolution:
     """What happens when a provider will not say which model answered."""
 
     @pytest.mark.parametrize("resolved", [None, "", "   "])
-    def MQC_EXE_UNI_10212_absent_model_version_fails_preflight(
+    def MQC_EXE_UNI_113500_absent_model_version_fails_preflight(
         self,
         resolved: Optional[str],
     ) -> None:
@@ -54,7 +54,7 @@ class TestMQCVersionResolution:
         with pytest.raises(ValueError, match="QC_HARNESS_VERSION_UNAVAILABLE"):
             require_resolved_version("gemini", resolved)
 
-    def MQC_EXE_UNI_10249_a_resolved_version_is_returned_stripped(self) -> None:
+    def MQC_EXE_UNI_113505_a_resolved_version_is_returned_stripped(self) -> None:
         """Surrounding whitespace is removed so two spellings do not diverge.
 
         Returns:
@@ -66,7 +66,7 @@ class TestMQCVersionResolution:
 class TestMQCVersionProbe:
     """Detecting a model change without spending quota to look for one."""
 
-    def MQC_EXE_UNI_10237_absent_baseline_is_recorded_rather_than_treated_as_a_change(
+    def MQC_EXE_UNI_113503_absent_baseline_is_recorded_rather_than_treated_as_a_change(
         self, tmp_path: Path
     ) -> None:
         """On a first run there is nothing to have changed from.
@@ -89,7 +89,7 @@ class TestMQCVersionProbe:
             "gemini": "flash-002", "openai": "gpt-x-1"
         }
 
-    def MQC_EXE_UNI_10235_unchanged_model_version_yields_no_dispatch(self, tmp_path: Path) -> None:
+    def MQC_EXE_UNI_113501_unchanged_model_version_yields_no_dispatch(self, tmp_path: Path) -> None:
         """The ordinary night: nothing moved, nothing runs.
 
         Args:
@@ -102,7 +102,7 @@ class TestMQCVersionProbe:
         probe_all({"gemini": "flash-002"}, baseline)
         assert engines_to_dispatch(probe_all({"gemini": "flash-002"}, baseline)) == []
 
-    def MQC_EXE_UNI_10236_changed_model_version_dispatches_only_the_changed_engine(
+    def MQC_EXE_UNI_113502_changed_model_version_dispatches_only_the_changed_engine(
         self, tmp_path: Path
     ) -> None:
         """A move on one provider says nothing about the others.
@@ -123,7 +123,7 @@ class TestMQCVersionProbe:
         )
         assert engines_to_dispatch(moved) == ["gemini"]
 
-    def MQC_EXE_UNI_10250_a_change_dispatches_once_not_on_every_later_run(
+    def MQC_EXE_UNI_113506_a_change_dispatches_once_not_on_every_later_run(
         self,
         tmp_path: Path,
     ) -> None:
@@ -143,7 +143,7 @@ class TestMQCVersionProbe:
         assert engines_to_dispatch(probe_all({"gemini": "flash-003"}, baseline)) == ["gemini"]
         assert engines_to_dispatch(probe_all({"gemini": "flash-003"}, baseline)) == []
 
-    def MQC_EXE_UNI_10238_probe_failure_records_a_harness_event_and_does_not_dispatch(
+    def MQC_EXE_UNI_113504_probe_failure_records_a_harness_event_and_does_not_dispatch(
         self, tmp_path: Path
     ) -> None:
         """A broken detector is our defect, not evidence of a model change.
@@ -165,7 +165,7 @@ class TestMQCVersionProbe:
         assert [outcome.engine for outcome in failed] == ["gemini"]
         assert engines_to_dispatch(outcomes) == []
 
-    def MQC_EXE_UNI_10251_a_failed_probe_leaves_its_baseline_untouched(
+    def MQC_EXE_UNI_113507_a_failed_probe_leaves_its_baseline_untouched(
         self,
         tmp_path: Path,
     ) -> None:
@@ -183,7 +183,7 @@ class TestMQCVersionProbe:
         assert load_baseline(baseline) == {"gemini": "flash-002"}
         assert engines_to_dispatch(probe_all({"gemini": "flash-002"}, baseline)) == []
 
-    def MQC_EXE_UNI_10252_an_unreadable_baseline_is_reported_not_ignored(
+    def MQC_EXE_UNI_113508_an_unreadable_baseline_is_reported_not_ignored(
         self,
         tmp_path: Path,
     ) -> None:
@@ -203,7 +203,7 @@ class TestMQCVersionProbe:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             load_baseline(baseline)
 
-    def MQC_EXE_UNI_10253_probe_outcomes_are_returned_in_a_reproducible_order(self) -> None:
+    def MQC_EXE_UNI_113509_probe_outcomes_are_returned_in_a_reproducible_order(self) -> None:
         """Engine order does not depend on mapping iteration order.
 
         Returns:

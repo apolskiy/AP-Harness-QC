@@ -85,7 +85,7 @@ techniques the security corpus uses and not the third.
 | **Confusable letters** | **Nothing** | Character |
 
 `MQC_REQ_MDL_SEC_0005` says the model must resist an override "obfuscated by
-encoding", and `MQC_EVL_SEC_50007` is inventoried for the homoglyph form
+encoding", and `MQC_EVL_SEC_154106` is inventoried for the homoglyph form
 specifically. The requirement expected a detection the registry could not make.
 
 #### 2.4.1 A homoglyph is a character-level fact, not a pattern
@@ -109,7 +109,7 @@ a declared adversarial task and the Tier 3 screen records it without aborting,
 which is A19 unchanged. What the vector adds is that a homoglyph payload is now
 visible in the record instead of passing as ordinary prose.
 
-**The cross-check is what was actually lost.** `MQC_EVL_UNI_10349` requires
+**The cross-check is what was actually lost.** `MQC_EVL_UNI_114608` requires
 content the ingest screen matched to be matched again at Tier 3, and a payload
 no vector recognises cannot participate in it. The case would still have tested
 the model correctly and stopped saying anything about whether the fixture was

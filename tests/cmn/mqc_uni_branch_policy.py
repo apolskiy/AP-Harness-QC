@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a branch may be called, how long it may live, and where it may merge.
 
-Covers ``MQC_CMN_UNI_11144`` through ``11148``, inventoried in
+Covers ``MQC_CMN_UNI_112505`` through ``112509``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.23 and specified by
 ``docs/design/ci_pipeline.md`` section 3C.6.
 
@@ -38,7 +38,7 @@ _CUT = date(2026, 9, 1)
 class TestMQCBranchNaming:
     """A date says when, and a referent says what."""
 
-    def MQC_CMN_UNI_11144_a_branch_name_outside_the_grammar_is_reported(self) -> None:
+    def MQC_CMN_UNI_112505_a_branch_name_outside_the_grammar_is_reported(self) -> None:
         """A name is the only place a branch says what it is.
 
         **`main` is exempt**, being the master branch rather than a working
@@ -51,7 +51,7 @@ class TestMQCBranchNaming:
         """
         assert not name_problems("main")
         assert not name_problems("stabilization-MQC-1234-09-24-2026")
-        assert not name_problems("expand-10428-09-24-2026")
+        assert not name_problems("expand-115005-09-24-2026")
         assert not name_problems("extend-v1.2.0-09-24-2026")
 
         # No date at all, which is the form this rule replaced.
@@ -71,7 +71,7 @@ class TestMQCBranchNaming:
         assert name_problems("extend-09-24-2026")
         assert name_problems("debug-09-24-2026")
 
-    def MQC_CMN_UNI_11145_a_referent_of_no_registered_kind_is_reported(self) -> None:
+    def MQC_CMN_UNI_112506_a_referent_of_no_registered_kind_is_reported(self) -> None:
         """Free text is not a referent, however descriptive it reads.
 
         The registry is a registry in the sense ``testing-standards.md`` uses
@@ -85,9 +85,9 @@ class TestMQCBranchNaming:
         assert name_problems("expand-fix-the-thing-09-24-2026")
 
         # A case identifier is checked for existence, and only that kind is.
-        known = frozenset({"10428"})
-        assert not referent_problems("expand-10428-09-24-2026", known)
-        assert referent_problems("expand-19999-09-24-2026", known)
+        known = frozenset({"115005"})
+        assert not referent_problems("expand-115005-09-24-2026", known)
+        assert referent_problems("expand-119999-09-24-2026", known)
 
         # A ticket is never resolved, so an unknown one is not a problem here.
         assert not referent_problems("expand-MQC-9999-09-24-2026", known)
@@ -98,7 +98,7 @@ class TestMQCBranchNaming:
 class TestMQCBranchStaleness:
     """The date is a ceiling, and a ceiling is tested at its bounds."""
 
-    def MQC_CMN_UNI_11146_staleness_is_silent_then_warned_then_red_at_its_bounds(
+    def MQC_CMN_UNI_112507_staleness_is_silent_then_warned_then_red_at_its_bounds(
         self,
     ) -> None:
         """Off-by-one at a boundary is the likeliest defect in any gate.
@@ -143,7 +143,7 @@ class TestMQCBranchStaleness:
 class TestMQCBranchRoute:
     """One route into main, and main merged into nothing."""
 
-    def MQC_CMN_UNI_11147_a_development_branch_targeting_main_is_reported(
+    def MQC_CMN_UNI_112508_a_development_branch_targeting_main_is_reported(
         self,
     ) -> None:
         """A second route is a route around the integration test.
@@ -163,7 +163,7 @@ class TestMQCBranchRoute:
         # main is merged into nothing, whatever the target.
         assert route_problems("main", "stabilization-MQC-1234-09-24-2026")
 
-    def MQC_CMN_UNI_11148_a_merge_bringing_main_into_a_branch_is_reported(
+    def MQC_CMN_UNI_112509_a_merge_bringing_main_into_a_branch_is_reported(
         self,
     ) -> None:
         """The shape of the merge decides, never its message.
@@ -188,7 +188,7 @@ class TestMQCBranchRoute:
 class TestMQCIntegrationBranchNaming:
     """An integration branch holds a cycle, and the stamp names it."""
 
-    def MQC_CMN_UNI_11152_an_integration_branch_may_omit_its_referent(self) -> None:
+    def MQC_CMN_UNI_112510_an_integration_branch_may_omit_its_referent(self) -> None:
         """Forcing a referent on a cycle produces a false one.
 
         A stabilization branch collects whatever merged in one cycle, so any
@@ -196,7 +196,7 @@ class TestMQCIntegrationBranchNaming:
         about the rest**. A name that asserts something false is worse than one
         that asserts less.
 
-        **This is the positive half.** `11144` holds the negative half, that
+        **This is the positive half.** `112505` holds the negative half, that
         every working kind must still name its work, and the two are separate
         identifiers because a grammar could satisfy either without the other.
 

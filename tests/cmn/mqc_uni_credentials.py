@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Where a credential comes from, and where it must never come from.
 
-Covers ``MQC_CMN_UNI_11162`` through ``11165``, inventoried in
+Covers ``MQC_CMN_UNI_112512`` through ``112515``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.34.
 
 **Two cases because they run in different places.** The local loader has no
@@ -56,7 +56,7 @@ class TestMQCLocalCredentialFile:
         _UNDER_CI,
         reason="the local loader is inert on a runner; 11164 asserts that it is",
     )
-    def MQC_CMN_UNI_11162_a_local_env_file_is_loaded_without_overwriting_anything(
+    def MQC_CMN_UNI_112512_a_local_env_file_is_loaded_without_overwriting_anything(
         self, tmp_path: Path
     ) -> None:
         """The file was documented for a year and read by nothing.
@@ -105,7 +105,7 @@ class TestMQCLocalCredentialFile:
         _UNDER_CI,
         reason="the local loader is inert on a runner; 11164 asserts that it is",
     )
-    def MQC_CMN_UNI_11163_a_line_that_is_not_an_assignment_is_skipped_by_number(
+    def MQC_CMN_UNI_112513_a_line_that_is_not_an_assignment_is_skipped_by_number(
         self, tmp_path: Path
     ) -> None:
         """A line with no assignment is skipped, and says so by number.
@@ -143,7 +143,7 @@ class TestMQCLocalCredentialFile:
 class TestMQCCredentialsNeverReachCI:
     """CI takes credentials from its own store, and only from there."""
 
-    def MQC_CMN_UNI_11164_a_credential_file_reaching_ci_is_reported(
+    def MQC_CMN_UNI_112514_a_credential_file_reaching_ci_is_reported(
         self, tmp_path: Path
     ) -> None:
         """A file on a runner is a credential arriving by an unaudited path.
@@ -178,7 +178,7 @@ class TestMQCCredentialsNeverReachCI:
         # against a loader that simply never worked.
         assert load_env_file(tmp_path, {}) == ["MQC_PROBE_SHOULD_NOT_LOAD"]
 
-    def MQC_CMN_UNI_11165_no_workflow_reads_a_credential_file(self) -> None:
+    def MQC_CMN_UNI_112515_no_workflow_reads_a_credential_file(self) -> None:
         """The other half: nothing in CI is written to look for one.
 
         A loader that refuses is one mechanism. A workflow that never asks is
@@ -225,7 +225,7 @@ class TestMQCCredentialFileLocation:
         _UNDER_CI,
         reason="the local loader is inert on a runner; 11164 asserts that it is",
     )
-    def MQC_CMN_UNI_11169_a_credential_file_beside_the_roster_is_found(
+    def MQC_CMN_UNI_112516_a_credential_file_beside_the_roster_is_found(
         self, tmp_path: Path
     ) -> None:
         """The file lives with the roster, and the consumer reaches for it.
@@ -278,7 +278,7 @@ class TestMQCCredentialFileLocation:
         # The sibling still supplies what the local file does not name.
         assert contested["MQC_PROBE_BESIDE_ROSTER"] == "from_the_harness"
 
-    def MQC_CMN_UNI_11170_the_consumer_conftest_searches_both_roots(self) -> None:
+    def MQC_CMN_UNI_112517_the_consumer_conftest_searches_both_roots(self) -> None:
         """The functions can be right and the caller can look in one place.
 
         **That is exactly what happened.** `load_env_file` worked, the
@@ -310,7 +310,7 @@ class TestMQCCredentialFileLocation:
 class TestMQCOrphanedCredential:
     """A credential the file names and nothing reads."""
 
-    def MQC_CMN_UNI_11173_a_credential_no_engine_reads_is_reported(
+    def MQC_CMN_UNI_112518_a_credential_no_engine_reads_is_reported(
         self, tmp_path: Path
     ) -> None:
         """A name off by an underscore loads cleanly and reaches nothing.
@@ -366,7 +366,7 @@ class TestMQCOrphanedCredential:
         # AN ABSENT FILE REPORTS NOTHING AND RAISES NOTHING.
         assert not warn_orphan_credentials(tmp_path / "nowhere", reads)
 
-    def MQC_CMN_UNI_11174_the_engines_declare_the_names_the_check_reads(
+    def MQC_CMN_UNI_112519_the_engines_declare_the_names_the_check_reads(
         self,
     ) -> None:
         """The comparison cannot drift, because no list is maintained.
@@ -395,7 +395,7 @@ class TestMQCOrphanedCredential:
 class TestMQCEveryCredentialIsDocumented:
     """A key an adapter reads and nobody documents is a key nobody sets."""
 
-    def MQC_CMN_UNI_11179_every_declared_credential_appears_in_the_example(
+    def MQC_CMN_UNI_112520_every_declared_credential_appears_in_the_example(
         self,
     ) -> None:
         """`.env.example` names every variable a registered adapter reads.

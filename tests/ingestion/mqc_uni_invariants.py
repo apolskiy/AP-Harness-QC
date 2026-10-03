@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the ingest screen, the registries and invariant G5.
 
-Covers `MQC_ING_UNI_10030` through `10037`, inventoried in
+Covers `MQC_ING_UNI_111100` through `111107`, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.1.
 
 **The G5 cases are architecture fitness functions.** They assert a structural
@@ -63,7 +63,7 @@ def _task_carrying(prompt: str, *, declared: bool = False) -> TaskDataSet:
 class TestMQCIngestScreen:
     """The first of three injection screens, covering our own fixtures."""
 
-    def MQC_ING_UNI_10030_injection_screen_flags_instruction_override(self) -> None:
+    def MQC_ING_UNI_111100_injection_screen_flags_instruction_override(self) -> None:
         """The most common vector: text telling the model to disregard its brief.
 
         Returns:
@@ -74,7 +74,7 @@ class TestMQCIngestScreen:
         )
         assert "instruction_override" in {finding.vector for finding in findings}
 
-    def MQC_ING_UNI_10031_injection_screen_flags_zero_width_obfuscation(self) -> None:
+    def MQC_ING_UNI_111101_injection_screen_flags_zero_width_obfuscation(self) -> None:
         """A character with no glyph can hide a payload from a reviewer.
 
         Written as an escape so the source stays ASCII: a test about invisible
@@ -87,7 +87,7 @@ class TestMQCIngestScreen:
         findings = screen_task(_task_carrying("Rewrite\u200b this\u202e text please."))
         assert "invisible_characters" in {finding.vector for finding in findings}
 
-    def MQC_ING_UNI_10032_injection_screen_flags_delimiter_escape(self) -> None:
+    def MQC_ING_UNI_111102_injection_screen_flags_delimiter_escape(self) -> None:
         """A chat-template delimiter attempts to close our framing and open its own.
 
         Returns:
@@ -98,7 +98,7 @@ class TestMQCIngestScreen:
         )
         assert "delimiter_escape" in {finding.vector for finding in findings}
 
-    def MQC_ING_UNI_10033_injection_screen_bypassed_for_declared_adversarial_case(self) -> None:
+    def MQC_ING_UNI_111103_injection_screen_bypassed_for_declared_adversarial_case(self) -> None:
         """A declared case must carry a payload, so screening it would be wrong.
 
         This is the boundary the whole screen is built around: blanket screening
@@ -113,7 +113,7 @@ class TestMQCIngestScreen:
         assert undeclared
         assert not declared
 
-    def MQC_ING_UNI_10076_a_finding_names_its_task_field_vector_and_excerpt(self) -> None:
+    def MQC_ING_UNI_111112_a_finding_names_its_task_field_vector_and_excerpt(self) -> None:
         """A finding locates itself, so a caller can act on it.
 
         The screen reports rather than decides (A19), which puts the whole
@@ -145,7 +145,7 @@ class TestMQCIngestScreen:
         assert "Ignore all previous instructions" in finding.excerpt
         assert len(finding.excerpt) < len(task.context_documents[0].content) + 40
 
-    def MQC_ING_UNI_10057_injection_screen_passes_ordinary_prose(self) -> None:
+    def MQC_ING_UNI_111108_injection_screen_passes_ordinary_prose(self) -> None:
         """Clean authored text produces no finding.
 
         A screen that fires on ordinary prose would make the warning worthless,
@@ -166,7 +166,7 @@ class TestMQCIngestScreen:
 class TestMQCRegistries:
     """Registered vocabularies that the harness reads rather than hardcodes."""
 
-    def MQC_ING_UNI_10036_aggregation_strategy_declares_scale_id(self) -> None:
+    def MQC_ING_UNI_111106_aggregation_strategy_declares_scale_id(self) -> None:
         """Every registered strategy declares the scale its scores live on.
 
         Without a declared scale, two rubrics produce numbers that look
@@ -179,7 +179,7 @@ class TestMQCRegistries:
         assert strategies
         assert all(aggregation_scale(name) is not None for name in strategies)
 
-    def MQC_ING_UNI_10058_scores_on_differing_scales_are_not_comparable(self) -> None:
+    def MQC_ING_UNI_111109_scores_on_differing_scales_are_not_comparable(self) -> None:
         """Comparability is a machine-checkable fact, not a convention.
 
         Returns:
@@ -189,7 +189,7 @@ class TestMQCRegistries:
         assert scores_are_comparable("weighted_mean", "all_must_pass") is False
         assert scores_are_comparable("weighted_mean", "invented") is False
 
-    def MQC_ING_UNI_10060_rubric_rejects_an_unregistered_aggregation_strategy(
+    def MQC_ING_UNI_111111_rubric_rejects_an_unregistered_aggregation_strategy(
         self, sample_rubric: dict[str, Any]
     ) -> None:
         """An unregistered strategy is an error, unlike an unregistered kind.
@@ -210,7 +210,7 @@ class TestMQCRegistries:
             Rubric.from_dict(sample_rubric)
         assert "geometric_mean" in str(caught.value)
 
-    def MQC_ING_UNI_10037_unknown_constraint_kind_emits_warning_not_error(self) -> None:
+    def MQC_ING_UNI_111107_unknown_constraint_kind_emits_warning_not_error(self) -> None:
         """The vocabulary is open, so an unregistered kind proceeds and warns.
 
         A typo such as `prohibiton` would otherwise fragment the analysis the
@@ -237,7 +237,7 @@ class TestMQCRegistries:
 class TestMQCEvaluationCaseFitness:
     """Invariant G5, enforced structurally rather than trusted."""
 
-    def MQC_ING_UNI_10034_evaluation_case_declares_no_public_methods(self) -> None:
+    def MQC_ING_UNI_111104_evaluation_case_declares_no_public_methods(self) -> None:
         """A data type stays one only while something fails when it stops.
 
         Dataclass-generated members are excluded because the decorator adds
@@ -255,7 +255,7 @@ class TestMQCEvaluationCaseFitness:
         }
         assert public - generated == set()
 
-    def MQC_ING_UNI_10059_evaluation_case_remains_frozen(
+    def MQC_ING_UNI_111110_evaluation_case_remains_frozen(
         self,
         sample_task_payload: dict[str, Any],
     ) -> None:
@@ -280,7 +280,7 @@ class TestMQCEvaluationCaseFitness:
         with pytest.raises(FrozenInstanceError):
             case.priority = 0
 
-    def MQC_ING_UNI_10035_evaluation_case_module_imports_no_downstream_tier(self) -> None:
+    def MQC_ING_UNI_111105_evaluation_case_module_imports_no_downstream_tier(self) -> None:
         """The structural guarantee that dispatch and scoring cannot live here.
 
         Parsed rather than imported: importing the module would only prove it

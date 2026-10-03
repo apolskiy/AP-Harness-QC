@@ -184,7 +184,7 @@ class JudgeChannel:
     def adapter(self) -> Any:
         """Return the adapter this channel owns.
 
-        Exposed so that ``MQC_EXE_UNI_10277`` can establish it is not the
+        Exposed so that ``MQC_EXE_UNI_113212`` can establish it is not the
         candidate's. **Reading it is not borrowing it**: nothing dispatches
         through an adapter it did not build.
 

@@ -180,7 +180,7 @@ def packaged_config_root() -> Path:
 
     **So the configuration travels inside the distribution**, and this is how a
     consumer finds it. `config/` ships as package data, which
-    `MQC_CMN_UNI_11114` already learned to care about the first time this
+    `MQC_CMN_UNI_112225` already learned to care about the first time this
     repository was installed into another one.
 
     **Why not let the consumer keep its own copy**: the roster carries evidence,

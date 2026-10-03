@@ -90,7 +90,7 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
         BASE_URL (Optional[str]): The endpoint, or ``None`` for the SDK's own
             default, which is OpenAI. **This is the only field that routes a
             request**, so an engine that forgets it silently reaches OpenAI
-            with another vendor's key; ``MQC_EXE_UNI_10281`` reports that.
+            with another vendor's key; ``MQC_EXE_UNI_113014`` reports that.
         API_KEY_ENV (str): The environment variable carrying this engine's
             credential. **A name, never a value**: credentials are read from
             the environment at runtime and never appear in configuration.

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for adding a layer, an outcome or a verdict rule.
 
-Covers `MQC_CMN_UNI_10130`, `10131` and `10139` through `10142`, inventoried in
+Covers `MQC_CMN_UNI_112100`, `112101` and `112106` through `112109`, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Adding a test type must not require editing verdict computation.** A
@@ -24,6 +24,7 @@ from typing import Any, Iterator
 
 import pytest
 
+from cmn.code_standards import identifier_block_problems
 from cmn.config import unrostered_adapters
 from cmn.demotion import DemotionCandidate, count_demoted, demotion_order, exceeds_ceiling
 from cmn.layers import (
@@ -53,6 +54,9 @@ pytestmark = pytest.mark.unit
 # rather than read from the clock, so a lapse is testable at its boundary.
 _AS_OF = date(2026, 10, 2)
 
+# This repository's root, two levels above a case module.
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+
 _TODAY = date(2026, 9, 23)
 
 
@@ -75,7 +79,7 @@ def fixture_extra_layer() -> Iterator[LayerProperties]:
 class TestMQCLayerRegistration:
     """What a newly registered layer inherits without a code change."""
 
-    def MQC_CMN_UNI_10139_new_layer_respects_declared_graded_flag(
+    def MQC_CMN_UNI_112106_new_layer_respects_declared_graded_flag(
         self,
         extra_layer: LayerProperties,
     ) -> None:
@@ -101,7 +105,7 @@ class TestMQCLayerRegistration:
         assert "V1" in result.breached_rules
         assert result.exit_code == 1
 
-    def MQC_CMN_UNI_10140_new_layer_respects_declared_distribution_exemption(self) -> None:
+    def MQC_CMN_UNI_112107_new_layer_respects_declared_distribution_exemption(self) -> None:
         """An exempt layer is excluded by its declaration, not by its name.
 
         The hand-written security exemption that shipped in the taxonomy is a
@@ -130,7 +134,7 @@ class TestMQCLayerRegistration:
         finally:
             unregister_layer(exempt.layer)
 
-    def MQC_CMN_UNI_10188_an_overlapping_identifier_block_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112128_an_overlapping_identifier_block_is_rejected(self) -> None:
         """Two layers claiming one identifier would let history rebind it.
 
         Identifiers are assigned once and never reused, including after a test
@@ -140,9 +144,12 @@ class TestMQCLayerRegistration:
         Returns:
             None
         """
+        # INSIDE UNI'S BLOCK, which the six-digit scheme moved to 110000-119999.
+        # The old value sat inside the old UNI block and overlapped nothing
+        # afterwards, so the case stopped testing what it names.
         overlapping = LayerProperties(
             layer="DUPE", marker="dupe", graded=True,
-            distribution_exempt=False, blocking=False, id_block=(10500, 10600),
+            distribution_exempt=False, blocking=False, id_block=(115000, 115100),
         )
         with pytest.raises(ValueError, match="overlaps"):
             register_layer(overlapping)
@@ -151,7 +158,7 @@ class TestMQCLayerRegistration:
 class TestMQCOutcomeRegistration:
     """An outcome declares its denominator treatment, or it is not registered."""
 
-    def MQC_CMN_UNI_10141_outcome_without_declared_denominator_treatment_is_rejected(
+    def MQC_CMN_UNI_112108_outcome_without_declared_denominator_treatment_is_rejected(
         self,
     ) -> None:
         """All three answers are required, and silence is not a declaration.
@@ -172,7 +179,7 @@ class TestMQCOutcomeRegistration:
         assert "counts_in_skip_rate" in message
         assert "counts_in_distribution" in message
 
-    def MQC_CMN_UNI_10189_a_complete_declaration_registers_and_is_read(self) -> None:
+    def MQC_CMN_UNI_112129_a_complete_declaration_registers_and_is_read(self) -> None:
         """The positive the rejection is measured against.
 
         Returns:
@@ -195,7 +202,7 @@ class TestMQCOutcomeRegistration:
 class TestMQCVerdictRuleRegistration:
     """A new gating condition is a registry entry, never an edit."""
 
-    def MQC_CMN_UNI_10142_registered_verdict_rule_is_evaluated_without_core_change(self) -> None:
+    def MQC_CMN_UNI_112109_registered_verdict_rule_is_evaluated_without_core_change(self) -> None:
         """The rule is evaluated and its breach reported under its own identifier.
 
         Returns:
@@ -235,7 +242,7 @@ class TestMQCVerdictRuleRegistration:
 class TestMQCDemotionOrdering:
     """Which case gives way when a ceiling binds, and which never does."""
 
-    def MQC_CMN_UNI_10130_demotion_orders_single_match_before_multiple(self) -> None:
+    def MQC_CMN_UNI_112100_demotion_orders_single_match_before_multiple(self) -> None:
         """Match count is claim strength, which makes the order mechanical.
 
         A case satisfying three conditions at or above its level has a
@@ -261,7 +268,7 @@ class TestMQCDemotionOrdering:
         assert weak.claim_strength == 1
         assert strong.claim_strength == 3
 
-    def MQC_CMN_UNI_10131_security_cases_are_never_demoted(self) -> None:
+    def MQC_CMN_UNI_112101_security_cases_are_never_demoted(self) -> None:
         """Excluded entirely, never merely ordered last.
 
         Appearing at the end of a list is one budget change away from being
@@ -282,7 +289,7 @@ class TestMQCDemotionOrdering:
         assert [entry.case_id for entry in ordered] == ["MQC_TASK_fn::MQC_RULE_r"]
         assert security.demotable is False
 
-    def MQC_CMN_UNI_10190_a_case_below_its_ceiling_is_detectable_from_its_record(self) -> None:
+    def MQC_CMN_UNI_112130_a_case_below_its_ceiling_is_detectable_from_its_record(self) -> None:
         """Nothing extra has to be stored to see that a case was demoted.
 
         A priority below the most severe matched condition is exactly what
@@ -303,7 +310,7 @@ class TestMQCDemotionOrdering:
         assert at_ceiling.demoted is False
         assert count_demoted([demoted, at_ceiling]) == 1
 
-    def MQC_CMN_UNI_10191_a_priority_above_every_matched_condition_is_a_breach(self) -> None:
+    def MQC_CMN_UNI_112131_a_priority_above_every_matched_condition_is_a_breach(self) -> None:
         """A priority without a named condition is not assignable (G6).
 
         An unmatched case is a breach rather than an unconstrained one, which
@@ -328,7 +335,7 @@ class TestMQCDemotionOrdering:
 class TestMQCEngineExpansion:
     """Adding an evaluated engine is declarative, and every step is checked."""
 
-    def MQC_CMN_UNI_11222_a_registered_adapter_off_the_roster_is_reported(
+    def MQC_CMN_UNI_112145_a_registered_adapter_off_the_roster_is_reported(
         self, tmp_path: Path
     ) -> None:
         """A registered adapter is rostered or carries a dated reason.
@@ -408,3 +415,32 @@ class TestMQCEngineExpansion:
             encoding="utf-8",
         )
         assert not unrostered_adapters(roster, ["gemini", "mistral"], _AS_OF)
+
+
+    def MQC_CMN_UNI_112146_an_identifier_outside_its_module_block_is_reported(
+        self,
+    ) -> None:
+        """Every identifier's digits say what its tokens say.
+
+        An identifier is six positional digits: domain, layer, module,
+        category, case. This reads the layer and module tokens off each name
+        and checks the digits that encode them.
+
+        **Nothing checked the previous allocation**, which is how `EXE/UNI`
+        came to sit inside `EVL`'s block, `EVL/UNI` inside `CAS`'s and
+        `CMN/UNI` past its last allocated block, all at once and silently.
+
+        **The duplicate-binding check cannot see this.** Two modules occupying
+        one block are two distinct identifiers, so counting bindings balances.
+
+        Design: ``test_taxonomy.md`` section 3.2.1.4.
+
+        Returns:
+            None
+        """
+        problems = identifier_block_problems(_REPOSITORY_ROOT)
+
+        assert not problems, (
+            "identifiers carry digits their tokens contradict, so a module "
+            "occupies a block it was not allocated: " + "; ".join(problems)
+        )

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Storing and replaying a judgement.
 
-Covers ``MQC_CMN_UNI_11136`` through ``11139``, inventoried in
+Covers ``MQC_CMN_UNI_112607`` through ``112610``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.19. The design is
 ``tier2_execution.md`` section 7.4.
 
@@ -65,7 +65,7 @@ def _recorded(root: Path, reply: Any = None) -> JudgementKey:
 class TestMQCJudgementFixture:
     """What a stored judgement is keyed by, and what invalidates it."""
 
-    def MQC_CMN_UNI_11136_a_recorded_judgement_is_replayed_for_the_same_request(
+    def MQC_CMN_UNI_112607_a_recorded_judgement_is_replayed_for_the_same_request(
         self, tmp_path: Path
     ) -> None:
         """A replay run is free and deterministic only if the judge is replayed.
@@ -99,7 +99,7 @@ class TestMQCJudgementFixture:
             "scores": [4, 5]
         }
 
-    def MQC_CMN_UNI_11201_two_candidate_engines_judged_by_one_judge_do_not_share(
+    def MQC_CMN_UNI_112615_two_candidate_engines_judged_by_one_judge_do_not_share(
         self, tmp_path: Path
     ) -> None:
         """A judgement is keyed by candidate engine as well as judge engine.
@@ -148,7 +148,7 @@ class TestMQCJudgementFixture:
             tmp_path, judged_openai, "sha256:openaisaid", _MODEL
         ).reply == {"scores": [2]}
 
-    def MQC_CMN_UNI_11137_a_judgement_from_a_different_judge_model_is_stale(
+    def MQC_CMN_UNI_112608_a_judgement_from_a_different_judge_model_is_stale(
         self, tmp_path: Path
     ) -> None:
         """The question is the same and the instrument is not.
@@ -172,7 +172,7 @@ class TestMQCJudgementFixture:
         # The request is unchanged, which is the whole point of the case.
         assert load_judgement(tmp_path, key, _REQUEST, _MODEL).request_hash == _REQUEST
 
-    def MQC_CMN_UNI_11138_a_judgement_whose_request_hash_moved_is_stale(
+    def MQC_CMN_UNI_112609_a_judgement_whose_request_hash_moved_is_stale(
         self, tmp_path: Path
     ) -> None:
         """A rubric edit or a different response changes what was asked.
@@ -193,7 +193,7 @@ class TestMQCJudgementFixture:
         with pytest.raises(FixtureStale, match="different question"):
             load_judgement(tmp_path, key, "sha256:rubricedited", _MODEL)
 
-    def MQC_CMN_UNI_11139_a_missing_judgement_raises_rather_than_judging_live(
+    def MQC_CMN_UNI_112610_a_missing_judgement_raises_rather_than_judging_live(
         self, tmp_path: Path
     ) -> None:
         """The fail-open path does not exist to be taken by accident.
@@ -244,7 +244,7 @@ class TestMQCJudgeChannelMode:
             data={"candidate_output": "A grounded summary."},
         )
 
-    def MQC_EXE_UNI_10283_a_replay_judgement_never_reaches_the_provider(
+    def MQC_EXE_UNI_113300_a_replay_judgement_never_reaches_the_provider(
         self, tmp_path: Path, monkeypatch: Any
     ) -> None:
         """A replay channel loads a stored judgement and dispatches nothing.
@@ -319,7 +319,7 @@ class TestMQCJudgeChannelMode:
         with pytest.raises(FixtureMissing):
             empty.invoke(request)
 
-    def MQC_EXE_UNI_10284_a_live_judgement_is_recorded_for_later_replay(
+    def MQC_EXE_UNI_113301_a_live_judgement_is_recorded_for_later_replay(
         self, tmp_path: Path, monkeypatch: Any
     ) -> None:
         """What a live channel obtains is stored against the text it scored.
@@ -399,7 +399,7 @@ class TestMQCJudgeChannelMode:
             JudgementPlan(mode="cached")
 
 
-    def MQC_EXE_UNI_10307_each_observation_records_its_own_judgement(
+    def MQC_EXE_UNI_113304_each_observation_records_its_own_judgement(
         self, tmp_path: Path, monkeypatch: Any
     ) -> None:
         """Three observations of a case kept one judgement, overwriting.
@@ -501,7 +501,7 @@ class TestMQCJudgeChannelMode:
         for request in requests:
             assert replayed.invoke(request) == awarded
 
-    def MQC_EXE_UNI_10308_fill_gaps_judges_only_what_is_not_recorded(
+    def MQC_EXE_UNI_113305_fill_gaps_judges_only_what_is_not_recorded(
         self, tmp_path: Path, monkeypatch: Any
     ) -> None:
         """Two missing judgements cost a re-judge of ninety-two, twice.
@@ -607,7 +607,7 @@ class TestMQCJudgeChannelMode:
 class TestMQCJudgeFailureContainment:
     """A provider failure while judging, which used to escape."""
 
-    def MQC_EXE_UNI_10291_a_provider_failure_while_judging_is_contained(
+    def MQC_EXE_UNI_113302_a_provider_failure_while_judging_is_contained(
         self, monkeypatch: Any
     ) -> None:
         """The judge reaches the same taxonomy the candidate path does.
@@ -669,7 +669,7 @@ class TestMQCJudgeFailureContainment:
                 f"the candidate path uses"
             )
 
-    def MQC_EXE_UNI_10292_the_judge_channel_imports_no_evaluation_module(
+    def MQC_EXE_UNI_113303_the_judge_channel_imports_no_evaluation_module(
         self,
     ) -> None:
         """Containing the failure must not cost the tier boundary.

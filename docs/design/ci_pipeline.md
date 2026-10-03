@@ -187,7 +187,7 @@ Each declares `needs` on its predecessor, so a precondition failure leaves the n
 
 **Where each one lives.** Gates 4 to 6 and the verdict run in `AP-Model-QC`'s own `gate-on-change.yml`, against its cases, which is where a model is actually measured. A harness change is proved against real cases by `regress-consumers-on-merge.yml`, which checks out a consumer against the candidate and runs the consumer's deterministic gates.
 
-**What this repository owes instead is proof that the instrument works**, and that is `MQC_CMN_SYS_20301` to `20303` inside Gate 3: the whole chain on a synthetic corpus, from the ingestion join through replay dispatch and the dual pass to a computed verdict, asserting it reaches **both** a green and a red. A harness that cannot report red about a failing model cannot be trusted when it reports green.
+**What this repository owes instead is proof that the instrument works**, and that is `MQC_CMN_SYS_122000` to `122002` inside Gate 3: the whole chain on a synthetic corpus, from the ingestion join through replay dispatch and the dual pass to a computed verdict, asserting it reaches **both** a green and a red. A harness that cannot report red about a failing model cannot be trusted when it reports green.
 
 **`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and is recorded in `OPEN_QUESTIONS.md` section 2.7, because what a harness-only live run should measure is a question about quota rather than about structure.
 
@@ -431,17 +431,17 @@ step that could fail was the one that could not run.
 
 | | Covered by | Before |
 |---|---|---|
-| The tool fails only on `QC_HARNESS_*` | `MQC_CMN_UNI_11200` | Yes |
+| The tool fails only on `QC_HARNESS_*` | `MQC_CMN_UNI_112523` | Yes |
 | The workflow can reach the tool | **Nothing** | **No** |
 
 **This is the fifth instance of one shape in this project.** `--max-spend`
 accepted a ceiling that stopped nothing, `--priority` named a band and ran every
-band, `--extra-columns` names a policy and reaches no code, `MQC_EXE_UNI_10259`
+band, `--extra-columns` names a policy and reaches no code, `MQC_EXE_UNI_113000`
 asserted half of what section 4.3 splits in two, and now a gate whose logic is
 proven and whose invocation is not. **Each time the thing itself was right and
 nothing established that it was reachable.**
 
-`MQC_CMN_UNI_11207` resolves every script path a workflow step runs, against
+`MQC_CMN_UNI_112524` resolves every script path a workflow step runs, against
 the checkout layout that step executes in, so a path that cannot exist fails the
 unit gate rather than passing silently in a job that reports success.
 
@@ -619,11 +619,11 @@ kind is a row, not a code change.
 | Kind | Shape | Checked |
 |---|---|---|
 | Ticket | `MQC-1234`, `AP-88` | Shape only |
-| Case identifier | `10428`, `11143` | **Shape and existence** |
+| Case identifier | `115005`, `112504` | **Shape and existence** |
 | Release | `v1.2.0` | Shape only |
 
 **The case-identifier kind is the one that earns its keep.** A branch claiming
-to fix `10428` where no such case is inventoried is a typo, and the gate reports
+to fix `115005` where no such case is inventoried is a typo, and the gate reports
 it on the first push rather than at review. This project has been bitten by an
 identifier that bound to nothing often enough to check the cheap instances.
 
@@ -658,8 +658,8 @@ distinguishes it, which is the job a referent does on a working branch.
 it holds. A working branch holds one unit of work and names it; an integration
 branch holds a cycle and names the cycle. Stating it per kind is the rule being
 precise, not a carve-out for an inconvenient case, and the distinction is
-mechanical rather than a matter of judgement: `MQC_CMN_UNI_11152` accepts a
-bare stamp for `stabilization` and `11144` refuses one for every other kind.
+mechanical rather than a matter of judgement: `MQC_CMN_UNI_112510` accepts a
+bare stamp for `stabilization` and `112505` refuses one for every other kind.
 
 **A referent is still permitted where a real one exists**, such as a release
 being stabilized. What is removed is the obligation to invent one.
@@ -873,7 +873,7 @@ That is also why notification is routed to a person rather than to the commit. A
 
 **Transition detection needs no stored state.** The previous run's conclusion for the same workflow and branch is already in the run history, so the job reads it rather than keeping a baseline. A baseline file would be a second source of truth that can drift, for a signal the platform already holds.
 
-**A first run on a branch has no previous conclusion**, which is not a transition. The comparison is therefore stated at that boundary and covered by `MQC_CMN_UNI_10175`. This is the same shape as the probe's absent baseline in section 4: a missing prior value means there is nothing to compare, not that something changed.
+**A first run on a branch has no previous conclusion**, which is not a transition. The comparison is therefore stated at that boundary and covered by `MQC_CMN_UNI_112212`. This is the same shape as the probe's absent baseline in section 4: a missing prior value means there is nothing to compare, not that something changed.
 
 The webhook is read from a repository variable and is **absent by default**, so a clone of this repository runs the debug workflow without it and simply gets the job summary. Nothing in the design requires an external service.
 
@@ -906,7 +906,7 @@ Fixtures are committed, so a checkpoint's fixtures come with its code by default
 
 `MQC_REQ_HAR_EXE_0009` requires a stale fixture to be reported rather than silently replayed, on the basis that replaying a recorded answer to a different question is a corruption. **Under divergent refs, that report is the result rather than an error.**
 
-A stale hash means the request composition changed between the two checkpoints, which is exactly what the third row of the table is asking. The run therefore reports staleness per fixture as a diagnostic finding and continues, rather than treating it as a harness defect and stopping. `MQC_EXE_UNI_10239` states this, and it is the only context in which a stale fixture is not a problem.
+A stale hash means the request composition changed between the two checkpoints, which is exactly what the third row of the table is asking. The run therefore reports staleness per fixture as a diagnostic finding and continues, rather than treating it as a harness defect and stopping. `MQC_EXE_UNI_113605` states this, and it is the only context in which a stale fixture is not a problem.
 
 #### 6.4.2 Why this is not a rollback
 
@@ -1066,11 +1066,11 @@ Workflow files are configuration, not collected code, so `pytest.ini` never sees
 
 | Concern | Covered by |
 |---|---|
-| Selection logic correctness | `MQC_CMN_UNI_10162` through `10165` |
-| Debug exclusion | `MQC_CMN_UNI_10166`, `10167` |
-| Verdict gating on selection mode | `MQC_CMN_UNI_10168` through `10170` |
-| A full selection on a debug branch staying ungated | `MQC_CMN_UNI_10174` |
-| Notification transition detection | `MQC_CMN_UNI_10175` |
+| Selection logic correctness | `MQC_CMN_UNI_112120` through `112209` |
+| Debug exclusion | `MQC_CMN_UNI_112210`, `112211` |
+| Verdict gating on selection mode | `MQC_CMN_UNI_112123` through `112125` |
+| A full selection on a debug branch staying ungated | `MQC_CMN_UNI_112126` |
+| Notification transition detection | `MQC_CMN_UNI_112212` |
 | Workflow syntax | `actionlint` in the `lint` job |
 
 **The logic is tested in Python; the YAML is linted.** Putting decision logic in workflow expressions would move it somewhere no test can reach, which is why selection and gating live in `cmn/` and the workflows only call them.

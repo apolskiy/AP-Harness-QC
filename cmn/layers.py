@@ -68,11 +68,11 @@ class LayerProperties:
 
 
 _LAYERS: Final[dict[str, LayerProperties]] = {
-    "UNI": LayerProperties("UNI", "unit", False, True, True, (10001, 19999)),
-    "SYS": LayerProperties("SYS", "system", False, True, True, (20001, 29999)),
-    "EVAL": LayerProperties("EVAL", "evaluator", True, False, False, (30001, 39999)),
-    "TOOL": LayerProperties("TOOL", "tool", True, False, False, (40001, 49999)),
-    "SEC": LayerProperties("SEC", "sec", True, True, False, (50001, 59999)),
+    "UNI": LayerProperties("UNI", "unit", False, True, True, (110000, 119999)),
+    "SYS": LayerProperties("SYS", "system", False, True, True, (120000, 129999)),
+    "EVAL": LayerProperties("EVAL", "evaluator", True, False, False, (130000, 139999)),
+    "TOOL": LayerProperties("TOOL", "tool", True, False, False, (140000, 149999)),
+    "SEC": LayerProperties("SEC", "sec", True, True, False, (150000, 159999)),
 }
 
 

@@ -4,7 +4,7 @@
 
 Specified by ``docs/design/tier1_ingestion.md`` section 7.2.
 
-**One registry, two screens.** ``MQC_EVL_UNI_10349`` asserts that content the
+**One registry, two screens.** ``MQC_EVL_UNI_114608`` asserts that content the
 ingest screen warned about is matched again by the Tier 3 screen. Two copies of
 a pattern set cannot be asserted to agree; they can only be compared, and a
 comparison passes on the day it is written and drifts afterwards. Sharing the
@@ -130,7 +130,7 @@ _VECTOR_PATTERNS: Final[dict[str, Pattern[str]]] = {
         re.IGNORECASE,
     ),
     # A DIFFERENT TASK, WITH NO OVERRIDE LANGUAGE. Screening for the words one
-    # attack happened to use is not screening for the attack: `50004` passed
+    # attack happened to use is not screening for the attack: `154103` passed
     # the cross-check on phrasing it did not need, and a payload that merely
     # names a replacement task matched nothing (section 7.3.1).
     "task_substitution": re.compile(
@@ -141,12 +141,12 @@ _VECTOR_PATTERNS: Final[dict[str, Pattern[str]]] = {
         r"\bcorrection\s+to\s+your\s+(configuration|instruction|prompt)\b",
         re.IGNORECASE,
     ),
-    # NAMING A TOOL AND AN IMPERATIVE, or an authority claim about one. `50008`
+    # NAMING A TOOL AND AN IMPERATIVE, or an authority claim about one. `154107`
     # also passed on override phrasing rather than on this (section 7.3.1).
     "tool_coercion": re.compile(
         # AN IMPERATIVE ALONE IS NOT COERCION. "You may use lookup_order" is
         # what a legitimate system instruction says, and the first version of
-        # this pattern fired on it: MQC_EVL_UNI_10399 caught that before it
+        # this pattern fired on it: MQC_EVL_UNI_114617 caught that before it
         # reached the corpus. The imperative counts only alongside urgency,
         # and the other clauses carry the cases that need no tool name.
         r"\b(call|invoke|run|trigger|execute)\s+(the\s+)?[a-z]+_[a-z_]+\b"

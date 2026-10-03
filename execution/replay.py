@@ -274,7 +274,7 @@ def stored_observation_count(root: Path, case_id: str, engine: str) -> int:
     Returns:
         int: How many observations exist. A count below the configured
         observation count means replay cannot reproduce the recorded run, which
-        is the condition `MQC_EXE_UNI_10222` covers.
+        is the condition `MQC_EXE_UNI_113601` covers.
     """
     key = FixtureKey(case_id=case_id, engine=engine, observation_index=0)
     directory = key.as_path(root).parent

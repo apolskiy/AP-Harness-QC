@@ -23,15 +23,15 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Precondition suite (`UNI`, `SYS`) | **526 cases, all passing** |
+| Precondition suite (`UNI`, `SYS`) | **527 cases, all passing** |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 222, none uncovered, none untraced |
+| Requirements traced | 223, none uncovered, none untraced |
 | Specified and not yet built | Recorded as deferrals, not as silence |
 
 Every case is inventoried in a design document before it is implemented, traced
 in `docs/testing/rtm_harness.csv`, and checked in both directions by
-`MQC_CMN_UNI_10183`, `10186`, `10187`, `11121` and `11122`. That order is
+`MQC_CMN_UNI_112303`, `112305`, `112306`, `112226` and `112313`. That order is
 enforced mechanically rather than by intention.
 
 ## Running It
@@ -117,4 +117,4 @@ decisions and the reasoning behind them.
 Apache 2.0, with a `NOTICE` file. The case repository is MIT: the patent grant
 matters for a tool others depend on, and the cases are material people copy and
 adapt. Every Python file carries an SPDX header, enforced by
-`MQC_CMN_UNI_11113`.
+`MQC_CMN_UNI_112502`.

@@ -100,7 +100,7 @@ jobs:
       # meant to complete. What regresses a harness change against real cases is
       # regress-consumers-on-merge.yml, which checks out a consumer against this
       # candidate. What proves the harness composes is Gate 3, which now carries
-      # MQC_CMN_SYS_20301 to 20303: the whole chain, to both a green and a red.
+      # MQC_CMN_SYS_122000 to 122002: the whole chain, to both a green and a red.
 
       - uses: actions/upload-artifact@v6
         if: always()

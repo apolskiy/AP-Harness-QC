@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which engine grades, which model it uses, and how a change is detected.
 
-Covers ``MQC_CMN_UNI_11124`` through ``11127`` and ``11133`` through ``11135``,
+Covers ``MQC_CMN_UNI_112600`` through ``112603`` and ``112604`` through ``112606``,
 inventoried in ``docs/design/cmn_verdict_and_cli.md`` sections 10.13 and 10.18.
 
 **Split from the CLI module on 2026-09-24**, when that module crossed the
@@ -43,7 +43,7 @@ pytestmark = pytest.mark.unit
 class TestMQCJudgeResolution:
     """Which engine grades, and what disqualifies one."""
 
-    def MQC_CMN_UNI_11124_the_default_judge_engine_is_gemini(self) -> None:
+    def MQC_CMN_UNI_112600_the_default_judge_engine_is_gemini(self) -> None:
         """A3 decided this on 2026-09-19 and no file named it until now.
 
         The decision lived in prose while ``JudgeBinding`` defaulted to unbound
@@ -61,7 +61,7 @@ class TestMQCJudgeResolution:
         # the default would refuse itself on the first run.
         assert "gemini" in loaded.engines
 
-    def MQC_CMN_UNI_11125_a_configured_judge_engine_overrides_the_default(
+    def MQC_CMN_UNI_112601_a_configured_judge_engine_overrides_the_default(
         self, tmp_path: Path
     ) -> None:
         """Selecting another judge is a configuration entry, never a code change.
@@ -98,7 +98,7 @@ class TestMQCJudgeResolution:
         bare.write_text("engines:\n  gemini:\n    model: x\n", encoding="utf-8")
         assert load_judge_engine(bare) == "gemini"
 
-    def MQC_CMN_UNI_11126_a_judge_engine_absent_from_the_roster_is_rejected(
+    def MQC_CMN_UNI_112602_a_judge_engine_absent_from_the_roster_is_rejected(
         self,
     ) -> None:
         """Usually a typo, and refused before any quota is spent.
@@ -119,7 +119,7 @@ class TestMQCJudgeResolution:
         # misconfigured and nothing was measured.
         assert is_registered_harness_code("QC_HARNESS_PREFLIGHT_FAILURE")
 
-    def MQC_CMN_UNI_11127_an_engine_without_structured_output_cannot_judge(
+    def MQC_CMN_UNI_112603_an_engine_without_structured_output_cannot_judge(
         self,
     ) -> None:
         """The harder refusal, and the reason there are two cases.
@@ -149,7 +149,7 @@ class TestMQCJudgeResolution:
         ) == "plain"
 
 
-    def MQC_CMN_UNI_11133_an_absent_judge_model_falls_back_to_the_roster_entry(
+    def MQC_CMN_UNI_112604_an_absent_judge_model_falls_back_to_the_roster_entry(
         self, tmp_path: Path
     ) -> None:
         """The behaviour every existing configuration relies on.
@@ -182,7 +182,7 @@ class TestMQCJudgeResolution:
 
         assert load_judge_model(roster, loaded) == "gemini-2.5-flash"
 
-    def MQC_CMN_UNI_11134_a_judge_model_distinct_from_the_candidate_is_expressible(
+    def MQC_CMN_UNI_112605_a_judge_model_distinct_from_the_candidate_is_expressible(
         self, tmp_path: Path
     ) -> None:
         """The configuration the probe could not see before section 5A.4.
@@ -220,7 +220,7 @@ class TestMQCJudgeResolution:
         # point: one engine, two models, two subjects.
         assert judge_model != loaded["gemini"].model
 
-    def MQC_CMN_UNI_11135_a_probe_that_omits_the_judge_subject_is_reported(
+    def MQC_CMN_UNI_112606_a_probe_that_omits_the_judge_subject_is_reported(
         self,
     ) -> None:
         """A probe walking only the roster reports nothing and misses drift.
@@ -260,7 +260,7 @@ class TestMQCJudgeResolution:
 class TestMQCJudgeMode:
     """Which of the four quadrants a run is asking for."""
 
-    def MQC_CMN_UNI_11141_judge_mode_defaults_to_whatever_mode_is(self) -> None:
+    def MQC_CMN_UNI_112611_judge_mode_defaults_to_whatever_mode_is(self) -> None:
         """Every existing invocation keeps its meaning.
 
         A fixed default would silently change what ``--mode live`` meant, and
@@ -280,7 +280,7 @@ class TestMQCJudgeMode:
         # Declared with an empty choice, so the registry accepts "follow".
         assert "" in (option("judge-mode").choices or ())
 
-    def MQC_CMN_UNI_11142_a_live_candidate_with_a_replayed_judge_is_refused(
+    def MQC_CMN_UNI_112612_a_live_candidate_with_a_replayed_judge_is_refused(
         self,
     ) -> None:
         """A judgement is a score of a specific response.
@@ -316,7 +316,7 @@ class TestMQCJudgeMode:
 class TestMQCPackagedConfiguration:
     """Where a consumer finds this harness's own configuration."""
 
-    def MQC_CMN_UNI_11191_the_roster_is_found_through_the_installed_package(
+    def MQC_CMN_UNI_112613_the_roster_is_found_through_the_installed_package(
         self,
     ) -> None:
         """A consumer read the roster from the directory next door.
@@ -339,14 +339,14 @@ class TestMQCPackagedConfiguration:
         # the original failure took.
         assert sorted(load_engines(located))
 
-    def MQC_CMN_UNI_11192_the_shipped_distribution_carries_the_configuration(
+    def MQC_CMN_UNI_112614_the_shipped_distribution_carries_the_configuration(
         self,
     ) -> None:
         """Package data is configured, or the consumer install has no roster.
 
         **The build must be asked, not the source tree.** `config/` is present
         on disk whatever the build says, so a check that it exists proves
-        nothing: `MQC_CMN_UNI_11114` learned the same lesson about packages the
+        nothing: `MQC_CMN_UNI_112225` learned the same lesson about packages the
         first time this repository was installed into another one. What
         matters is that the packaging configuration would carry it into a
         wheel.

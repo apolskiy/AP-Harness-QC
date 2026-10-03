@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for verdict computation.
 
-Covers `MQC_CMN_UNI_10101` through `10131`, inventoried in
+Covers `MQC_CMN_UNI_112000` through `112101`, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Every case here is synthetic and deterministic.** The verdict is a pure
@@ -40,7 +40,7 @@ pytestmark = pytest.mark.unit
 class TestMQCPriorityGate:
     """V1: what a P0 or P1 failure costs, and what a P2 failure does not."""
 
-    def MQC_CMN_UNI_10101_green_when_all_rules_satisfied(self) -> None:
+    def MQC_CMN_UNI_112000_green_when_all_rules_satisfied(self) -> None:
         """The positive every negative below is measured against.
 
         Returns:
@@ -52,7 +52,7 @@ class TestMQCPriorityGate:
         assert not result.breaches
 
     @pytest.mark.parametrize("priority", [0, 1])
-    def MQC_CMN_UNI_10102_red_when_p0_observation_fails(self, priority: int) -> None:
+    def MQC_CMN_UNI_112001_red_when_p0_observation_fails(self, priority: int) -> None:
         """A P0 or P1 failure fails the run whatever the pass rate.
 
         Both bands are covered here rather than in two cases, because the rule
@@ -72,10 +72,10 @@ class TestMQCPriorityGate:
         assert "V1" in result.breached_rules
         assert result.pass_rate > 0.90
 
-    def MQC_CMN_UNI_10103_red_when_p1_observation_fails(self) -> None:
+    def MQC_CMN_UNI_112002_red_when_p1_observation_fails(self) -> None:
         """Stated separately because the inventory does, and it is not a duplicate.
 
-        `10102` asserts the shared rule over both bands; this asserts that P1
+        `112001` asserts the shared rule over both bands; this asserts that P1
         alone is sufficient, which a rule reading only P0 would pass.
 
         Returns:
@@ -85,7 +85,7 @@ class TestMQCPriorityGate:
         observations.append(graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=1))
         assert "V1" in verdict(observations, VerdictConfig(), TODAY).breached_rules
 
-    def MQC_CMN_UNI_10104_green_when_p2_fails_within_pass_floor(self) -> None:
+    def MQC_CMN_UNI_112003_green_when_p2_fails_within_pass_floor(self) -> None:
         """A P2 failure is absorbed by the pass rate, not by the gate.
 
         This is what the priority scheme is for: not every failure blocks, and
@@ -105,7 +105,7 @@ class TestMQCPriorityGate:
 class TestMQCRateThresholds:
     """V2, V3 and V4 at their exact boundaries."""
 
-    def MQC_CMN_UNI_10105_green_at_exactly_ninety_percent_pass_rate(self) -> None:
+    def MQC_CMN_UNI_112004_green_at_exactly_ninety_percent_pass_rate(self) -> None:
         """Stated at the boundary: 90% passes, and the rule says below 90 fails.
 
         Returns:
@@ -119,7 +119,7 @@ class TestMQCRateThresholds:
         assert result.pass_rate == pytest.approx(0.90)
         assert "V2" not in result.breached_rules
 
-    def MQC_CMN_UNI_10106_red_just_below_ninety_percent_pass_rate(self) -> None:
+    def MQC_CMN_UNI_112005_red_just_below_ninety_percent_pass_rate(self) -> None:
         """One case the other side of the same boundary.
 
         Returns:
@@ -136,7 +136,7 @@ class TestMQCRateThresholds:
         assert result.pass_rate == pytest.approx(0.80)
         assert "V2" in result.breached_rules
 
-    def MQC_CMN_UNI_10107_green_at_exactly_twenty_percent_skips(self) -> None:
+    def MQC_CMN_UNI_112006_green_at_exactly_twenty_percent_skips(self) -> None:
         """The skip ceiling holds at 20% and fails above it.
 
         Returns:
@@ -154,7 +154,7 @@ class TestMQCRateThresholds:
         assert result.skip_rate == pytest.approx(0.20)
         assert "V3" not in result.breached_rules
 
-    def MQC_CMN_UNI_10108_red_just_above_twenty_percent_skips(self) -> None:
+    def MQC_CMN_UNI_112007_red_just_above_twenty_percent_skips(self) -> None:
         """One skip the other side of the same boundary.
 
         Returns:
@@ -172,7 +172,7 @@ class TestMQCRateThresholds:
         assert result.skip_rate == pytest.approx(0.30)
         assert "V3" in result.breached_rules
 
-    def MQC_CMN_UNI_10109_green_at_exactly_ten_percent_priority_skips(self) -> None:
+    def MQC_CMN_UNI_112008_green_at_exactly_ten_percent_priority_skips(self) -> None:
         """The P0 and P1 skip ceiling is tighter, and is its own denominator.
 
         A skip in a blocking band is worse than a skip elsewhere, because the
@@ -193,7 +193,7 @@ class TestMQCRateThresholds:
         result = verdict(observations, VerdictConfig(), TODAY)
         assert "V4" not in result.breached_rules
 
-    def MQC_CMN_UNI_10110_red_just_above_ten_percent_priority_skips(self) -> None:
+    def MQC_CMN_UNI_112009_red_just_above_ten_percent_priority_skips(self) -> None:
         """One priority skip the other side of the same boundary.
 
         Returns:
@@ -217,7 +217,7 @@ class TestMQCRateThresholds:
 class TestMQCNothingMeasured:
     """V6: every way a run can measure nothing and look fine doing it."""
 
-    def MQC_CMN_UNI_10114_red_when_no_observations_at_all(self) -> None:
+    def MQC_CMN_UNI_112013_red_when_no_observations_at_all(self) -> None:
         """A run that measured nothing must never report green.
 
         Every other rule passes vacuously over an empty set, which is exactly
@@ -230,7 +230,7 @@ class TestMQCNothingMeasured:
         assert result.green is False
         assert "V6" in result.breached_rules
 
-    def MQC_CMN_UNI_10115_red_when_no_graded_observations(self) -> None:
+    def MQC_CMN_UNI_112014_red_when_no_graded_observations(self) -> None:
         """Preconditions passing is not a measurement of the model.
 
         Returns:
@@ -244,7 +244,7 @@ class TestMQCNothingMeasured:
         assert result.green is False
         assert "V6" in result.breached_rules
 
-    def MQC_CMN_UNI_10116_red_when_every_graded_case_quarantined(self) -> None:
+    def MQC_CMN_UNI_112015_red_when_every_graded_case_quarantined(self) -> None:
         """The pass-rate denominator is zero, so the suite verified nothing.
 
         Returns:
@@ -261,7 +261,7 @@ class TestMQCNothingMeasured:
         assert "V6" in result.breached_rules
         assert result.pass_rate is None
 
-    def MQC_CMN_UNI_10117_red_when_every_pair_unsupported(self) -> None:
+    def MQC_CMN_UNI_112016_red_when_every_pair_unsupported(self) -> None:
         """The skip denominator is zero, which is not the same as no skips.
 
         Returns:
@@ -282,7 +282,7 @@ class TestMQCNothingMeasured:
 class TestMQCDenominators:
     """What each metric counts, and what it deliberately does not."""
 
-    def MQC_CMN_UNI_10118_dependency_skips_excluded_from_skip_denominator(self) -> None:
+    def MQC_CMN_UNI_112017_dependency_skips_excluded_from_skip_denominator(self) -> None:
         """A foundational failure cascades, and counting the cascade misleads.
 
         The run is already red from V1. Counting the dependent skips would
@@ -303,7 +303,7 @@ class TestMQCDenominators:
         assert result.skip_rate == pytest.approx(0.0)
         assert "V3" not in result.breached_rules
 
-    def MQC_CMN_UNI_10119_unsupported_pairs_excluded_from_skip_denominator(self) -> None:
+    def MQC_CMN_UNI_112018_unsupported_pairs_excluded_from_skip_denominator(self) -> None:
         """A declared capability gap is not an environmental failure (A13).
 
         Returns:
@@ -320,7 +320,7 @@ class TestMQCDenominators:
         assert result.skip_rate == pytest.approx(0.0)
         assert "V3" not in result.breached_rules
 
-    def MQC_CMN_UNI_10120_quarantined_cases_excluded_from_pass_denominator(self) -> None:
+    def MQC_CMN_UNI_112019_quarantined_cases_excluded_from_pass_denominator(self) -> None:
         """Excluded from the denominator, never deleted from the suite.
 
         Returns:
@@ -336,7 +336,7 @@ class TestMQCDenominators:
         assert result.pass_rate == pytest.approx(1.0)
         assert result.green is True
 
-    def MQC_CMN_UNI_10121_security_layer_excluded_from_distribution_ceiling(self) -> None:
+    def MQC_CMN_UNI_112020_security_layer_excluded_from_distribution_ceiling(self) -> None:
         """Security coverage does not compete with functional coverage.
 
         A ceiling exists to prevent priority inflation, and a security test
@@ -364,7 +364,7 @@ class TestMQCDenominators:
 class TestMQCPreconditionGate:
     """Preconditions sit above the scale, and what that costs when they fail."""
 
-    def MQC_CMN_UNI_10122_precondition_failure_blocks_graded_evaluation(self) -> None:
+    def MQC_CMN_UNI_112021_precondition_failure_blocks_graded_evaluation(self) -> None:
         """Exit 3, not 1. Nothing was measured rather than something failing.
 
         Collapsing them would let CI treat a broken harness as an
@@ -383,7 +383,7 @@ class TestMQCPreconditionGate:
         assert result.breached_rules == ["PRECONDITION_FAILED"]
         assert "V1" not in result.breached_rules
 
-    def MQC_CMN_UNI_10123_precondition_skip_is_a_failure(self) -> None:
+    def MQC_CMN_UNI_112022_precondition_skip_is_a_failure(self) -> None:
         """A unit test has nothing external to block it.
 
         A skip therefore means something is broken rather than unavailable,
@@ -403,7 +403,7 @@ class TestMQCPreconditionGate:
 class TestMQCVerdictProperties:
     """What the function guarantees about itself."""
 
-    def MQC_CMN_UNI_10124_reports_every_breached_rule_not_only_the_first(self) -> None:
+    def MQC_CMN_UNI_112023_reports_every_breached_rule_not_only_the_first(self) -> None:
         """Short-circuiting would cost a cycle per rediscovered breach.
 
         For a suite whose live runs are scheduled rather than on demand, fixing
@@ -428,7 +428,7 @@ class TestMQCVerdictProperties:
         assert {"V1", "V2", "V3", "V4"} <= set(breached)
         assert len(breached) >= 4
 
-    def MQC_CMN_UNI_10125_verdict_is_pure_for_identical_input(self) -> None:
+    def MQC_CMN_UNI_112024_verdict_is_pure_for_identical_input(self) -> None:
         """Identical input yields an identical verdict, every time.
 
         Returns:
@@ -439,7 +439,7 @@ class TestMQCVerdictProperties:
         second = verdict(list(observations), VerdictConfig(), TODAY)
         assert first == second
 
-    def MQC_CMN_UNI_10126_verdict_does_not_read_system_clock(self) -> None:
+    def MQC_CMN_UNI_112025_verdict_does_not_read_system_clock(self) -> None:
         """Asserted structurally rather than by trusting the docstring.
 
         A verdict function that reached for the clock would make quarantine
@@ -468,7 +468,7 @@ class TestMQCVerdictProperties:
 class TestMQCDistribution:
     """The ceilings, and the population they are meaningful over."""
 
-    def MQC_CMN_UNI_10127_distribution_check_returns_no_verdict_below_thirty_cases(self) -> None:
+    def MQC_CMN_UNI_112026_distribution_check_returns_no_verdict_below_thirty_cases(self) -> None:
         """Below thirty, one case moves the share by over three percent.
 
         A ceiling expressed as a percentage then says more about the population
@@ -492,7 +492,7 @@ class TestMQCDistribution:
             VerdictConfig(), TODAY,
         ).green is True
 
-    def MQC_CMN_UNI_10128_red_when_p0_share_exceeds_ten_percent(self) -> None:
+    def MQC_CMN_UNI_112027_red_when_p0_share_exceeds_ten_percent(self) -> None:
         """An inflated P0 population turns the must-pass gate into a hair-trigger.
 
         Returns:
@@ -510,7 +510,7 @@ class TestMQCDistribution:
         assert "V7" in result.breached_rules
         assert result.distribution.p0_share == pytest.approx(0.25)
 
-    def MQC_CMN_UNI_10129_red_when_combined_p0_p1_exceeds_thirty_percent(self) -> None:
+    def MQC_CMN_UNI_112028_red_when_combined_p0_p1_exceeds_thirty_percent(self) -> None:
         """The combined ceiling catches inflation split across two bands.
 
         Without it, 10% at P0 and 20% at P1 would each pass while a third of
@@ -534,7 +534,7 @@ class TestMQCDistribution:
         assert result.distribution.combined_share == pytest.approx(0.40)
         assert "V9" in result.breached_rules
 
-    def MQC_CMN_UNI_10184_distribution_check_reports_the_demoted_case_count(self) -> None:
+    def MQC_CMN_UNI_112029_distribution_check_reports_the_demoted_case_count(self) -> None:
         """A suite meeting its ceilings only by demoting has not met them.
 
         This closes the loop the ceilings open. The ceilings exist so an
@@ -563,7 +563,7 @@ class TestMQCRunSoundness:
     Designed in ``docs/design/cmn_verdict_and_cli.md`` section 10.24.
     """
 
-    def MQC_CMN_UNI_11149_a_broken_graded_observation_blocks_and_exits_three(
+    def MQC_CMN_UNI_112030_a_broken_graded_observation_blocks_and_exits_three(
         self,
     ) -> None:
         """Broken was distinguished at the observation and lost at the verdict.
@@ -600,7 +600,7 @@ class TestMQCRunSoundness:
         # model degradation in the headline number.
         assert outcome_properties("broken").counts_in_pass_rate is False
 
-    def MQC_CMN_UNI_11150_an_incomplete_skip_blocks_however_few_there_are(
+    def MQC_CMN_UNI_112031_an_incomplete_skip_blocks_however_few_there_are(
         self,
     ) -> None:
         """Unfinished work was the most tolerated skip in the system.
@@ -634,7 +634,7 @@ class TestMQCRunSoundness:
         assert result.exit_code == 3
         assert any("unfinished" in breach.reason for breach in result.breaches)
 
-    def MQC_CMN_UNI_11151_an_environmental_skip_is_tolerated_to_its_ceiling(
+    def MQC_CMN_UNI_112032_an_environmental_skip_is_tolerated_to_its_ceiling(
         self,
     ) -> None:
         """A provider outage is not an unwritten case, and the reason says so.

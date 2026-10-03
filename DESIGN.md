@@ -4,7 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -->
 # AP-Harness-QC: Design Overview
 
-> **Status:** current as of 2026-09-28. **Phase 3: the harness is implemented across all four modules and seven CI workflows, the graded model evaluations are written, and the security family is recorded and passing against a paid tier.** What remains unrecorded is the `EVAL` and `TOOL` corpus, which section 7.4 carries as a known gap. The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_10183`, `10186` and `10187` rather than by intention.
+> **Status:** current as of 2026-09-28. **Phase 3: the harness is implemented across all four modules and seven CI workflows, the graded model evaluations are written, and the security family is recorded and passing against a paid tier.** What remains unrecorded is the `EVAL` and `TOOL` corpus, which section 7.4 carries as a known gap. The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_112303`, `112305` and `112306` rather than by intention.
 >
 > **Purpose:** the referential basis for every other design document. It states what the system is, which document holds which decision, and where the boundaries between them fall. It does not restate their contents.
 
@@ -198,7 +198,7 @@ than contiguously:
 | `MQC_REQ_HAR_EVL` | 27 | 35 | 8 |
 
 **An unallocated number is not a missing requirement.** The check that matters
-is the one `MQC_CMN_UNI_11122` performs in both directions: every requirement
+is the one `MQC_CMN_UNI_112313` performs in both directions: every requirement
 has a case and every case names a requirement. It passes, and it would fail if
 a gap meant something had been lost rather than never written.
 
@@ -226,7 +226,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 92 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 217 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 218 cases | **Implemented** |
 | `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 115 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 102 cases | **Implemented** |
@@ -345,7 +345,7 @@ Specified 2026-09-23, after an audit found a dependency the suite relies on and 
 
 Tooling expects it. PyCharm offers to install from a requirements file and does not read an optional-dependency extra, and a contributor who opens the project should not have to know which of two conventions this repository chose.
 
-**They are generated from `pyproject.toml`, never hand-edited**, and `MQC_CMN_UNI_11108` fails the run when they disagree. That is the same rule applied everywhere else here: two statements of one fact drift, so either there is one statement or there is a check. A generated file plus a check is the second form, not an exception to the rule.
+**They are generated from `pyproject.toml`, never hand-edited**, and `MQC_CMN_UNI_112222` fails the run when they disagree. That is the same rule applied everywhere else here: two statements of one fact drift, so either there is one statement or there is a check. A generated file plus a check is the second form, not an exception to the rule.
 
 | File | Contains |
 |---|---|
@@ -392,7 +392,7 @@ Section 5.1 previously claimed the split boundary had been checked rather than a
 
 Five harness preconditions read case-side data. `MQC_CMN_UNI_10171` through `10173`, `11105` and `11106`, **all five since relocated and no longer defined here**, guarded the code excerpts, and the excerpts are input to graded cases specified in `model_evaluation_test_plan.md`. A harness check reading a file that belongs to another repository is a boundary violation that only appears when the boundary becomes real.
 
-**They move to the case repository**, along with `MQC_REQ_HAR_CMN_0027`, the requirement they satisfy. They live there now as `MQC_CAS_UNI_10401` through `10405`. The reasoning is the one the guards themselves state: a stale excerpt is a defect in the thing that owns it, and the excerpts are owned by the cases.
+**They move to the case repository**, along with `MQC_REQ_HAR_CMN_0027`, the requirement they satisfy. They live there now as `MQC_CAS_UNI_115100` through `115104`. The reasoning is the one the guards themselves state: a stale excerpt is a defect in the thing that owns it, and the excerpts are owned by the cases.
 
 **This is the split paying for itself before it was finished.** A cross-boundary dependency invisible in one tree became a failing test the moment the tree divided, which is the whole argument for dividing it.
 
@@ -446,7 +446,7 @@ much as overstating it**.
 | Harness cases | **639**: 616 precondition (`UNI`) and 23 system (`SYS`), across `ING`, `EXE`, `EVL` and `CMN` |
 | Case-repository preconditions | **58** (`CAS_UNI`), guarding the corpus, the excerpts, the pin and how the harness is located |
 | Model evaluation cases | **69, inventory and suite agreeing**: 40 `EVAL`, 8 `TOOL`, 21 `SEC` |
-| Requirements traced | 222 harness, 89 model, both directions checked by `MQC_CMN_UNI_11122`. **These two figures are checked by nothing** and had drifted by eight and six when read on 2026-10-02. `11180` checks the README's equivalent figures and `11123` the per-design case counts, so what is uncovered is this summary table rather than the counts themselves. Recorded as a known gap, expiring 2026-10-31 |
+| Requirements traced | 223 harness, 90 model, both directions checked by `MQC_CMN_UNI_112313`. **These two figures are checked by nothing** and had drifted by eight and six when read on 2026-10-02. `112323` checks the README's equivalent figures and `112314` the per-design case counts, so what is uncovered is this summary table rather than the counts themselves. Recorded as a known gap, expiring 2026-10-31 |
 | Recorded fixtures | **195 candidate responses and 108 judgements**, three observations per case per A4.1. The corpus replays offline with no credential, which is what makes a graded gate free |
 | Graded result | **2 findings about `gemini-3.8-flash`**, reproducing identically on both platforms: a sourced figure overstated on instruction conflict, 3 of 3; and a silent-zero defect identified in 1 of 3. Triaged from eight failures, the other six being defects in the suite itself |
 | Consumer gate topology | **One job per priority band per platform**, so a red names its own remedy. `AP-Model-QC` `consumer_ci.md` section 3.12 |
@@ -461,7 +461,7 @@ actually say.**
 **The 66 and the suite now agree**, the twelve unwritten security cases having
 been written on 2026-09-26.
 
-**The reverse check is still absent and still matters.** `MQC_CMN_UNI_10183`
+**The reverse check is still absent and still matters.** `MQC_CMN_UNI_112303`
 checks that every collected case has an inventory row; nothing checks that every
 inventory row has a case, which is why twelve designed cases, nine of them P0,
 reported nothing at all for as long as they did. Section 7.4 keeps it on the
@@ -474,7 +474,7 @@ record: closing one instance is not the same as closing the class.
 
 ### 7.1 v1 Test Plan Scope: Requirement Matching Family
 
-Recorded as scope, and since discharged: `model_evaluation_test_plan.md` section 9.8 specifies this family and cases `30019` through `30028` implement it.
+Recorded as scope, and since discharged: `model_evaluation_test_plan.md` section 9.8 specifies this family and cases `134400` through `134409` implement it.
 
 **The task.** A user supplies resume material and a job posting's requirements, and asks for the summaries rewritten to match the posting as closely as possible without claiming anything the candidate does not have.
 
@@ -780,7 +780,7 @@ the record rather than a silence. These were silent.
 
 | Gap | Size | Why it was invisible |
 |---|---|---|
-| ~~Security cases `50010` to `50021` designed and unwritten~~ | **Closed 2026-09-26** | Twelve corpus pairs and twelve cases written. Writing them found that two attack families had no vector at all (`tier1_ingestion.md` section 7.3) |
+| ~~Security cases `154109` to `154302` designed and unwritten~~ | **Closed 2026-09-26** | Twelve corpus pairs and twelve cases written. Writing them found that two attack families had no vector at all (`tier1_ingestion.md` section 7.3) |
 | No recorded response for any `EVAL` or `TOOL` case | 48 cases | Expected, and now the only recording gap: the `SEC` family was completed 2026-09-28 at a measured cost of six cents. These two spend judge quota as well as candidate quota, which is the difference |
 | ~~Repeat observations are never dispatched~~ | **Closed 2026-09-25** | A4.1 decided three; every graded case now observes three times and the consistency check reads the result |
 

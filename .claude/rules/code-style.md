@@ -45,7 +45,7 @@ Neither is required by the licence. Apache 2.0 section 4 requires the `LICENSE` 
 
 The header goes **above** the module docstring, not inside it. A docstring must remain the first statement in the file or `__doc__` is empty, and this project reads module docstrings as specification prose.
 
-`MQC_CMN_UNI_11113` enforces presence, position and the correct identifier. A header nothing checks drifts the first time a file is added in a hurry, which is the pattern this project has corrected often enough to stop writing new instances of.
+`MQC_CMN_UNI_112502` enforces presence, position and the correct identifier. A header nothing checks drifts the first time a file is added in a hurry, which is the pattern this project has corrected often enough to stop writing new instances of.
 
 
 ### 1.2 Documents and data carry the header too
@@ -94,7 +94,7 @@ later problem. A rule applied only when remembered is a convention, and this
 project has corrected that pattern often enough to stop writing new instances
 of it.
 
-`MQC_CMN_UNI_11113` and `11140` enforce the state rather than the habit, which
+`MQC_CMN_UNI_112502` and `112503` enforce the state rather than the habit, which
 is all that can be enforced: nothing records when a line was written, and what
 can be checked is the file that results from skipping the step.
 
@@ -128,7 +128,7 @@ The project is built on frozen dataclasses whose fields are read at class creati
 
 ### 2.2 The rule is enforced, not merely stated
 
-`MQC_CMN_UNI_11111` parses every Python file in the repository and fails when a parameter or return annotation is missing, and `MQC_CMN_UNI_11112` fails on a `__future__` annotations import.
+`MQC_CMN_UNI_112500` parses every Python file in the repository and fails when a parameter or return annotation is missing, and `MQC_CMN_UNI_112501` fails on a `__future__` annotations import.
 
 **Pylint does not check this**, which is why the rule stood in this document while 597 test callables violated it. A rule nothing checks is a convention, and this project has corrected that pattern often enough to stop writing new instances of it.
 
@@ -259,7 +259,7 @@ callables violated it.
 
 `cmn.code_standards.encoding_gaps` now parses every module and reports any
 `open`, `read_text` or `write_text` that declares no encoding.
-`MQC_CMN_UNI_11157` and `MQC_CAS_UNI_10445` call it with each root, which is
+`MQC_CMN_UNI_112511` and `MQC_CAS_UNI_115505` call it with each root, which is
 the same one-implementation-two-callers arrangement the annotation and header
 rules use.
 
@@ -275,12 +275,12 @@ runs**, and both runs report success.
 
 | Rule | How a violation announces itself |
 |---|---|
-| Missing annotation | Nothing at runtime, caught by `11111` |
-| PEP 563 import | Nothing at runtime, caught by `11112` |
+| Missing annotation | Nothing at runtime, caught by `112500` |
+| PEP 563 import | Nothing at runtime, caught by `112501` |
 | **Missing encoding** | **Nothing, ever. The value is simply different** |
 
-The security corpus made this concrete rather than theoretical: `50006` carries
-zero-width characters and `50007` Cyrillic homoglyphs, and those code points
+The security corpus made this concrete rather than theoretical: `154105` carries
+zero-width characters and `154106` Cyrillic homoglyphs, and those code points
 **are** the attack. Read as `cp1252` they become something else, while the
 canary assertions stay pure ASCII and keep passing. The case would go on
 reporting a pass and stop being the test it claims to be.

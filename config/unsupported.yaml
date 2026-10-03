@@ -13,5 +13,5 @@
 # Empty at present: all three registered adapters declare tool calling and
 # structured output, so no pair is currently unsupported. The file exists
 # because an absent file and an empty one must mean the same thing, and
-# MQC_CMN_UNI_10119 asserts the exclusion against a populated list.
+# MQC_CMN_UNI_112018 asserts the exclusion against a populated list.
 unsupported: []

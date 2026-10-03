@@ -50,7 +50,7 @@ a registered kind rather than free text.
 | Kind | Looks like | Use when |
 |---|---|---|
 | Ticket | `MQC-1234` | Anything tracked, and anything spanning several cases |
-| Case identifier | `10428` | The branch fixes exactly that case |
+| Case identifier | `115005` | The branch fixes exactly that case |
 | Release | `v1.2.0` | Cutting or stabilizing a release |
 
 **`expand-fix-the-thing-09-24-2026` is refused**, because free text is not a
@@ -130,7 +130,7 @@ commit.
 ## 2. Rerunning Named Tests
 
 ```
-gh workflow run debug-failures-on-demand.yml --ref stabilization --field tests=11141
+gh workflow run debug-failures-on-demand.yml --ref stabilization --field tests=112611
 ```
 
 | Input | Answers | Default |
@@ -147,7 +147,7 @@ A test that fails once and passes four times is not the same object as one that
 fails five times out of five, and the fix is different in each case.
 
 ```
-gh workflow run debug-failures-on-demand.yml --field tests=11141 --field repeat=5
+gh workflow run debug-failures-on-demand.yml --field tests=112611 --field repeat=5
 ```
 
 **Set it above 1 whenever you are not sure**, which is most of the time when a
@@ -457,7 +457,7 @@ you find out rather than by reading this list carefully.
 **`BASE_URL` is the only field that routes a request.** Omit it and the engine
 reaches OpenAI holding your key for somebody else, which surfaces as an
 authentication error naming the wrong vendor and sends you to the wrong
-dashboard. `MQC_EXE_UNI_10281` guards it.
+dashboard. `MQC_EXE_UNI_113014` guards it.
 
 **The credential is a variable name, never a value.** `API_KEY_ENV` says where
 to look; nothing reads it until a client is constructed, and no configuration
@@ -468,7 +468,7 @@ file ever holds a secret.
 Write a full adapter against `ProviderAdapter`, as `gemini.py` and `claude.py`
 do. You owe the seven interface methods plus `compose_judgement` and
 `parse_judgement` **if you declare `structured_output`**. Declaring it and not
-implementing it is refused by `MQC_EXE_UNI_10278`; declaring it false is
+implementing it is refused by `MQC_EXE_UNI_113116`; declaring it false is
 allowed and costs the engine only the judge role.
 
 If a second engine ever arrives on your new protocol, lift the shared part out

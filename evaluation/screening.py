@@ -13,7 +13,7 @@ over; it does not screen.
 is unconditional and does not depend on the screen finding anything.
 
 **The vectors are not ours.** They come from :mod:`cmn.vectors`, shared with the
-ingest screen, so `MQC_EVL_UNI_10349` asserts agreement between two screens
+ingest screen, so `MQC_EVL_UNI_114608` asserts agreement between two screens
 looking for identical things rather than comparing two pattern sets that drift.
 
 **Never a model call.** A model asked to detect injection is itself injectable,

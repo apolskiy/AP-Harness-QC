@@ -13,7 +13,7 @@ SPDX-License-Identifier: Apache-2.0
 |---|---|---|
 | Test module | `mqc_<layer>_<component>.py` | `pytest.ini` `python_files`, `.pylintrc` `module-rgx` |
 | Test class | `TestMQC<Component>` | `pytest.ini` `python_classes`, `.pylintrc` `class-rgx` |
-| Test callable | `MQC_<MODULE>_<LAYER>_<5DIGIT_ID>_<behavior>` | `pytest.ini` `python_functions`, `.pylintrc` `function-rgx` / `method-rgx` |
+| Test callable | `MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>` | `pytest.ini` `python_functions`, `.pylintrc` `function-rgx` / `method-rgx` |
 
 **The layer appears in the test module name** because nothing else carries it: the directory gives the module and the path gives nothing else. `mqc_uni_schemas.py` holds harness preconditions; `mqc_eval_grounding.py` holds model gradings. One layer per file, which subsumes the one-layer-per-class rule below. The full rule, including why harness modules take no prefix, is normative in `docs/design/test_taxonomy.md` section 2.1.
 
@@ -26,11 +26,11 @@ Currently registered layers:
 
 | Layer | Marker | ID Block | Scope |
 |---|---|---|---|
-| `MQC_UNI_` | `unit` | 10001-19999 | Parsers, validators, helpers. No network. **Ungraded precondition: 100% pass, zero skips.** |
-| `MQC_SYS_` | `system` | 20001-29999 | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode: 100% pass.** |
-| `MQC_EVAL_` | `evaluator` | 30001-39999 | LLM-as-a-Judge rubric scoring and golden-rule enforcement. |
-| `MQC_TOOL_` | `tool` | 40001-49999 | Tool-use compliance: required tools invoked, forbidden tools avoided. |
-| `MQC_SEC_` | `sec` | 50001-59999 | Model security behaviour: injection resistance, prompt leakage, tool coercion. **Own suite; exempt from priority distribution ceilings.** |
+| `MQC_UNI_` | `unit` | 111000-119999, by module | Parsers, validators, helpers. No network. **Ungraded precondition: 100% pass, zero skips.** |
+| `MQC_SYS_` | `system` | 121000-129999, by module | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode: 100% pass.** |
+| `MQC_EVAL_` | `evaluator` | 131000-139999, by module | LLM-as-a-Judge rubric scoring and golden-rule enforcement. |
+| `MQC_TOOL_` | `tool` | 141000-149999, by module | Tool-use compliance: required tools invoked, forbidden tools avoided. |
+| `MQC_SEC_` | `sec` | 151000-159999, by module | Model security behaviour: injection resistance, prompt leakage, tool coercion. **Own suite; exempt from priority distribution ceilings.** |
 
 `<MODULE>` is `ING`, `EXE`, `EVL` or `CMN`. Meanings, module and priority definitions, the outcome model and the failure taxonomy are normative in `docs/design/test_taxonomy.md`. This file holds the machine-enforced patterns only.
 
@@ -75,7 +75,7 @@ the least expected:
 
 **A design that claims enforcement it does not have is worse than one that
 claims none**, because a reader stops looking. Two instances in one session:
-`10197` stated it ran the real matrix through five checks and fed itself its own
+`112312` stated it ran the real matrix through five checks and fed itself its own
 data, and step 10 of the family procedure named one case against an assertion
 that case never made. Both read as stronger than silence would have.
 
@@ -98,8 +98,8 @@ documented later has already chosen its priority, and the distribution ceilings
 in this document are only enforceable where the assignment is a decision on the
 record before the test exists.
 
-`MQC_CMN_UNI_10183` enforces step 1 mechanically: a collected test with no
-inventory row fails the run. `11122` enforces step 2 in both directions. **The
+`MQC_CMN_UNI_112303` enforces step 1 mechanically: a collected test with no
+inventory row fails the run. `112313` enforces step 2 in both directions. **The
 order itself cannot be checked**, since nothing records when a line was written;
 what can be checked is the state that results from skipping it.
 
@@ -135,7 +135,7 @@ is the finding.
 
 **Writing the case after the fix proves nothing.** A case written against
 already-correct code passes on its first run whether or not it tests anything,
-and the project has shipped exactly that: `10197` fed itself its own data and
+and the project has shipped exactly that: `112312` fed itself its own data and
 every one of its five checks passed against a matrix it had constructed.
 
 The verification is mechanical and cheap. **Inject the defect the case guards,
@@ -160,9 +160,9 @@ authoring-order rule gives.
 
 | Enforced | By |
 |---|---|
-| Every collected case has an inventory row | `MQC_CMN_UNI_10183` |
-| Every case is traced, both directions | `MQC_CMN_UNI_11122` |
-| An identifier is not bound twice | `MQC_CMN_UNI_11121` |
+| Every collected case has an inventory row | `MQC_CMN_UNI_112303` |
+| Every case is traced, both directions | `MQC_CMN_UNI_112313` |
+| An identifier is not bound twice | `MQC_CMN_UNI_112226` |
 | **The case would have caught the bug** | **Nothing. It is verified by injection and recorded in the log** |
 
 The last row is the one that depends on discipline rather than machinery, which
@@ -196,7 +196,7 @@ requires. An exemplar is short, two sentences at most: it demonstrates a level
 rather than exhausting it.
 
 **A rubric authored without exemplars is uncalibrated**, and an uncalibrated
-rubric silently accepts whatever the judge does. `MQC_CAS_UNI_10431` reports one.
+rubric silently accepts whatever the judge does. `MQC_CAS_UNI_115006` reports one.
 
 ### One Word Per Concept, And A Second One Is Drift
 
@@ -239,9 +239,9 @@ MQC_<MODULE>_<LAYER>_<NNNNN>_<behaviour>     a test case
 |---|---|---|
 | Marker | `MQC_REQ_` | None |
 | Second token | `HAR`, `CAS`, `MDL`, the scope | The module: `ING`, `EXE`, `EVL`, `CMN`, `CAS` |
-| Digits | **Four**, zero padded | **Five** |
+| Digits | **Four**, zero padded | **Six**, positional: domain, layer, module, category, case |
 | Behaviour suffix | None | Required, lowercase, three characters or more |
-| Example | `MQC_REQ_CAS_CI_0019` | `MQC_CAS_UNI_10428_an_inlined_excerpt_differing_from_its_fixture_is_reported` |
+| Example | `MQC_REQ_CAS_CI_0019` | `MQC_CAS_UNI_115005_an_inlined_excerpt_differing_from_its_fixture_is_reported` |
 
 #### Why the marker rather than disjoint vocabularies
 
@@ -264,7 +264,7 @@ self-describing, and no case can carry it.
 #### What went wrong without it
 
 `MQC_CAS_` prefixed **both** registers: `MQC_CAS_CI_019` was a requirement and
-`MQC_CAS_UNI_10428` a case. Nothing ever collided, because the widths differ.
+`MQC_CAS_UNI_115005` a case. Nothing ever collided, because the widths differ.
 
 **The hazard was the pattern, not the values.** A rename widening three-digit
 requirement numbers matched the leading three digits of every case identifier,
@@ -272,16 +272,16 @@ and a lookahead added late was the only thing that stopped it rewriting 461 of
 them. A near miss of that shape is a design defect, not a lucky escape.
 
 **Widths remain as the second mechanism**, deliberately. Four digits against
-five means a number alone cannot be misread even where a marker is stripped,
+six means a number alone cannot be misread even where a marker is stripped,
 which is the same two-independent-mechanisms pattern the debug-artifact
 exclusion uses.
 
-`MQC_CMN_UNI_11160` enforces the separation, reading the shipped registers
+`MQC_CMN_UNI_112318` enforces the separation, reading the shipped registers
 rather than a permitted list.
 
 ### Identifier Rules
 * **ID Blocks**: IDs are assigned once and never reused, including after a test is deleted. A retired ID stays retired so downstream history never silently rebinds an identifier to different behavior.
-* **Behavior Suffix**: lowercase `snake_case` describing the asserted behavior, minimum 3 characters (`MQC_UNI_10001_rejects_missing_rubric_key`).
+* **Behavior Suffix**: lowercase `snake_case` describing the asserted behavior, minimum 3 characters (`MQC_UNI_111000_rejects_missing_rubric_key`).
 * **One Layer Per Class**: a test class carries exactly one layer marker and exactly one priority. `pytest` propagates class-level markers to every method, so a class mixing layers causes both tests to be collected by the wrong gate and neither to be gated correctly. Verified by collection probe 2026-09-19.
 * **Priority Required On Graded Tests**: every **graded** test carries `@pytest.mark.priority(N)`, N in 0..4, assigned in the test design document. Definitions are normative in `docs/design/test_taxonomy.md`.
 

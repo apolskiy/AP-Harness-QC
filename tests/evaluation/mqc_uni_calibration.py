@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for calibration against anchored exemplars.
 
-Covers `MQC_EVL_UNI_10333` through `10336`, inventoried in
+Covers `MQC_EVL_UNI_114200` through `114203`, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **An anchor states what a level means; an exemplar shows it.** Calibration asks
@@ -34,7 +34,7 @@ _CRITERION = "MQC_CRT_grounding"
 class TestMQCCalibrationTolerance:
     """How far the judge may drift before the rubric is no longer usable."""
 
-    def MQC_EVL_UNI_10333_calibration_exact_match_passes(self) -> None:
+    def MQC_EVL_UNI_114200_calibration_exact_match_passes(self) -> None:
         """The judge landed on the level the exemplar was written for.
 
         Returns:
@@ -47,7 +47,7 @@ class TestMQCCalibrationTolerance:
         assert result.drifted_within_tolerance is False
 
     @pytest.mark.parametrize("observed", [2.0, 4.0])
-    def MQC_EVL_UNI_10334_calibration_one_level_deviation_passes_and_records(
+    def MQC_EVL_UNI_114201_calibration_one_level_deviation_passes_and_records(
         self, observed: float
     ) -> None:
         """The boundary, stated at one level exactly and in both directions.
@@ -68,7 +68,7 @@ class TestMQCCalibrationTolerance:
         assert result.drifted_within_tolerance is True
 
     @pytest.mark.parametrize("observed", [1.0, 5.0])
-    def MQC_EVL_UNI_10335_calibration_two_level_deviation_fails(self, observed: float) -> None:
+    def MQC_EVL_UNI_114202_calibration_two_level_deviation_fails(self, observed: float) -> None:
         """Two levels apart means the rubric or the judge has drifted.
 
         Scores from a rubric in that state cannot be compared with earlier
@@ -85,7 +85,7 @@ class TestMQCCalibrationTolerance:
         assert result.deviation == 2.0
         assert tolerance() == 1
 
-    def MQC_EVL_UNI_10336_deviation_within_tolerance_is_recorded_for_trend(self) -> None:
+    def MQC_EVL_UNI_114203_deviation_within_tolerance_is_recorded_for_trend(self) -> None:
         """Recording a tolerated deviation is what makes trend visible.
 
         A rubric drifting steadily by one level passes every run and is obvious
@@ -107,7 +107,7 @@ class TestMQCCalibrationTolerance:
 class TestMQCCalibrationOverARubric:
     """Applying calibration to every anchor that carries an exemplar."""
 
-    def MQC_EVL_UNI_10372_an_anchor_without_an_exemplar_yields_no_result(
+    def MQC_EVL_UNI_114204_an_anchor_without_an_exemplar_yields_no_result(
         self, sample_rubric_record: Rubric
     ) -> None:
         """Nothing was measured, so nothing passes.
@@ -131,7 +131,7 @@ class TestMQCCalibrationOverARubric:
         ]
         assert len(results) == len(exemplars)
 
-    def MQC_EVL_UNI_10373_an_unjudged_exemplar_yields_no_result(
+    def MQC_EVL_UNI_114205_an_unjudged_exemplar_yields_no_result(
         self, sample_rubric_record: Rubric
     ) -> None:
         """A calibration run that reached no judge measured nothing.
@@ -148,7 +148,7 @@ class TestMQCCalibrationOverARubric:
 class TestMQCObservationVariance:
     """The second drift signal, which needs no new machinery."""
 
-    def MQC_EVL_UNI_10374_variance_across_observations_is_reported(self) -> None:
+    def MQC_EVL_UNI_114206_variance_across_observations_is_reported(self) -> None:
         """High variance on identical input means the anchors do not discriminate.
 
         A4 already produces three observations, so this signal costs nothing
@@ -160,7 +160,7 @@ class TestMQCObservationVariance:
         assert observation_variance([3.0, 3.0, 3.0]) == 0.0
         assert observation_variance([1.0, 3.0, 5.0]) == 4.0
 
-    def MQC_EVL_UNI_10375_variance_is_undefined_below_two_observations(self) -> None:
+    def MQC_EVL_UNI_114207_variance_is_undefined_below_two_observations(self) -> None:
         """Reporting zero would make one observation look maximally consistent.
 
         Returns:

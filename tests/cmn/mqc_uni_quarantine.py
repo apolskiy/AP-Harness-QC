@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """V5 and the quarantine model it reads: expiry, provenance and the record.
 
-Covers ``MQC_CMN_UNI_10111`` to ``10113``, ``11212``, ``11214`` to ``11218``,
+Covers ``MQC_CMN_UNI_112010`` to ``112012``, ``112037``, ``112038`` to ``112042``,
 inventoried in ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
 section 4.6.
 
@@ -42,7 +42,7 @@ pytestmark = pytest.mark.unit
 class TestMQCQuarantine:
     """V5: the model that changed, the window that lapsed, and an entry we broke."""
 
-    def MQC_CMN_UNI_10111_red_when_quarantine_entry_expired(self) -> None:
+    def MQC_CMN_UNI_112010_red_when_quarantine_entry_expired(self) -> None:
         """An entry past the window fails the run rather than going on excluding.
 
         The pass floor stops meaning anything once everything inconvenient has
@@ -60,7 +60,7 @@ class TestMQCQuarantine:
         assert result.green is False
         assert "V5" in result.breached_rules
 
-    def MQC_CMN_UNI_10112_green_when_quarantine_entry_current(self) -> None:
+    def MQC_CMN_UNI_112011_green_when_quarantine_entry_current(self) -> None:
         """A current entry excludes without failing.
 
         Returns:
@@ -78,7 +78,7 @@ class TestMQCQuarantine:
         "elapsed,expired",
         [(19, False), (20, False), (21, True), (22, True)],
     )
-    def MQC_CMN_UNI_10113_expiry_boundary_evaluated_against_injected_date(
+    def MQC_CMN_UNI_112012_expiry_boundary_evaluated_against_injected_date(
         self, elapsed: int, expired: Any
     ) -> None:
         """The window boundary is testable only because the date is injected.
@@ -104,7 +104,7 @@ class TestMQCQuarantine:
 
         assert ("V5" in result.breached_rules) is expired
 
-    def MQC_CMN_UNI_11212_an_entry_whose_model_changed_is_expired(self) -> None:
+    def MQC_CMN_UNI_112037_an_entry_whose_model_changed_is_expired(self) -> None:
         """A changed model expires an entry inside its window.
 
         An entry records an accepted finding about one model, so a different
@@ -154,7 +154,7 @@ class TestMQCQuarantine:
         ]
         assert verdict(mixed, VerdictConfig(quarantine=[entry]), TODAY).green is True
 
-    def MQC_CMN_UNI_11214_an_unconfirmed_entry_is_honoured_and_never_red(
+    def MQC_CMN_UNI_112038_an_unconfirmed_entry_is_honoured_and_never_red(
         self,
     ) -> None:
         """An entry missing its date or model excludes without failing the run.
@@ -195,7 +195,7 @@ class TestMQCQuarantine:
 class TestMQCQuarantineFiles:
     """One file per engine, an absent file, and the digest that records it."""
 
-    def MQC_CMN_UNI_11215_an_absent_quarantine_file_is_an_empty_quarantine(
+    def MQC_CMN_UNI_112039_an_absent_quarantine_file_is_an_empty_quarantine(
         self, tmp_path: Path
     ) -> None:
         """Quarantine is read per engine and an absent file yields nothing.
@@ -247,7 +247,7 @@ class TestMQCQuarantineFiles:
             "expiry would be evaluated against nothing"
         )
 
-    def MQC_CMN_UNI_11216_the_consulted_quarantine_hash_is_recorded(self) -> None:
+    def MQC_CMN_UNI_112040_the_consulted_quarantine_hash_is_recorded(self) -> None:
         """The entries a run consulted are recorded by hash in its metadata.
 
         Quarantine changes the pass-rate denominator, so a stored pass rate
@@ -291,7 +291,7 @@ class TestMQCQuarantineFiles:
         ).as_fields()
         assert fields["quarantine_hash"] == digest
 
-    def MQC_CMN_UNI_11217_a_malformed_ticket_reference_is_reported(
+    def MQC_CMN_UNI_112041_a_malformed_ticket_reference_is_reported(
         self, tmp_path: Path
     ) -> None:
         """A ticket reference is validated although nothing reads it.
@@ -347,7 +347,7 @@ class TestMQCQuarantineFiles:
 
 class TestMQCQuarantineThroughTheTool:
     """The evaluation date arriving on a command line, deciding an expiry."""
-    def MQC_CMN_UNI_11218_the_named_evaluation_date_reaches_quarantine_expiry(
+    def MQC_CMN_UNI_112042_the_named_evaluation_date_reaches_quarantine_expiry(
         self, tmp_path: Path
     ) -> None:
         """``--as-of`` is the date the tool evaluates quarantine expiry against.
@@ -413,7 +413,7 @@ class TestMQCQuarantineThroughTheTool:
 class TestMQCQuarantineReconciliation:
     """What re-observing a quarantined case decides about its entry."""
 
-    def MQC_CMN_UNI_11219_reconciling_decides_each_entry_from_what_was_observed(
+    def MQC_CMN_UNI_112043_reconciling_decides_each_entry_from_what_was_observed(
         self,
     ) -> None:
         """Each entry is dropped, re-stamped or left alone by what was observed.

@@ -9,7 +9,7 @@
 # 1 January 2027.
 #
 # PRICES ARE DATED, AND THE DATE IS CHECKED. `priced_on` is not documentation:
-# `MQC_CMN_UNI_11183` fails when a tier's window has closed, because a stale
+# `MQC_CMN_UNI_112232` fails when a tier's window has closed, because a stale
 # price does not report an error, it reports a smaller number. Halving a bill in
 # a report is worse than refusing to produce one.
 #
@@ -117,7 +117,7 @@ models:
 # gpt-4.1 LEFT THAT LIST ON 2026-09-28 and claude-opus-5-5 on 2026-10-01, each
 # when a credential was funded for it. That is the trigger, and it runs in one
 # direction only: an unpriced model stops a budgeted run, because a ceiling that
-# cannot be computed must not appear enforced (MQC_EXE_UNI_10303). A model
+# cannot be computed must not appear enforced (MQC_EXE_UNI_113702). A model
 # becomes priceable the moment somebody can spend against it, and the funding is
 # what makes it so.
 #

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for paths a branch-coverage run found unexercised.
 
-Covers `MQC_ING_UNI_10061` through `10074`, inventoried in
+Covers `MQC_ING_UNI_111000` through `111013`, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.5.
 
 **These came from measuring rather than reading.** Coverage of the production
@@ -61,7 +61,7 @@ _RULE_DOCUMENT = """
 class TestMQCLoaderPaths:
     """Loader paths that no earlier test reached."""
 
-    def MQC_ING_UNI_10061_yaml_loader_builds_rule_sets_from_a_document(
+    def MQC_ING_UNI_111000_yaml_loader_builds_rule_sets_from_a_document(
         self, write_text_file: Any
     ) -> None:
         """The rule-set loader had no test at all until this one.
@@ -83,7 +83,7 @@ class TestMQCLoaderPaths:
         assert rules[0].requirement_ids == ["MQC_REQ_MDL_GND_0001"]
         assert rules[0].rubric.threshold == 4.0
 
-    def MQC_ING_UNI_10062_csv_with_no_header_row_is_rejected(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111001_csv_with_no_header_row_is_rejected(self, write_text_file: Any) -> None:
         """An empty file has no columns, so it cannot be read as rows.
 
         Args:
@@ -96,7 +96,7 @@ class TestMQCLoaderPaths:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_MISSING"):
             load_tasks_from_csv(path)
 
-    def MQC_ING_UNI_10063_empty_yaml_document_is_rejected(self, write_text_file: Any) -> None:
+    def MQC_ING_UNI_111002_empty_yaml_document_is_rejected(self, write_text_file: Any) -> None:
         """A file of comments parses to nothing, which is not a record.
 
         Args:
@@ -114,7 +114,7 @@ class TestMQCLoaderPaths:
         [("true", True), ("TRUE", True), ("yes", True), ("1", True),
          ("false", False), ("no", False), ("0", False)],
     )
-    def MQC_ING_UNI_10064_csv_boolean_column_is_coerced_from_text(
+    def MQC_ING_UNI_111003_csv_boolean_column_is_coerced_from_text(
         self, write_text_file: Any, supplied: Any, expected: Any
     ) -> None:
         """CSV carries no types, so a declared flag is read from its spelling.
@@ -141,7 +141,7 @@ class TestMQCLoaderPaths:
 class TestMQCRecordPaths:
     """Record construction paths that no earlier test reached."""
 
-    def MQC_ING_UNI_10065_context_document_title_is_optional(self) -> None:
+    def MQC_ING_UNI_111004_context_document_title_is_optional(self) -> None:
         """An absent title stays absent rather than becoming an empty string.
 
         Returns:
@@ -154,7 +154,7 @@ class TestMQCRecordPaths:
         assert without.title is None
         assert titled.title == "Summary"
 
-    def MQC_ING_UNI_10066_tool_definition_rejects_a_non_mapping_schema(self) -> None:
+    def MQC_ING_UNI_111005_tool_definition_rejects_a_non_mapping_schema(self) -> None:
         """A JSON Schema is a mapping, and a list is a malformed source.
 
         Returns:
@@ -165,7 +165,7 @@ class TestMQCRecordPaths:
                 {"tool_name": "search", "description": "Search", "parameters_schema": ["type"]}
             )
 
-    def MQC_ING_UNI_10067_assertion_carries_its_taxonomy_code_and_severity(self) -> None:
+    def MQC_ING_UNI_111006_assertion_carries_its_taxonomy_code_and_severity(self) -> None:
         """The code is data, so a new check declares its own classification.
 
         Returns:
@@ -185,7 +185,7 @@ class TestMQCRecordPaths:
         assert assertion.severity == "violation"
         assert assertion.constraint_ref == "C_NO_PIPES"
 
-    def MQC_ING_UNI_10068_tool_expectation_accepts_disjoint_sets(self) -> None:
+    def MQC_ING_UNI_111007_tool_expectation_accepts_disjoint_sets(self) -> None:
         """G4 forbids an intersection and permits everything else.
 
         Returns:
@@ -207,7 +207,7 @@ class TestMQCRecordPaths:
         assert offered.tool_name == "search"
         assert offered.parameters_schema == {"type": "object", "properties": {}}
 
-    def MQC_ING_UNI_10075_non_numeric_priority_is_a_malformed_source(
+    def MQC_ING_UNI_111014_non_numeric_priority_is_a_malformed_source(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """A priority that will not cast is a file problem, not an invariant one.
@@ -227,7 +227,7 @@ class TestMQCRecordPaths:
             GoldenRuleSet.from_dict(sample_rule_payload)
 
     @pytest.mark.parametrize("priority", [-1, 5, 99])
-    def MQC_ING_UNI_10069_priority_outside_zero_to_four_is_rejected(
+    def MQC_ING_UNI_111008_priority_outside_zero_to_four_is_rejected(
         self, sample_rule_payload: dict[str, Any], priority: int
     ) -> None:
         """The level count is fixed at five, so a sixth is not assignable.
@@ -243,7 +243,7 @@ class TestMQCRecordPaths:
         with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    def MQC_ING_UNI_10073_anchors_supplied_as_a_list_are_rejected(self) -> None:
+    def MQC_ING_UNI_111012_anchors_supplied_as_a_list_are_rejected(self) -> None:
         """Anchors are keyed by level, so a list carries no levels.
 
         Returns:
@@ -259,7 +259,7 @@ class TestMQCRecordPaths:
                 }
             )
 
-    def MQC_ING_UNI_10074_a_none_value_counts_as_empty_for_a_mandatory_field(
+    def MQC_ING_UNI_111013_a_none_value_counts_as_empty_for_a_mandatory_field(
         self, sample_task_payload: dict[str, Any]
     ) -> None:
         """An explicit null is present and carries nothing.
@@ -282,7 +282,7 @@ class TestMQCRecordPaths:
 class TestMQCScreenAndRegistryPaths:
     """Screen and registry entry points that no earlier test reached."""
 
-    def MQC_ING_UNI_10070_screen_corpus_spans_every_task(self) -> None:
+    def MQC_ING_UNI_111009_screen_corpus_spans_every_task(self) -> None:
         """The corpus entry point had no test, only the single-task one.
 
         Returns:
@@ -304,7 +304,7 @@ class TestMQCScreenAndRegistryPaths:
         findings = screen_corpus(tasks)
         assert {finding.task_id for finding in findings} == {"MQC_TASK_1"}
 
-    def MQC_ING_UNI_10071_system_instruction_is_screened_alongside_the_prompt(self) -> None:
+    def MQC_ING_UNI_111010_system_instruction_is_screened_alongside_the_prompt(self) -> None:
         """A payload in the system instruction is as reachable as one in the prompt.
 
         Returns:
@@ -321,7 +321,7 @@ class TestMQCScreenAndRegistryPaths:
         findings = screen_corpus([task])
         assert {finding.field_name for finding in findings} == {"system_instruction"}
 
-    def MQC_ING_UNI_10072_registries_expose_their_registered_contents(self) -> None:
+    def MQC_ING_UNI_111011_registries_expose_their_registered_contents(self) -> None:
         """A registry is only useful if callers can ask what it holds.
 
         Returns:

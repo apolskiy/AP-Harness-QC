@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Per-adapter cases covering each provider's own conventions.
 
-Covers `MQC_EXE_UNI_10259` through `10267`, inventoried in
+Covers `MQC_EXE_UNI_113000` through `113008`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.3.
 
 **Passing the conformance battery is necessary and not sufficient**
@@ -102,7 +102,7 @@ def _rubric_with(criterion_id: str) -> Any:
 class TestMQCClaudeAdapter:
     """What this provider does that the other two do not."""
 
-    def MQC_EXE_UNI_10259_claude_maps_refusal_stop_reason_to_content_filter(self) -> None:
+    def MQC_EXE_UNI_113000_claude_maps_refusal_stop_reason_to_content_filter(self) -> None:
         """This provider names a policy refusal; the others do not.
 
         Flattening it into an ordinary stop would let a refusal read as a
@@ -119,7 +119,7 @@ class TestMQCClaudeAdapter:
         ordinary = claude_response(stop_reason="end_turn")
         assert adapter.normalize_response(ordinary, _CASE_ID).finish_reason == "stop"
 
-    def MQC_EXE_UNI_10309_a_claude_refusal_is_recorded_as_a_block(self) -> None:
+    def MQC_EXE_UNI_113022_a_claude_refusal_is_recorded_as_a_block(self) -> None:
         """A Claude refusal is recorded as a block, with the provider's own word.
 
         ``stop_reason="refusal"`` yields ``block_reason`` of ``refusal`` and
@@ -154,7 +154,7 @@ class TestMQCClaudeAdapter:
         assert not ordinary.block_stage
         assert ordinary.blocked_by_provider is False
 
-    def MQC_EXE_UNI_10260_claude_concatenates_every_text_block_in_order(self) -> None:
+    def MQC_EXE_UNI_113001_claude_concatenates_every_text_block_in_order(self) -> None:
         """This provider splits text across blocks where the others send a field.
 
         Reading only the first block would silently truncate the answer, and a
@@ -169,7 +169,7 @@ class TestMQCClaudeAdapter:
         normalized = ClaudeAdapter().normalize_response(response, _CASE_ID)
         assert normalized.text == "The posting requires five years of Python."
 
-    def MQC_EXE_UNI_10269_claude_sends_the_system_instruction_as_its_own_field(
+    def MQC_EXE_UNI_113009_claude_sends_the_system_instruction_as_its_own_field(
         self, furnished_case: EvaluationCase, minimal_case: EvaluationCase
     ) -> None:
         """This provider takes a top-level field where OpenAI takes a message role.
@@ -191,7 +191,7 @@ class TestMQCClaudeAdapter:
         assert "system" not in adapter.compose_request(minimal_case)
 
 
-    def MQC_EXE_UNI_10272_composed_request_states_effort_rather_than_inheriting_it(
+    def MQC_EXE_UNI_113011_composed_request_states_effort_rather_than_inheriting_it(
         self, minimal_case: EvaluationCase
     ) -> None:
         """An API-side default must not move a recorded observation.
@@ -224,7 +224,7 @@ class TestMQCClaudeAdapter:
             {key: value for key, value in composed.items() if key != "output_config"}
         )
 
-    def MQC_EXE_UNI_10273_composed_request_carries_no_field_the_model_rejects(
+    def MQC_EXE_UNI_113012_composed_request_carries_no_field_the_model_rejects(
         self, furnished_case: EvaluationCase
     ) -> None:
         """The four breaking changes, held as a standing check.
@@ -266,7 +266,7 @@ class TestMQCClaudeAdapter:
 class TestMQCOpenAIAdapter:
     """What this provider does that the other two do not."""
 
-    def MQC_EXE_UNI_10261_openai_maps_the_superseded_tool_call_finish_reason(self) -> None:
+    def MQC_EXE_UNI_113002_openai_maps_the_superseded_tool_call_finish_reason(self) -> None:
         """An older deployment still emits the previous spelling.
 
         Dropping it would record a successful tool call as an unknown outcome,
@@ -283,7 +283,7 @@ class TestMQCOpenAIAdapter:
             )
             assert adapter.normalize_response(response, _CASE_ID).finish_reason == "tool_calls"
 
-    def MQC_EXE_UNI_10262_openai_absent_tool_calls_field_yields_an_empty_list(self) -> None:
+    def MQC_EXE_UNI_113003_openai_absent_tool_calls_field_yields_an_empty_list(self) -> None:
         """This provider omits the field rather than sending an empty list.
 
         A boundary rather than a positive: no tool call is the ordinary case,
@@ -298,7 +298,7 @@ class TestMQCOpenAIAdapter:
         normalized = OpenAIAdapter().normalize_response(response, _CASE_ID)
         assert not normalized.tool_calls
 
-    def MQC_EXE_UNI_10270_openai_sends_the_system_instruction_as_a_message_role(
+    def MQC_EXE_UNI_113010_openai_sends_the_system_instruction_as_a_message_role(
         self, furnished_case: EvaluationCase, minimal_case: EvaluationCase
     ) -> None:
         """This provider takes a message role where Anthropic takes a field.
@@ -327,7 +327,7 @@ class TestMQCOpenAIAdapter:
 class TestMQCGeminiAdapter:
     """What this provider does that the other two do not."""
 
-    def MQC_EXE_UNI_10263_gemini_reads_the_resolved_version_from_its_own_field(self) -> None:
+    def MQC_EXE_UNI_113004_gemini_reads_the_resolved_version_from_its_own_field(self) -> None:
         """This provider names the resolved model differently from the other two.
 
         An adapter reading the field the other providers use would find nothing
@@ -340,7 +340,7 @@ class TestMQCGeminiAdapter:
         assert GeminiAdapter().resolve_model_version(response) == "gemini-flash-002"
         assert not hasattr(response, "model")
 
-    def MQC_EXE_UNI_10264_gemini_reconciles_a_stop_reason_carrying_captured_calls(self) -> None:
+    def MQC_EXE_UNI_113005_gemini_reconciles_a_stop_reason_carrying_captured_calls(self) -> None:
         """This provider ends a tool-calling turn with the ordinary stop reason.
 
         The other two say so in the finish reason. Transcribing the literal
@@ -368,7 +368,7 @@ class TestMQCGeminiAdapter:
         )
         assert adapter.normalize_response(truncated, _CASE_ID).finish_reason == "length"
 
-    def MQC_EXE_UNI_10265_gemini_a_blocked_candidate_yields_empty_text_not_an_error(self) -> None:
+    def MQC_EXE_UNI_113006_gemini_a_blocked_candidate_yields_empty_text_not_an_error(self) -> None:
         """A blocked candidate carries no content at all, not empty content.
 
         Raising here would turn a model behaviour worth recording into a
@@ -384,7 +384,7 @@ class TestMQCGeminiAdapter:
         assert not normalized.tool_calls
         assert normalized.finish_reason == "content_filter"
 
-    def MQC_EXE_UNI_10266_gemini_disables_provider_side_automatic_function_calling(
+    def MQC_EXE_UNI_113007_gemini_disables_provider_side_automatic_function_calling(
         self, furnished_case: EvaluationCase
     ) -> None:
         """This SDK executes the model's tool calls unless told not to.
@@ -413,7 +413,7 @@ class TestMQCGeminiAdapter:
             ("timeout", "QC_HARNESS_CANDIDATE_TIMEOUT"),
         ],
     )
-    def MQC_EXE_UNI_10267_gemini_maps_each_error_status_to_its_harness_code(
+    def MQC_EXE_UNI_113008_gemini_maps_each_error_status_to_its_harness_code(
         self, kind: str, expected: Any
     ) -> None:
         """This provider raises one class for every client failure.
@@ -432,7 +432,7 @@ class TestMQCGeminiAdapter:
         assert GeminiAdapter().map_error(gemini_error(kind)) == expected
 
 
-    def MQC_EXE_UNI_10297_gemini_reads_the_spent_period_from_the_quota_id(self) -> None:
+    def MQC_EXE_UNI_113016_gemini_reads_the_spent_period_from_the_quota_id(self) -> None:
         """The period is taken from the quota id, not from the retry hint.
 
         **The provider's own hint is wrong for this condition.** The body below
@@ -453,7 +453,7 @@ class TestMQCGeminiAdapter:
         # AN UNRECOGNISED BODY FAILS OPEN rather than abandoning the attempts.
         assert adapter.period_quota_exhausted(RuntimeError("429 too many")) is False
 
-    def MQC_EXE_UNI_10298_every_adapter_reports_the_four_token_counts(self) -> None:
+    def MQC_EXE_UNI_113017_every_adapter_reports_the_four_token_counts(self) -> None:
         """Each provider spells them differently, and all four are read.
 
         **Three of the four were being discarded.** Every adapter read its usage
@@ -479,7 +479,7 @@ class TestMQCGeminiAdapter:
             # path uses the first and the judge path the second.
             assert adapter.normalize_response(response, "case").usage == usage
 
-    def MQC_EXE_UNI_10299_thinking_is_counted_only_where_reported_separately(
+    def MQC_EXE_UNI_113018_thinking_is_counted_only_where_reported_separately(
         self,
     ) -> None:
         """Anthropic folds thinking into output; the others report it apart.
@@ -506,7 +506,7 @@ class TestMQCGeminiAdapter:
             "again here would bill it twice"
         )
 
-    def MQC_EXE_UNI_10300_a_response_carrying_no_usage_reports_zero_not_an_error(
+    def MQC_EXE_UNI_113019_a_response_carrying_no_usage_reports_zero_not_an_error(
         self,
     ) -> None:
         """A provider that sent no usage object is not a failure.
@@ -523,7 +523,7 @@ class TestMQCGeminiAdapter:
             usage = adapter_for(engine)().read_usage(object())
             assert usage == TokenUsage(), f"{engine} invented a count"
 
-    def MQC_EXE_UNI_10305_a_refused_prompt_is_recorded_with_its_reason_and_stage(
+    def MQC_EXE_UNI_113020_a_refused_prompt_is_recorded_with_its_reason_and_stage(
         self,
     ) -> None:
         """Zero candidates is the shape of a refusal, and it carried no reason.
@@ -531,7 +531,7 @@ class TestMQCGeminiAdapter:
         **The double had the wrong shape, which is why nothing caught this.** It
         built one candidate whose content was absent, while a prompt refused
         before generation returns **no candidate at all** and explains itself in
-        `prompt_feedback`. So `50015` was reported as a model failure for three
+        `prompt_feedback`. So `154002` was reported as a model failure for three
         recorded runs.
 
         **The stage is recorded although both stages count the same today.** A
@@ -565,7 +565,7 @@ class TestMQCGeminiAdapter:
 
 
 
-    def MQC_EXE_UNI_10306_the_judgement_schema_drops_keywords_the_provider_rejects(
+    def MQC_EXE_UNI_113021_the_judgement_schema_drops_keywords_the_provider_rejects(
         self,
     ) -> None:
         """No judgement had ever reached this provider, and nothing said so.
@@ -616,7 +616,7 @@ class TestMQCGeminiAdapter:
 class TestMQCWireProtocolReuse:
     """Adding an engine on a served protocol costs four values."""
 
-    def MQC_EXE_UNI_10280_an_engine_on_a_shared_protocol_inherits_it_entire(
+    def MQC_EXE_UNI_113013_an_engine_on_a_shared_protocol_inherits_it_entire(
         self,
     ) -> None:
         """Grok overrides no protocol method, which is the whole claim.
@@ -658,7 +658,7 @@ class TestMQCWireProtocolReuse:
         assert GrokAdapter().requested_model != OpenAIAdapter().requested_model
         assert "grok" in registered_engines()
 
-    def MQC_EXE_UNI_10281_two_engines_on_one_protocol_do_not_share_a_credential(
+    def MQC_EXE_UNI_113014_two_engines_on_one_protocol_do_not_share_a_credential(
         self, monkeypatch: Any
     ) -> None:
         """Each engine resolves its own endpoint and its own variable.
@@ -700,7 +700,7 @@ class TestMQCWireProtocolReuse:
 class TestMQCEngineRoles:
     """Who may be a candidate, and who may judge."""
 
-    def MQC_EXE_UNI_10282_a_role_is_derived_from_the_registry_not_a_list(
+    def MQC_EXE_UNI_113015_a_role_is_derived_from_the_registry_not_a_list(
         self,
     ) -> None:
         """Both roles follow from the registry and a declared capability.

@@ -25,7 +25,7 @@ A callable identifier reads outward-in: **project identifier, then module, then 
 |---|---|---|
 | Module | `mqc_<component>.py` | `mqc_golden_rules.py` |
 | Class | `TestMQC<Component>` | `TestMQCGoldenRuleParser` |
-| Callable | `MQC_<MODULE>_<LAYER>_<5DIGIT_ID>_<behavior>` | `MQC_ING_UNI_10001_rejects_missing_rubric_key` |
+| Callable | `MQC_<MODULE>_<LAYER>_<5DIGIT_ID>_<behavior>` | `MQC_ING_UNI_111300_rejects_missing_rubric_key` |
 
 **Identifiers that are not test callables carry the prefix too**, because each reaches the durable record and a bare identifier has no project identity in a record spanning several sources.
 
@@ -84,10 +84,10 @@ Enforced by `module-rgx` in `.pylintrc`, which also refuses `mqc_<component>.py`
 | Layer | Marker | ID block | Under test | Failure means |
 |---|---|---|---|---|
 | `MQC_UNI_` | `unit` | 111000 to 119999, by module per 3.2.1 | Parsers, validators, helpers. No network. **Ungraded precondition.** | Our code is wrong |
-| `MQC_SYS_` | `system` | 20001 to 29999 | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode.** | Our code is wrong |
-| `MQC_EVAL_` | `evaluator` | 30001 to 39999 | LLM-as-a-Judge rubric scoring, golden-rule enforcement | The model is deficient |
-| `MQC_TOOL_` | `tool` | 40001 to 49999 | Tool-use compliance: required tools invoked, forbidden tools avoided (A9) | The model is deficient |
-| `MQC_SEC_` | `sec` | 50001 to 59999 | **Model security behaviour**: injection resistance, prompt leakage, tool coercion. **Own suite, exempt from distribution ceilings.** | The model is unsafe |
+| `MQC_SYS_` | `system` | 121000 to 129999, by module per 3.2.1 | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode.** | Our code is wrong |
+| `MQC_EVAL_` | `evaluator` | 131000 to 139999, by module per 3.2.1 | LLM-as-a-Judge rubric scoring, golden-rule enforcement | The model is deficient |
+| `MQC_TOOL_` | `tool` | 141000 to 149999, by module per 3.2.1 | Tool-use compliance: required tools invoked, forbidden tools avoided (A9) | The model is deficient |
+| `MQC_SEC_` | `sec` | 151000 to 159999, by module per 3.2.1 | **Model security behaviour**: injection resistance, prompt leakage, tool coercion. **Own suite, exempt from distribution ceilings.** | The model is unsafe |
 
 ### 3.0 Preconditions versus graded layers
 
@@ -131,12 +131,12 @@ and been broken in three places at once.
 
 | module/layer | cases | allocated | outside its own block |
 |---|---|---|---|
-| `CMN`/`UNI` | 213 | 198 | **21**, past `11199` with nothing allocating `11200` upward |
+| `CMN`/`UNI` | 213 | 198 | **21**, past `112411` with nothing allocating `112523` upward |
 | `EXE`/`UNI` | 110 | 99 | **11**, sitting inside `EVL`'s block |
 | `EVL`/`UNI` | 98 | 99 | **4**, sitting inside `CAS`'s block |
 | `EVL`/`EVAL`, `TOOL`, `SEC` | 69 | **none** | the graded layers were never partitioned at all |
 
-**Nothing checked it.** `MQC_CMN_UNI_11209` asks whether an identifier is bound
+**Nothing checked it.** `MQC_CMN_UNI_112326` asks whether an identifier is bound
 by two callables, which is a different question and passes here: two modules
 using one number are two identifiers. So the allocation drifted silently, which
 is the state section 3.2.1 was written in 2026-09-23 to end and did not.
@@ -260,6 +260,45 @@ Test Cases Are Two Registers" was the same operation: a rename widening
 requirement numbers matched the leading digits of every case identifier and was
 stopped by a lookahead added late.
 
+#### 3.2.1.4 The digits are checked against the tokens, which nothing did before
+
+The positional scheme is only worth having if an identifier's digits and its
+tokens have to agree. **Nothing checked the old allocation**, which is how
+`EXE/UNI` came to sit inside `EVL`'s block, `EVL/UNI` inside `CAS`'s, and
+`CMN/UNI` past its last allocated block, all at once and all silently.
+
+`cmn.code_standards.identifier_block_problems` reads every collected callable
+and reports one whose digits contradict its tokens:
+
+| Read from the name | Checked against |
+|---|---|
+| The layer token, `UNI` to `SEC` | Digit 2 |
+| The module token, `ING` to `CAS` | Digit 3 |
+| Six digits | The width itself |
+
+**It compares the two halves of the same name**, which is what makes it
+different from `MQC_CMN_UNI_112226`: that one counts how many callables bind an
+identifier, and two modules occupying one block are two identifiers. Neither
+check sees what the other does.
+
+**Shared, with two callers**, like the annotation and header rules: the harness
+owns no case data and the module blocks span both repositories, so one
+implementation reads each root.
+
+#### 3.2.1.3 The dependency fixtures are deliberately outside every block
+
+`tests/cmn/mqc_uni_dependency.py` embeds a sub-suite as a string literal and
+runs it in a subprocess, to exercise the cascade through pytest rather than
+through a double. Its callables are named in the `90xxx` range and **keep five
+digits**.
+
+| | |
+|---|---|
+| Why they are not renumbered | They are the content of a string rather than definitions this suite collects, so `.pylintrc` never sees them |
+| What does read them | `cmn.pytest_support._IDENTIFIER`, which resolves a dependency by extracting a number from a name. **It accepts five or six digits deliberately**: it does not validate the width, and tightening it broke the cascade's own test, which is how this row came to be written |
+| Why they stay out of band | A synthetic foundation that collided with a real identifier would make the cascade's own test depend on a case it does not own |
+| What the scheme reserves for them | Nothing. They are outside domain 1's layers by construction, which is the property that matters |
+
 #### 3.2.2 `CAS` is a module in another repository, and shares this registry
 
 Registered 2026-09-23 with the split. `CAS` covers preconditions owned by the **case** repository, such as the guards asserting that a code excerpt still exhibits the defect recorded for it.
@@ -268,7 +307,7 @@ Registered 2026-09-23 with the split. `CAS` covers preconditions owned by the **
 
 This is also why the registry is not duplicated. `framework-rules.md` section 4.1 forbids a second one, and the case repository references this document rather than vendoring it.
 
-**The full identifier already disambiguates**, since `MQC_CMN_UNI_10201` and `MQC_EXE_UNI_10201` differ in the module token. The partition exists for a different reason: the governance checks in `cmn_verdict_and_cli.md` section 10.2 match an inventory row by its five-digit number, pooled across the design documents. With disjoint blocks that is sound. With an overlap, **a case matches the wrong module's row and the check passes for the wrong reason**, which is worse than failing.
+**The full identifier already disambiguates**, since `MQC_CMN_UNI_10201` and `MQC_EXE_UNI_113100` differ in the module token. The partition exists for a different reason: the governance checks in `cmn_verdict_and_cli.md` section 10.2 match an inventory row by its five-digit number, pooled across the design documents. With disjoint blocks that is sound. With an overlap, **a case matches the wrong module's row and the check passes for the wrong reason**, which is worse than failing.
 
 `CMN` exhausted its first block at 107 cases and overflowed into the `EXE` block. The seven cases concerned had been written the same day and never published, so reassigning them was legitimate under the never-reuse rule, which protects identifiers that have reached a durable record.
 
@@ -424,7 +463,7 @@ Match count is claim strength: a test satisfying three P0 conditions has a mater
 
 This closes the loop the ceilings open. The ceilings exist so that an inflated P0 population cannot turn the must-pass gate into a hair-trigger. Demotion is how a breach gets resolved, and an unreported demotion resolves it by making the number smaller rather than by making the suite better.
 
-`MQC_CMN_UNI_10184` covers the report. It is a design decision awaiting its module rather than an omission: verdict computation is specified here and built with `cmn/verdict.py`.
+`MQC_CMN_UNI_112029` covers the report. It is a design decision awaiting its module rather than an omission: verdict computation is specified here and built with `cmn/verdict.py`.
 
 #### 4.1.5 Security is a separate suite, not a budget line
 
@@ -524,14 +563,14 @@ case resting on a tolerable one claims a guarantee its own foundation does not
 carry.
 
 **It also makes the band sequence unsatisfiable.** Two edges in the shipped
-corpus had `MQC_EVL_SEC_50002` and `50004`, both P0, depending on `50010` at P1.
+corpus had `MQC_EVL_SEC_154101` and `154103`, both P0, depending on `154109` at P1.
 Band 0 then refused because it rested on band 1 and band 1 refused because it
 rested on band 0, so no ordering resolved and the cycle was not in the
 dependency graph itself but in the disagreement between two orderings.
 
 **Two resolutions, and they mean different things.** Promote the foundation, or
-demote the dependents. The first was taken here because `50010` is what
-`50002` and `50004` presuppose and both are genuinely blocking; demoting them
+demote the dependents. The first was taken here because `154109` is what
+`154101` and `154103` presuppose and both are genuinely blocking; demoting them
 would have relaxed two security gates to fix a bookkeeping error. `SEC` is
 exempt from the distribution ceilings, so promoting a foundation into P0 costs
 no functional coverage its budget.
@@ -615,15 +654,15 @@ classify.
 
 **`QC_LLM_MATCH_MISCOMPUTED`.** The `requirement_match` family computes a match
 percentage over stated connector semantics, applies a gate decision table and
-classifies section headers. Cases `30019` through `30024` and `30028` measure
+classifies section headers. Cases `134400` through `134405` and `134409` measure
 exactly that, and none of them is a length breach, a prohibited character, an
 ignored instruction or a factual contradiction. The model read the inputs
 correctly and applied the wrong rule to them, which no registered code said.
 
 Three neighbouring cases in the same family were already covered and stay where
-they are: `30025` is `QC_LLM_SOURCE_ALTERATION`, `30026` is
+they are: `134406` is `QC_LLM_SOURCE_ALTERATION`, `134407` is
 `QC_LLM_OVER_DISCLOSURE` (whose definition names that case almost verbatim), and
-`30027` is `QC_LLM_AMBIGUITY_UNHANDLED`. The gap was narrower than the family.
+`134408` is `QC_LLM_AMBIGUITY_UNHANDLED`. The gap was narrower than the family.
 
 **`QC_LLM_DEFECT_MISSED`.** Section 4.4 of the model evaluation test plan
 measures recall over a fixed set of known defects, and records that a model
@@ -1080,11 +1119,11 @@ All of the following must hold. Each is checked programmatically, and a failure 
 | Every priority names a registered condition | §4.1.0 |
 | The distribution stays within its ceilings | §4.2 |
 | Every requirement has at least one case, and every case a known requirement | T1 to T4 |
-| Every emitted `family` value is registered | `MQC_CMN_UNI_10180` |
-| The §11.1 table and the code registry agree | `MQC_CMN_UNI_11130` |
-| Every family the case matrix names is registered | `MQC_CMN_UNI_11131` |
-| Every registered family declares a ground-truth mechanism | `MQC_CMN_UNI_11132` |
-| Stated inventory totals match their rows | `MQC_CMN_UNI_10146` |
+| Every emitted `family` value is registered | `MQC_CMN_UNI_112216` |
+| The §11.1 table and the code registry agree | `MQC_CMN_UNI_112228` |
+| Every family the case matrix names is registered | `MQC_CMN_UNI_112229` |
+| Every registered family declares a ground-truth mechanism | `MQC_CMN_UNI_112230` |
+| Stated inventory totals match their rows | `MQC_CMN_UNI_112203` |
 
 #### 11.2.1 Changing or retiring a family
 
@@ -1121,7 +1160,7 @@ only by rubric, and that refusal is the reason all registered families exist.
 Nothing checked that a registered family carries a ground-truth mechanism at
 all, so the criterion held only while an author remembered it.
 
-`11130` through `11132` close these. **They enforce the procedure rather than
+`112228` through `112230` close these. **They enforce the procedure rather than
 restating it**, which is the distinction between a documented mechanism and a
 coded one: a step whose verification is named and absent reads as stronger than
 a step with no verification named.

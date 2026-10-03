@@ -9,7 +9,7 @@ expects a requirements file, and PyCharm in particular offers to install from
 one and does not read an optional-dependency extra. A contributor opening the
 project should not have to know which of two conventions this repository chose.
 
-**They are never hand-edited.** ``MQC_CMN_UNI_11108`` fails the run when they
+**They are never hand-edited.** ``MQC_CMN_UNI_112222`` fails the run when they
 disagree with the declaration, which is the same rule applied everywhere else
 here: two statements of one fact drift, so either there is one statement or
 there is a check. A generated file plus a check is the second form rather than
@@ -30,7 +30,7 @@ _RUNTIME_HEADER: Final[str] = """\
 # GENERATED FROM pyproject.toml. Do not edit by hand.
 #
 # Regenerate with:  python tools/generate_requirements.py
-# Checked by:       MQC_CMN_UNI_11108
+# Checked by:       MQC_CMN_UNI_112222
 #
 # pyproject.toml is the single declaration (DESIGN.md section 5.0.1). This file
 # exists because tooling expects it, not because it is a second source of truth.
@@ -45,7 +45,7 @@ _DEV_HEADER: Final[str] = """\
 # GENERATED FROM pyproject.toml. Do not edit by hand.
 #
 # Regenerate with:  python tools/generate_requirements.py
-# Checked by:       MQC_CMN_UNI_11108
+# Checked by:       MQC_CMN_UNI_112222
 #
 # Everything the seven CI gates need, on top of the runtime dependencies.
 # This is what `pip install --editable ".[dev]"` installs, and what CI uses.

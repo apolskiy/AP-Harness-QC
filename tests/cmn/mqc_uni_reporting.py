@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a run publishes about an observation, and about a case that failed.
 
-Covers ``MQC_CMN_UNI_11220`` and ``11221``, inventoried in
+Covers ``MQC_CMN_UNI_112239`` and ``112240``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in sections 5.1
 to 5.4.
 
@@ -105,7 +105,7 @@ class _FakeOutcome:
 class TestMQCResultEmission:
     """Every field the standard requires, as something a collector can read."""
 
-    def MQC_CMN_UNI_11220_every_required_result_field_is_emitted(self) -> None:
+    def MQC_CMN_UNI_112239_every_required_result_field_is_emitted(self) -> None:
         """Each field section 9 requires becomes a parameter to publish.
 
         Compared against the standard's list rather than against whatever the
@@ -174,7 +174,7 @@ class TestMQCResultEmission:
 class TestMQCVendorReport:
     """A failing case publishes the calls a provider ticket is written from."""
 
-    def MQC_CMN_UNI_11221_a_failing_case_reports_every_call_it_made(self) -> None:
+    def MQC_CMN_UNI_112240_a_failing_case_reports_every_call_it_made(self) -> None:
         """A failing case reports every observation, not the failing one.
 
         Three observations with two more on a single disagreement means the

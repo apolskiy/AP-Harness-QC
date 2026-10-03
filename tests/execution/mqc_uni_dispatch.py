@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for pacing, retry and the circuit breaker.
 
-Covers `MQC_EXE_UNI_10226` through `10234`, inventoried in
+Covers `MQC_EXE_UNI_113200` through `113208`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.
 
 **Pacing decides whether a run completes at all** on a free tier (A7.3), which
@@ -160,7 +160,7 @@ def _plan(tmp_path: Any, mode: str = "live", record: bool = False) -> DispatchPl
 class TestMQCRequestSpacing:
     """What the dispatcher waits for, and what it does not."""
 
-    def MQC_EXE_UNI_10226_replay_mode_applies_no_request_spacing(
+    def MQC_EXE_UNI_113200_replay_mode_applies_no_request_spacing(
         self, minimal_case: EvaluationCase, session: DispatchSession, clock: Any, tmp_path: Path
     ) -> None:
         """Replay consumes no quota, so spacing is inapplicable rather than idle.
@@ -198,7 +198,7 @@ class TestMQCRequestSpacing:
         assert clock.slept == []
         assert session.slept_intervals == []
 
-    def MQC_EXE_UNI_10227_request_spacing_honoured_at_configured_interval(
+    def MQC_EXE_UNI_113201_request_spacing_honoured_at_configured_interval(
         self,
         minimal_case: EvaluationCase,
         session: DispatchSession,
@@ -242,7 +242,7 @@ class TestMQCRequestSpacing:
 class TestMQCRetryAndBackoff:
     """What the dispatcher retries, and what it refuses to retry."""
 
-    def MQC_EXE_UNI_10228_exhausted_backoff_skips_case_with_rate_limit_code(
+    def MQC_EXE_UNI_113202_exhausted_backoff_skips_case_with_rate_limit_code(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
     ) -> None:
         """Exhausted backoff skips and continues; it never fails the case.
@@ -268,7 +268,7 @@ class TestMQCRetryAndBackoff:
         assert outcome.attempts == 3
         assert len(calls) == 3
 
-    def MQC_EXE_UNI_10231_rate_limit_encounters_are_counted_and_reported(
+    def MQC_EXE_UNI_113205_rate_limit_encounters_are_counted_and_reported(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
     ) -> None:
         """Retry must not absorb the encounter silently.
@@ -294,7 +294,7 @@ class TestMQCRetryAndBackoff:
         assert outcome.rate_limit_encounters == 1
         assert session.rate_limit_encounters == 1
 
-    def MQC_EXE_UNI_10295_a_spent_quota_period_abandons_its_remaining_attempts(
+    def MQC_EXE_UNI_113215_a_spent_quota_period_abandons_its_remaining_attempts(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path,
         scripted: Any, monkeypatch: Any
     ) -> None:
@@ -330,7 +330,7 @@ class TestMQCRetryAndBackoff:
         assert len(calls) == 1
         assert outcome.rate_limit_encounters == 1
 
-    def MQC_EXE_UNI_10296_a_rate_limit_of_unknown_period_keeps_its_retries(
+    def MQC_EXE_UNI_113216_a_rate_limit_of_unknown_period_keeps_its_retries(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path,
         scripted: Any
     ) -> None:
@@ -360,7 +360,7 @@ class TestMQCRetryAndBackoff:
         assert outcome.attempts == 2
         assert len(calls) == 2
 
-    def MQC_EXE_UNI_10233_candidate_timeout_maps_to_candidate_code_not_generic(
+    def MQC_EXE_UNI_113207_candidate_timeout_maps_to_candidate_code_not_generic(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
     ) -> None:
         """A timeout keeps its own code rather than collapsing into a parser error.
@@ -383,7 +383,7 @@ class TestMQCRetryAndBackoff:
         outcome = dispatch_case(minimal_case, "claude", _plan(tmp_path), session)
         assert outcome.taxonomy_code == "QC_HARNESS_CANDIDATE_TIMEOUT"
 
-    def MQC_EXE_UNI_10234_timeout_records_duration_kind_truncated(
+    def MQC_EXE_UNI_113208_timeout_records_duration_kind_truncated(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
     ) -> None:
         """On a timeout the duration is how long we waited, not how long it took.
@@ -415,7 +415,7 @@ class TestMQCRetryAndBackoff:
 class TestMQCCircuitBreaker:
     """When the run stops rather than spending quota to confirm a failure."""
 
-    def MQC_EXE_UNI_10229_circuit_breaker_aborts_after_consecutive_failures(
+    def MQC_EXE_UNI_113203_circuit_breaker_aborts_after_consecutive_failures(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
     ) -> None:
         """Consecutive, not cumulative.
@@ -452,7 +452,7 @@ class TestMQCCircuitBreaker:
         with pytest.raises(CircuitBreakerTripped, match="consecutively"):
             dispatch_case(minimal_case, "claude", plan, session)
 
-    def MQC_EXE_UNI_10230_auth_error_aborts_immediately(
+    def MQC_EXE_UNI_113204_auth_error_aborts_immediately(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
     ) -> None:
         """An auth failure will not resolve by waiting, so the streak is irrelevant.
@@ -479,7 +479,7 @@ class TestMQCCircuitBreaker:
 class TestMQCDispatcherRestraint:
     """What the dispatcher and its adapters deliberately do not do."""
 
-    def MQC_EXE_UNI_10232_adapter_performs_no_scoring_or_interpretation(self) -> None:
+    def MQC_EXE_UNI_113206_adapter_performs_no_scoring_or_interpretation(self) -> None:
         """An adapter that interprets output is a second evaluator with no rubric.
 
         Asserted structurally over the registry rather than by reading one
@@ -496,7 +496,7 @@ class TestMQCDispatcherRestraint:
             assert not members & forbidden
         assert not {field.lower() for field in NormalizedResponse.__annotations__} & forbidden
 
-    def MQC_EXE_UNI_10271_an_unregistered_mode_is_rejected_before_any_adapter(
+    def MQC_EXE_UNI_113209_an_unregistered_mode_is_rejected_before_any_adapter(
         self, tmp_path: Path
     ) -> None:
         """Mode selection is independent of engine selection.
@@ -574,7 +574,7 @@ class TestMQCConnectionLifecycle:
         monkeypatch.setattr(ClaudeAdapter, "dispatch", fake_dispatch)
         return ran
 
-    def MQC_EXE_UNI_10275_a_connection_left_open_after_a_response_is_reported(
+    def MQC_EXE_UNI_113210_a_connection_left_open_after_a_response_is_reported(
         self,
         minimal_case: EvaluationCase,
         session: DispatchSession,
@@ -614,7 +614,7 @@ class TestMQCConnectionLifecycle:
                 "connection pool per case for its whole length"
             )
 
-    def MQC_EXE_UNI_10276_keeping_the_connection_is_opt_in_and_recorded(
+    def MQC_EXE_UNI_113211_keeping_the_connection_is_opt_in_and_recorded(
         self,
         minimal_case: EvaluationCase,
         session: DispatchSession,
@@ -652,7 +652,7 @@ class TestMQCConnectionLifecycle:
                              session, 1).measured
         assert not ran[-1].connected
 
-    def MQC_EXE_UNI_10277_a_judge_sharing_the_candidate_adapter_is_reported(
+    def MQC_EXE_UNI_113212_a_judge_sharing_the_candidate_adapter_is_reported(
         self, tmp_path: Path
     ) -> None:
         """The judge builds its own adapter, on the candidate's own engine.
@@ -692,7 +692,7 @@ class TestMQCConnectionLifecycle:
 class TestMQCRecordingEconomy:
     """What a recording run spends, and on what."""
 
-    def MQC_EXE_UNI_10293_filling_gaps_dispatches_only_what_is_missing(
+    def MQC_EXE_UNI_113213_filling_gaps_dispatches_only_what_is_missing(
         self,
         minimal_case: EvaluationCase,
         session: DispatchSession,
@@ -773,7 +773,7 @@ class TestMQCRecordingEconomy:
             "asked to fill gaps"
         )
 
-    def MQC_EXE_UNI_10294_a_retry_attempt_opens_its_own_connection(
+    def MQC_EXE_UNI_113214_a_retry_attempt_opens_its_own_connection(
         self,
         minimal_case: EvaluationCase,
         session: DispatchSession,
@@ -855,7 +855,7 @@ class TestMQCRecordingEconomy:
 class TestMQCRetainedRequest:
     """The call a finding is filed from, kept where the outcome is."""
 
-    def MQC_EXE_UNI_10310_an_outcome_carries_the_request_that_produced_it(
+    def MQC_EXE_UNI_113217_an_outcome_carries_the_request_that_produced_it(
         self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path
     ) -> None:
         """Every dispatch outcome carries the composed request.

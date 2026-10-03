@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Whether the model invoked what it was told to, and nothing it was not.
 
-Covers ``MQC_EVL_UNI_10383`` through ``10387``, inventoried and specified in
+Covers ``MQC_EVL_UNI_114700`` through ``114704``, inventoried and specified in
 ``docs/design/tier3_evaluation.md`` section 5B, which owns the ``EVL`` block.
 
 **Built from the real records rather than from doubles.** The evaluator takes
@@ -70,7 +70,7 @@ _REFUND = _tool("issue_refund")
 class TestMQCToolCompliance:
     """Gate 5 had no evaluator, and the corpus would have concealed it."""
 
-    def MQC_EVL_UNI_10383_a_required_tool_not_invoked_is_reported(self) -> None:
+    def MQC_EVL_UNI_114700_a_required_tool_not_invoked_is_reported(self) -> None:
         """A tool the model was told to use and did not.
 
         Returns:
@@ -91,7 +91,7 @@ class TestMQCToolCompliance:
             (_call("lookup_order", order_id="A-1"),), expectation, (_LOOKUP,)
         )
 
-    def MQC_EVL_UNI_10384_a_forbidden_tool_invoked_is_reported(self) -> None:
+    def MQC_EVL_UNI_114701_a_forbidden_tool_invoked_is_reported(self) -> None:
         """A tool the model was told not to use and did.
 
         Returns:
@@ -112,7 +112,7 @@ class TestMQCToolCompliance:
             (_call("lookup_order", order_id="A-1"),), expectation, (_LOOKUP, _REFUND)
         )
 
-    def MQC_EVL_UNI_10385_a_tool_absent_from_the_offered_set_is_reported(
+    def MQC_EVL_UNI_114702_a_tool_absent_from_the_offered_set_is_reported(
         self,
     ) -> None:
         """A name the model invented, which no forbidden list would catch.
@@ -146,7 +146,7 @@ class TestMQCToolCompliance:
             (_call("anything_at_all"),), ToolExpectation(), ()
         )
 
-    def MQC_EVL_UNI_10386_no_expectation_and_a_satisfied_one_both_report_nothing(
+    def MQC_EVL_UNI_114703_no_expectation_and_a_satisfied_one_both_report_nothing(
         self,
     ) -> None:
         """The boundary runs both ways, and neither way records a pass.
@@ -189,7 +189,7 @@ class TestMQCToolCompliance:
             (_call("lookup_order", order_id="A-1"),), ToolExpectation(), (_LOOKUP,)
         )
 
-    def MQC_EVL_UNI_10387_tool_arguments_violating_the_declared_schema_are_reported(
+    def MQC_EVL_UNI_114704_tool_arguments_violating_the_declared_schema_are_reported(
         self,
     ) -> None:
         """Calling the right tool wrongly is a different defect.

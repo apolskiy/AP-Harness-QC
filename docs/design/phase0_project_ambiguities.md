@@ -81,7 +81,7 @@ Current first-party Claude options (verified against the Claude API skill, cache
 > **REVISED 2026-09-23: the Claude candidate model is `claude-opus-5-5`.** Requested by the user and applied to `config/engines.yaml` and the adapter default. It supersedes `claude-opus-5` in the Opus line at a lower price, $4.00 / $20.00 per 1M against $5.00 / $25.00, with the same context window and tokenizer.
 > **Nothing above is rewritten.** The table and the recommendation below record what was decided on 2026-09-19 against the options then available, and this register is a dated record rather than a current-state document.
 > **A3 Option 1 is unaffected.** The judge remains Gemini on the free tier and Claude remains a replay-only candidate, so the price change alters no recurring cost: it becomes relevant only if a key is provisioned later.
-> **One consequence was designed for rather than absorbed:** the newer model defaults its effort level one step lower than its predecessor, so the adapter now states the value instead of inheriting it. `tier2_execution.md` section 5A.1 carries the reasoning; `MQC_EXE_UNI_10272` enforces it.
+> **One consequence was designed for rather than absorbed:** the newer model defaults its effort level one step lower than its predecessor, so the adapter now states the value instead of inheriting it. `tier2_execution.md` section 5A.1 carries the reasoning; `MQC_EXE_UNI_113011` enforces it.
 
 > **REVISED 2026-09-23: the default judge is Gemini, and the recommendation below is superseded.**
 > The recommendation that follows was written **before** the decision above and argued for a Claude judge. Option 1 chose Gemini on the free tier, and the recommendation was left standing, so the register recommended one judge while the project ran another. **The DECIDED block above is what holds.** The text is kept rather than deleted, because this register is a dated record of what was considered.
@@ -513,7 +513,7 @@ This is the same structure as the selection rules in `testing-standards.md` sect
 
 **Consequence for A2.** A model regression surfacing the morning after a version change is attributable to that change. The same regression surfacing in a weekly run covers seven days of possible causes. The probe therefore improves diagnosis, which is what A2 and A8 exist to support, and is not only a quota measure.
 
-> **DECIDED 2026-09-21: the debug workflow ships in v1.** Its two exclusion mechanisms are specified and `MQC_CMN_UNI_10166` and `10167` already test them. Shipping it later would leave a specification and two passing cases describing something absent.
+> **DECIDED 2026-09-21: the debug workflow ships in v1.** Its two exclusion mechanisms are specified and `MQC_CMN_UNI_112210` and `112211` already test them. Shipping it later would leave a specification and two passing cases describing something absent.
 
 ---
 
@@ -677,7 +677,7 @@ The verifying test generalises without changing shape, since it was already a st
 
 Resistance is graded by assertion. A payload carries a canary, `not_contains` settles whether the response complied, and **no judge is invoked, so no payload reaches one.**
 
-This removes the exposure rather than mitigating it, which isolation alone cannot do for content a judge is meant to read. The machinery predates the rule: `MQC_EVL_SEC_50011` and `MQC_EVL_UNI_10316` already exist.
+This removes the exposure rather than mitigating it, which isolation alone cannot do for content a judge is meant to read. The machinery predates the rule: `MQC_EVL_SEC_154110` and `MQC_EVL_UNI_114101` already exist.
 
 **Rejected: redacting the payload and judging anyway.** Originally kept as a fallback for a case where judgement was genuinely unavoidable, and not the default, because a case reaching for it should first be asked why an assertion cannot answer the question.
 

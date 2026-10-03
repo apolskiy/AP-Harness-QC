@@ -42,7 +42,7 @@ BRANCH_KINDS: Final[frozenset[str]] = frozenset(
 # without one, and would fail the gate when somebody else's service is down.
 REFERENT_KINDS: Final[dict[str, re.Pattern[str]]] = {
     "ticket": re.compile(r"^[A-Z][A-Z0-9]*-\d+$"),
-    "case": re.compile(r"^\d{5,6}$"),
+    "case": re.compile(r"^\d{6}$"),
     "release": re.compile(r"^v\d+\.\d+\.\d+$"),
 }
 

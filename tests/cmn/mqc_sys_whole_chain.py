@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """System preconditions for the whole chain, from a corpus to a verdict.
 
-Covers `MQC_CMN_SYS_20301` through `20303`, inventoried in
+Covers `MQC_CMN_SYS_122000` through `122002`, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 11.1.
 
 **This is the combined test that decides whether the harness is usable at all.**
@@ -14,7 +14,7 @@ stages each work but do not join measures nothing while reporting that it did.
 **Both outcomes are asserted, not just the green one.** A chain that always
 answers green proves only that it can answer. The instrument has to be able to
 say "this failed" about a model that failed, or a green from it means nothing,
-which is why `20302` exists beside `20301`.
+which is why `122001` exists beside `122000`.
 
 **Replay mode, and the verdict is computed in process.** Nothing here reaches a
 provider, and nothing here writes an artifact: section 5 emits observations as
@@ -198,7 +198,7 @@ def fixture_chain(
 class TestMQCTheWholeChain:
     """Whether the stages compose, and whether the result can be either answer."""
 
-    def MQC_CMN_SYS_20301_a_compliant_model_runs_the_chain_to_a_green_verdict(
+    def MQC_CMN_SYS_122000_a_compliant_model_runs_the_chain_to_a_green_verdict(
         self, chain: Any
     ) -> None:
         """Corpus, dispatch, dual pass and verdict, joined.
@@ -220,13 +220,13 @@ class TestMQCTheWholeChain:
         assert computed.exit_code == 0
         assert computed.pass_rate == 1.0
 
-    def MQC_CMN_SYS_20302_a_failing_model_runs_the_chain_to_a_red_verdict(
+    def MQC_CMN_SYS_122001_a_failing_model_runs_the_chain_to_a_red_verdict(
         self, chain: Any
     ) -> None:
         """The instrument can say no, which is what makes its yes worth reading.
 
         **A chain that always answers green proves only that it can answer.**
-        This differs from `20301` by the candidate's text alone: same corpus,
+        This differs from `122000` by the candidate's text alone: same corpus,
         same adapter, same judge, same rules. So a red here is attributable to
         the model's output and to nothing else in the chain.
 
@@ -243,7 +243,7 @@ class TestMQCTheWholeChain:
         assert computed.exit_code == 1
         assert computed.pass_rate is not None and computed.pass_rate < 1.0
 
-    def MQC_CMN_SYS_20303_three_observations_of_one_case_reach_the_verdict(
+    def MQC_CMN_SYS_122002_three_observations_of_one_case_reach_the_verdict(
         self, chain: Any
     ) -> None:
         """A4.1 asks for three, and the chain has to carry all three through.

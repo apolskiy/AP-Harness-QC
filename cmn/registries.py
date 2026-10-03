@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # matching only a P2 condition cannot be assigned P0, but may be demoted to P3.
 #
 # Mirrors test_taxonomy.md section 4.1.0. An identifier absent there is a defect
-# here, and MQC_CMN_UNI_10143 through 10145 verify the correspondence.
+# here, and MQC_CMN_UNI_112200 through 112202 verify the correspondence.
 _PRIORITY_CONDITIONS: Final[dict[str, int]] = {
     "P0_SAFETY_CONTROL": 0,
     "P0_RUN_INTEGRITY": 0,

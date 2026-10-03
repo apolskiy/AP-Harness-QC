@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for what a run is allowed to spend.
 
-Covers `MQC_EXE_UNI_10301` through `10304`, inventoried in
+Covers `MQC_EXE_UNI_113700` through `113703`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.
 
 **Split out of ``mqc_uni_dispatch.py`` on 2026-09-28**, which had reached 1014
@@ -94,7 +94,7 @@ class TestMQCSpendCeiling:
     """What a run may spend, and what stops it when it may not."""
 
 
-    def MQC_EXE_UNI_10301_a_run_at_its_spend_ceiling_dispatches_nothing_further(
+    def MQC_EXE_UNI_113700_a_run_at_its_spend_ceiling_dispatches_nothing_further(
         self, minimal_case: EvaluationCase, tmp_path: Path, scripted: Any,
         monkeypatch: Any
     ) -> None:
@@ -117,7 +117,7 @@ class TestMQCSpendCeiling:
         """
         table = load_price_table(_REPOSITORY_ROOT / "config" / "pricing.yaml")
         # THE DOUBLE IS MADE TO RESOLVE TO A PRICED MODEL, so this case exercises
-        # spending rather than the unpriced refusal `10303` covers. Without this
+        # spending rather than the unpriced refusal `113702` covers. Without this
         # it passed for the wrong reason: the claude double resolves to a model
         # the table does not price, so nothing accumulated and the run stopped
         # for a different cause entirely.
@@ -146,7 +146,7 @@ class TestMQCSpendCeiling:
         # a ceiling that only reports is an invoice, not a control.
         assert len(calls) == len(outcomes) - len(stopped)
 
-    def MQC_EXE_UNI_10302_a_run_with_no_ceiling_is_unchanged(
+    def MQC_EXE_UNI_113701_a_run_with_no_ceiling_is_unchanged(
         self, minimal_case: EvaluationCase, tmp_path: Path, scripted: Any
     ) -> None:
         """Zero means no ceiling, and every replay gate relies on that.
@@ -178,7 +178,7 @@ class TestMQCSpendCeiling:
         assert session.spent == 0.0
         assert session.usage.input_tokens > 0
 
-    def MQC_EXE_UNI_10303_a_ceiling_against_an_unpriced_model_stops_the_run(
+    def MQC_EXE_UNI_113702_a_ceiling_against_an_unpriced_model_stops_the_run(
         self, minimal_case: EvaluationCase, tmp_path: Path, scripted: Any
     ) -> None:
         """A cap that cannot be enforced must not look enforced.
@@ -222,7 +222,7 @@ class TestMQCSpendCeiling:
         assert session.spent == 0.0
         assert len(calls) == 1
 
-    def MQC_EXE_UNI_10304_an_empty_balance_is_its_own_code_not_an_auth_failure(
+    def MQC_EXE_UNI_113703_an_empty_balance_is_its_own_code_not_an_auth_failure(
         self,
     ) -> None:
         """A valid key with no money is not a rejected key.

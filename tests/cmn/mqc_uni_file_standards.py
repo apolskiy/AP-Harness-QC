@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What every file in the repository must look like.
 
-Covers ``MQC_CMN_UNI_11111`` through ``11113`` and ``11140``, inventoried in
+Covers ``MQC_CMN_UNI_112500`` through ``112502`` and ``112503``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` sections 10.6, 10.7 and 10.20.
 
 **Pylint checks none of these.** It has no opinion on whether an annotation is
@@ -83,7 +83,7 @@ def _own_checkout_path(job: dict) -> str:
 class TestMQCAnnotationCoverage:
     """The annotation rule, enforced rather than stated."""
 
-    def MQC_CMN_UNI_11111_every_callable_carries_parameter_and_return_hints(self) -> None:
+    def MQC_CMN_UNI_112500_every_callable_carries_parameter_and_return_hints(self) -> None:
         """Pylint does not check annotation presence, so nothing else does.
 
         The rule has stood in `code-style.md` section 2 since the project
@@ -99,7 +99,7 @@ class TestMQCAnnotationCoverage:
         gaps = annotation_gaps(Path(__file__).resolve().parents[2])
         assert not gaps, f"{len(gaps)} annotation gaps: " + "; ".join(gaps[:10])
 
-    def MQC_CMN_UNI_11112_pep_563_future_annotations_import_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112501_pep_563_future_annotations_import_is_rejected(self) -> None:
         """Laziness comes from the interpreter, not from stringizing.
 
         Python 3.14 implements PEP 649, so annotations are already evaluated
@@ -128,7 +128,7 @@ class TestMQCAnnotationCoverage:
 class TestMQCAuthorshipHeader:
     """Every file says what it is, even separated from its repository."""
 
-    def MQC_CMN_UNI_11113_every_python_file_carries_its_spdx_header(self) -> None:
+    def MQC_CMN_UNI_112502_every_python_file_carries_its_spdx_header(self) -> None:
         """Presence, position and the correct licence identifier.
 
         **The split made this a per-file question.** Code from this repository
@@ -153,7 +153,7 @@ class TestMQCAuthorshipHeader:
 class TestMQCMarkupHeaders:
     """Documents and data say what they are, like the code does."""
 
-    def MQC_CMN_UNI_11140_a_document_or_data_file_without_an_spdx_header_is_reported(
+    def MQC_CMN_UNI_112503_a_document_or_data_file_without_an_spdx_header_is_reported(
         self,
     ) -> None:
         """Fifty-four files accumulated without one, and nothing said so.
@@ -163,7 +163,7 @@ class TestMQCMarkupHeaders:
         them**, so while markdown and YAML were bare that claim held for none
         of them.
 
-        **A separate case from ``11113`` rather than a widening of it.** A
+        **A separate case from ``112502`` rather than a widening of it.** A
         Python file must carry the header above its module docstring, because a
         docstring must remain the first statement or ``__doc__`` is empty.
         Markdown and YAML have no such constraint, so the two checks assert
@@ -181,12 +181,12 @@ class TestMQCMarkupHeaders:
         )
 
 
-    def MQC_CMN_UNI_11182_a_generated_file_in_a_skipped_tree_is_not_read(
+    def MQC_CMN_UNI_112521_a_generated_file_in_a_skipped_tree_is_not_read(
         self, tmp_path: Path
     ) -> None:
         """A tool cache is not a document this repository authors.
 
-        **`11140` caught this and only by accident.** `pytest` writes
+        **`112503` caught this and only by accident.** `pytest` writes
         `.pytest_cache/README.md`, the scan read it as a document, and it
         passed locally because an earlier header pass had written a header into
         the local copy. A fresh checkout had no such file, so CI failed on a
@@ -195,7 +195,7 @@ class TestMQCMarkupHeaders:
 
         **This case does not depend on a cache being dirty.** It builds the
         condition, which is the difference between a check that happens to
-        notice and one that cannot miss: `11140` only fails when the working
+        notice and one that cannot miss: `112503` only fails when the working
         tree's cache is clean, and a developer who has ever run the header pass
         does not have one.
 
@@ -233,7 +233,7 @@ class TestMQCMarkupHeaders:
 class TestMQCArtifactContract:
     """The downstream artifact contract, checked against what the workflows run."""
 
-    def MQC_CMN_UNI_11211_a_workflow_emitting_one_mandated_artifact_is_reported(
+    def MQC_CMN_UNI_112525_a_workflow_emitting_one_mandated_artifact_is_reported(
         self,
     ) -> None:
         """Every workflow invocation writing an artifact writes both of them.
@@ -246,7 +246,7 @@ class TestMQCArtifactContract:
 
         **This repository's own workflows only.** The consumer owns its
         workflows, so the scanner is shared and
-        ``MQC_CAS_UNI_10469`` calls it with the other root.
+        ``MQC_CAS_UNI_115708`` calls it with the other root.
 
         Design: ``cmn_verdict_and_cli.md`` section 7.1.0.3.
 
@@ -265,7 +265,7 @@ class TestMQCArtifactContract:
 class TestMQCRunbook:
     """The operating procedure, checked against the workflows it describes."""
 
-    def MQC_CMN_UNI_11207_a_workflow_step_running_an_absent_script_is_reported(
+    def MQC_CMN_UNI_112524_a_workflow_step_running_an_absent_script_is_reported(
         self,
     ) -> None:
         """Every script a workflow step runs resolves where the step runs.
@@ -327,7 +327,7 @@ class TestMQCRunbook:
             f"can report success while the step evaluated nothing: {unresolved}"
         )
 
-    def MQC_CMN_UNI_11143_a_runbook_command_naming_an_undeclared_input_is_reported(
+    def MQC_CMN_UNI_112504_a_runbook_command_naming_an_undeclared_input_is_reported(
         self,
     ) -> None:
         """A documented dispatch that GitHub rejects is worse than none.
@@ -354,7 +354,7 @@ class TestMQCRunbook:
 class TestMQCEncodingDeclared:
     """The rule that fails more quietly than any other here."""
 
-    def MQC_CMN_UNI_11193_a_registered_flag_no_case_names_is_reported(self) -> None:
+    def MQC_CMN_UNI_112522_a_registered_flag_no_case_names_is_reported(self) -> None:
         """Two flags were declared, documented and proved by nothing.
 
         `--max-spend` accepted a ceiling that could not stop a request, and
@@ -389,7 +389,7 @@ class TestMQCEncodingDeclared:
             f"{len(problems)} flag coverage problem(s): {'; '.join(problems)}"
         )
 
-    def MQC_CMN_UNI_11200_a_consumer_run_fails_this_job_only_on_our_codes(
+    def MQC_CMN_UNI_112523_a_consumer_run_fails_this_job_only_on_our_codes(
         self, tmp_path: Path
     ) -> None:
         """The regression ran the consumer's preconditions and stopped there.
@@ -415,13 +415,13 @@ class TestMQCEncodingDeclared:
         model_only = tmp_path / "model.xml"
         model_only.write_text(
             "<testsuites><testsuite>"
-            '<testcase name="MQC_EVL_EVAL_30015_x"><failure message="'
+            '<testcase name="MQC_EVL_EVAL_134205_x"><failure message="'
             'A_GND_NO_ROUNDED_UP_FIGURE (QC_LLM_SOURCE_ALTERATION): pattern found'
             '"/></testcase>'
-            '<testcase name="MQC_EVL_EVAL_30016_y"><skipped message="'
-            'QC_HARNESS_DEPENDENCY_UNMET: foundational case 30015 did not hold'
+            '<testcase name="MQC_EVL_EVAL_134000_y"><skipped message="'
+            'QC_HARNESS_DEPENDENCY_UNMET: foundational case 134205 did not hold'
             '"/></testcase>'
-            '<testcase name="MQC_EVL_SEC_50002_z"><failure message="'
+            '<testcase name="MQC_EVL_SEC_154101_z"><failure message="'
             'QC_SEC_INJECTION_ATTEMPT"/></testcase>'
             "</testsuite></testsuites>",
             encoding="utf-8",
@@ -434,10 +434,10 @@ class TestMQCEncodingDeclared:
         ours = tmp_path / "ours.xml"
         ours.write_text(
             "<testsuites><testsuite>"
-            '<testcase name="MQC_EVL_EVAL_30020_a"><failure message="'
+            '<testcase name="MQC_EVL_EVAL_134401_a"><failure message="'
             'QC_HARNESS_FIXTURE_STALE: the judge request no longer matches'
             '"/></testcase>'
-            '<testcase name="MQC_EVL_EVAL_30021_b"><error message="'
+            '<testcase name="MQC_EVL_EVAL_134402_b"><error message="'
             'QC_HARNESS_PREFLIGHT_FAILURE: judge engine is not on the roster'
             '"/></testcase>'
             "</testsuite></testsuites>",
@@ -455,7 +455,7 @@ class TestMQCEncodingDeclared:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             harness_faults(tmp_path / "absent.xml")
 
-    def MQC_CMN_UNI_11157_a_file_open_declaring_no_encoding_is_reported(
+    def MQC_CMN_UNI_112511_a_file_open_declaring_no_encoding_is_reported(
         self, tmp_path: Path
     ) -> None:
         """A missing encoding raises nothing and changes the value.

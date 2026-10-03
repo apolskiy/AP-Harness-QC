@@ -56,7 +56,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       # From pyproject.toml, the single declaration. requirements.txt is
-      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_112222
       # fails the run when the two disagree.
       - name: Install
         run: python -m pip install --editable ".[dev]"
@@ -84,7 +84,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       # From pyproject.toml, the single declaration. requirements.txt is
-      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_112222
       # fails the run when the two disagree.
       - name: Install
         run: python -m pip install --editable ".[dev]"
@@ -115,7 +115,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       # From pyproject.toml, the single declaration. requirements.txt is
-      # generated from it for tooling that expects one, and MQC_CMN_UNI_11108
+      # generated from it for tooling that expects one, and MQC_CMN_UNI_112222
       # fails the run when the two disagree.
       - name: Install
         run: python -m pip install --editable ".[dev]"
@@ -146,8 +146,8 @@ jobs:
   #                   deterministic gates. That is how a change here is proved
   #                   not to break a model run.
   #
-  # WHAT REPLACES THEM AS PROOF THE HARNESS WORKS: `MQC_CMN_SYS_20301` through
-  # `20303`, in Gate 3. They run the whole chain on a synthetic corpus, from the
+  # WHAT REPLACES THEM AS PROOF THE HARNESS WORKS: `MQC_CMN_SYS_122000` through
+  # `122002`, in Gate 3. They run the whole chain on a synthetic corpus, from the
   # ingestion join through dispatch and the dual pass to a computed verdict, and
   # assert that it reaches BOTH a green and a red. A harness that cannot report
   # red about a failing model cannot be trusted when it reports green, and

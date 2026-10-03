@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the order of operations and what sits between steps.
 
-Covers `MQC_EVL_UNI_10312` through `10314`, `10337` through `10341` and
-`10348`, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
+Covers `MQC_EVL_UNI_114500` through `114502`, `114503` through `114507` and
+`114508`, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **Assertions are conjunctive gates.** A case passes only when every assertion
 passes and the rubric clears its threshold, so these cases assert the gate and
 not merely that both halves ran.
 
-**`10348` is the load-bearing one.** A rule that a payload is never shown to a
+**`114508` is the load-bearing one.** A rule that a payload is never shown to a
 judge is worth nothing unless something fails when it is, and every other case
 here would still pass if the judge were invoked and happened to behave.
 
@@ -160,7 +160,7 @@ class _RecordingJudge:
 class TestMQCOrderOfOperations:
     """Which step runs, and which steps a decision forecloses."""
 
-    def MQC_EVL_UNI_10312_programmatic_assertions_run_before_judge(
+    def MQC_EVL_UNI_114500_programmatic_assertions_run_before_judge(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -184,7 +184,7 @@ class TestMQCOrderOfOperations:
         assert len(judge.requests) == 1
         assert result.judged is True
 
-    def MQC_EVL_UNI_10314_screen_abort_skips_assertions_and_judge(
+    def MQC_EVL_UNI_114502_screen_abort_skips_assertions_and_judge(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -209,7 +209,7 @@ class TestMQCOrderOfOperations:
         assert result.passed is False
         assert "QC_SEC_INJECTION_ATTEMPT" in result.taxonomy_codes
 
-    def MQC_EVL_UNI_10313_violation_failure_skips_judge_by_default(
+    def MQC_EVL_UNI_114501_violation_failure_skips_judge_by_default(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -231,7 +231,7 @@ class TestMQCOrderOfOperations:
         assert result.judge_skipped_reason == "violation_assertion_failure"
         assert result.judge_on_failure is False
 
-    def MQC_EVL_UNI_10337_violation_failure_judged_under_flag(self, rules: GoldenRuleSet) -> None:
+    def MQC_EVL_UNI_114503_violation_failure_judged_under_flag(self, rules: GoldenRuleSet) -> None:
         """The flag buys a diagnostic score for a case that already failed.
 
         The score is diagnostic, not exculpatory: it distinguishes good content
@@ -254,7 +254,7 @@ class TestMQCOrderOfOperations:
         assert result.judged is True
         assert result.passed is False
 
-    def MQC_EVL_UNI_10338_fatal_failure_never_judged_even_under_flag(
+    def MQC_EVL_UNI_114504_fatal_failure_never_judged_even_under_flag(
         self,
         fatal_rules: GoldenRuleSet,
     ) -> None:
@@ -306,7 +306,7 @@ def _rule_set_with_rubric(payload_source: dict[str, Any]) -> GoldenRuleSet:
 class TestMQCAdversarialCasesAreNeverJudged:
     """The rule that removes the exposure rather than mitigating it."""
 
-    def MQC_EVL_UNI_10348_declared_adversarial_case_invokes_no_judge(
+    def MQC_EVL_UNI_114508_declared_adversarial_case_invokes_no_judge(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -332,7 +332,7 @@ class TestMQCAdversarialCasesAreNeverJudged:
         assert result.screen.aborts is False
         assert result.assertion_results
 
-    def MQC_EVL_UNI_10376_a_declared_case_is_still_graded_by_assertion(
+    def MQC_EVL_UNI_114509_a_declared_case_is_still_graded_by_assertion(
         self, canary_rule_set: GoldenRuleSet
     ) -> None:
         """Continuing means continuing to the assertions, which decide it.
@@ -359,7 +359,7 @@ class TestMQCAdversarialCasesAreNeverJudged:
 
 
 
-    def MQC_EVL_UNI_10388_a_declared_adversarial_case_passes_on_its_assertions(
+    def MQC_EVL_UNI_114516_a_declared_adversarial_case_passes_on_its_assertions(
         self, canary_rule_set: GoldenRuleSet, sample_rule_payload: dict[str, Any]
     ) -> None:
         """A resisting model could not pass, and nothing noticed.
@@ -374,7 +374,7 @@ class TestMQCAdversarialCasesAreNeverJudged:
         reports is indistinguishable from a real one until somebody asks what a
         passing run would look like.
 
-        **`10347` stopped one level short.** It asserts
+        **`114307` stopped one level short.** It asserts
         ``assertion_results[0].passed`` and says in prose that the assertions
         "decide it", which was true of the intent and false of the code. A case
         asserting an intermediate value cannot notice that the decision built
@@ -448,7 +448,7 @@ class TestMQCAdversarialCasesAreNeverJudged:
 class TestMQCConjunctiveGate:
     """What it takes to pass, and what a skipped judgement records."""
 
-    def MQC_EVL_UNI_10340_assertion_failure_fails_case_despite_passing_rubric(
+    def MQC_EVL_UNI_114506_assertion_failure_fails_case_despite_passing_rubric(
         self, rules: GoldenRuleSet
     ) -> None:
         """Conformance gates the outcome; the rubric measures quality within it.
@@ -472,12 +472,12 @@ class TestMQCConjunctiveGate:
         assert result.score.passed is True
         assert result.passed is False
 
-    def MQC_EVL_UNI_10377_a_failing_rubric_fails_a_case_with_passing_assertions(
+    def MQC_EVL_UNI_114510_a_failing_rubric_fails_a_case_with_passing_assertions(
         self, rules: GoldenRuleSet
     ) -> None:
         """The other half of the conjunction.
 
-        Without this, `10340` alone would be satisfied by an implementation
+        Without this, `114506` alone would be satisfied by an implementation
         that ignored the rubric entirely.
 
         Args:
@@ -496,7 +496,7 @@ class TestMQCConjunctiveGate:
         assert result.passed is False
         assert "QC_LLM_RUBRIC_FAILURE" in result.taxonomy_codes
 
-    def MQC_EVL_UNI_10339_skipped_judgement_recorded_as_not_evaluated(
+    def MQC_EVL_UNI_114505_skipped_judgement_recorded_as_not_evaluated(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -517,7 +517,7 @@ class TestMQCConjunctiveGate:
         assert result.judged is False
         assert result.judge_skipped_reason == "violation_assertion_failure"
 
-    def MQC_EVL_UNI_10341_judge_on_failure_flag_recorded_in_metadata(
+    def MQC_EVL_UNI_114507_judge_on_failure_flag_recorded_in_metadata(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -546,7 +546,7 @@ class TestMQCConjunctiveGate:
         assert without.judged is False
         assert with_flag.judged is True
 
-    def MQC_EVL_UNI_10378_an_unusable_judge_reply_is_a_skip_not_a_failure(
+    def MQC_EVL_UNI_114511_an_unusable_judge_reply_is_a_skip_not_a_failure(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -571,7 +571,7 @@ class TestMQCConjunctiveGate:
 class TestMQCNoOutputProduced:
     """Error is error: output could not be produced, so there is nothing to judge."""
 
-    def MQC_EVL_UNI_10379_an_errored_response_invokes_no_judge(self, rules: GoldenRuleSet) -> None:
+    def MQC_EVL_UNI_114512_an_errored_response_invokes_no_judge(self, rules: GoldenRuleSet) -> None:
         """A turn the provider reported as failed carries nothing to score.
 
         The same reasoning as a fatal assertion failure: the request would
@@ -593,7 +593,7 @@ class TestMQCNoOutputProduced:
         assert result.judged is False
         assert "QC_LLM_NO_OUTPUT" in result.taxonomy_codes
 
-    def MQC_EVL_UNI_10380_an_errored_response_runs_no_assertions_either(
+    def MQC_EVL_UNI_114513_an_errored_response_runs_no_assertions_either(
         self, canary_rule_set: GoldenRuleSet
     ) -> None:
         """The load-bearing case, and the reason the judge alone is not enough.
@@ -621,7 +621,7 @@ class TestMQCNoOutputProduced:
         assert resisted.assertion_results[0].passed is True
         assert resisted.assertion_results != errored.assertion_results
 
-    def MQC_EVL_UNI_10381_an_empty_response_is_treated_as_no_output(
+    def MQC_EVL_UNI_114514_an_empty_response_is_treated_as_no_output(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -644,7 +644,7 @@ class TestMQCNoOutputProduced:
         assert not judge.requests
         assert result.judge_skipped_reason == "no_output_produced"
 
-    def MQC_EVL_UNI_10382_a_truncated_or_filtered_response_is_still_judged(
+    def MQC_EVL_UNI_114515_a_truncated_or_filtered_response_is_still_judged(
         self,
         rules: GoldenRuleSet,
     ) -> None:
@@ -676,7 +676,7 @@ class TestMQCNoOutputProduced:
         assert refused.judged is True
 
 
-    def MQC_EVL_UNI_10400_a_recorded_refusal_passes_a_declared_adversarial_case(
+    def MQC_EVL_UNI_114519_a_recorded_refusal_passes_a_declared_adversarial_case(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """The provider declined, so the attack did not land.
@@ -684,7 +684,7 @@ class TestMQCNoOutputProduced:
         **This is the whole `SEC` family, not one case.** The project owner's
         decision, 2026-09-28: security is in place whether the model, the API or
         an edge filter enforced it, and nothing in a response reveals which. The
-        case that surfaced it, `50015`, had been reported as a model failure for
+        case that surfaced it, `154002`, had been reported as a model failure for
         something the model never did.
 
         **The evidence is what passes it.** A pass awarded on a provider's
@@ -711,7 +711,7 @@ class TestMQCNoOutputProduced:
         assert result.provider_refusal == "prompt:OTHER"
         assert result.judge_skipped_reason == "provider_refused"
 
-    def MQC_EVL_UNI_10401_an_empty_response_without_a_reason_still_does_not_pass(
+    def MQC_EVL_UNI_114520_an_empty_response_without_a_reason_still_does_not_pass(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """Section 4.2.1 survives the decision above, and this is why.
@@ -721,7 +721,7 @@ class TestMQCNoOutputProduced:
         recorded as having resisted, which is the hole 4.2.1 exists to close.
 
         So the discriminator is evidence of a refusal, not absence of output.
-        The response here is identical to the one in `10400` except that the
+        The response here is identical to the one in `114519` except that the
         provider said nothing about why, and it must not pass.
 
         Args:
@@ -744,7 +744,7 @@ class TestMQCNoOutputProduced:
 class TestMQCToolOnlyRuleVerdict:
     """A rule passes on the checks it declares, not the ones that report."""
 
-    def MQC_EVL_UNI_10389_a_tool_only_rule_passes_on_its_tool_check(
+    def MQC_EVL_UNI_114517_a_tool_only_rule_passes_on_its_tool_check(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """Gate 5 could not report a pass, for the same reason Gate 6 could not.
@@ -850,7 +850,7 @@ class TestMQCToolOnlyRuleVerdict:
 class TestMQCRubriclessRule:
     """A rule that exists to be checked rather than judged."""
 
-    def MQC_EVL_UNI_10391_a_rubricless_rule_with_a_bound_judge_is_not_judged(
+    def MQC_EVL_UNI_114518_a_rubricless_rule_with_a_bound_judge_is_not_judged(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """Section 4D permits no rubric; the skip reasons did not know.

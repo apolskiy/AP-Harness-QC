@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for one corpus naming one model.
 
-Covers `MQC_CMN_UNI_11176` through `11178`, inventoried in
+Covers `MQC_CMN_UNI_112320` through `112322`, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 4.9.6.
 
 **Split out of ``mqc_uni_verdict.py`` on 2026-09-26**, which had reached 1043
@@ -63,7 +63,7 @@ def _passing_suite(count: int = 10) -> list[Observation]:
 class TestMQCOneCorpusOneModel:
     """A corpus spanning two model versions is not about either of them."""
 
-    def MQC_CMN_UNI_11176_two_models_on_one_engine_unsounds_the_run(self) -> None:
+    def MQC_CMN_UNI_112320_two_models_on_one_engine_unsounds_the_run(self) -> None:
         """A mixed corpus exits 3, because no result attributes to one model.
 
         **Newly reachable rather than theoretical.** A free-tier quota is keyed
@@ -93,7 +93,7 @@ class TestMQCOneCorpusOneModel:
         reason = " ".join(breach.reason for breach in result.breaches)
         assert "gemini-3.8-flash" in reason and "gemini-3.9-flash" in reason
 
-    def MQC_CMN_UNI_11177_one_model_per_engine_is_sound_across_engines(self) -> None:
+    def MQC_CMN_UNI_112321_one_model_per_engine_is_sound_across_engines(self) -> None:
         """Two engines each reporting their own model is the ordinary case.
 
         **The check is per engine, not across the run.** A run measuring two
@@ -114,7 +114,7 @@ class TestMQCOneCorpusOneModel:
         assert not mixed_model_engines(observations)
         assert verdict(observations, VerdictConfig(), _TODAY).exit_code == 0
 
-    def MQC_CMN_UNI_11178_an_observation_with_no_model_is_not_a_second_version(
+    def MQC_CMN_UNI_112322_an_observation_with_no_model_is_not_a_second_version(
         self,
     ) -> None:
         """A skip never reached a model, so its blank is not a mixture.

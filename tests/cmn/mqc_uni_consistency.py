@@ -58,7 +58,7 @@ class TestMQCObservationConsistency:
             for index, outcome in enumerate(outcomes)
         ]
 
-    def MQC_CMN_UNI_11171_a_case_whose_observations_disagree_is_a_finding(
+    def MQC_CMN_UNI_112033_a_case_whose_observations_disagree_is_a_finding(
         self,
     ) -> None:
         """Two passes and a fail is not a pass, and no majority is taken.
@@ -97,7 +97,7 @@ class TestMQCObservationConsistency:
         # nothing to compare, and that is why A4.1 decided on three.
         assert not inconsistent_cases(self._observed("MQC_CASE_zeta", ["fail"]))
 
-    def MQC_CMN_UNI_11172_inconsistency_at_the_ceiling_unsounds_the_run(
+    def MQC_CMN_UNI_112034_inconsistency_at_the_ceiling_unsounds_the_run(
         self,
     ) -> None:
         """A boundary case, stated at the ceiling exactly.
@@ -150,7 +150,7 @@ class TestMQCObservationConsistency:
         assert inconsistency_rate([]) == 0.0
 
 
-    def MQC_CMN_UNI_11175_a_score_moving_inside_the_band_is_recorded_not_gated(
+    def MQC_CMN_UNI_112035_a_score_moving_inside_the_band_is_recorded_not_gated(
         self,
     ) -> None:
         """Three observations scoring 4, 4 and 5 all pass, and the spread is real.
@@ -225,7 +225,7 @@ class TestMQCObservationConsistency:
             "the verdict did not carry the spread, so it is computed and lost"
         )
 
-    def MQC_CMN_UNI_11206_one_disagreement_earns_two_further_observations(
+    def MQC_CMN_UNI_112036_one_disagreement_earns_two_further_observations(
         self,
     ) -> None:
         """One failed observation of three earns two more; nothing else earns any.

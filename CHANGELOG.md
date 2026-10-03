@@ -43,7 +43,7 @@ model defaults its effort level one step lower, so the adapter now states the
 value (`_DEFAULT_EFFORT`) instead of inheriting it. The setting enters the
 request hash, so moving it reports a stale fixture rather than silently
 changing how much the model thinks. `tier2_execution.md` section 5A.1 carries
-the reasoning; `MQC_EXE_UNI_10272` and `10273` enforce it.
+the reasoning; `MQC_EXE_UNI_113011` and `113012` enforce it.
 
 **No recurring cost changes.** A3 Option 1 stands: the judge is Gemini on the
 free tier and Claude remains a replay-only candidate, so the lower price
@@ -64,11 +64,11 @@ yet, so it costs no migration.
   the code excerpts, `model_evaluation_test_plan.md` and `rtm_model.csv`.
 - **Removed**: `MQC_CMN_UNI_10171` through `10173`, `11105` and `11106`, with
   `MQC_REQ_HAR_CMN_0027`. They read case-side data, which the split revealed as a
-  boundary violation. Re-homed as `MQC_CAS_UNI_10401` through `10405`.
+  boundary violation. Re-homed as `MQC_CAS_UNI_115100` through `115104`.
 - **Added**: `CAS` as a registered module with its own identifier block, which
   spans repositories because the durable record does.
 - **Licensed**: Apache 2.0 with a `NOTICE`, and an SPDX header on every Python
-  file, enforced by `MQC_CMN_UNI_11113`.
+  file, enforced by `MQC_CMN_UNI_112502`.
 
 ### Implementation, Phase 3
 
@@ -76,7 +76,7 @@ All four modules implemented, with 357 precondition cases and 107 traced
 requirements. Four CI workflows written and linted. The 3-phase workflow in
 `.claude/skills/skill-rules.md` was observed throughout: every case was
 inventoried in a design document before it was built, which
-`MQC_CMN_UNI_10183`, `10186` and `10187` now enforce mechanically.
+`MQC_CMN_UNI_112303`, `112305` and `112306` now enforce mechanically.
 
 ### Added
 

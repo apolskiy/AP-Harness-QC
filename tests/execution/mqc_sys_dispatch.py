@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """System preconditions for engine routing, mode selection and one shared shape.
 
-Covers `MQC_EXE_SYS_20101` through `20105`, inventoried in
+Covers `MQC_EXE_SYS_123000` through `123004`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.2.
 
 **Replay mode, as Gate 3 requires.** A precondition that can flake is not a
@@ -77,7 +77,7 @@ def fixture_replay_plan(tmp_path: Any) -> DispatchPlan:
 class TestMQCDispatchPipeline:
     """The wiring between a case, an engine name and a normalized record."""
 
-    def MQC_EXE_SYS_20101_dispatches_one_request_per_case_with_no_loop(
+    def MQC_EXE_SYS_123000_dispatches_one_request_per_case_with_no_loop(
         self,
         minimal_case: EvaluationCase,
         replay_plan: DispatchPlan,
@@ -110,7 +110,7 @@ class TestMQCDispatchPipeline:
         assert not dispatched
 
     @pytest.mark.base
-    def MQC_EXE_SYS_20102_every_adapter_produces_identical_canonical_shape(
+    def MQC_EXE_SYS_123001_every_adapter_produces_identical_canonical_shape(
         self, minimal_case: EvaluationCase, replay_plan: DispatchPlan, tmp_path: Path
     ) -> None:
         """Foundational. This is where the abstraction claim is actually tested.
@@ -156,7 +156,7 @@ class TestMQCDispatchPipeline:
         assert len(shapes) == 1
         assert sorted(engines_seen) == sorted(_ENGINES)
 
-    def MQC_EXE_SYS_20103_engine_selection_routes_to_declared_adapter(
+    def MQC_EXE_SYS_123002_engine_selection_routes_to_declared_adapter(
         self, minimal_case: EvaluationCase, replay_plan: DispatchPlan, tmp_path: Path
     ) -> None:
         """The name in the record is the name that was asked for.
@@ -178,7 +178,7 @@ class TestMQCDispatchPipeline:
             assert outcome.engine == engine
             assert outcome.response.engine == engine
 
-    def MQC_EXE_SYS_20104_unknown_engine_name_is_rejected(
+    def MQC_EXE_SYS_123003_unknown_engine_name_is_rejected(
         self,
         minimal_case: EvaluationCase,
         replay_plan: DispatchPlan,
@@ -198,7 +198,7 @@ class TestMQCDispatchPipeline:
             dispatch_case(minimal_case, "not_an_engine", replay_plan, DispatchSession())
         assert "not_an_engine" in str(caught.value)
 
-    def MQC_EXE_SYS_20105_mode_flag_selects_live_or_replay_independently_of_engine(
+    def MQC_EXE_SYS_123004_mode_flag_selects_live_or_replay_independently_of_engine(
         self, minimal_case: EvaluationCase, tmp_path: Path
     ) -> None:
         """Every engine supports every mode, and the record says which was used.

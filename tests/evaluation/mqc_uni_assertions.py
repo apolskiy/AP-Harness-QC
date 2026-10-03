@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the deterministic half of the dual pass.
 
-Covers `MQC_EVL_UNI_10315` and `10316`, inventoried in
+Covers `MQC_EVL_UNI_114100` and `114101`, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **`not_contains` is what makes injection resistance deterministic.** A payload
@@ -61,7 +61,7 @@ def _assertion(kind: str, parameters: dict, **overrides: object) -> Programmatic
 class TestMQCAssertionKinds:
     """Each registered kind, in both directions."""
 
-    def MQC_EVL_UNI_10316_not_contains_detects_canary_token(self) -> None:
+    def MQC_EVL_UNI_114101_not_contains_detects_canary_token(self) -> None:
         """The case injection resistance rests on.
 
         A payload instructing the model to emit a unique marker makes
@@ -81,8 +81,8 @@ class TestMQCAssertionKinds:
         assert resisted.passed is True
         assert resisted.taxonomy_code is None
 
-    def MQC_EVL_UNI_10356_contains_requires_the_substring_to_be_present(self) -> None:
-        """The mirror of `10316`, so neither passes by always answering one way.
+    def MQC_EVL_UNI_114102_contains_requires_the_substring_to_be_present(self) -> None:
+        """The mirror of `114101`, so neither passes by always answering one way.
 
         Returns:
             None
@@ -91,7 +91,7 @@ class TestMQCAssertionKinds:
         assert run_assertion(assertion, "It requires five years.").passed is True
         assert run_assertion(assertion, "It requires some experience.").passed is False
 
-    def MQC_EVL_UNI_10357_regex_checks_presence_and_absence(self) -> None:
+    def MQC_EVL_UNI_114103_regex_checks_presence_and_absence(self) -> None:
         """One kind, both polarities, because the parameter decides which.
 
         Returns:
@@ -105,7 +105,7 @@ class TestMQCAssertionKinds:
         assert run_assertion(absent, "A finished answer.").passed is True
         assert run_assertion(absent, "A TODO remains.").passed is False
 
-    def MQC_EVL_UNI_10358_json_schema_reports_why_a_structure_failed(self) -> None:
+    def MQC_EVL_UNI_114104_json_schema_reports_why_a_structure_failed(self) -> None:
         """A failing structural check says what was wrong, not only that it was.
 
         Returns:
@@ -126,7 +126,7 @@ class TestMQCAssertionKinds:
     @pytest.mark.parametrize(
         "bullets,expected", [(4, True), (5, True), (6, False)]
     )
-    def MQC_EVL_UNI_10359_length_bound_holds_at_the_threshold_exactly(
+    def MQC_EVL_UNI_114105_length_bound_holds_at_the_threshold_exactly(
         self, bullets: int, expected: Any
     ) -> None:
         """Stated at the bound, not near it.
@@ -146,7 +146,7 @@ class TestMQCAssertionKinds:
         text = "\n".join(f"- point {index}" for index in range(bullets))
         assert run_assertion(assertion, text).passed is expected
 
-    def MQC_EVL_UNI_10360_an_unregistered_length_unit_is_a_harness_error(self) -> None:
+    def MQC_EVL_UNI_114106_an_unregistered_length_unit_is_a_harness_error(self) -> None:
         """An unknown unit measured as characters would produce a confident lie.
 
         Returns:
@@ -156,7 +156,7 @@ class TestMQCAssertionKinds:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             run_assertion(assertion, "Some text.")
 
-    def MQC_EVL_UNI_10361_an_unregistered_kind_is_a_harness_error_not_a_failure(self) -> None:
+    def MQC_EVL_UNI_114107_an_unregistered_kind_is_a_harness_error_not_a_failure(self) -> None:
         """Our configuration error must not be recorded as a model finding.
 
         Treating it as a failure would attribute our own mistake to the model
@@ -177,7 +177,7 @@ class TestMQCAssertionKinds:
 class TestMQCAssertionResults:
     """What a result carries, and how results combine."""
 
-    def MQC_EVL_UNI_10315_assertion_result_records_originating_assertion_id(self) -> None:
+    def MQC_EVL_UNI_114100_assertion_result_records_originating_assertion_id(self) -> None:
         """A failing case says what failed, not only that something did.
 
         Returns:
@@ -197,7 +197,7 @@ class TestMQCAssertionResults:
         assert [result.passed for result in results] == [True, False]
         assert results[1].kind == "contains"
 
-    def MQC_EVL_UNI_10362_every_assertion_runs_rather_than_stopping_at_the_first(self) -> None:
+    def MQC_EVL_UNI_114108_every_assertion_runs_rather_than_stopping_at_the_first(self) -> None:
         """A case failing three and a case failing one prompt different fixes.
 
         Short-circuiting would mean discovering the second failure on the next
@@ -216,7 +216,7 @@ class TestMQCAssertionResults:
         assert len(results) == 3
         assert assertions_passed(results) is False
 
-    def MQC_EVL_UNI_10363_fatal_severity_is_distinguished_from_violation(self) -> None:
+    def MQC_EVL_UNI_114109_fatal_severity_is_distinguished_from_violation(self) -> None:
         """The distinction the two severities exist to make.
 
         A fatal failure is never judged, flag or not, because there is nothing
@@ -236,7 +236,7 @@ class TestMQCAssertionResults:
         assert has_fatal_failure(fatal) is True
         assert registered_severities() == {"violation", "fatal"}
 
-    def MQC_EVL_UNI_10364_a_passing_assertion_carries_no_taxonomy_code(self) -> None:
+    def MQC_EVL_UNI_114110_a_passing_assertion_carries_no_taxonomy_code(self) -> None:
         """A blank taking its default is normal operation, never a finding.
 
         Recording a code on a pass would corrupt every later count drawn from

@@ -310,6 +310,12 @@ _CARRIED: set[str] = set()
 _UNMET: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
 
 # Identifiers look like MQC_<MODULE>_<LAYER>_<5 digits>_<behaviour>.
+# FIVE OR SIX, DELIBERATELY. This extracts a number so the cascade can
+# resolve a dependency; it does not validate the width, which
+# `.pylintrc` enforces on every real definition. The dependency
+# fixtures embed a sub-suite whose callables are named in the 90xxx
+# range, and a resolver that refused them would break the cascade's own
+# test. Design `test_taxonomy.md` section 3.2.1.3.
 _IDENTIFIER = re.compile(r"MQC_[A-Z]+_[A-Z]{3,5}_(\d{5,6})_")
 
 
@@ -755,7 +761,7 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
 
     # IDENTIFIED THE WAY `declared_bases` DOES rather than by substring: two
     # conventions for what a case is called would eventually disagree about
-    # which foundations a band needs, and `30015` is a substring of `130015`.
+    # which foundations a band needs, and `134205` is a substring of `130015`.
     outside = {
         item for item in items
         if item_priority(item) not in (None, *bands)

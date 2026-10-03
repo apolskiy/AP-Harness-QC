@@ -7684,3 +7684,80 @@ the replay path that was the defect.
 ### State
 
 661 passing, pylint 10.00/10 exit 0.
+
+## 2026-10-02: every identifier renumbered to six positional digits
+
+### What was applied
+
+670 identifiers, 3311 replacements across 116 files in both repositories, then
+a tail of three classes the main pass deliberately left.
+
+**One regex pass per context, never sequential replacement.**
+`MQC_CMN_UNI_11230` is a substring of `MQC_CMN_UNI_112301`, so replacing in
+sequence would have rewritten an already-rewritten identifier. A single pass
+with a `(?!\d)` lookahead and a replacement function cannot re-examine what it
+produced. That is the near-miss `testing-standards.md` records, which a
+lookahead added late was the only thing that prevented last time.
+
+### Resolving a bare citation turned out to be a rule, not a list
+
+Nine bare numbers named a case in two modules, because the old blocks had been
+breached. Rather than hardcode nine answers, two rules settled all of them:
+
+| Rule | Covers |
+|---|---|
+| **An inventory row names its behaviour**, and no two cases share a number and a behaviour | Every inventory citation, with no module inferred at all |
+| **A bare number continuing a full identifier inherits its module** | The idiom these use: "`MQC_CAS_UNI_10401` through `10403`", "`MQC_EXE_UNI_10301` and `10303`" |
+
+One citation fitted neither and was **fixed at source** instead: a sentence
+reading "where `10401` through `10403` guard it" now names the module once.
+A citation that needs a detective to resolve is a documentation defect.
+
+### The tail, and what each class needed
+
+| Class | Why the main pass left it | Rule applied |
+|---|---|---|
+| The layer `id_block` tuples | They are **bounds, not citations**: `(10001, 19999)` is UNI's block, now `(110000, 119999)` | Replaced as bounds |
+| A number inside a larger literal | `expand-10428-09-24-2026` cannot be told from a date or a version without reading around it | Replaced by hand, three of them |
+| A bare number in a comment | `and 10303, while nothing proved...` carries no backticks or quotes | Nearest preceding identifier, within 200 characters |
+
+### Four checks the rename broke, each for a reason worth recording
+
+| What failed | Why |
+|---|---|
+| `requirements.txt` against `pyproject.toml` | The renamer correctly rewrote two identifier citations in `pyproject.toml` comments, and the generated file had to follow |
+| The branch-referent case | `known` was renumbered and the branch name embedding the same number was not, so the two sides disagreed |
+| The block-overlap case | It claimed `(10500, 10600)`, which overlapped the **old** UNI block and nothing afterwards, so it stopped testing what it names |
+| The dependency cascade | Tightening `_IDENTIFIER` to six digits broke resolution of the `90xxx` sub-suite, which is string content rather than definitions |
+
+**The last one corrected a claim I had just written.** Section 3.2.1.3 said
+nothing reads the dependency fixtures. `cmn.pytest_support._IDENTIFIER` reads
+them, to resolve the cascade, and it stays permissive deliberately: its job is
+to extract a number, not to validate a width, which `.pylintrc` now does on
+every real definition.
+
+### A pattern class the widening sweep missed entirely
+
+The sweep found eighteen patterns matching on **digit count**. It could not find
+`_INVENTORY_ROW`, which matched on **block prefix**: `` `(5\d{4})` `` for the
+old security block. Against six-digit identifiers it matched nothing, and the
+check using it reported no problems because it found no rows. That is the
+failure mode the sweep existed to prevent, in the one shape the sweep could not
+see.
+
+### The check whose absence caused this
+
+`MQC_CMN_UNI_112146` and `MQC_CAS_UNI_115506` read every collected callable and
+report one whose digits contradict its tokens. **Nothing checked the previous
+allocation**, which is how `EXE/UNI` came to sit inside `EVL`'s block,
+`EVL/UNI` inside `CAS`'s and `CMN/UNI` past its last allocated block, all at
+once and silently. `112226` cannot see it: two modules occupying one block are
+two distinct identifiers, so counting bindings balances.
+
+Both roots report clean, which is the evidence the rename placed every
+identifier where its tokens say it belongs.
+
+### State
+
+666 passing, pylint 10.00/10 exit 0. `identifier_map.csv` holds all 670
+mappings, so history carrying a five-digit identifier stays readable.

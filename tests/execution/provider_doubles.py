@@ -794,7 +794,7 @@ def gemini_blocked_prompt(reason: str = "OTHER") -> _GeminiResponse:
     already had a `blocked` flag that produced a candidate whose content was
     absent, which is the shape of a blocked *candidate*. A prompt refused before
     generation returns no candidate at all and explains itself in
-    `prompt_feedback`, and the difference is why `50015` was reported as a model
+    `prompt_feedback`, and the difference is why `154002` was reported as a model
     failure for three runs: the double tested a shape the provider does not
     produce.
 

@@ -153,7 +153,7 @@ protocol's.
 
 **`BASE_URL` is the only field that routes a request.** An engine that omits it
 reaches OpenAI holding another vendor's key, which surfaces as an
-authentication failure naming the wrong vendor. `MQC_EXE_UNI_10281` reports it.
+authentication failure naming the wrong vendor. `MQC_EXE_UNI_113014` reports it.
 
 #### 3.5.2 The credential is a variable name, never a value
 
@@ -256,8 +256,8 @@ failure on all three observations.
 | Claude refusal, before | `content_filter` | **empty** | **A model failure** |
 | Claude refusal, after | `content_filter` | `refusal` | Resistance, a pass |
 
-**This is the second time.** `MQC_EXE_UNI_10253` records a gemini double of the
-wrong shape that reported `50015` as a model failure for three recorded runs.
+**This is the second time.** `MQC_EXE_UNI_113509` records a gemini double of the
+wrong shape that reported `154002` as a model failure for three recorded runs.
 That was corrected in the gemini adapter rather than stated as an obligation on
 adapters, so the next adapter written reproduced it. **A fix applied to one
 implementation of an interface is not a fix to the interface.**
@@ -272,7 +272,7 @@ withheld before the prompt was read. Section 4.3's own reasoning applies: both
 stages count the same today and a corpus storing only "blocked" could not be
 split later.
 
-`MQC_EXE_UNI_10309` covers the adapter. `MQC_CAS_UNI_10463` covers the corpus,
+`MQC_EXE_UNI_113022` covers the adapter. `MQC_CAS_UNI_115402` covers the corpus,
 and it is the one that would have caught this: it reads the recorded fixtures and
 reports any response that withheld content without saying why, whichever adapter
 produced it.
@@ -364,7 +364,7 @@ that decision absorbed a response-shape change made two model generations later.
 A normalizer that had concatenated every block, or read `content[0]`, would now
 be emitting reasoning text into the candidate answer under evaluation.
 
-`10273` holds the four breaking changes as a standing check on the composed
+`113012` holds the four breaking changes as a standing check on the composed
 request, so a later edit cannot reintroduce one and discover it as a 400 during
 a live run.
 
@@ -485,7 +485,7 @@ Recording happens only in `live` mode and writes fixtures with the request hash,
 | **The normalized record** | A fixture is provider-agnostic and survives an SDK shape change. Replay exercises no normalization |
 | The provider payload | Replay would re-run normalization, and every fixture would break whenever a vendor changed a field name |
 
-The second option buys one thing: normalization defects would surface during replay. That is not worth the cost, because normalization is already covered directly by the conformance battery (section 9), by the per-adapter cases (section 10.1.3), and by `20102` asserting that three adapters produce one shape. Paying for it a fourth time with fixtures that rot on a vendor's schedule is a bad trade.
+The second option buys one thing: normalization defects would surface during replay. That is not worth the cost, because normalization is already covered directly by the conformance battery (section 9), by the per-adapter cases (section 10.1.3), and by `123001` asserting that three adapters produce one shape. Paying for it a fourth time with fixtures that rot on a vendor's schedule is a bad trade.
 
 The record therefore serializes to and from a plain mapping, and **deserialization goes back through the record's own constructor**, so a hand-edited fixture carrying an unregistered mode or finish reason is rejected on read rather than replayed.
 
@@ -582,7 +582,7 @@ failure, because a red suite reads as a finding about the model.
 
 #### 7.6.1 Why it stayed invisible
 
-`MQC_EXE_UNI_10262` and its neighbours assert that **the store** raises, which
+`MQC_EXE_UNI_113003` and its neighbours assert that **the store** raises, which
 it does. Nothing asserted that **dispatch converts** what the store raises into
 a skip, and the two are different claims about different modules.
 
@@ -592,7 +592,7 @@ clause disagreed with it.
 
 **It could not surface before a graded case existed.** Every replay path in
 the suite until now supplied a fixture, because a case that needs one was
-written alongside it. `MQC_EXE_UNI_10274` asserts the conversion directly, so
+written alongside it. `MQC_EXE_UNI_113611` asserts the conversion directly, so
 it no longer depends on somebody running a graded case with an empty store.
 
 
@@ -671,7 +671,7 @@ the **last** thing that should also carry the judgement of it.
 
 So the judge dispatches through a `JudgeChannel`, which **constructs its own
 adapter** rather than accepting one, paces itself, and releases on the same
-rule. `MQC_EXE_UNI_10277` asserts that a channel built for the candidate's own
+rule. `MQC_EXE_UNI_113212` asserts that a channel built for the candidate's own
 engine still holds a different adapter instance.
 
 ##### Why the channel lives in Tier 2 and hands out a callable
@@ -749,7 +749,7 @@ automatically:
 > An adapter declaring `structured_output` must compose a judgement carrying
 > its reply schema, and must parse a provider reply into a mapping.
 
-`MQC_EXE_UNI_10278` asserts it. **An adapter may still decline to judge** by
+`MQC_EXE_UNI_113116` asserts it. **An adapter may still decline to judge** by
 declaring `structured_output=False`, which costs it only the judge role and
 excludes it from the check. What it may no longer do is claim the capability
 and not have it.
@@ -808,8 +808,8 @@ judgement is bound to **the exact text it scored**. A judgement is a score of a
 specific response, and replaying one against different candidate output answers
 a question nobody asked.
 
-`MQC_EXE_UNI_10283` asserts that a replay channel never reaches the adapter,
-and `MQC_EXE_UNI_10284` that a live one records what it obtained.
+`MQC_EXE_UNI_113300` asserts that a replay channel never reaches the adapter,
+and `MQC_EXE_UNI_113301` that a live one records what it obtained.
 
 
 #### 7.9.3 The key separates candidate engines, because the hash only detects that it did not
@@ -866,7 +866,7 @@ Candidate first, because that is the order the rest of the tree already reads:
 `replay/<candidate_engine>/...` for candidates, so a reader looking for
 everything one engine produced finds it under one name in both subtrees.
 
-`MQC_CMN_UNI_11201` asserts that two candidate engines judged by one judge
+`MQC_CMN_UNI_112615` asserts that two candidate engines judged by one judge
 occupy two files. It fails against the old key by reading back the first
 judgement and finding the second, which is the shape the defect had.
 
@@ -917,7 +917,7 @@ exactly right.
 That reuses `load_judgement`'s own distinction rather than restating it, so a
 gap means the same thing here as everywhere else.
 
-`MQC_EXE_UNI_10293` asserts that a recorded observation is not dispatched again
+`MQC_EXE_UNI_113213` asserts that a recorded observation is not dispatched again
 and a stale one is.
 
 
@@ -936,7 +936,7 @@ about 0.01 of actual work.
 
 **The rule is the candidate's, unchanged.** A judgement that loads cleanly is
 returned; a stale one is a gap, because the rubric or the response moved and
-what is stored answers a different question. `MQC_EXE_UNI_10308` holds both
+what is stored answers a different question. `MQC_EXE_UNI_113305` holds both
 halves, including the stale case, since a fill that reused a judgement recorded
 against another rubric would be worse than no fill at all.
 
@@ -994,7 +994,7 @@ A handshake is roughly 0.1s, and it happens after `backoff_sec * 2 ** (attempt
 already waiting**, so the connection is rebuilt during time the run was
 spending anyway.
 
-`MQC_EXE_UNI_10294` asserts the release happens between attempts and not only
+`MQC_EXE_UNI_113214` asserts the release happens between attempts and not only
 at the end of the case.
 
 
@@ -1131,8 +1131,8 @@ run that spends quota to find it.
 that set: all three are conditions where the same request later plausibly
 succeeds, which is the only thing that makes a retry worth its quota.
 
-`MQC_EXE_UNI_10285` asserts the mapping across every registered adapter, and
-`10286` that the code is retried rather than reported once.
+`MQC_EXE_UNI_113118` asserts the mapping across every registered adapter, and
+`113119` that the code is retried rather than reported once.
 
 
 #### 8.5.3 The status says whose defect it is, and what to do about it
@@ -1236,7 +1236,7 @@ second**, the status being the more specific of the two. Gemini, which always
 mapped by status, and the SDK protocols, which mapped by class, now express the
 same thing through one mechanism rather than two.
 
-`MQC_EXE_UNI_10288` asserts the split across every registered adapter.
+`MQC_EXE_UNI_113121` asserts the split across every registered adapter.
 
 
 #### 8.5.5 A redirect means we are not talking to the engine we addressed
@@ -1535,7 +1535,7 @@ Passing this is **necessary and not sufficient** (standard section 11). Each ada
 
 ### 9.1 The battery asserts over the registry, which is a different claim
 
-Four of the nine assertions restate a property already inventoried against the canonical record: arguments are parsed (`10205`, `10206`), the resolved version is recorded (`10211`), and no vendor type survives (`10218`). Those cases construct the record directly and prove the record is well formed.
+Four of the nine assertions restate a property already inventoried against the canonical record: arguments are parsed (`113401`, `113402`), the resolved version is recorded (`113406`), and no vendor type survives (`113408`). Those cases construct the record directly and prove the record is well formed.
 
 **The battery proves something the record-level cases cannot:** that every registered adapter produces such a record. A record-level case passes while an adapter that never builds one correctly sits in the registry untested, which is precisely the gap automatic enrolment exists to close.
 
@@ -1543,15 +1543,15 @@ They are therefore separate inventory rows rather than a reuse of the same ident
 
 | §9 assertion | Inventory row |
 |---|---|
-| 1. Composes a valid request | `10201`, `10202` |
-| 2. Normalizes to the canonical shape | `10203` |
-| 3. Arguments are mappings, never JSON strings | `10254` |
-| 4. A tool call is captured, not executed | `10208` |
-| 5. The version comes from the response | `10255` |
-| 6. Each provider error class maps to its code | `10214`, `10215`, `10216` |
-| 7. An unrecognised error is preserved | `10217` |
-| 8. Declared capabilities match behaviour | `10219`, `10220` |
-| 9. No vendor type survives normalization | `10256` |
+| 1. Composes a valid request | `113100`, `113101` |
+| 2. Normalizes to the canonical shape | `113102` |
+| 3. Arguments are mappings, never JSON strings | `113110` |
+| 4. A tool call is captured, not executed | `113103` |
+| 5. The version comes from the response | `113111` |
+| 6. Each provider error class maps to its code | `113104`, `113105`, `113106` |
+| 7. An unrecognised error is preserved | `113107` |
+| 8. Declared capabilities match behaviour | `113108`, `113109` |
+| 9. No vendor type survives normalization | `113112` |
 
 ---
 
@@ -1563,128 +1563,128 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 | ID | Cat | Behaviour |
 |---|---|---|
-| `10201` | P | `composes_request_from_minimal_case` |
-| `10202` | P | `composes_request_carrying_constraints_and_context` |
-| `10203` | P | `normalizes_response_to_canonical_shape` |
-| `10204` | N | `rejects_response_missing_required_canonical_field` |
-| `10205` | P | `parses_tool_arguments_supplied_as_json_string` |
-| `10206` | P | `parses_tool_arguments_supplied_as_object` |
-| `10207` | N | `malformed_tool_arguments_map_to_model_finding_not_harness` |
-| `10208` | P | `captures_tool_call_without_executing_it` |
-| `10209` | B | `returns_empty_tool_call_list_when_none_present` |
-| `10210` | P | `preserves_tool_call_sequence_order` |
-| `10211` | P | `records_resolved_model_version_not_requested` |
-| `10212` | N | `absent_model_version_fails_preflight` |
-| `10213` | P | `records_both_when_resolved_differs_from_requested` |
-| `10214` | P | `maps_rate_limit_error_to_harness_code` |
-| `10215` | P | `maps_timeout_error_to_harness_code` |
-| `10216` | P | `maps_auth_error_to_harness_code` |
-| `10217` | N | `unrecognised_error_preserves_original_text` |
-| `10218` | N | `no_vendor_type_appears_in_normalized_output` |
-| `10219` | P | `declared_capabilities_derive_unsupported_pairs` |
-| `10220` | N | `tool_case_against_engine_without_tool_calling_is_unsupported` |
-| `10221` | P | `replay_reproduces_all_three_recorded_observations` |
-| `10222` | N | `replay_of_single_response_thrice_is_rejected` |
-| `10223` | N | `changed_request_hash_reports_fixture_stale` |
-| `10224` | N | `absent_fixture_reports_fixture_missing` |
-| `10225` | P | `recorded_fixture_carries_resolved_model_version` |
-| `10226` | P | `replay_mode_applies_no_request_spacing` |
-| `10227` | B | `request_spacing_honoured_at_configured_interval` |
-| `10228` | N | `exhausted_backoff_skips_case_with_rate_limit_code` |
-| `10229` | N | `circuit_breaker_aborts_after_consecutive_failures` |
-| `10230` | N | `auth_error_aborts_immediately` |
-| `10231` | P | `rate_limit_encounters_are_counted_and_reported` |
-| `10232` | N | `adapter_performs_no_scoring_or_interpretation` |
-| `10233` | N | `candidate_timeout_maps_to_candidate_code_not_generic` |
-| `10234` | P | `timeout_records_duration_kind_truncated` |
-| `10235` | P | `unchanged_model_version_yields_no_dispatch` |
-| `10236` | P | `changed_model_version_dispatches_only_the_changed_engine` |
-| `10237` | B | `absent_baseline_is_recorded_rather_than_treated_as_a_change` |
-| `10238` | N | `probe_failure_records_a_harness_event_and_does_not_dispatch` |
-| `10239` | B | `divergent_refs_report_staleness_as_a_finding` |
-| `10240` | P | `request_hash_is_identical_across_line_ending_conventions` |
-| `10241` | N | `a_fixture_path_never_contains_the_case_id_separator` |
-| `10242` | P | `call_id_is_optional_because_providers_differ` |
-| `10243` | N | `mode_outside_the_registered_set_is_rejected` |
-| `10244` | N | `finish_reason_outside_the_registered_set_is_rejected` |
-| `10245` | P | `raw_reference_is_a_pointer_not_a_payload` |
-| `10246` | P | `different_requests_hash_differently` |
-| `10247` | N | `an_unserializable_request_names_the_boundary_it_crossed` |
-| `10248` | N | `an_unreadable_fixture_reports_missing_not_stale` |
-| `10249` | P | `a_resolved_version_is_returned_stripped` |
-| `10250` | P | `a_change_dispatches_once_not_on_every_later_run` |
-| `10251` | P | `a_failed_probe_leaves_its_baseline_untouched` |
-| `10252` | N | `an_unreadable_baseline_is_reported_not_ignored` |
-| `10253` | P | `probe_outcomes_are_returned_in_a_reproducible_order` |
-| `10254` | P | `every_adapter_returns_tool_arguments_as_a_mapping` |
-| `10255` | P | `every_adapter_reads_the_version_from_the_response` |
-| `10256` | N | `no_vendor_type_survives_any_adapter_normalization` |
-| `10257` | N | `registering_two_adapters_under_one_engine_name_fails` |
-| `10258` | P | `the_registry_enrols_every_adapter_in_the_battery` |
-| `10259` | P | `claude_maps_refusal_stop_reason_to_content_filter` |
-| `10260` | P | `claude_concatenates_every_text_block_in_order` |
-| `10261` | P | `openai_maps_the_superseded_tool_call_finish_reason` |
-| `10262` | B | `openai_absent_tool_calls_field_yields_an_empty_list` |
-| `10263` | P | `gemini_reads_the_resolved_version_from_its_own_field` |
-| `10264` | P | `gemini_reconciles_a_stop_reason_carrying_captured_calls` |
-| `10265` | N | `gemini_a_blocked_candidate_yields_empty_text_not_an_error` |
-| `10266` | P | `gemini_disables_provider_side_automatic_function_calling` |
-| `10267` | P | `gemini_maps_each_error_status_to_its_harness_code` |
-| `10268` | N | `an_unregistered_engine_name_names_what_is_registered` |
-| `10269` | P | `claude_sends_the_system_instruction_as_its_own_field` |
-| `10270` | P | `openai_sends_the_system_instruction_as_a_message_role` |
-| `10272` | P | `composed_request_states_effort_rather_than_inheriting_it` |
-| `10273` | N | `composed_request_carries_no_field_the_model_rejects` |
-| `10274` | N | `a_missing_fixture_becomes_a_skip_rather_than_an_error` |
-| `10275` | N | `a_connection_left_open_after_a_response_is_reported` |
-| `10276` | B | `keeping_the_connection_is_opt_in_and_recorded` |
-| `10277` | N | `a_judge_sharing_the_candidate_adapter_is_reported` |
-| `10278` | N | `a_declared_capability_that_cannot_judge_is_reported` |
-| `10279` | P | `a_judgement_round_trips_through_the_adapter_to_a_mapping` |
-| `10280` | P | `an_engine_on_a_shared_protocol_inherits_it_entire` |
-| `10281` | N | `two_engines_on_one_protocol_do_not_share_a_credential` |
-| `10282` | P | `a_role_is_derived_from_the_registry_not_a_list` |
-| `10283` | N | `a_replay_judgement_never_reaches_the_provider` |
-| `10284` | P | `a_live_judgement_is_recorded_for_later_replay` |
-| `10285` | N | `a_transient_provider_failure_is_not_a_parser_error` |
-| `10286` | P | `a_transient_provider_failure_is_retried` |
-| `10287` | N | `a_rejected_request_is_not_an_unanticipated_failure` |
-| `10288` | N | `a_gateway_failure_is_not_the_provider_being_busy` |
-| `10289` | N | `a_redirect_or_connection_failure_is_unreachability` |
-| `10290` | P | `every_interface_maps_a_status_through_one_table` |
-| `10291` | N | `a_provider_failure_while_judging_is_contained` |
-| `10292` | N | `the_judge_channel_imports_no_evaluation_module` |
-| `10293` | P | `filling_gaps_dispatches_only_what_is_missing` |
-| `10294` | P | `a_retry_attempt_opens_its_own_connection` |
-| `10295` | N | `a_spent_quota_period_abandons_its_remaining_attempts` |
-| `10296` | B | `a_rate_limit_of_unknown_period_keeps_its_retries` |
-| `10297` | P | `gemini_reads_the_spent_period_from_the_quota_id` |
-| `10298` | P | `every_adapter_reports_the_four_token_counts` |
-| `10299` | B | `thinking_is_counted_only_where_reported_separately` |
-| `10300` | B | `a_response_carrying_no_usage_reports_zero_not_an_error` |
-| `10301` | N | `a_run_at_its_spend_ceiling_dispatches_nothing_further` |
-| `10302` | P | `a_run_with_no_ceiling_is_unchanged` |
-| `10303` | N | `a_ceiling_against_an_unpriced_model_stops_the_run` |
-| `10304` | N | `an_empty_balance_is_its_own_code_not_an_auth_failure` |
-| `10305` | P | `a_refused_prompt_is_recorded_with_its_reason_and_stage` |
-| `10306` | N | `the_judgement_schema_drops_keywords_the_provider_rejects` |
-| `10307` | N | `each_observation_records_its_own_judgement` |
-| `10308` | N | `fill_gaps_judges_only_what_is_not_recorded` |
-| `10309` | P | `a_claude_refusal_is_recorded_as_a_block` |
-| `10310` | P | `an_outcome_carries_the_request_that_produced_it` |
-| `10271` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
+| `113100` | P | `composes_request_from_minimal_case` |
+| `113101` | P | `composes_request_carrying_constraints_and_context` |
+| `113102` | P | `normalizes_response_to_canonical_shape` |
+| `113400` | N | `rejects_response_missing_required_canonical_field` |
+| `113401` | P | `parses_tool_arguments_supplied_as_json_string` |
+| `113402` | P | `parses_tool_arguments_supplied_as_object` |
+| `113403` | N | `malformed_tool_arguments_map_to_model_finding_not_harness` |
+| `113103` | P | `captures_tool_call_without_executing_it` |
+| `113404` | B | `returns_empty_tool_call_list_when_none_present` |
+| `113405` | P | `preserves_tool_call_sequence_order` |
+| `113406` | P | `records_resolved_model_version_not_requested` |
+| `113500` | N | `absent_model_version_fails_preflight` |
+| `113407` | P | `records_both_when_resolved_differs_from_requested` |
+| `113104` | P | `maps_rate_limit_error_to_harness_code` |
+| `113105` | P | `maps_timeout_error_to_harness_code` |
+| `113106` | P | `maps_auth_error_to_harness_code` |
+| `113107` | N | `unrecognised_error_preserves_original_text` |
+| `113408` | N | `no_vendor_type_appears_in_normalized_output` |
+| `113108` | P | `declared_capabilities_derive_unsupported_pairs` |
+| `113109` | N | `tool_case_against_engine_without_tool_calling_is_unsupported` |
+| `113600` | P | `replay_reproduces_all_three_recorded_observations` |
+| `113601` | N | `replay_of_single_response_thrice_is_rejected` |
+| `113602` | N | `changed_request_hash_reports_fixture_stale` |
+| `113603` | N | `absent_fixture_reports_fixture_missing` |
+| `113604` | P | `recorded_fixture_carries_resolved_model_version` |
+| `113200` | P | `replay_mode_applies_no_request_spacing` |
+| `113201` | B | `request_spacing_honoured_at_configured_interval` |
+| `113202` | N | `exhausted_backoff_skips_case_with_rate_limit_code` |
+| `113203` | N | `circuit_breaker_aborts_after_consecutive_failures` |
+| `113204` | N | `auth_error_aborts_immediately` |
+| `113205` | P | `rate_limit_encounters_are_counted_and_reported` |
+| `113206` | N | `adapter_performs_no_scoring_or_interpretation` |
+| `113207` | N | `candidate_timeout_maps_to_candidate_code_not_generic` |
+| `113208` | P | `timeout_records_duration_kind_truncated` |
+| `113501` | P | `unchanged_model_version_yields_no_dispatch` |
+| `113502` | P | `changed_model_version_dispatches_only_the_changed_engine` |
+| `113503` | B | `absent_baseline_is_recorded_rather_than_treated_as_a_change` |
+| `113504` | N | `probe_failure_records_a_harness_event_and_does_not_dispatch` |
+| `113605` | B | `divergent_refs_report_staleness_as_a_finding` |
+| `113606` | P | `request_hash_is_identical_across_line_ending_conventions` |
+| `113607` | N | `a_fixture_path_never_contains_the_case_id_separator` |
+| `113409` | P | `call_id_is_optional_because_providers_differ` |
+| `113410` | N | `mode_outside_the_registered_set_is_rejected` |
+| `113411` | N | `finish_reason_outside_the_registered_set_is_rejected` |
+| `113412` | P | `raw_reference_is_a_pointer_not_a_payload` |
+| `113608` | P | `different_requests_hash_differently` |
+| `113609` | N | `an_unserializable_request_names_the_boundary_it_crossed` |
+| `113610` | N | `an_unreadable_fixture_reports_missing_not_stale` |
+| `113505` | P | `a_resolved_version_is_returned_stripped` |
+| `113506` | P | `a_change_dispatches_once_not_on_every_later_run` |
+| `113507` | P | `a_failed_probe_leaves_its_baseline_untouched` |
+| `113508` | N | `an_unreadable_baseline_is_reported_not_ignored` |
+| `113509` | P | `probe_outcomes_are_returned_in_a_reproducible_order` |
+| `113110` | P | `every_adapter_returns_tool_arguments_as_a_mapping` |
+| `113111` | P | `every_adapter_reads_the_version_from_the_response` |
+| `113112` | N | `no_vendor_type_survives_any_adapter_normalization` |
+| `113113` | N | `registering_two_adapters_under_one_engine_name_fails` |
+| `113114` | P | `the_registry_enrols_every_adapter_in_the_battery` |
+| `113000` | P | `claude_maps_refusal_stop_reason_to_content_filter` |
+| `113001` | P | `claude_concatenates_every_text_block_in_order` |
+| `113002` | P | `openai_maps_the_superseded_tool_call_finish_reason` |
+| `113003` | B | `openai_absent_tool_calls_field_yields_an_empty_list` |
+| `113004` | P | `gemini_reads_the_resolved_version_from_its_own_field` |
+| `113005` | P | `gemini_reconciles_a_stop_reason_carrying_captured_calls` |
+| `113006` | N | `gemini_a_blocked_candidate_yields_empty_text_not_an_error` |
+| `113007` | P | `gemini_disables_provider_side_automatic_function_calling` |
+| `113008` | P | `gemini_maps_each_error_status_to_its_harness_code` |
+| `113115` | N | `an_unregistered_engine_name_names_what_is_registered` |
+| `113009` | P | `claude_sends_the_system_instruction_as_its_own_field` |
+| `113010` | P | `openai_sends_the_system_instruction_as_a_message_role` |
+| `113011` | P | `composed_request_states_effort_rather_than_inheriting_it` |
+| `113012` | N | `composed_request_carries_no_field_the_model_rejects` |
+| `113611` | N | `a_missing_fixture_becomes_a_skip_rather_than_an_error` |
+| `113210` | N | `a_connection_left_open_after_a_response_is_reported` |
+| `113211` | B | `keeping_the_connection_is_opt_in_and_recorded` |
+| `113212` | N | `a_judge_sharing_the_candidate_adapter_is_reported` |
+| `113116` | N | `a_declared_capability_that_cannot_judge_is_reported` |
+| `113117` | P | `a_judgement_round_trips_through_the_adapter_to_a_mapping` |
+| `113013` | P | `an_engine_on_a_shared_protocol_inherits_it_entire` |
+| `113014` | N | `two_engines_on_one_protocol_do_not_share_a_credential` |
+| `113015` | P | `a_role_is_derived_from_the_registry_not_a_list` |
+| `113300` | N | `a_replay_judgement_never_reaches_the_provider` |
+| `113301` | P | `a_live_judgement_is_recorded_for_later_replay` |
+| `113118` | N | `a_transient_provider_failure_is_not_a_parser_error` |
+| `113119` | P | `a_transient_provider_failure_is_retried` |
+| `113120` | N | `a_rejected_request_is_not_an_unanticipated_failure` |
+| `113121` | N | `a_gateway_failure_is_not_the_provider_being_busy` |
+| `113122` | N | `a_redirect_or_connection_failure_is_unreachability` |
+| `113123` | P | `every_interface_maps_a_status_through_one_table` |
+| `113302` | N | `a_provider_failure_while_judging_is_contained` |
+| `113303` | N | `the_judge_channel_imports_no_evaluation_module` |
+| `113213` | P | `filling_gaps_dispatches_only_what_is_missing` |
+| `113214` | P | `a_retry_attempt_opens_its_own_connection` |
+| `113215` | N | `a_spent_quota_period_abandons_its_remaining_attempts` |
+| `113216` | B | `a_rate_limit_of_unknown_period_keeps_its_retries` |
+| `113016` | P | `gemini_reads_the_spent_period_from_the_quota_id` |
+| `113017` | P | `every_adapter_reports_the_four_token_counts` |
+| `113018` | B | `thinking_is_counted_only_where_reported_separately` |
+| `113019` | B | `a_response_carrying_no_usage_reports_zero_not_an_error` |
+| `113700` | N | `a_run_at_its_spend_ceiling_dispatches_nothing_further` |
+| `113701` | P | `a_run_with_no_ceiling_is_unchanged` |
+| `113702` | N | `a_ceiling_against_an_unpriced_model_stops_the_run` |
+| `113703` | N | `an_empty_balance_is_its_own_code_not_an_auth_failure` |
+| `113020` | P | `a_refused_prompt_is_recorded_with_its_reason_and_stage` |
+| `113021` | N | `the_judgement_schema_drops_keywords_the_provider_rejects` |
+| `113304` | N | `each_observation_records_its_own_judgement` |
+| `113305` | N | `fill_gaps_judges_only_what_is_not_recorded` |
+| `113022` | P | `a_claude_refusal_is_recorded_as_a_block` |
+| `113217` | P | `an_outcome_carries_the_request_that_produced_it` |
+| `113209` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
 
 | ID | Cat | Behaviour |
 |---|---|---|
-| `20101` | P | `dispatches_one_request_per_case_with_no_loop` |
-| `20102` | P | `every_adapter_produces_identical_canonical_shape` |
-| `20103` | P | `engine_selection_routes_to_declared_adapter` |
-| `20104` | N | `unknown_engine_name_is_rejected` |
-| `20105` | P | `mode_flag_selects_live_or_replay_independently_of_engine` |
+| `123000` | P | `dispatches_one_request_per_case_with_no_loop` |
+| `123001` | P | `every_adapter_produces_identical_canonical_shape` |
+| `123002` | P | `engine_selection_routes_to_declared_adapter` |
+| `123003` | N | `unknown_engine_name_is_rejected` |
+| `123004` | P | `mode_flag_selects_live_or_replay_independently_of_engine` |
 
-**`20102` is marked foundational** (`@pytest.mark.base`). A provider-agnostic interface carrying only plain text proves nothing; one normalising three genuinely different tool-call and error shapes is a real abstraction, and this is where that claim is tested.
+**`123001` is marked foundational** (`@pytest.mark.base`). A provider-agnostic interface carrying only plain text proves nothing; one normalising three genuinely different tool-call and error shapes is a real abstraction, and this is where that claim is tested.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
@@ -1692,55 +1692,55 @@ Its failure means the canonical shape does not hold across adapters, so every do
 
 #### 10.1.1 The version probe
 
-`10235` through `10238` cover the nightly probe specified in `ci_pipeline.md` section 4. The probe resolves each engine's model version and decides whether a live run is warranted, which is decision logic and therefore testable rather than configuration.
+`113501` through `113504` cover the nightly probe specified in `ci_pipeline.md` section 4. The probe resolves each engine's model version and decides whether a live run is warranted, which is decision logic and therefore testable rather than configuration.
 
-**`10237` is the boundary that matters.** On a first run no baseline exists, and an absent baseline is not a change. Treating it as one would dispatch a live run for every engine the first time the probe executes, and again after any baseline reset, spending quota to discover nothing. The case is stated at the exact condition, per the boundary rule.
+**`113503` is the boundary that matters.** On a first run no baseline exists, and an absent baseline is not a change. Treating it as one would dispatch a live run for every engine the first time the probe executes, and again after any baseline reset, spending quota to discover nothing. The case is stated at the exact condition, per the boundary rule.
 
 #### 10.1.2 Twelve counterweights and boundaries
 
-`10242` through `10253` were designed after the first Tier 2 test run, and each guards a case the inventory's positives could not.
+`113409` through `113509` were designed after the first Tier 2 test run, and each guards a case the inventory's positives could not.
 
-**`10246` is the counterweight `10240` needs.** A hash that ignored line endings by ignoring content would satisfy `10240` completely and be worthless. A normalization case without its counterweight asserts that two things are equal and never that anything is different.
+**`113608` is the counterweight `113606` needs.** A hash that ignored line endings by ignoring content would satisfy `113606` completely and be worthless. A normalization case without its counterweight asserts that two things are equal and never that anything is different.
 
-**`10247` and `10252` are the same shape:** a value that cannot be read must be reported rather than absorbed. A corrupt version baseline silently read as empty is the worst outcome available, because the probe would then report every night that nothing changed while holding no record of what anything was.
+**`113609` and `113508` are the same shape:** a value that cannot be read must be reported rather than absorbed. A corrupt version baseline silently read as empty is the worst outcome available, because the probe would then report every night that nothing changed while holding no record of what anything was.
 
-**`10251` states what a failed probe must not do.** Overwriting a baseline with nothing would fake a change on the following run, turning one broken night into a spurious live run the next.
+**`113507` states what a failed probe must not do.** Overwriting a baseline with nothing would fake a change on the following run, turning one broken night into a spurious live run the next.
 
-**`10250` closes the loop `10236` opens.** Detecting a change is useless if it dispatches again every night afterwards, and nothing in the positive case for detection says the baseline moves with it.
+**`113506` closes the loop `113502` opens.** Detecting a change is useless if it dispatches again every night afterwards, and nothing in the positive case for detection says the baseline moves with it.
 
-**`10240` makes the request hash independent of how a file was checked out.** Content is normalized to LF before hashing, so a task document or code excerpt of more than one line produces the same hash on Windows and on Linux. Without it, every replay fixture reports stale on whichever platform did not record it, `MQC_REQ_HAR_EXE_0009` fires correctly, and the diagnosis is wrong.
+**`113606` makes the request hash independent of how a file was checked out.** Content is normalized to LF before hashing, so a task document or code excerpt of more than one line produces the same hash on Windows and on Linux. Without it, every replay fixture reports stale on whichever platform did not record it, `MQC_REQ_HAR_EXE_0009` fires correctly, and the diagnosis is wrong.
 
 `.gitattributes` also pins line endings. **Both exist because either alone is a single point of failure**: the attributes file can be edited or absent in a copy of the repository, and normalization in code cannot repair a fixture that was recorded from already-rewritten content.
 
-**`10239` is the one place a stale fixture is not a problem.** `MQC_REQ_HAR_EXE_0009` requires staleness to be reported rather than silently replayed, because replaying a recorded answer to a different question corrupts the result. Under the divergent refs of `ci_pipeline.md` section 6.4, a changed request hash is the answer the diagnostic was asking: it says the request composition changed between the two checkpoints. The run reports it per fixture and continues.
+**`113605` is the one place a stale fixture is not a problem.** `MQC_REQ_HAR_EXE_0009` requires staleness to be reported rather than silently replayed, because replaying a recorded answer to a different question corrupts the result. Under the divergent refs of `ci_pipeline.md` section 6.4, a changed request hash is the answer the diagnostic was asking: it says the request composition changed between the two checkpoints. The run reports it per fixture and continues.
 
-**`10238` keeps a broken detector from reading as a model finding.** A probe failure means our code or the provider's metadata endpoint failed, so it records a `QC_HARNESS_*` event and dispatches nothing. The unconditional weekly run covers the period regardless, which is why the probe is allowed to fail without escalating.
+**`113504` keeps a broken detector from reading as a model finding.** A probe failure means our code or the provider's metadata endpoint failed, so it records a `QC_HARNESS_*` event and dispatches nothing. The unconditional weekly run covers the period regardless, which is why the probe is allowed to fail without escalating.
 
 #### 10.1.3 Five battery cases and nine provider quirks
 
-`10254` through `10258` are the conformance battery's own rows, explained in section 9.1: they assert over the registry rather than over a constructed record. `10257` and `10268` guard the registry itself, one against a name claimed twice and one against a name claimed by nothing.
+`113110` through `113114` are the conformance battery's own rows, explained in section 9.1: they assert over the registry rather than over a constructed record. `113113` and `113115` guard the registry itself, one against a name claimed twice and one against a name claimed by nothing.
 
-`10259` through `10267`, with `10269` and `10270`, are the per-adapter cases section 9 requires and `extensibility_standard.md` section 11 makes mandatory for any registry addition. Each names a **real difference between the three providers**, not a restatement of the shared contract:
+`113000` through `113008`, with `113009` and `113010`, are the per-adapter cases section 9 requires and `extensibility_standard.md` section 11 makes mandatory for any registry addition. Each names a **real difference between the three providers**, not a restatement of the shared contract:
 
 | Provider behaviour | Case | What goes wrong without it |
 |---|---|---|
-| Tool arguments arrive parsed on two providers and as a JSON string on the third | `10254` with `10205` | One provider's tool cases fail on a shape the others never produce |
-| A policy refusal is a distinct stop reason on one provider only | `10259` | A refusal reads as an ordinary completion and is scored as one |
-| Text arrives as several blocks rather than one field | `10260` | Output is silently truncated to its first block |
-| A superseded finish-reason spelling is still emitted by older deployments | `10261` | A successful tool call records as an unknown outcome |
-| The tool-call field is omitted entirely rather than sent empty | `10262` | Normalization fails on the ordinary no-tool response |
-| The resolved version field is named differently on each provider | `10255`, `10263` | Preflight aborts the run for a provider that answered correctly |
-| A tool-calling turn reports the ordinary stop reason | `10264` | Tool-use rates compare vendor conventions, per section 4.3 |
-| A blocked candidate carries no content at all, not empty content | `10265` | A model behaviour worth recording becomes a harness failure recording nothing |
-| Automatic function calling is on by default | `10266` | The harness executes a tool the model chose, per section 3.3 |
-| One error class carries every client failure, distinguished by status | `10267` | Every provider failure records as a parser error |
-| A system instruction is a request field on one provider and a message role on another | `10269`, `10270` | The instruction is folded into the prompt, where models follow it at a different rate |
+| Tool arguments arrive parsed on two providers and as a JSON string on the third | `113110` with `113401` | One provider's tool cases fail on a shape the others never produce |
+| A policy refusal is a distinct stop reason on one provider only | `113000` | A refusal reads as an ordinary completion and is scored as one |
+| Text arrives as several blocks rather than one field | `113001` | Output is silently truncated to its first block |
+| A superseded finish-reason spelling is still emitted by older deployments | `113002` | A successful tool call records as an unknown outcome |
+| The tool-call field is omitted entirely rather than sent empty | `113003` | Normalization fails on the ordinary no-tool response |
+| The resolved version field is named differently on each provider | `113111`, `113004` | Preflight aborts the run for a provider that answered correctly |
+| A tool-calling turn reports the ordinary stop reason | `113005` | Tool-use rates compare vendor conventions, per section 4.3 |
+| A blocked candidate carries no content at all, not empty content | `113006` | A model behaviour worth recording becomes a harness failure recording nothing |
+| Automatic function calling is on by default | `113007` | The harness executes a tool the model chose, per section 3.3 |
+| One error class carries every client failure, distinguished by status | `113008` | Every provider failure records as a parser error |
+| A system instruction is a request field on one provider and a message role on another | `113009`, `113010` | The instruction is folded into the prompt, where models follow it at a different rate |
 
-**`10262` is a boundary rather than a positive** because the absent field is the ordinary case, not the exceptional one. Most responses contain no tool call, so the shape the inventory is likeliest to leave untested is the one that occurs most often.
+**`113003` is a boundary rather than a positive** because the absent field is the ordinary case, not the exceptional one. Most responses contain no tool call, so the shape the inventory is likeliest to leave untested is the one that occurs most often.
 
-**`10271` belongs with the registry cases rather than with the pacing ones.** Mode selection is independent of engine selection, so an unregistered mode is rejected on the plan before an adapter is chosen. Rejecting it later would make the error depend on which engine happened to be selected, and a mode nobody supports would produce three different messages.
+**`113209` belongs with the registry cases rather than with the pacing ones.** Mode selection is independent of engine selection, so an unregistered mode is rejected on the plan before an adapter is chosen. Rejecting it later would make the error depend on which engine happened to be selected, and a mode nobody supports would produce three different messages.
 
-**`10256` is stated negatively on purpose.** Asserting that each adapter emits the right types would pass on an adapter that emits a vendor object in a field nobody enumerated. The case walks the record's fields and rejects any type outside the permitted set, so a field added later is covered without anyone remembering to cover it.
+**`113112` is stated negatively on purpose.** Asserting that each adapter emits the right types would pass on an adapter that emits a vendor object in a field nobody enumerated. The case walks the record's fields and rejects any type outside the permitted set, so a field added later is covered without anyone remembering to cover it.
 
 ---
 

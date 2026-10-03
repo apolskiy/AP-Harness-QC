@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for what a run cost.
 
-Covers `MQC_CMN_UNI_11183` through `11189`, inventoried in
+Covers `MQC_CMN_UNI_112232` through `112238`, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 12.
 
 **Every case here prices a fixed usage against a fixed table on a fixed date.**
@@ -69,7 +69,7 @@ def fixture_table() -> PriceTable:
 class TestMQCPriceTable:
     """What the shipped table says, and what it refuses to say."""
 
-    def MQC_CMN_UNI_11183_a_price_window_that_has_closed_is_reported(
+    def MQC_CMN_UNI_112232_a_price_window_that_has_closed_is_reported(
         self, table: PriceTable
     ) -> None:
         """A stale price does not report an error, it reports a smaller number.
@@ -100,7 +100,7 @@ class TestMQCPriceTable:
                                   for model, windows in table.tiers.items()})
         assert stale_prices(ending, _AFTER_THE_RISE) == sorted(ending.tiers)
 
-    def MQC_CMN_UNI_11184_the_published_increase_is_priced_from_its_own_date(
+    def MQC_CMN_UNI_112233_the_published_increase_is_priced_from_its_own_date(
         self, table: PriceTable
     ) -> None:
         """One model, two windows, and the date decides which applies.
@@ -122,7 +122,7 @@ class TestMQCPriceTable:
         assert after.input_per_million == pytest.approx(before.input_per_million * 2)
         assert after.output_per_million == pytest.approx(before.output_per_million * 2)
 
-    def MQC_CMN_UNI_11185_an_unpriced_model_yields_no_figure_rather_than_zero(
+    def MQC_CMN_UNI_112234_an_unpriced_model_yields_no_figure_rather_than_zero(
         self, table: PriceTable
     ) -> None:
         """Zero is the one wrong answer that looks like a right one.
@@ -142,7 +142,7 @@ class TestMQCPriceTable:
         what the case was always about.
 
         **The real hazard is guarded elsewhere and deliberately not here.**
-        `MQC_EXE_UNI_10303` refuses a budgeted run whose model has no price, so
+        `MQC_EXE_UNI_113702` refuses a budgeted run whose model has no price, so
         funding a credential without pricing its model stops the run rather than
         under-reporting it. A precondition asserting that every roster model is
         priced would be the wrong rule: an engine with no credential runs replay
@@ -168,7 +168,7 @@ class TestMQCPriceTable:
 class TestMQCCostArithmetic:
     """What the four token categories cost, and which rate each takes."""
 
-    def MQC_CMN_UNI_11186_thinking_is_billed_at_the_output_rate(
+    def MQC_CMN_UNI_112235_thinking_is_billed_at_the_output_rate(
         self, table: PriceTable
     ) -> None:
         """The count that was costing money invisibly.
@@ -193,7 +193,7 @@ class TestMQCCostArithmetic:
         )
         assert TokenUsage(output_tokens=40, thinking_tokens=60).billable_output == 100
 
-    def MQC_CMN_UNI_11187_cached_input_is_discounted_and_never_double_counted(
+    def MQC_CMN_UNI_112236_cached_input_is_discounted_and_never_double_counted(
         self, table: PriceTable
     ) -> None:
         """Cached input is part of the input, not an addition to it.
@@ -225,7 +225,7 @@ class TestMQCCostArithmetic:
 class TestMQCCostReport:
     """What each case cost, which is the question a corpus owner asks."""
 
-    def MQC_CMN_UNI_11188_a_judged_case_reports_its_judge_apart_from_its_candidate(
+    def MQC_CMN_UNI_112237_a_judged_case_reports_its_judge_apart_from_its_candidate(
         self, table: PriceTable
     ) -> None:
         """A judged case bills on two prompts, and one number hides which.
@@ -264,7 +264,7 @@ class TestMQCCostReport:
         assert line.judge.input_tokens > line.candidate.input_tokens
         assert report.by_family() == {"code_comprehension": pytest.approx(line.cost)}
 
-    def MQC_CMN_UNI_11189_a_replayed_observation_contributes_nothing(
+    def MQC_CMN_UNI_112238_a_replayed_observation_contributes_nothing(
         self, table: PriceTable
     ) -> None:
         """A replayed response was paid for when it was recorded.

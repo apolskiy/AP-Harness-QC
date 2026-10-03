@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for RTM integrity, in both directions.
 
-Covers `MQC_CMN_UNI_10132` through `10134` and `10185`, inventoried in
+Covers `MQC_CMN_UNI_112300` through `112302` and `112304`, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Two directions, structurally identical to Tier 1's R2 and R3 one level up.**
@@ -66,7 +66,7 @@ def _row(requirement_id: str, tests: str = "", families: str = "") -> MatrixRow:
 class TestMQCMatrixIntegrity:
     """T1 through T5, each firing on exactly what it is for."""
 
-    def MQC_CMN_UNI_10132_rtm_row_with_no_test_is_a_coverage_gap(self) -> None:
+    def MQC_CMN_UNI_112300_rtm_row_with_no_test_is_a_coverage_gap(self) -> None:
         """A requirement recorded and unverified is the more serious gap.
 
         A stale matrix misstates what exists; an uncovered requirement means
@@ -79,17 +79,17 @@ class TestMQCMatrixIntegrity:
         findings = check_matrix_integrity(
             [
                 _row("MQC_REQ_HAR_ING_0001"),
-                _row("MQC_REQ_HAR_ING_0002", "MQC_ING_UNI_10001_first_probe"),
+                _row("MQC_REQ_HAR_ING_0002", "MQC_ING_UNI_111300_first_probe"),
             ],
             {"MQC_REQ_HAR_ING_0001", "MQC_REQ_HAR_ING_0002"},
-            {"MQC_ING_UNI_10001_first_probe"},
+            {"MQC_ING_UNI_111300_first_probe"},
         )
         uncovered = [entry for entry in findings if entry.check == "T2"]
 
         assert [entry.subject for entry in uncovered] == ["MQC_REQ_HAR_ING_0001"]
         assert uncovered[0].gap_type == "coverage"
 
-    def MQC_CMN_UNI_10133_rtm_naming_absent_test_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112301_rtm_naming_absent_test_is_rejected(self) -> None:
         """A row naming a deleted test reports coverage that no longer runs.
 
         Returns:
@@ -98,36 +98,36 @@ class TestMQCMatrixIntegrity:
         findings = check_matrix_integrity(
             [
                 _row("MQC_REQ_HAR_ING_0001", (
-                    "MQC_ING_UNI_10001_first_probe;"
+                    "MQC_ING_UNI_111300_first_probe;"
                     "MQC_ING_UNI_19999_retired_probe"
                 )),
             ],
             {"MQC_REQ_HAR_ING_0001"},
-            {"MQC_ING_UNI_10001_first_probe"},
+            {"MQC_ING_UNI_111300_first_probe"},
         )
         stale = [entry for entry in findings if entry.check == "T3"]
 
         assert [entry.subject for entry in stale] == ["MQC_ING_UNI_19999_retired_probe"]
         assert stale[0].gap_type == "stale reference"
 
-    def MQC_CMN_UNI_10134_test_with_requirement_id_absent_from_rtm_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112302_test_with_requirement_id_absent_from_rtm_is_rejected(self) -> None:
         """Coverage that exists and is unrecorded is invisible to every report.
 
         Returns:
             None
         """
         findings = check_matrix_integrity(
-            [_row("MQC_REQ_HAR_ING_0001", "MQC_ING_UNI_10001_first_probe")],
+            [_row("MQC_REQ_HAR_ING_0001", "MQC_ING_UNI_111300_first_probe")],
             {"MQC_REQ_HAR_ING_0001"},
-            {"MQC_ING_UNI_10001_first_probe", "MQC_ING_UNI_10002_second_probe"},
-            test_requirements={"MQC_ING_UNI_10002_second_probe": ["MQC_REQ_HAR_ING_0099"]},
+            {"MQC_ING_UNI_111300_first_probe", "MQC_ING_UNI_111301_second_probe"},
+            test_requirements={"MQC_ING_UNI_111301_second_probe": ["MQC_REQ_HAR_ING_0099"]},
         )
         untracked = [entry for entry in findings if entry.check == "T4"]
 
-        assert [entry.subject for entry in untracked] == ["MQC_ING_UNI_10002_second_probe"]
+        assert [entry.subject for entry in untracked] == ["MQC_ING_UNI_111301_second_probe"]
         assert "MQC_REQ_HAR_ING_0099" in untracked[0].detail
 
-    def MQC_CMN_UNI_10192_a_declared_requirement_with_no_row_is_reported(self) -> None:
+    def MQC_CMN_UNI_112307_a_declared_requirement_with_no_row_is_reported(self) -> None:
         """T1, the direction the other checks do not cover.
 
         A requirement the plan declares and the matrix omits leaves the matrix
@@ -137,16 +137,16 @@ class TestMQCMatrixIntegrity:
             None
         """
         findings = check_matrix_integrity(
-            [_row("MQC_REQ_HAR_ING_0001", "MQC_ING_UNI_10001_first_probe")],
+            [_row("MQC_REQ_HAR_ING_0001", "MQC_ING_UNI_111300_first_probe")],
             {"MQC_REQ_HAR_ING_0001", "MQC_REQ_HAR_ING_0002"},
-            {"MQC_ING_UNI_10001_first_probe"},
+            {"MQC_ING_UNI_111300_first_probe"},
         )
         untraced = [entry for entry in findings if entry.check == "T1"]
 
         assert [entry.subject for entry in untraced] == ["MQC_REQ_HAR_ING_0002"]
         assert untraced[0].gap_type == "traceability"
 
-    def MQC_CMN_UNI_10185_rtm_families_disagreeing_with_the_inventory_are_reported(self) -> None:
+    def MQC_CMN_UNI_112304_rtm_families_disagreeing_with_the_inventory_are_reported(self) -> None:
         """Families are derived, so a stated value can only be wrong.
 
         A row claiming three families whose cases belong to one is derived data
@@ -158,15 +158,15 @@ class TestMQCMatrixIntegrity:
         """
         findings = check_matrix_integrity(
             [_row("MQC_REQ_MDL_GND_0001", (
-                    "MQC_EVL_EVAL_30001_first_graded_probe;"
-                    "MQC_EVL_EVAL_30002_second_graded_probe"
+                    "MQC_EVL_EVAL_134300_first_graded_probe;"
+                    "MQC_EVL_EVAL_134301_second_graded_probe"
                 ),
                   families="requirement_match;code_comprehension")],
             {"MQC_REQ_MDL_GND_0001"},
-            {"MQC_EVL_EVAL_30001_first_graded_probe", "MQC_EVL_EVAL_30002_second_graded_probe"},
+            {"MQC_EVL_EVAL_134300_first_graded_probe", "MQC_EVL_EVAL_134301_second_graded_probe"},
             case_families={
-                "MQC_EVL_EVAL_30001_first_graded_probe": "requirement_match",
-                "MQC_EVL_EVAL_30002_second_graded_probe": "requirement_match",
+                "MQC_EVL_EVAL_134300_first_graded_probe": "requirement_match",
+                "MQC_EVL_EVAL_134301_second_graded_probe": "requirement_match",
             },
         )
         mismatched = [entry for entry in findings if entry.check == "T5"]
@@ -174,7 +174,7 @@ class TestMQCMatrixIntegrity:
         assert [entry.subject for entry in mismatched] == ["MQC_REQ_MDL_GND_0001"]
         assert mismatched[0].gap_type == "derived data restated wrongly"
 
-    def MQC_CMN_UNI_10193_families_agreeing_with_the_inventory_pass(self) -> None:
+    def MQC_CMN_UNI_112308_families_agreeing_with_the_inventory_pass(self) -> None:
         """The counterweight: T5 must not fire on a correct row.
 
         Returns:
@@ -182,20 +182,20 @@ class TestMQCMatrixIntegrity:
         """
         findings = check_matrix_integrity(
             [_row("MQC_REQ_MDL_GND_0001", (
-                    "MQC_EVL_EVAL_30001_first_graded_probe;"
-                    "MQC_EVL_EVAL_30002_second_graded_probe"
+                    "MQC_EVL_EVAL_134300_first_graded_probe;"
+                    "MQC_EVL_EVAL_134301_second_graded_probe"
                 ),
                   families="code_comprehension;requirement_match")],
             {"MQC_REQ_MDL_GND_0001"},
-            {"MQC_EVL_EVAL_30001_first_graded_probe", "MQC_EVL_EVAL_30002_second_graded_probe"},
+            {"MQC_EVL_EVAL_134300_first_graded_probe", "MQC_EVL_EVAL_134301_second_graded_probe"},
             case_families={
-                "MQC_EVL_EVAL_30001_first_graded_probe": "requirement_match",
-                "MQC_EVL_EVAL_30002_second_graded_probe": "code_comprehension",
+                "MQC_EVL_EVAL_134300_first_graded_probe": "requirement_match",
+                "MQC_EVL_EVAL_134301_second_graded_probe": "code_comprehension",
             },
         )
         assert not [entry for entry in findings if entry.check == "T5"]
 
-    def MQC_CMN_UNI_10194_every_check_runs_rather_than_stopping_at_the_first(self) -> None:
+    def MQC_CMN_UNI_112309_every_check_runs_rather_than_stopping_at_the_first(self) -> None:
         """A matrix touched rarely should not take several cycles to clean.
 
         Returns:
@@ -208,7 +208,7 @@ class TestMQCMatrixIntegrity:
             ],
             {"MQC_REQ_HAR_ING_0001", "MQC_REQ_HAR_ING_0002", "MQC_REQ_HAR_ING_0003"},
             set(),
-            test_requirements={"MQC_ING_UNI_10005_third_probe": ["MQC_REQ_HAR_ING_0404"]},
+            test_requirements={"MQC_ING_UNI_111304_third_probe": ["MQC_REQ_HAR_ING_0404"]},
         )
         assert {entry.check for entry in findings} == {"T1", "T2", "T3", "T4"}
 
@@ -216,7 +216,7 @@ class TestMQCMatrixIntegrity:
 class TestMQCMatrixSchema:
     """The matrices are validated data, not documents someone maintains."""
 
-    def MQC_CMN_UNI_10195_an_unknown_matrix_column_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112310_an_unknown_matrix_column_is_rejected(self) -> None:
         """A column nothing reads is worse than a column that is missing.
 
         Returns:
@@ -228,7 +228,7 @@ class TestMQCMatrixSchema:
                 "owner": "somebody",
             })
 
-    def MQC_CMN_UNI_10196_the_harness_matrix_omits_the_families_column(self) -> None:
+    def MQC_CMN_UNI_112311_the_harness_matrix_omits_the_families_column(self) -> None:
         """An always-empty column teaches a reader to ignore a column.
 
         Families apply to graded cases only, and a precondition tests the
@@ -247,7 +247,7 @@ class TestMQCMatrixSchema:
         assert set(columns) <= set(shared_columns())
         assert model_only_columns() == ("families",)
 
-    def MQC_CMN_UNI_10197_the_live_harness_matrix_passes_every_check(self) -> None:
+    def MQC_CMN_UNI_112312_the_live_harness_matrix_passes_every_check(self) -> None:
         """T2 against the real matrix: every row names at least one test.
 
         **This establishes T2 and nothing else, deliberately narrowed.** An
@@ -258,7 +258,7 @@ class TestMQCMatrixSchema:
         receives the matrix in place of the suite.
 
         A check whose inputs come from its subject can only confirm the subject
-        is self-consistent. `11122` supplies the collected suite, which is the
+        is self-consistent. `112313` supplies the collected suite, which is the
         only source that is not the matrix.
 
         Returns:
@@ -275,7 +275,7 @@ class TestMQCMatrixSchema:
         assert not [entry for entry in findings if entry.check == "T2"]
         assert len(rows) > 100
 
-    def MQC_CMN_UNI_11202_an_untraced_test_is_reported_against_either_matrix(
+    def MQC_CMN_UNI_112324_an_untraced_test_is_reported_against_either_matrix(
         self,
     ) -> None:
         """T7 reports a collected test that no matrix row names.
@@ -347,7 +347,7 @@ def _shipped_cases() -> set[str]:
         set[str]: The identifiers, read from parsed function definitions so a
         name inside a string literal is data rather than a case.
     """
-    pattern = re.compile(r"^MQC_[A-Z]+_[A-Z]{3,5}_\d{5,6}_[a-z0-9_]+$")
+    pattern = re.compile(r"^MQC_[A-Z]+_[A-Z]{3,5}_\d{6}_[a-z0-9_]+$")
     found: set[str] = set()
     for root in _repository_roots():
         for source in (root / "tests").rglob("*.py"):
@@ -397,7 +397,7 @@ def _matrix_paths() -> list[Path]:
 class TestMQCRequirementRegister:
     """The register of requirements, which had no rules of its own."""
 
-    def MQC_CMN_UNI_11158_a_requirement_identifier_declared_twice_is_reported(
+    def MQC_CMN_UNI_112316_a_requirement_identifier_declared_twice_is_reported(
         self,
     ) -> None:
         """T1 reads the declared requirements as a set, so it cannot see this.
@@ -503,7 +503,7 @@ class TestMQCRequirementRegister:
             if entry.check == "T6"
         ]
 
-    def MQC_CMN_UNI_11159_a_register_at_eighty_percent_of_its_ceiling_is_reported(
+    def MQC_CMN_UNI_112317_a_register_at_eighty_percent_of_its_ceiling_is_reported(
         self,
     ) -> None:
         """A ceiling that goes from silent to blocking is repaired badly.
@@ -540,14 +540,14 @@ class TestMQCRequirementRegister:
         assert not register_pressure(highest_assigned())
 
 
-    def MQC_CMN_UNI_11160_a_register_token_that_is_also_a_module_code_is_reported(
+    def MQC_CMN_UNI_112318_a_register_token_that_is_also_a_module_code_is_reported(
         self,
     ) -> None:
         """Widths were doing the work, and widths are not a namespace.
 
         `MQC_CAS_` once prefixed both of this project's registers. The
         requirement spelled **historically** `MQC_CAS_CI_0019`, now
-        `MQC_REQ_CAS_CI_0019`, sat beside the case `MQC_CAS_UNI_10428`, and
+        `MQC_REQ_CAS_CI_0019`, sat beside the case `MQC_CAS_UNI_115005`, and
         the two were told apart only by their third token. Nothing collided,
         because four digits and five never meet. **The hazard was the pattern,
         not the values**: a rename written for one register matched the other,

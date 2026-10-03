@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for schema validation and the ingest invariants.
 
-Covers `MQC_ING_UNI_10001` through `10015` and `10042` through `10048`, as
+Covers `MQC_ING_UNI_111300` through `111314` and `111319` through `111325`, as
 inventoried in ``docs/design/tier1_ingestion.md`` section 13.1.
 
 **These are preconditions, not graded tests.** A failure here is our defect
@@ -38,7 +38,7 @@ pytestmark = pytest.mark.unit
 class TestMQCTaskSchema:
     """Validation of `TaskDataSet`, the record describing what is sent."""
 
-    def MQC_ING_UNI_10001_accepts_complete_task_payload(
+    def MQC_ING_UNI_111300_accepts_complete_task_payload(
         self,
         sample_task_payload: dict[str, Any],
     ) -> None:
@@ -54,7 +54,7 @@ class TestMQCTaskSchema:
         assert task.task_id == "MQC_TASK_sample"
         assert task.rubric_ids == ["MQC_RULE_sample"]
 
-    def MQC_ING_UNI_10003_rejects_task_missing_user_prompt(
+    def MQC_ING_UNI_111302_rejects_task_missing_user_prompt(
         self,
         sample_task_payload: dict[str, Any],
     ) -> None:
@@ -71,7 +71,7 @@ class TestMQCTaskSchema:
             TaskDataSet.from_dict(sample_task_payload)
         assert "user_prompt" in str(caught.value)
 
-    def MQC_ING_UNI_10004_rejects_task_missing_rubric_ids(
+    def MQC_ING_UNI_111303_rejects_task_missing_rubric_ids(
         self,
         sample_task_payload: dict[str, Any],
     ) -> None:
@@ -87,7 +87,7 @@ class TestMQCTaskSchema:
         with pytest.raises(KeyError, match="QC_DATA_REQUIRED_FIELD_MISSING"):
             TaskDataSet.from_dict(sample_task_payload)
 
-    def MQC_ING_UNI_10005_rejects_empty_rubric_ids_list(
+    def MQC_ING_UNI_111304_rejects_empty_rubric_ids_list(
         self,
         sample_task_payload: dict[str, Any],
     ) -> None:
@@ -106,7 +106,7 @@ class TestMQCTaskSchema:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_EMPTY"):
             TaskDataSet.from_dict(sample_task_payload)
 
-    def MQC_ING_UNI_10006_rejects_unknown_yaml_key(
+    def MQC_ING_UNI_111305_rejects_unknown_yaml_key(
         self,
         sample_task_payload: dict[str, Any],
     ) -> None:
@@ -123,7 +123,7 @@ class TestMQCTaskSchema:
             TaskDataSet.from_dict(sample_task_payload)
         assert "system_instructon" in str(caught.value)
 
-    def MQC_ING_UNI_10008_reports_all_missing_fields_not_only_first(self) -> None:
+    def MQC_ING_UNI_111307_reports_all_missing_fields_not_only_first(self) -> None:
         """Every absent field is named in one message.
 
         An author correcting hand-written data wants the whole list rather than
@@ -138,7 +138,7 @@ class TestMQCTaskSchema:
         assert "rubric_ids" in message
         assert "user_prompt" in message
 
-    def MQC_ING_UNI_10009_accepts_task_with_no_optional_fields(
+    def MQC_ING_UNI_111308_accepts_task_with_no_optional_fields(
         self,
         sample_task_payload: dict[str, Any],
     ) -> None:
@@ -162,7 +162,7 @@ class TestMQCTaskSchema:
         assert TaskDataSet.from_dict(sample_task_payload) == expected
 
     @pytest.mark.parametrize("supplied", ["", "   ", "\t\n "])
-    def MQC_ING_UNI_10043_rejects_mandatory_field_supplied_as_whitespace_only(
+    def MQC_ING_UNI_111320_rejects_mandatory_field_supplied_as_whitespace_only(
         self, sample_task_payload: dict[str, Any], supplied: Any
     ) -> None:
         """Whitespace is stripped before emptiness is tested, so blanks are caught.
@@ -178,7 +178,7 @@ class TestMQCTaskSchema:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_EMPTY"):
             TaskDataSet.from_dict(sample_task_payload)
 
-    def MQC_ING_UNI_10045_distinguishes_missing_from_empty_in_emitted_code(
+    def MQC_ING_UNI_111322_distinguishes_missing_from_empty_in_emitted_code(
         self, sample_task_payload: dict[str, Any]
     ) -> None:
         """The two authoring errors carry different codes, because fixes differ.
@@ -202,7 +202,7 @@ class TestMQCTaskSchema:
         assert "QC_DATA_REQUIRED_FIELD_MISSING" in str(missing_case.value)
         assert "QC_DATA_REQUIRED_FIELD_EMPTY" in str(empty_case.value)
 
-    def MQC_ING_UNI_10046_non_ascii_content_survives_an_explicit_encoding_read(
+    def MQC_ING_UNI_111323_non_ascii_content_survives_an_explicit_encoding_read(
         self, sample_task_payload: dict[str, Any]
     ) -> None:
         """Non-ASCII text round-trips unchanged through validation.
@@ -225,7 +225,7 @@ class TestMQCTaskSchema:
         assert TaskDataSet.from_dict(sample_task_payload).user_prompt == original
 
     @pytest.mark.parametrize("reserved", ["nul", "CON", "com1", "LPT9", "aux.json"])
-    def MQC_ING_UNI_10048_case_id_matching_a_windows_reserved_device_name_is_rejected(
+    def MQC_ING_UNI_111325_case_id_matching_a_windows_reserved_device_name_is_rejected(
         self, sample_task_payload: dict[str, Any], reserved: Any
     ) -> None:
         """An identifier that cannot become a directory on Windows is refused.
@@ -245,7 +245,7 @@ class TestMQCTaskSchema:
 class TestMQCGoldenRuleSchema:
     """Validation of `GoldenRuleSet`, including invariants G1 and G6."""
 
-    def MQC_ING_UNI_10002_accepts_complete_golden_rule_payload(
+    def MQC_ING_UNI_111301_accepts_complete_golden_rule_payload(
         self,
         sample_rule_payload: dict[str, Any],
     ) -> None:
@@ -262,7 +262,7 @@ class TestMQCGoldenRuleSchema:
         assert rule.priority == 2
         assert rule.rubric is not None
 
-    def MQC_ING_UNI_10007_rejects_non_numeric_threshold(
+    def MQC_ING_UNI_111306_rejects_non_numeric_threshold(
         self,
         sample_rule_payload: dict[str, Any],
     ) -> None:
@@ -278,7 +278,7 @@ class TestMQCGoldenRuleSchema:
         with pytest.raises(ValueError, match="QC_DATA_MALFORMED_SOURCE"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    def MQC_ING_UNI_10010_rejects_rule_set_with_no_assertions_rubric_or_tools(
+    def MQC_ING_UNI_111309_rejects_rule_set_with_no_assertions_rubric_or_tools(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """G1: a rule set that judges nothing would report green in silence.
@@ -293,7 +293,7 @@ class TestMQCGoldenRuleSchema:
         with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    def MQC_ING_UNI_10038_rejects_empty_priority_conditions(
+    def MQC_ING_UNI_111315_rejects_empty_priority_conditions(
         self,
         sample_rule_payload: dict[str, Any],
     ) -> None:
@@ -309,7 +309,7 @@ class TestMQCGoldenRuleSchema:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_EMPTY"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    def MQC_ING_UNI_10039_rejects_unregistered_priority_condition_id(
+    def MQC_ING_UNI_111316_rejects_unregistered_priority_condition_id(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """G6: free text would permit 'because it is important'.
@@ -325,7 +325,7 @@ class TestMQCGoldenRuleSchema:
             GoldenRuleSet.from_dict(sample_rule_payload)
         assert "P1_SEEMS_IMPORTANT" in str(caught.value)
 
-    def MQC_ING_UNI_10040_rejects_priority_above_matched_condition_ceiling(
+    def MQC_ING_UNI_111317_rejects_priority_above_matched_condition_ceiling(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """G6: matching only a P2 condition cannot justify P0.
@@ -340,7 +340,7 @@ class TestMQCGoldenRuleSchema:
         with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    def MQC_ING_UNI_10041_accepts_priority_demoted_below_matched_ceiling(
+    def MQC_ING_UNI_111318_accepts_priority_demoted_below_matched_ceiling(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """G6 states a ceiling, not an assignment, so demotion is legitimate.
@@ -357,7 +357,7 @@ class TestMQCGoldenRuleSchema:
         sample_rule_payload["priority"] = 4
         assert GoldenRuleSet.from_dict(sample_rule_payload).priority == 4
 
-    def MQC_ING_UNI_10044_rejects_mandatory_list_field_supplied_empty(
+    def MQC_ING_UNI_111321_rejects_mandatory_list_field_supplied_empty(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """An empty mandatory list is present and carries nothing.
@@ -372,7 +372,7 @@ class TestMQCGoldenRuleSchema:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_EMPTY"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    def MQC_ING_UNI_10047_case_ids_differing_only_by_letter_case_are_rejected(self) -> None:
+    def MQC_ING_UNI_111324_case_ids_differing_only_by_letter_case_are_rejected(self) -> None:
         """Two identifiers with one canonical form collide on Windows.
 
         Detection lives in the loader, which sees a whole file. This asserts the
@@ -389,7 +389,7 @@ class TestMQCGoldenRuleSchema:
 class TestMQCRubricSchema:
     """Validation of rubric records, including invariants G2 and G3."""
 
-    def MQC_ING_UNI_10011_rejects_rubric_with_empty_criteria(
+    def MQC_ING_UNI_111310_rejects_rubric_with_empty_criteria(
         self,
         sample_rule_payload: dict[str, Any],
     ) -> None:
@@ -405,7 +405,7 @@ class TestMQCRubricSchema:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_EMPTY"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    def MQC_ING_UNI_10012_rejects_anchors_missing_level_three(
+    def MQC_ING_UNI_111311_rejects_anchors_missing_level_three(
         self,
         sample_anchors: dict[int,
         dict[str, str]],
@@ -430,7 +430,7 @@ class TestMQCRubricSchema:
             )
         assert "[3]" in str(caught.value)
 
-    def MQC_ING_UNI_10013_accepts_anchors_with_only_one_three_five(
+    def MQC_ING_UNI_111312_accepts_anchors_with_only_one_three_five(
         self,
         sample_anchors: dict[int,
         dict[str, str]],
@@ -457,7 +457,7 @@ class TestMQCRubricSchema:
         assert sorted(criterion.anchors) == [1, 3, 5]
 
     @pytest.mark.parametrize("level", [0, 6, -1])
-    def MQC_ING_UNI_10014_rejects_anchor_level_outside_one_to_five(
+    def MQC_ING_UNI_111313_rejects_anchor_level_outside_one_to_five(
         self, sample_anchors: dict[int, dict[str, str]], level: Any
     ) -> None:
         """G3: a level outside the scale is an invariant violation.
@@ -484,7 +484,7 @@ class TestMQCRubricSchema:
 class TestMQCSupportingSchemas:
     """Validation of the records the two halves are assembled from."""
 
-    def MQC_ING_UNI_10015_rejects_overlapping_required_and_forbidden_tools(self) -> None:
+    def MQC_ING_UNI_111314_rejects_overlapping_required_and_forbidden_tools(self) -> None:
         """G4: no response can satisfy a contradictory expectation.
 
         Returns:
@@ -496,7 +496,7 @@ class TestMQCSupportingSchemas:
             )
         assert "search" in str(caught.value)
 
-    def MQC_ING_UNI_10042_rejects_mandatory_field_supplied_as_empty_string(self) -> None:
+    def MQC_ING_UNI_111319_rejects_mandatory_field_supplied_as_empty_string(self) -> None:
         """A present but empty mandatory field is a placeholder left in.
 
         Returns:
@@ -505,7 +505,7 @@ class TestMQCSupportingSchemas:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_EMPTY"):
             Constraint.from_dict({"constraint_id": "C1", "text": "", "kind": "prohibition"})
 
-    def MQC_ING_UNI_10049_assertion_severity_is_declared_not_inferred(self) -> None:
+    def MQC_ING_UNI_111326_assertion_severity_is_declared_not_inferred(self) -> None:
         """Severity is authored, because one kind can be either.
 
         A regex check may guard a structural necessity or a cosmetic preference,
@@ -526,7 +526,7 @@ class TestMQCSupportingSchemas:
                 }
             )
 
-    def MQC_ING_UNI_10050_tool_definition_requires_a_parameters_schema(self) -> None:
+    def MQC_ING_UNI_111327_tool_definition_requires_a_parameters_schema(self) -> None:
         """An empty schema is ambiguous between 'no arguments' and 'unfilled'.
 
         The mandatory-non-empty rule resolves it by requiring the shape to be
@@ -540,7 +540,7 @@ class TestMQCSupportingSchemas:
                 {"tool_name": "search", "description": "Search", "parameters_schema": {}}
             )
 
-    def MQC_ING_UNI_10051_anchor_exemplar_is_optional_and_preserved(self) -> None:
+    def MQC_ING_UNI_111328_anchor_exemplar_is_optional_and_preserved(self) -> None:
         """An exemplar is optional, and an absent one stays absent.
 
         Returns:
@@ -557,7 +557,7 @@ class TestMQCSupportingSchemas:
 class TestMQCConstraintKindRegistry:
     """What the open vocabulary has promoted, and what it refused."""
 
-    def MQC_ING_UNI_10077_count_and_ordering_are_registered_constraint_kinds(
+    def MQC_ING_UNI_111329_count_and_ordering_are_registered_constraint_kinds(
         self,
     ) -> None:
         """Promotion records that a kind earned a name, not that the set closed.
@@ -588,7 +588,7 @@ class TestMQCConstraintKindRegistry:
 class TestMQCAdversarialRubric:
     """R6: a rubric that can never be scored is refused where it is explained."""
 
-    def MQC_ING_UNI_10078_a_declared_adversarial_task_with_a_rubric_is_refused(
+    def MQC_ING_UNI_111330_a_declared_adversarial_task_with_a_rubric_is_refused(
         self,
         sample_task_payload: dict[str, Any],
         sample_rule_payload: dict[str, Any],

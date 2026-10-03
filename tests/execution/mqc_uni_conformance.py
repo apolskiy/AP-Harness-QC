@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The conformance battery every registered adapter is enrolled in.
 
-Covers `MQC_EXE_UNI_10201` through `10203`, `10208`, `10214` through `10217`,
-`10219`, `10220`, and `10254` through `10258`, inventoried in
+Covers `MQC_EXE_UNI_113100` through `113102`, `113103`, `113104` through `113107`,
+`113108`, `113109`, and `113110` through `113114`, inventoried in
 ``docs/design/tier2_execution.md`` sections 10.1 and 9.1.
 
 **Parametrized over the registry, never over a list.** A list is a second place
@@ -84,7 +84,7 @@ def _double(adapter: ProviderAdapter, **overrides: Any) -> Any:
 class TestMQCAdapterConformance:
     """The nine assertions of design section 9, over every registered adapter."""
 
-    def MQC_EXE_UNI_10201_composes_request_from_minimal_case(
+    def MQC_EXE_UNI_113100_composes_request_from_minimal_case(
         self,
         adapter: ProviderAdapter,
         minimal_case: EvaluationCase,
@@ -103,7 +103,7 @@ class TestMQCAdapterConformance:
         assert request["model"] == adapter.requested_model
         assert minimal_case.task.user_prompt in repr(request)
 
-    def MQC_EXE_UNI_10202_composes_request_carrying_constraints_and_context(
+    def MQC_EXE_UNI_113101_composes_request_carrying_constraints_and_context(
         self, adapter: ProviderAdapter, furnished_case: EvaluationCase
     ) -> None:
         """Documents and tool definitions reach the request, not just the prompt.
@@ -124,7 +124,7 @@ class TestMQCAdapterConformance:
         assert furnished_case.task.available_tools[0].tool_name in rendered
         assert furnished_case.task.system_instruction in rendered
 
-    def MQC_EXE_UNI_10203_normalizes_response_to_canonical_shape(
+    def MQC_EXE_UNI_113102_normalizes_response_to_canonical_shape(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -147,7 +147,7 @@ class TestMQCAdapterConformance:
         assert normalized.output_tokens > 0
         assert normalized.finish_reason in registered_finish_reasons()
 
-    def MQC_EXE_UNI_10254_every_adapter_returns_tool_arguments_as_a_mapping(
+    def MQC_EXE_UNI_113110_every_adapter_returns_tool_arguments_as_a_mapping(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -170,7 +170,7 @@ class TestMQCAdapterConformance:
         assert calls[0].arguments == {"query": "grounding"}
         assert isinstance(calls[0].arguments, dict)
 
-    def MQC_EXE_UNI_10208_captures_tool_call_without_executing_it(
+    def MQC_EXE_UNI_113103_captures_tool_call_without_executing_it(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -192,7 +192,7 @@ class TestMQCAdapterConformance:
         assert calls[0].tool_name == "delete_records"
         assert double.invocations == []
 
-    def MQC_EXE_UNI_10255_every_adapter_reads_the_version_from_the_response(
+    def MQC_EXE_UNI_113111_every_adapter_reads_the_version_from_the_response(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -215,7 +215,7 @@ class TestMQCAdapterConformance:
         assert normalized.requested_model == adapter.requested_model
         assert normalized.model_alias_floated is True
 
-    def MQC_EXE_UNI_10214_maps_rate_limit_error_to_harness_code(
+    def MQC_EXE_UNI_113104_maps_rate_limit_error_to_harness_code(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -239,7 +239,7 @@ class TestMQCAdapterConformance:
             raised = ADAPTER_DOUBLES[adapter.engine_name].error(error_name)
             assert adapter.map_error(raised) == expected
 
-    def MQC_EXE_UNI_10215_maps_timeout_error_to_harness_code(
+    def MQC_EXE_UNI_113105_maps_timeout_error_to_harness_code(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -257,7 +257,7 @@ class TestMQCAdapterConformance:
         error = ADAPTER_DOUBLES[adapter.engine_name].error("timeout")
         assert adapter.map_error(error) == "QC_HARNESS_CANDIDATE_TIMEOUT"
 
-    def MQC_EXE_UNI_10216_maps_auth_error_to_harness_code(self, adapter: ProviderAdapter) -> None:
+    def MQC_EXE_UNI_113106_maps_auth_error_to_harness_code(self, adapter: ProviderAdapter) -> None:
         """An auth failure is categorically different and aborts the run.
 
         Args:
@@ -269,7 +269,7 @@ class TestMQCAdapterConformance:
         error = ADAPTER_DOUBLES[adapter.engine_name].error("auth")
         assert adapter.map_error(error) == "QC_HARNESS_AUTH_ERROR"
 
-    def MQC_EXE_UNI_10217_unrecognised_error_preserves_original_text(
+    def MQC_EXE_UNI_113107_unrecognised_error_preserves_original_text(
         self,
         adapter: ProviderAdapter,
         caplog: Any,
@@ -291,7 +291,7 @@ class TestMQCAdapterConformance:
         assert mapped == "QC_HARNESS_PARSER_ERROR"
         assert str(UNRECOGNISED_ERROR) in caplog.text
 
-    def MQC_EXE_UNI_10219_declared_capabilities_derive_unsupported_pairs(
+    def MQC_EXE_UNI_113108_declared_capabilities_derive_unsupported_pairs(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -308,7 +308,7 @@ class TestMQCAdapterConformance:
         assert declared.tool_calling is True
         assert declared.structured_output is True
 
-    def MQC_EXE_UNI_10220_tool_case_against_engine_without_tool_calling_is_unsupported(
+    def MQC_EXE_UNI_113109_tool_case_against_engine_without_tool_calling_is_unsupported(
         self, adapter: ProviderAdapter, furnished_case: EvaluationCase
     ) -> None:
         """A capability gap makes a tool case unsupported, never failed.
@@ -329,7 +329,7 @@ class TestMQCAdapterConformance:
         assert unsupported is False
         assert "tools" in repr(adapter.compose_request(furnished_case)).lower()
 
-    def MQC_EXE_UNI_10256_no_vendor_type_survives_any_adapter_normalization(
+    def MQC_EXE_UNI_113112_no_vendor_type_survives_any_adapter_normalization(
         self,
         adapter: ProviderAdapter,
     ) -> None:
@@ -361,7 +361,7 @@ class TestMQCAdapterConformance:
 class TestMQCAdapterRegistry:
     """What the battery parametrizes over, and what guards it."""
 
-    def MQC_EXE_UNI_10258_the_registry_enrols_every_adapter_in_the_battery(self) -> None:
+    def MQC_EXE_UNI_113114_the_registry_enrols_every_adapter_in_the_battery(self) -> None:
         """Every registered engine is reachable and appears in this module's run.
 
         The battery is parametrized over the registry rather than a list, so an
@@ -375,7 +375,7 @@ class TestMQCAdapterRegistry:
         for engine in registered_engines():
             assert adapter_for(engine)().engine_name == engine
 
-    def MQC_EXE_UNI_10257_registering_two_adapters_under_one_engine_name_fails(self) -> None:
+    def MQC_EXE_UNI_113113_registering_two_adapters_under_one_engine_name_fails(self) -> None:
         """Two adapters under one name would make selection depend on import order.
 
         A fixture recorded by one would also replay through the other, which no
@@ -391,7 +391,7 @@ class TestMQCAdapterRegistry:
         with pytest.raises(ValueError, match="already served by"):
             register_adapter(impostor)
 
-    def MQC_EXE_UNI_10268_an_unregistered_engine_name_names_what_is_registered(self) -> None:
+    def MQC_EXE_UNI_113115_an_unregistered_engine_name_names_what_is_registered(self) -> None:
         """A typo and an unimplemented provider are different problems.
 
         Returns:
@@ -406,7 +406,7 @@ class TestMQCAdapterRegistry:
 class TestMQCJudgementConformance:
     """Declaring the judge capability is an obligation, not a label."""
 
-    def MQC_EXE_UNI_10278_a_declared_capability_that_cannot_judge_is_reported(
+    def MQC_EXE_UNI_113116_a_declared_capability_that_cannot_judge_is_reported(
         self, adapter: ProviderAdapter
     ) -> None:
         """An engine that qualifies as a judge must be able to serve as one.
@@ -447,7 +447,7 @@ class TestMQCJudgementConformance:
             f"its reply schema, so the constraint was requested of nobody"
         )
 
-    def MQC_EXE_UNI_10279_a_judgement_round_trips_through_the_adapter_to_a_mapping(
+    def MQC_EXE_UNI_113117_a_judgement_round_trips_through_the_adapter_to_a_mapping(
         self, adapter: ProviderAdapter
     ) -> None:
         """What comes back is the mapping the reply validator expects.
@@ -486,7 +486,7 @@ class TestMQCJudgementConformance:
 class TestMQCStatusFamilyConformance:
     """Every status says whose defect it is, and a live run said so first."""
 
-    def MQC_EXE_UNI_10285_a_transient_provider_failure_is_not_a_parser_error(
+    def MQC_EXE_UNI_113118_a_transient_provider_failure_is_not_a_parser_error(
         self, adapter: ProviderAdapter
     ) -> None:
         """A busy provider is not an unanticipated failure.
@@ -530,7 +530,7 @@ class TestMQCStatusFamilyConformance:
             )
             assert validate_mapped_error(adapter.engine_name, mapped) == mapped
 
-    def MQC_EXE_UNI_10286_a_transient_provider_failure_is_retried(self) -> None:
+    def MQC_EXE_UNI_113119_a_transient_provider_failure_is_retried(self) -> None:
         """It joins rate limits and timeouts, and nothing else does.
 
         **The provider said the condition was temporary and the harness had
@@ -566,7 +566,7 @@ class TestMQCStatusFamilyConformance:
         ):
             assert settled not in _RETRYABLE_CODES
 
-    def MQC_EXE_UNI_10287_a_rejected_request_is_not_an_unanticipated_failure(
+    def MQC_EXE_UNI_113120_a_rejected_request_is_not_an_unanticipated_failure(
         self, adapter: ProviderAdapter
     ) -> None:
         """A malformed request is ours, anticipated, and has its own code.
@@ -595,7 +595,7 @@ class TestMQCStatusFamilyConformance:
         assert adapter.map_error(UNRECOGNISED_ERROR) == "QC_HARNESS_PARSER_ERROR"
 
 
-    def MQC_EXE_UNI_10288_a_gateway_failure_is_not_the_provider_being_busy(
+    def MQC_EXE_UNI_113121_a_gateway_failure_is_not_the_provider_being_busy(
         self, adapter: ProviderAdapter
     ) -> None:
         """502 and 504 come from an intermediary, and may not be the provider.
@@ -638,7 +638,7 @@ class TestMQCStatusFamilyConformance:
         assert "QC_HARNESS_GATEWAY_FAILURE" in _RETRYABLE_CODES
 
 
-    def MQC_EXE_UNI_10289_a_redirect_or_connection_failure_is_unreachability(
+    def MQC_EXE_UNI_113122_a_redirect_or_connection_failure_is_unreachability(
         self, adapter: ProviderAdapter
     ) -> None:
         """A 3xx says the engine was not where we addressed it.
@@ -670,7 +670,7 @@ class TestMQCStatusFamilyConformance:
         # request gets the same hop and a retry is quota spent on it.
         assert "QC_HARNESS_ENGINE_UNREACHABLE" not in _RETRYABLE_CODES
 
-    def MQC_EXE_UNI_10290_every_interface_maps_a_status_through_one_table(
+    def MQC_EXE_UNI_113123_every_interface_maps_a_status_through_one_table(
         self, adapter: ProviderAdapter
     ) -> None:
         """What a status means is HTTP, not a vendor, so it is stated once.

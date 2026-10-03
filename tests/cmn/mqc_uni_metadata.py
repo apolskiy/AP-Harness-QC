@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for result emission, the code registry and the fixtures.
 
-Covers `MQC_CMN_UNI_10143` through `10146`, `10155`, `10157` through `10161`,
-`10165` through `10167`, `10171` through `10173`, `10176`, `10177` and `10179`
-through `10182`, inventoried in ``docs/design/cmn_verdict_and_cli.md``
+Covers `MQC_CMN_UNI_112200` through `112203`, `112204`, `112119` through `112208`,
+`112209` through `112211`, `10171` through `10173`, `112213`, `112214` and `112215`
+through `112218`, inventoried in ``docs/design/cmn_verdict_and_cli.md``
 section 10.
 
 **Run-scoped fields are emitted twice**, once in a manifest and again on every
@@ -81,7 +81,7 @@ _FAMILY_ROW = re.compile(
 # not a row and reporting it would be the over-reporting that trains a check
 # away on its second run.
 _INVENTORY_ROW = re.compile(
-    r"^\|\s*`(?P<identifier>\d{5,6})`\s*\|\s*[PNB]\s*\|\s*`(?P<behaviour>\w+)`\s*\|$"
+    r"^\|\s*`(?P<identifier>\d{6})`\s*\|\s*[PNB]\s*\|\s*`(?P<behaviour>\w+)`\s*\|$"
 )
 
 
@@ -151,7 +151,7 @@ def _requirement_name(entry: str) -> Optional[str]:
 class TestMQCTaxonomyRegistryConsistency:
     """Every emitted code registered, and every registered code accounted for."""
 
-    def MQC_CMN_UNI_10143_emitted_code_absent_from_registry_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112200_emitted_code_absent_from_registry_is_rejected(self) -> None:
         """An unregistered code makes the record uncountable.
 
         Every later tally by root-cause class would silently omit it, and a
@@ -164,7 +164,7 @@ class TestMQCTaxonomyRegistryConsistency:
             require_registered_code("QC_LLM_INVENTED_HERE")
         assert require_registered_code("QC_LLM_RUBRIC_FAILURE") == "QC_LLM_RUBRIC_FAILURE"
 
-    def MQC_CMN_UNI_10144_registered_code_with_no_emit_site_is_reported(self) -> None:
+    def MQC_CMN_UNI_112201_registered_code_with_no_emit_site_is_reported(self) -> None:
         """A code registered and never emitted is dead or forgotten.
 
         Reported rather than failed: both are worth knowing and neither means
@@ -180,7 +180,7 @@ class TestMQCTaxonomyRegistryConsistency:
         assert "QC_LLM_RUBRIC_FAILURE" not in unemitted
         assert len(unemitted) == len(registered_codes()) - 2
 
-    def MQC_CMN_UNI_10145_unregistered_code_in_a_live_specification_is_reported(self) -> None:
+    def MQC_CMN_UNI_112202_unregistered_code_in_a_live_specification_is_reported(self) -> None:
         """Every code a design document names must exist in the registry.
 
         The single registry is only single if nothing else declares one, and a
@@ -202,7 +202,7 @@ class TestMQCTaxonomyRegistryConsistency:
         assert named
         assert named <= registered_codes()
 
-    def MQC_CMN_UNI_10146_stated_inventory_counts_disagreeing_with_rows_is_reported(self) -> None:
+    def MQC_CMN_UNI_112203_stated_inventory_counts_disagreeing_with_rows_is_reported(self) -> None:
         """A stated total is derived data, and derived data can be restated wrongly.
 
         Returns:
@@ -218,7 +218,7 @@ class TestMQCTaxonomyRegistryConsistency:
             )
             if stated is None:
                 continue
-            categories = re.findall(r"^\| `\d{5,6}` \| ([PNB]) \|", text, re.M)
+            categories = re.findall(r"^\| `\d{6}` \| ([PNB]) \|", text, re.M)
             assert int(stated.group(1)) == len(categories), document.name
             assert int(stated.group(2)) == categories.count("N"), document.name
             assert int(stated.group(3)) == categories.count("P"), document.name
@@ -230,7 +230,7 @@ class TestMQCTaxonomyRegistryConsistency:
 class TestMQCResultEmission:
     """What every emitted result carries, and what it is refused for lacking."""
 
-    def MQC_CMN_UNI_10158_run_scoped_fields_emitted_per_result_not_in_a_manifest_alone(
+    def MQC_CMN_UNI_112205_run_scoped_fields_emitted_per_result_not_in_a_manifest_alone(
         self, gated_run: RunContext
     ) -> None:
         """Collectors key on per-test rows.
@@ -253,7 +253,7 @@ class TestMQCResultEmission:
         assert emitted["timeout_ms"] == 60000
         assert emitted["cli_flags"] == {"judge_on_failure": False}
 
-    def MQC_CMN_UNI_10155_run_context_and_gated_flag_recorded_in_metadata(
+    def MQC_CMN_UNI_112204_run_context_and_gated_flag_recorded_in_metadata(
         self, gated_run: RunContext
     ) -> None:
         """Row marking is one of the two mechanisms excluding a debug run.
@@ -273,7 +273,7 @@ class TestMQCResultEmission:
         )
         assert emit_result(_graded(), debug)["gated"] is False
 
-    def MQC_CMN_UNI_10161_result_missing_a_required_metadata_field_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112208_result_missing_a_required_metadata_field_is_rejected(self) -> None:
         """A result that reaches the record incomplete is uninterpretable later.
 
         It also looks exactly like one that is not, which is why the refusal
@@ -291,7 +291,7 @@ class TestMQCResultEmission:
         assert "layer" in str(caught.value)
         assert set(required_result_fields()) >= {"case_id", "layer", "outcome"}
 
-    def MQC_CMN_UNI_10165_selection_mode_recorded_per_result(self, gated_run: RunContext) -> None:
+    def MQC_CMN_UNI_112209_selection_mode_recorded_per_result(self, gated_run: RunContext) -> None:
         """A reader of one row can tell how much of the suite it came from.
 
         Args:
@@ -302,7 +302,7 @@ class TestMQCResultEmission:
         """
         assert emit_result(_graded(), gated_run)["selection_mode"] == "full"
 
-    def MQC_CMN_UNI_10182_result_records_the_platform_it_ran_on(
+    def MQC_CMN_UNI_112218_result_records_the_platform_it_ran_on(
         self,
         gated_run: RunContext,
     ) -> None:
@@ -320,7 +320,7 @@ class TestMQCResultEmission:
         assert emit_result(_graded(), gated_run)["os"] == "linux"
         assert current_platform() in {"windows", "linux", "darwin"}
 
-    def MQC_CMN_UNI_10179_graded_result_records_its_evaluation_family(
+    def MQC_CMN_UNI_112215_graded_result_records_its_evaluation_family(
         self,
         gated_run: RunContext,
     ) -> None:
@@ -340,7 +340,7 @@ class TestMQCResultEmission:
         assert emitted["family"] == "code_comprehension"
         assert "code_comprehension" in registered_evaluation_families()
 
-    def MQC_CMN_UNI_10181_precondition_result_carries_no_family(
+    def MQC_CMN_UNI_112217_precondition_result_carries_no_family(
         self,
         gated_run: RunContext,
     ) -> None:
@@ -358,7 +358,7 @@ class TestMQCResultEmission:
         precondition = Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")
         assert emit_result(precondition, gated_run)["family"] is None
 
-    def MQC_CMN_UNI_10180_unregistered_family_value_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112216_unregistered_family_value_is_rejected(self) -> None:
         """Families are a registry, and an unregistered value is untraceable.
 
         Returns:
@@ -371,7 +371,7 @@ class TestMQCResultEmission:
 class TestMQCLatencyStatistics:
     """What a duration may contribute to, and what it may not."""
 
-    def MQC_CMN_UNI_10160_truncated_duration_excluded_from_latency_statistics(self) -> None:
+    def MQC_CMN_UNI_112207_truncated_duration_excluded_from_latency_statistics(self) -> None:
         """A truncated duration measures the harness's patience.
 
         A case that timed out at the configured ceiling would drag its own
@@ -391,7 +391,7 @@ class TestMQCLatencyStatistics:
         assert statistics["sample_count"] == 2
         assert statistics["excluded_truncated"] == 1
 
-    def MQC_CMN_UNI_11103_latency_is_absent_rather_than_zero_when_nothing_measured(self) -> None:
+    def MQC_CMN_UNI_112219_latency_is_absent_rather_than_zero_when_nothing_measured(self) -> None:
         """A mean of zero would read as an impossibly fast run.
 
         Returns:
@@ -407,7 +407,7 @@ class TestMQCLatencyStatistics:
 class TestMQCArtifactSeparation:
     """Two independent mechanisms keeping a debug run out of the record."""
 
-    def MQC_CMN_UNI_10166_debug_artifact_name_does_not_match_collector_pattern(self) -> None:
+    def MQC_CMN_UNI_112210_debug_artifact_name_does_not_match_collector_pattern(self) -> None:
         """Structural separation, the first of the two mechanisms.
 
         Marking alone fails if nobody filters on it, and structural separation
@@ -430,7 +430,7 @@ class TestMQCArtifactSeparation:
         assert artifact_name(debug).startswith("diagnostic-local")
         assert not matches_collector_pattern(artifact_name(debug, suffix="ubuntu"))
 
-    def MQC_CMN_UNI_10167_debug_rows_carry_ci_debug_context_and_ungated_flag(self) -> None:
+    def MQC_CMN_UNI_112211_debug_rows_carry_ci_debug_context_and_ungated_flag(self) -> None:
         """Row marking, the second mechanism, on every row rather than once.
 
         Returns:
@@ -445,7 +445,7 @@ class TestMQCArtifactSeparation:
 class TestMQCDiagnosticSummary:
     """What a debug summary says, starting with what the run is not."""
 
-    def MQC_CMN_UNI_10176_summary_records_job_run_number_both_refs_and_changed_areas(
+    def MQC_CMN_UNI_112213_summary_records_job_run_number_both_refs_and_changed_areas(
         self,
     ) -> None:
         """A notification is worthless if the reader cannot identify the run.
@@ -473,7 +473,7 @@ class TestMQCDiagnosticSummary:
         assert "gemini-flash-002" in rendered
         assert summary.refs_diverge is True
 
-    def MQC_CMN_UNI_10177_fixture_ref_defaults_to_code_ref_when_not_supplied(self) -> None:
+    def MQC_CMN_UNI_112214_fixture_ref_defaults_to_code_ref_when_not_supplied(self) -> None:
         """The boundary: equal is the ordinary case, and empty is not the same.
 
         An empty value would read as unknown rather than as the same, and the
@@ -499,7 +499,7 @@ class TestMQCDiagnosticSummary:
             (["docs/design/tier2_execution.md"], "none"),
         ],
     )
-    def MQC_CMN_UNI_11104_changed_areas_distinguish_harness_from_tests(
+    def MQC_CMN_UNI_112220_changed_areas_distinguish_harness_from_tests(
         self, paths: list[str], expected: Any
     ) -> None:
         """A run where only tests changed and results moved points at the tests.
@@ -516,7 +516,7 @@ class TestMQCDiagnosticSummary:
         """
         assert changed_areas_from(paths) == expected
 
-    def MQC_CMN_UNI_10175_first_run_on_a_branch_has_no_previous_conclusion_to_compare(
+    def MQC_CMN_UNI_112212_first_run_on_a_branch_has_no_previous_conclusion_to_compare(
         self,
     ) -> None:
         """The boundary: nothing to compare is not the same as no change.
@@ -539,7 +539,7 @@ class TestMQCDiagnosticSummary:
 class TestMQCObservationAssembly:
     """Neither half of an observation is sufficient on its own."""
 
-    def MQC_CMN_UNI_10159_observation_assembled_from_tier_results_and_case_metadata(
+    def MQC_CMN_UNI_112206_observation_assembled_from_tier_results_and_case_metadata(
         self,
     ) -> None:
         """Tier 3 never receives priority, so it cannot produce a complete record.
@@ -571,7 +571,7 @@ class TestMQCObservationAssembly:
         assert assembled.score == 4.0
         assert assembled.graded is True
 
-    def MQC_CMN_UNI_11107_a_field_the_record_does_not_declare_is_rejected(self) -> None:
+    def MQC_CMN_UNI_112221_a_field_the_record_does_not_declare_is_rejected(self) -> None:
         """A field nothing reads would reach the artifact unread.
 
         Silently dropping it would be worse: a caller believing it recorded
@@ -591,7 +591,7 @@ class TestMQCObservationAssembly:
 class TestMQCDependencyDeclaration:
     """One declaration, and a check on every copy derived from it."""
 
-    def MQC_CMN_UNI_11108_requirements_files_disagreeing_with_pyproject_fail(self) -> None:
+    def MQC_CMN_UNI_112222_requirements_files_disagreeing_with_pyproject_fail(self) -> None:
         """The generated files are a convenience, never a second source of truth.
 
         Without this they are a second declaration, and a second declaration
@@ -613,7 +613,7 @@ class TestMQCDependencyDeclaration:
                 f"python tools/generate_requirements.py"
             )
 
-    def MQC_CMN_UNI_11181_an_installed_gating_tool_outside_its_pin_is_reported(
+    def MQC_CMN_UNI_112231_an_installed_gating_tool_outside_its_pin_is_reported(
         self,
     ) -> None:
         """A local pylint outside the pin reports a different result from CI.
@@ -624,7 +624,7 @@ class TestMQCDependencyDeclaration:
         `self` differently against `max-args`. Two commits were pushed on the
         strength of a local run that was measuring a different tool.
 
-        **`11108` cannot catch this.** It compares the generated requirements
+        **`112222` cannot catch this.** It compares the generated requirements
         files against `pyproject.toml`, so it verifies what is *declared* agrees
         with itself. Nothing verified what is *installed* agrees with the
         declaration, and the declaration is what CI installs from.
@@ -662,7 +662,7 @@ class TestMQCDependencyDeclaration:
             f"`python -m pip install --editable \".[dev]\"` to align them"
         )
 
-    def MQC_CMN_UNI_11109_every_imported_package_is_declared(self) -> None:
+    def MQC_CMN_UNI_112223_every_imported_package_is_declared(self) -> None:
         """A dependency the code imports and nothing declares breaks a clean install.
 
         It passes on the machine that happens to have it and fails on every
@@ -704,7 +704,7 @@ class TestMQCDependencyDeclaration:
             f"imported and undeclared: {sorted(third_party - declared)}"
         )
 
-    def MQC_CMN_UNI_11110_random_test_ordering_is_declared(self) -> None:
+    def MQC_CMN_UNI_112224_random_test_ordering_is_declared(self) -> None:
         """The suite depends on shuffled order for a guarantee it would else lack.
 
         The extension cases register a layer, an outcome and a verdict rule and
@@ -727,7 +727,7 @@ class TestMQCDependencyDeclaration:
 class TestMQCPackaging:
     """What a consumer installs must be what is on disk."""
 
-    def MQC_CMN_UNI_11114_every_package_on_disk_is_configured_for_the_build(self) -> None:
+    def MQC_CMN_UNI_112225_every_package_on_disk_is_configured_for_the_build(self) -> None:
         """A package the build drops fails every consumer on its first import.
 
         **A hand-written list shipped a broken distribution.** It named four
@@ -775,7 +775,7 @@ class TestMQCPackaging:
 class TestMQCFindingDirections:
     """The taxonomy carries both directions of a finding."""
 
-    def MQC_CMN_UNI_11129_invention_and_omission_are_both_registered_codes(
+    def MQC_CMN_UNI_112227_invention_and_omission_are_both_registered_codes(
         self,
     ) -> None:
         """A recall figure needs both directions to mean anything.
@@ -787,7 +787,7 @@ class TestMQCFindingDirections:
         for each direction or the measurement collapses.
 
         **Deliberately weak on its own.** What it protects is a design property
-        that a single deletion would silently break: ``10144`` reports an
+        that a single deletion would silently break: ``112201`` reports an
         unemitted code without failing, and no case is written against a code
         that no longer exists.
 
@@ -819,7 +819,7 @@ class TestMQCFindingDirections:
 class TestMQCFamilyRegistrationMechanism:
     """Section 11.2 is a procedure; these are the parts of it that are checked."""
 
-    def MQC_CMN_UNI_11130_family_table_disagreeing_with_the_code_registry_is_reported(
+    def MQC_CMN_UNI_112228_family_table_disagreeing_with_the_code_registry_is_reported(
         self,
     ) -> None:
         """The table is what an author edits, the dict is what checks read.
@@ -830,8 +830,8 @@ class TestMQCFamilyRegistrationMechanism:
         exercises, which section 11.3 records as the reason this is a registry
         rather than a list.
 
-        **The fourth instance of one shape in this module**, after ``10145``,
-        ``11122`` and ``11123``: a document restates a fact that lives
+        **The fourth instance of one shape in this module**, after ``112202``,
+        ``112313`` and ``112314``: a document restates a fact that lives
         elsewhere, and the restatement rots.
 
         Returns:
@@ -856,7 +856,7 @@ class TestMQCFamilyRegistrationMechanism:
             f"registered only: {sorted(registered - tabled)}"
         )
 
-    def MQC_CMN_UNI_11131_every_requirement_in_the_matrix_appears_in_the_plan(
+    def MQC_CMN_UNI_112229_every_requirement_in_the_matrix_appears_in_the_plan(
         self,
     ) -> None:
         """A requirement traced and unstated means the plan understates itself.
@@ -866,8 +866,8 @@ class TestMQCFamilyRegistrationMechanism:
         from the plan, all added over one working session, and nothing compared
         the two.
 
-        **The fifth instance of one shape in this module**, after ``10145``,
-        ``11122``, ``11123`` and ``11130``: two artefacts state one fact and
+        **The fifth instance of one shape in this module**, after ``112202``,
+        ``112313``, ``112314`` and ``112228``: two artefacts state one fact and
         nothing compares them.
 
         Returns:
@@ -898,7 +898,7 @@ class TestMQCFamilyRegistrationMechanism:
             f"them: {sorted(stated - traced)}"
         )
 
-    def MQC_CMN_UNI_11132_a_registered_family_without_ground_truth_is_reported(
+    def MQC_CMN_UNI_112230_a_registered_family_without_ground_truth_is_reported(
         self,
     ) -> None:
         """Step 2 refuses a family gradable only by rubric.
@@ -934,15 +934,15 @@ class TestMQCFamilyRegistrationMechanism:
 class TestMQCInventoryIdentifiers:
     """An identifier is assigned once and never rebound."""
 
-    def MQC_CMN_UNI_11121_an_identifier_appearing_twice_in_one_inventory_is_reported(
+    def MQC_CMN_UNI_112226_an_identifier_appearing_twice_in_one_inventory_is_reported(
         self,
     ) -> None:
         """An identifier is assigned once and never rebound.
 
         **Every per-row check passed while an identifier was bound twice**,
         because each was keyed on a row and the defect was a relationship
-        between two rows. `10183` found both rows, `10186` found both names
-        valid, `10187` matched the first, and `10146` saw a row count that had
+        between two rows. `112303` found both rows, `112305` found both names
+        valid, `112306` matched the first, and `112203` saw a row count that had
         genuinely grown.
 
         That is the shape a per-row check cannot see, whatever its strictness.

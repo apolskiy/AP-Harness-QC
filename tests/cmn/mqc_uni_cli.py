@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the option registry, exit codes and what a subset costs.
 
-Covers `MQC_CMN_UNI_10135` through `10138`, `10147` through `10154`, `10156`,
-`10162` through `10164`, `10168` through `10170`, `10174`, `10175` and `10178`,
+Covers `MQC_CMN_UNI_112102` through `112105`, `112110` through `112117`, `112118`,
+`112120` through `112122`, `112123` through `112125`, `112126`, `112212` and `112127`,
 inventoried in ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Testers may run any subset. What a subset costs is the verdict, not the
@@ -191,7 +191,7 @@ class _FakeConfig:
 class TestMQCOptionRegistry:
     """One declaration, two surfaces, and what a bad value costs at parse time."""
 
-    def MQC_CMN_UNI_10147_option_registry_yields_identical_flags_to_both_surfaces(self) -> None:
+    def MQC_CMN_UNI_112110_option_registry_yields_identical_flags_to_both_surfaces(self) -> None:
         """A flag cannot exist on one surface and not the other.
 
         Declaring them twice would let one gain a value the other rejects, and
@@ -245,7 +245,7 @@ class TestMQCOptionRegistry:
     @pytest.mark.parametrize(
         "name,value", [("engine", "gemeni"), ("mode", "cached"), ("extra-columns", "keep")]
     )
-    def MQC_CMN_UNI_10148_invalid_enumerated_flag_value_is_rejected_at_parse_time(
+    def MQC_CMN_UNI_112111_invalid_enumerated_flag_value_is_rejected_at_parse_time(
         self, name: str, value: Any
     ) -> None:
         """A typo reaching the suite would select nothing and report an empty run.
@@ -264,11 +264,11 @@ class TestMQCOptionRegistry:
             validate_value(name, value)
         assert "permitted values are" in str(caught.value)
 
-    def MQC_CMN_UNI_10198_argparse_rejects_the_same_values_the_registry_does(self) -> None:
+    def MQC_CMN_UNI_112132_argparse_rejects_the_same_values_the_registry_does(self) -> None:
         """The two surfaces agree on rejection, not only on acceptance.
 
         A registry that validated correctly while argparse accepted anything
-        would satisfy `10148` and leave the command line unguarded.
+        would satisfy `112111` and leave the command line unguarded.
 
         Returns:
             None
@@ -278,7 +278,7 @@ class TestMQCOptionRegistry:
             parser.parse_args(["results.json", "--engine", "gemeni"])
         assert caught.value.code == EXIT_ARGUMENT_ERROR
 
-    def MQC_CMN_UNI_10135_cli_defaults_are_recorded_in_metadata(self) -> None:
+    def MQC_CMN_UNI_112102_cli_defaults_are_recorded_in_metadata(self) -> None:
         """A run that took a default and one that named it produced one result.
 
         The reader of an artifact needs to know what applied, not what was
@@ -295,7 +295,7 @@ class TestMQCOptionRegistry:
         assert recorded["judge_on_failure"] is False
         assert recorded == defaults()
 
-    def MQC_CMN_UNI_10136_defaulted_engine_emits_warning_into_artifact(self) -> None:
+    def MQC_CMN_UNI_112103_defaulted_engine_emits_warning_into_artifact(self) -> None:
         """A cloned repository running unconfigured produces a record saying so.
 
         The warning goes into the artifact rather than only to a log, because
@@ -311,10 +311,10 @@ class TestMQCOptionRegistry:
         assert "QC_DATA_ENGINE_DEFAULTED" in defaulted.warnings[0]
         assert not named.warnings
 
-    def MQC_CMN_UNI_11190_choosing_the_default_engine_is_not_defaulting(self) -> None:
+    def MQC_CMN_UNI_112143_choosing_the_default_engine_is_not_defaulting(self) -> None:
         """`--engine gemini` chose a provider, and the run said nobody had.
 
-        **The existing case could not catch this.** `10197` named `openai`, a
+        **The existing case could not catch this.** `112312` named `openai`, a
         value that differs from the default, so it proved only that an explicit
         NON-default engine is quiet. The bug lived exactly where the explicit
         value equals the default, which is the commonest invocation there is:
@@ -349,7 +349,7 @@ class TestMQCOptionRegistry:
         assert len(unchosen.mqc_invocation.warnings) == 1
         assert "QC_DATA_ENGINE_DEFAULTED" in unchosen.mqc_invocation.warnings[0]
 
-    def MQC_CMN_UNI_10199_mode_defaults_to_replay_so_nothing_spends_quota(self) -> None:
+    def MQC_CMN_UNI_112133_mode_defaults_to_replay_so_nothing_spends_quota(self) -> None:
         """Defaults fail safe.
 
         No unconfigured invocation can spend quota or emit an unmarked live
@@ -367,7 +367,7 @@ class TestMQCOptionRegistry:
 class TestMQCSelectionMode:
     """What makes a selection manual, and what that costs it."""
 
-    def MQC_CMN_UNI_10162_no_filter_yields_selection_mode_full(self) -> None:
+    def MQC_CMN_UNI_112120_no_filter_yields_selection_mode_full(self) -> None:
         """Nothing supplied means everything ran.
 
         Returns:
@@ -378,7 +378,7 @@ class TestMQCSelectionMode:
         assert invocation.yields_verdict is True
 
     @pytest.mark.parametrize("flag", sorted(manual_selector_flags()))
-    def MQC_CMN_UNI_10164_manual_filter_yields_no_verdict(self, flag: str) -> None:
+    def MQC_CMN_UNI_112122_manual_filter_yields_no_verdict(self, flag: str) -> None:
         """Every filtering flag makes the selection manual.
 
         Parametrized over the registry rather than written per flag, so a
@@ -394,7 +394,7 @@ class TestMQCSelectionMode:
         assert invocation.selection_mode == "manual"
         assert invocation.yields_verdict is False
 
-    def MQC_CMN_UNI_10163_change_scoped_selection_still_yields_a_verdict(self) -> None:
+    def MQC_CMN_UNI_112121_change_scoped_selection_still_yields_a_verdict(self) -> None:
         """Derived from the diff, recorded, and backstopped by the full merge run.
 
         **Not all subsets are equal, and the difference is not size.** A
@@ -409,7 +409,7 @@ class TestMQCSelectionMode:
         )
         assert scoped.gated is True
 
-    def MQC_CMN_UNI_10152_case_flag_selects_exactly_one_case(self) -> None:
+    def MQC_CMN_UNI_112115_case_flag_selects_exactly_one_case(self) -> None:
         """A single-case run is legitimate and produces no verdict.
 
         Returns:
@@ -419,7 +419,7 @@ class TestMQCSelectionMode:
         assert invocation.selection_mode == "manual"
         assert invocation.as_metadata()["case"] == "MQC_TASK_a::MQC_RULE_r"
 
-    def MQC_CMN_UNI_10153_observations_override_replaces_configured_count(self) -> None:
+    def MQC_CMN_UNI_112116_observations_override_replaces_configured_count(self) -> None:
         """Overriding the observation count is a diagnostic selection.
 
         Returns:
@@ -444,7 +444,7 @@ class TestMQCGatedDerivation:
             ("local", "full", True, False),
         ],
     )
-    def MQC_CMN_UNI_10169_gated_derived_from_selection_preconditions_and_run_context(
+    def MQC_CMN_UNI_112124_gated_derived_from_selection_preconditions_and_run_context(
         self, context: str, selection: str, preconditions: bool, expected: Any
     ) -> None:
         """Derived, never set, so an artifact cannot claim to be gated.
@@ -465,7 +465,7 @@ class TestMQCGatedDerivation:
         assert run.gated is expected
         assert run.as_fields()["gated"] is expected
 
-    def MQC_CMN_UNI_10174_full_selection_under_debug_context_is_still_ungated(self) -> None:
+    def MQC_CMN_UNI_112126_full_selection_under_debug_context_is_still_ungated(self) -> None:
         """The boundary: a full selection is not sufficient on its own.
 
         A debug job may be exercising a different harness branch entirely
@@ -480,7 +480,7 @@ class TestMQCGatedDerivation:
         )
         assert debug.gated is False
 
-    def MQC_CMN_UNI_10178_manual_full_dispatch_of_ci_is_gated_and_yields_a_verdict(self) -> None:
+    def MQC_CMN_UNI_112127_manual_full_dispatch_of_ci_is_gated_and_yields_a_verdict(self) -> None:
         """A human pressing run on the full CI workflow is still a full selection.
 
         The distinction is what the selection was, not who started it. A full
@@ -500,7 +500,7 @@ class TestMQCGatedDerivation:
 class TestMQCVerdictToolExitCodes:
     """The codes, and why each is distinct from the ones beside it."""
 
-    def MQC_CMN_UNI_10149_verdict_recomputable_from_stored_artifacts(self, tmp_path: Path) -> None:
+    def MQC_CMN_UNI_112112_verdict_recomputable_from_stored_artifacts(self, tmp_path: Path) -> None:
         """The whole reason the tool is standalone rather than an in-process hook.
 
         Thresholds are configuration, so "what would this run have scored under
@@ -531,7 +531,7 @@ class TestMQCVerdictToolExitCodes:
         assert strict.green is False
         assert "V2" in strict.breached_rules
 
-    def MQC_CMN_UNI_10150_precondition_failure_exits_three_not_one(self, tmp_path: Path) -> None:
+    def MQC_CMN_UNI_112113_precondition_failure_exits_three_not_one(self, tmp_path: Path) -> None:
         """A red verdict is a finding; a precondition failure measured nothing.
 
         Collapsing them would let CI treat "the harness is broken" as "the
@@ -554,7 +554,7 @@ class TestMQCVerdictToolExitCodes:
         assert computed.exit_code == 3
         assert computed.exit_code != EXIT_RED
 
-    def MQC_CMN_UNI_10156_verdict_tool_refuses_artifacts_marked_ungated(
+    def MQC_CMN_UNI_112118_verdict_tool_refuses_artifacts_marked_ungated(
         self,
         tmp_path: Path,
     ) -> None:
@@ -574,7 +574,7 @@ class TestMQCVerdictToolExitCodes:
         assert refusal.exit_code == EXIT_REFUSED
         assert "ci_debug" in refusal.reason
 
-    def MQC_CMN_UNI_10168_verdict_tool_refuses_a_manual_selection_artifact(self) -> None:
+    def MQC_CMN_UNI_112123_verdict_tool_refuses_a_manual_selection_artifact(self) -> None:
         """A hand-typed subset is arbitrary and has no backstop.
 
         Args:
@@ -589,7 +589,7 @@ class TestMQCVerdictToolExitCodes:
         assert refusal is not None
         assert "manual" in refusal.reason
 
-    def MQC_CMN_UNI_10170_refusal_exits_four_not_one(self, tmp_path: Path) -> None:
+    def MQC_CMN_UNI_112125_refusal_exits_four_not_one(self, tmp_path: Path) -> None:
         """4 is distinct from 1, and the distinction runs the other way.
 
         A refused artifact reading as a failing suite is the inverse of the
@@ -606,7 +606,7 @@ class TestMQCVerdictToolExitCodes:
         path.write_text(json.dumps(gated_artifact(gated=False)), encoding="utf-8")
         assert main([str(path)]) == EXIT_REFUSED
 
-    def MQC_CMN_UNI_10200_a_green_gated_artifact_exits_zero(self, tmp_path: Path) -> None:
+    def MQC_CMN_UNI_112134_a_green_gated_artifact_exits_zero(self, tmp_path: Path) -> None:
         """The positive the refusals and failures are measured against.
 
         Args:
@@ -620,7 +620,9 @@ class TestMQCVerdictToolExitCodes:
         assert main([str(path)]) == EXIT_GREEN
 
 
-    def MQC_CMN_UNI_11101_an_unreadable_artifact_is_an_argument_error(self, tmp_path: Path) -> None:
+    def MQC_CMN_UNI_112135_an_unreadable_artifact_is_an_argument_error(
+        self, tmp_path: Path
+    ) -> None:
         """An unreadable artifact read as empty would report green for nothing.
 
         Args:
@@ -637,7 +639,7 @@ class TestMQCVerdictToolExitCodes:
 class TestMQCDiagnosticRuns:
     """What a diagnostic run deliberately does not produce."""
 
-    def MQC_CMN_UNI_10154_diagnostic_run_returns_no_verdict_code(self) -> None:
+    def MQC_CMN_UNI_112117_diagnostic_run_returns_no_verdict_code(self) -> None:
         """A diagnostic run uses none of the verdict codes.
 
         It returns pytest's exit status, because it computed no verdict. Using
@@ -656,7 +658,7 @@ class TestMQCDiagnosticRuns:
         assert refusal is not None
         assert refusal.exit_code not in (EXIT_GREEN, EXIT_RED)
 
-    def MQC_CMN_UNI_10151_unknown_case_identifier_is_an_error_not_an_empty_run(self) -> None:
+    def MQC_CMN_UNI_112114_unknown_case_identifier_is_an_error_not_an_empty_run(self) -> None:
         """Selecting nothing must not look like selecting everything that passed.
 
         Returns:
@@ -669,7 +671,7 @@ class TestMQCDiagnosticRuns:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             validate_value("engine", "not_an_engine")
 
-    def MQC_CMN_UNI_10157_out_dir_names_where_both_artifacts_are_written(
+    def MQC_CMN_UNI_112119_out_dir_names_where_both_artifacts_are_written(
         self, tmp_path: Path
     ) -> None:
         """``--out-dir`` derives each artifact destination the caller omitted.
@@ -742,7 +744,7 @@ class TestMQCDiagnosticRuns:
 class TestMQCThresholdRecording:
     """The standard applied, recoverable from the artifact alone."""
 
-    def MQC_CMN_UNI_10138_effective_thresholds_recorded_in_metadata(self) -> None:
+    def MQC_CMN_UNI_112105_effective_thresholds_recorded_in_metadata(self) -> None:
         """A stored result whose standard cannot be recovered is uninterpretable.
 
         Returns:
@@ -758,7 +760,7 @@ class TestMQCThresholdRecording:
         assert thresholds_from({"effective_thresholds": fields["effective_thresholds"]}) \
             .pass_floor == 0.95
 
-    def MQC_CMN_UNI_10137_rule_set_content_hash_recorded_in_metadata(self) -> None:
+    def MQC_CMN_UNI_112104_rule_set_content_hash_recorded_in_metadata(self) -> None:
         """A revised rule set must be distinguishable from the original.
 
         The hash rather than the path, because a path says where the rules were
@@ -773,7 +775,7 @@ class TestMQCThresholdRecording:
         )
         assert run.as_fields()["rule_set_hash"] == "sha256:abc123"
 
-    def MQC_CMN_UNI_11102_an_unrecorded_threshold_falls_back_to_the_default(self) -> None:
+    def MQC_CMN_UNI_112136_an_unrecorded_threshold_falls_back_to_the_default(self) -> None:
         """An artifact predating a threshold still recomputes.
 
         Returns:
@@ -788,7 +790,7 @@ class TestMQCConsumerRegistry:
     """What the fan-out reads, and what an unreachable consumer means."""
 
 
-    def MQC_CMN_UNI_11208_the_corpus_selection_is_resolved_at_configure_time(
+    def MQC_CMN_UNI_112144_the_corpus_selection_is_resolved_at_configure_time(
         self,
     ) -> None:
         """``--golden-rules`` and ``--extra-columns`` arrive through configure.
@@ -825,7 +827,7 @@ class TestMQCConsumerRegistry:
         )
         assert policy is None
 
-    def MQC_CMN_UNI_11115_consumer_registry_loads_every_declared_entry(self) -> None:
+    def MQC_CMN_UNI_112137_consumer_registry_loads_every_declared_entry(self) -> None:
         """Adding a consumer is an entry, never a workflow change.
 
         **The fan-out is the capability the split exists to provide.** A harness
@@ -850,7 +852,7 @@ class TestMQCConsumerRegistry:
             # different question at a price.
             assert "--mode replay" in consumer.command
 
-    def MQC_CMN_UNI_11120_a_named_harness_branch_resolves_to_its_paired_consumer_ref(
+    def MQC_CMN_UNI_112142_a_named_harness_branch_resolves_to_its_paired_consumer_ref(
         self,
     ) -> None:
         """Stabilization work is verified against stabilization work.
@@ -872,7 +874,7 @@ class TestMQCConsumerRegistry:
         assert cases.ref_for("main") == "main"
         assert cases.ref_for("stabilization") == "stabilization"
 
-    def MQC_CMN_UNI_11119_an_unnamed_harness_branch_falls_back_to_the_default_ref(
+    def MQC_CMN_UNI_112141_an_unnamed_harness_branch_falls_back_to_the_default_ref(
         self,
     ) -> None:
         """A feature branch needs no registry entry to be tested.
@@ -897,7 +899,7 @@ class TestMQCConsumerRegistry:
         assert consumer.ref_for("") == "main"
         assert consumer.ref_for("stabilization") == "stabilization"
 
-    def MQC_CMN_UNI_11116_a_consumer_entry_without_a_repository_is_rejected(
+    def MQC_CMN_UNI_112138_a_consumer_entry_without_a_repository_is_rejected(
         self, tmp_path: Path
     ) -> None:
         """A consumer that cannot be located reports unreachable on every run.
@@ -918,7 +920,7 @@ class TestMQCConsumerRegistry:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             load_consumers(registry)
 
-    def MQC_CMN_UNI_11117_an_absent_consumer_registry_is_a_starting_condition(
+    def MQC_CMN_UNI_112139_an_absent_consumer_registry_is_a_starting_condition(
         self, tmp_path: Path
     ) -> None:
         """A harness with no registered consumers has nothing to fan out to.
@@ -937,7 +939,7 @@ class TestMQCConsumerRegistry:
         assert unreachable_consumer_code() == "QC_HARNESS_DEPENDENCY_UNMET"
         assert is_registered_harness_code(unreachable_consumer_code())
 
-    def MQC_CMN_UNI_11118_selecting_named_tests_yields_no_verdict(self) -> None:
+    def MQC_CMN_UNI_112140_selecting_named_tests_yields_no_verdict(self) -> None:
         """The debug workflow selects by test identifier, which is manual.
 
         **This closed a real gap.** `tests` was neither a declared option nor a
@@ -952,8 +954,8 @@ class TestMQCConsumerRegistry:
         invocation = build_invocation(
             {
                 "tests": (
-                    "MQC_ING_UNI_10001_first_probe,"
-                    "MQC_ING_UNI_10002_second_probe"
+                    "MQC_ING_UNI_111300_first_probe,"
+                    "MQC_ING_UNI_111301_second_probe"
                 )
             }
         )

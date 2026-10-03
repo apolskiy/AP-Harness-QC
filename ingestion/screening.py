@@ -132,7 +132,7 @@ def _screen_text(task_id: str, field_name: str, text: str) -> list[ScreenFinding
     """Apply every registered vector to one field.
 
     The vectors come from ``cmn.vectors`` rather than from this module, so
-    the Tier 3 screen looks for exactly the same things. `MQC_EVL_UNI_10349`
+    the Tier 3 screen looks for exactly the same things. `MQC_EVL_UNI_114608`
     asserts the two agree, and a second copy of the patterns would make that
     assertion a comparison that drifts (design section 7.2).
 

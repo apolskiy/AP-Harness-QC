@@ -190,7 +190,7 @@ class ProviderAdapter(ABC):
         Raises:
             NotImplementedError: With ``QC_HARNESS_PREFLIGHT_FAILURE`` when the
                 adapter declares ``structured_output`` and has not implemented
-                this. ``MQC_EXE_UNI_10278`` reports it across the registry, so
+                this. ``MQC_EXE_UNI_113116`` reports it across the registry, so
                 the declaration is an obligation rather than a label.
         """
         del prompt, reply_schema

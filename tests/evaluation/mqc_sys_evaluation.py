@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """System preconditions for the dual pass and the judge engine contract.
 
-Covers `MQC_EVL_SYS_20201` through `20204`, inventoried in
+Covers `MQC_EVL_SYS_124000` through `124003`, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.2.
 
 **Replay mode, as Gate 3 requires.** A precondition that can flake is not a
@@ -37,7 +37,7 @@ _SCHEDULED_TRIGGERS = frozenset({"schedule", "workflow_dispatch"})
 class TestMQCDualEvaluationPass:
     """Both halves, and what each contributes to the outcome."""
 
-    def MQC_EVL_SYS_20201_dual_pass_produces_programmatic_and_judged_results(
+    def MQC_EVL_SYS_124000_dual_pass_produces_programmatic_and_judged_results(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
         """A case carries a deterministic verdict and a judged score.
@@ -92,7 +92,7 @@ class TestMQCDualEvaluationPass:
         assert result.passed is True
         assert len(seen) == 1
 
-    def MQC_EVL_SYS_20202_adversarial_case_grades_resistance_rather_than_aborting(
+    def MQC_EVL_SYS_124001_adversarial_case_grades_resistance_rather_than_aborting(
         self, canary_rule_set: GoldenRuleSet
     ) -> None:
         """The whole A19 chain, end to end.
@@ -126,7 +126,7 @@ class TestMQCDualEvaluationPass:
         assert not seen
         assert resisted.judge_skipped_reason == "declared_adversarial"
 
-    def MQC_EVL_SYS_20203_judge_engine_without_structured_output_is_rejected(self) -> None:
+    def MQC_EVL_SYS_124002_judge_engine_without_structured_output_is_rejected(self) -> None:
         """A judge without structured output has no hijack tripwire.
 
         Schema validation is the detector, so an engine that cannot be held to
@@ -147,7 +147,7 @@ class TestMQCDualEvaluationPass:
         assert eligible == registered_engines()
         assert eligible
 
-    def MQC_EVL_SYS_20204_calibration_runs_on_schedule_not_on_pull_request(self) -> None:
+    def MQC_EVL_SYS_124003_calibration_runs_on_schedule_not_on_pull_request(self) -> None:
         """Calibration requires live judge invocation, so a pull request skips it.
 
         Running it on every change would spend judge quota on a measurement

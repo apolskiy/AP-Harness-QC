@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for judge reply validation and the hijack tripwire.
 
-Covers `MQC_EVL_UNI_10320` through `10327` and `10342` through `10345`,
+Covers `MQC_EVL_UNI_114400` through `114407` and `114408` through `114411`,
 inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **The judge is a model, so its output is checked like any other.** Nothing about
@@ -61,7 +61,7 @@ def _reply(rubric: Any, score: int=4, rationale: Any="Clear and grounded.") -> N
 class TestMQCJudgeReplyValidation:
     """What a reply must satisfy before its scores are believed."""
 
-    def MQC_EVL_UNI_10370_a_valid_reply_yields_one_score_per_criterion(
+    def MQC_EVL_UNI_114412_a_valid_reply_yields_one_score_per_criterion(
         self, sample_rubric_record: Rubric
     ) -> None:
         """The positive case the negatives below are measured against.
@@ -92,7 +92,7 @@ class TestMQCJudgeReplyValidation:
             {"scores": {"MQC_CRT_grounding": "excellent"}},
         ],
     )
-    def MQC_EVL_UNI_10323_invalid_judge_schema_raises_hijack_finding(
+    def MQC_EVL_UNI_114403_invalid_judge_schema_raises_hijack_finding(
         self, sample_rubric_record: Rubric, payload: Any
     ) -> None:
         """A reply that is not a rubric object is evidence, not a low score.
@@ -114,7 +114,7 @@ class TestMQCJudgeReplyValidation:
             )
 
     @pytest.mark.parametrize("score", [0, 6, 11, -1])
-    def MQC_EVL_UNI_10324_score_outside_declared_scale_raises_hijack_finding(
+    def MQC_EVL_UNI_114404_score_outside_declared_scale_raises_hijack_finding(
         self, sample_rubric_record: Rubric, score: int
     ) -> None:
         """A judge awarding 11 on a five-point scale is not being generous.
@@ -132,7 +132,7 @@ class TestMQCJudgeReplyValidation:
                 JudgeBinding(), case_id=_CASE_ID,
             )
 
-    def MQC_EVL_UNI_10325_missing_criterion_score_is_a_harness_error(
+    def MQC_EVL_UNI_114405_missing_criterion_score_is_a_harness_error(
         self, sample_rubric_record: Rubric
     ) -> None:
         """An incomplete reply is a broken measurement, not a security event.
@@ -158,7 +158,7 @@ class TestMQCJudgeReplyValidation:
         assert omitted in str(caught.value)
         assert not isinstance(caught.value, JudgeHijackSuspected)
 
-    def MQC_EVL_UNI_10326_judge_format_violation_normalized_not_rejected(
+    def MQC_EVL_UNI_114406_judge_format_violation_normalized_not_rejected(
         self, sample_rubric_record: Rubric
     ) -> None:
         """Rejecting on a glyph would hand an outsider a way to break the run.
@@ -183,7 +183,7 @@ class TestMQCJudgeReplyValidation:
         assert chr(0x2014) not in reply.rationales[first]
         assert "Well argued: though terse" == reply.rationales[first]
 
-    def MQC_EVL_UNI_10327_judge_format_violation_is_recorded(
+    def MQC_EVL_UNI_114407_judge_format_violation_is_recorded(
         self, sample_rubric_record: Rubric
     ) -> None:
         """Normalizing silently would discard the drift signal entirely.
@@ -201,7 +201,7 @@ class TestMQCJudgeReplyValidation:
         )
         assert reply.format_violations == ["U+007C", "U+2013"]
 
-    def MQC_EVL_UNI_10371_a_clean_rationale_records_no_format_violation(self) -> None:
+    def MQC_EVL_UNI_114413_a_clean_rationale_records_no_format_violation(self) -> None:
         """The counterweight: normalization must not report what it did not do.
 
         Returns:
@@ -215,7 +215,7 @@ class TestMQCJudgeReplyValidation:
 class TestMQCJudgeObservations:
     """How many judgements one case produces, and who produced them."""
 
-    def MQC_EVL_UNI_10320_one_judgement_per_candidate_observation(self) -> None:
+    def MQC_EVL_UNI_114400_one_judgement_per_candidate_observation(self) -> None:
         """A4 gives three responses, so three judgements.
 
         Returns:
@@ -226,7 +226,7 @@ class TestMQCJudgeObservations:
         ]
         assert judgements_for_observations(replies) == 3
 
-    def MQC_EVL_UNI_10321_judge_is_not_sampled_repeatedly_on_one_response(self) -> None:
+    def MQC_EVL_UNI_114401_judge_is_not_sampled_repeatedly_on_one_response(self) -> None:
         """Sampling one response repeatedly would confound two variances.
 
         Judge variance and candidate variance would arrive in a single number
@@ -241,7 +241,7 @@ class TestMQCJudgeObservations:
         ]
         assert judgements_for_observations(repeated) == 1
 
-    def MQC_EVL_UNI_10322_records_coincidence_when_judge_and_candidate_share_engine(
+    def MQC_EVL_UNI_114402_records_coincidence_when_judge_and_candidate_share_engine(
         self,
     ) -> None:
         """Recorded, not corrected.
@@ -266,7 +266,7 @@ class TestMQCJudgeObservations:
 class TestMQCJudgeTimeout:
     """Whose fault a timeout is, and what it costs the case."""
 
-    def MQC_EVL_UNI_10342_judge_timeout_maps_to_judge_code_not_candidate(self) -> None:
+    def MQC_EVL_UNI_114408_judge_timeout_maps_to_judge_code_not_candidate(self) -> None:
         """Two timeouts, two codes, because they mean different things.
 
         Repeated judge timeouts mean the evaluation path is unreliable;
@@ -279,7 +279,7 @@ class TestMQCJudgeTimeout:
         code = judge_timeout_outcome(_CASE_ID, assertions_passed_first=True)
         assert code == "QC_HARNESS_JUDGE_TIMEOUT"
 
-    def MQC_EVL_UNI_10343_judge_timeout_with_passing_assertions_is_a_skip(self) -> None:
+    def MQC_EVL_UNI_114409_judge_timeout_with_passing_assertions_is_a_skip(self) -> None:
         """The measurement was incomplete rather than negative.
 
         Returns:
@@ -287,7 +287,7 @@ class TestMQCJudgeTimeout:
         """
         assert judge_timeout_outcome(_CASE_ID, assertions_passed_first=True) is not None
 
-    def MQC_EVL_UNI_10344_assertion_failure_dominates_judge_timeout(self) -> None:
+    def MQC_EVL_UNI_114410_assertion_failure_dominates_judge_timeout(self) -> None:
         """Precedence: the case has already failed, so nothing is skipped.
 
         Recording a skip here would replace a real failure with an absence, and
@@ -299,7 +299,7 @@ class TestMQCJudgeTimeout:
         """
         assert judge_timeout_outcome(_CASE_ID, assertions_passed_first=False) is None
 
-    def MQC_EVL_UNI_10345_judge_timeout_never_attributed_to_the_candidate(self) -> None:
+    def MQC_EVL_UNI_114411_judge_timeout_never_attributed_to_the_candidate(self) -> None:
         """The judge is not under test.
 
         The candidate may have produced a perfectly good response that could

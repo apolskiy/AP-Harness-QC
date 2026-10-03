@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for structural isolation, the module's security control.
 
-Covers `MQC_EVL_UNI_10301` through `10303`, `10317` through `10319`, `10346`
-and `10347`, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
+Covers `MQC_EVL_UNI_114300` through `114302`, `114303` through `114305`, `114306`
+and `114307`, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **Isolation is the control; the screen is a detector.** These cases assert the
-control, which is why `10302` is foundational: if untrusted content can reach
+control, which is why `114301` is foundational: if untrusted content can reach
 the judge's instruction text, every later evaluator case forwards it with the
 defence absent.
 
@@ -60,7 +60,7 @@ def _material(**overrides: object) -> UnauthoredMaterial:
 class TestMQCIsolation:
     """Where unauthored content is permitted to appear, and where it is not."""
 
-    def MQC_EVL_UNI_10301_candidate_output_appears_only_in_data_field(
+    def MQC_EVL_UNI_114300_candidate_output_appears_only_in_data_field(
         self, sample_rubric_record: Rubric
     ) -> None:
         """The original rule, still asserted directly.
@@ -83,7 +83,7 @@ class TestMQCIsolation:
         "field_name",
         ["candidate_output", "task_instruction", "context_documents"],
     )
-    def MQC_EVL_UNI_10302_injection_string_never_reaches_instruction_portion(
+    def MQC_EVL_UNI_114301_injection_string_never_reaches_instruction_portion(
         self, sample_rubric_record: Rubric, field_name: str
     ) -> None:
         """Foundational. The defence reduced to a string containment check.
@@ -114,7 +114,7 @@ class TestMQCIsolation:
         assert request.instruction_contains(_PAYLOAD) is False
         assert any(_PAYLOAD == value for value in request.data.values())
 
-    def MQC_EVL_UNI_10303_isolation_applies_to_ordinary_and_adversarial_alike(
+    def MQC_EVL_UNI_114302_isolation_applies_to_ordinary_and_adversarial_alike(
         self, sample_rubric_record: Rubric
     ) -> None:
         """Unconditional: isolation does not depend on the screen finding anything.
@@ -136,7 +136,7 @@ class TestMQCIsolation:
         assert data_notice() in benign.rendered()
         assert data_notice() in hostile.rendered()
 
-    def MQC_EVL_UNI_10346_task_instruction_is_isolated_into_a_data_field(
+    def MQC_EVL_UNI_114306_task_instruction_is_isolated_into_a_data_field(
         self, sample_rubric_record: Rubric
     ) -> None:
         """The gap that mattered, asserted on its own.
@@ -152,7 +152,7 @@ class TestMQCIsolation:
         assert request.data["task_instruction"] == _PAYLOAD
         assert request.instruction_contains(_PAYLOAD) is False
 
-    def MQC_EVL_UNI_10347_context_documents_are_isolated_into_a_data_field(
+    def MQC_EVL_UNI_114307_context_documents_are_isolated_into_a_data_field(
         self, sample_rubric_record: Rubric
     ) -> None:
         """Documents are supplied where the rubric needs them, and isolated.
@@ -174,7 +174,7 @@ class TestMQCIsolation:
         assert request.data["context_document.MQC_DOC_one"] == _PAYLOAD
         assert request.data["context_document.MQC_DOC_two"] == "Benign text."
         assert request.instruction_contains(_PAYLOAD) is False
-    def MQC_EVL_UNI_10402_each_observation_composes_under_its_own_index(
+    def MQC_EVL_UNI_114309_each_observation_composes_under_its_own_index(
         self, sample_rubric_record: Rubric
     ) -> None:
         """Three observations were recorded as one judgement, overwriting.
@@ -215,7 +215,7 @@ class TestMQCIsolation:
 class TestMQCJudgeInstructionContent:
     """What the instruction portion must carry, and what it must not."""
 
-    def MQC_EVL_UNI_10317_judge_receives_no_priority_field(
+    def MQC_EVL_UNI_114303_judge_receives_no_priority_field(
         self,
         sample_rubric_record: Rubric,
     ) -> None:
@@ -237,7 +237,7 @@ class TestMQCJudgeInstructionContent:
         assert "priority" not in rendered
         assert "p0" not in rendered.split()
 
-    def MQC_EVL_UNI_10318_judge_receives_no_requirement_ids(
+    def MQC_EVL_UNI_114304_judge_receives_no_requirement_ids(
         self,
         sample_rubric_record: Rubric,
     ) -> None:
@@ -255,7 +255,7 @@ class TestMQCJudgeInstructionContent:
         assert "MQC_HAR_" not in rendered
         assert "requirement" not in rendered.lower()
 
-    def MQC_EVL_UNI_10319_judge_prompt_states_semantics_of_levels_two_and_four(
+    def MQC_EVL_UNI_114305_judge_prompt_states_semantics_of_levels_two_and_four(
         self, sample_rubric_record: Rubric
     ) -> None:
         """B2 anchors levels 1, 3 and 5 only, so the gaps are stated.
@@ -277,14 +277,14 @@ class TestMQCJudgeInstructionContent:
         assert intermediate_level_guidance() in instruction
         assert "Levels 2 and 4" in instruction
 
-    def MQC_EVL_UNI_10351_reply_schema_names_every_criterion(
+    def MQC_EVL_UNI_114308_reply_schema_names_every_criterion(
         self,
         sample_rubric_record: Rubric,
     ) -> None:
         """Structured output is mandatory, and the schema names what to score.
 
         A schema permitting any key would let a reply omit a criterion and still
-        validate, which would turn the omission check in `10325` into a check of
+        validate, which would turn the omission check in `114405` into a check of
         nothing.
 
         Args:

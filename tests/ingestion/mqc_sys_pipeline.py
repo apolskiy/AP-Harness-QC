@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """System preconditions for the joined ingestion pipeline.
 
-Covers `MQC_ING_SYS_20001` through `20007`, inventoried in
+Covers `MQC_ING_SYS_121000` through `121006`, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.2.
 
 **These are integration cases because the checks they cover need both halves.**
@@ -124,7 +124,7 @@ def _rule(**overrides: Any) -> GoldenRuleSet:
 class TestMQCReferentialIntegrity:
     """The five checks that need both halves of the join."""
 
-    def MQC_ING_SYS_20001_rejects_task_referencing_unknown_rubric_id(self) -> None:
+    def MQC_ING_SYS_121000_rejects_task_referencing_unknown_rubric_id(self) -> None:
         """R1: a dangling reference means the case is judged by nothing.
 
         Returns:
@@ -136,7 +136,7 @@ class TestMQCReferentialIntegrity:
             )
         assert "R1" in str(caught.value)
 
-    def MQC_ING_SYS_20002_rejects_constraint_ref_with_no_matching_constraint(self) -> None:
+    def MQC_ING_SYS_121001_rejects_constraint_ref_with_no_matching_constraint(self) -> None:
         """R2: grading a model on an instruction it never received is unfair.
 
         The finding it produces looks like a model defect and is ours, which is
@@ -151,7 +151,7 @@ class TestMQCReferentialIntegrity:
             )
         assert "R2" in str(caught.value)
 
-    def MQC_ING_SYS_20003_rejects_constraint_sent_but_never_checked(self) -> None:
+    def MQC_ING_SYS_121002_rejects_constraint_sent_but_never_checked(self) -> None:
         """R3: an instruction sent and never verified is a rule nobody tests.
 
         This is the check nobody writes. Nothing surfaces it, and the result
@@ -164,7 +164,7 @@ class TestMQCReferentialIntegrity:
             check_referential_integrity([_task(constraints=[_CONSTRAINT])], [_rule()])
         assert "R3" in str(caught.value)
 
-    def MQC_ING_SYS_20004_rejects_tool_expectation_for_unoffered_tool(self) -> None:
+    def MQC_ING_SYS_121003_rejects_tool_expectation_for_unoffered_tool(self) -> None:
         """R4: forbidding a tool never offered proves nothing about the model.
 
         Returns:
@@ -176,7 +176,7 @@ class TestMQCReferentialIntegrity:
             )
         assert "R4" in str(caught.value)
 
-    def MQC_ING_SYS_20007_rejects_contradictory_tool_expectation_after_the_join(self) -> None:
+    def MQC_ING_SYS_121006_rejects_contradictory_tool_expectation_after_the_join(self) -> None:
         """R5 at the joined level, which G4 cannot reach alone.
 
         G4 rejects an intersection when one expectation is built. R5 repeats the
@@ -203,14 +203,14 @@ class TestMQCReferentialIntegrity:
             check_referential_integrity([_task(available_tools=[_TOOL])], [contradictory])
         assert "R5" in str(caught.value)
 
-    def MQC_ING_SYS_20012_several_rules_may_divide_a_task_s_constraints_between_them(
+    def MQC_ING_SYS_121011_several_rules_may_divide_a_task_s_constraints_between_them(
         self,
     ) -> None:
         """Several rules may divide one task's constraints between them.
 
         R3 is evaluated over every rule the task names, so a rule that checks
         one constraint and ignores another is not reported. A constraint that no
-        named rule checks is still refused, which ``20003`` also covers.
+        named rule checks is still refused, which ``121002`` also covers.
 
         Design: ``tier1_ingestion.md`` section 7.3.1.
 
@@ -247,7 +247,7 @@ class TestMQCReferentialIntegrity:
         with pytest.raises(ValueError, match="C_NO_SPECULATION"):
             check_referential_integrity([task], [grounded])
 
-    def MQC_ING_SYS_20008_a_fully_consistent_corpus_passes_every_check(self) -> None:
+    def MQC_ING_SYS_121007_a_fully_consistent_corpus_passes_every_check(self) -> None:
         """All five checks satisfied at once, which no negative case proves.
 
         Five passing negatives establish that each check fires. Only this
@@ -271,7 +271,7 @@ class TestMQCReferentialIntegrity:
 class TestMQCCaseConstruction:
     """Building the (task by rubric) unit after the join."""
 
-    def MQC_ING_SYS_20005_builds_one_case_per_task_rubric_pair(self) -> None:
+    def MQC_ING_SYS_121004_builds_one_case_per_task_rubric_pair(self) -> None:
         """The unit of evaluation is the pair, not the task.
 
         Returns:
@@ -287,7 +287,7 @@ class TestMQCCaseConstruction:
         assert count_unique_case_definitions(cases) == 3
         assert [case.priority for case in cases] == [2, 3, 2]
 
-    def MQC_ING_SYS_20006_case_id_is_stable_across_runs(self) -> None:
+    def MQC_ING_SYS_121005_case_id_is_stable_across_runs(self) -> None:
         """An identifier derives only from two authored names.
 
         Nothing about when or where a run happened enters it, which is what
@@ -301,7 +301,7 @@ class TestMQCCaseConstruction:
         assert first[0].case_id == second[0].case_id
         assert first[0].case_id == build_case_id("MQC_TASK_alpha", "MQC_RULE_grounding")
 
-    def MQC_ING_SYS_20010_colliding_case_ids_are_rejected_after_the_join(self) -> None:
+    def MQC_ING_SYS_121009_colliding_case_ids_are_rejected_after_the_join(self) -> None:
         """Two pairs whose combined identifiers collide on a filesystem.
 
         Both halves are screened individually at ingest, so reaching this needs
@@ -316,7 +316,7 @@ class TestMQCCaseConstruction:
         with pytest.raises(ValueError, match="QC_DATA_IDENTIFIER_UNSAFE"):
             build_evaluation_cases(tasks, [_rule()])
 
-    def MQC_ING_SYS_20011_a_tool_expectation_may_itself_check_a_constraint(self) -> None:
+    def MQC_ING_SYS_121010_a_tool_expectation_may_itself_check_a_constraint(self) -> None:
         """A constraint can be verified by an expectation, not only a criterion.
 
         R3 collects references from assertions, rubric criteria and the tool
@@ -339,7 +339,7 @@ class TestMQCCaseConstruction:
             ],
         )
 
-    def MQC_ING_SYS_20009_case_building_requires_integrity_to_have_run(self) -> None:
+    def MQC_ING_SYS_121008_case_building_requires_integrity_to_have_run(self) -> None:
         """An unresolvable reference here is a programming error, not bad data.
 
         R1 already establishes that every reference resolves. Re-checking would

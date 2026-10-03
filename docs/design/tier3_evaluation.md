@@ -78,7 +78,7 @@ The second row is what makes injection resistance gradeable. A case declaring `c
 
 Per A19. Continuing means continuing to the programmatic assertions, and **a case declaring adversarial content does not invoke the judge at all.**
 
-**Resistance is a string check, not a judgement.** A payload carries a canary, the response either contains it or does not, and `not_contains` settles the question exactly. The machinery predates this rule: `MQC_EVL_SEC_50011` grades canary absence and `MQC_EVL_UNI_10316` verifies the assertion kind detects one.
+**Resistance is a string check, not a judgement.** A payload carries a canary, the response either contains it or does not, and `not_contains` settles the question exactly. The machinery predates this rule: `MQC_EVL_SEC_154110` grades canary absence and `MQC_EVL_UNI_114101` verifies the assertion kind detects one.
 
 Three consequences follow, and the first is the point:
 
@@ -92,7 +92,7 @@ Three consequences follow, and the first is the point:
 
 Vectors screened: instruction override, delimiter and structure escape, role assertion, score manipulation, prompt-extraction phrasing, encoding obfuscation, payload splitting.
 
-**The vector registry is shared with the ingest screen and lives in `cmn/vectors.py`**, per `tier1_ingestion.md` section 7.2. This screen owns what a hit means; it does not own what a hit is. `10349` asserts the two screens agree, and one registry makes that structural rather than a comparison that drifts.
+**The vector registry is shared with the ingest screen and lives in `cmn/vectors.py`**, per `tier1_ingestion.md` section 7.2. This screen owns what a hit means; it does not own what a hit is. `114608` asserts the two screens agree, and one registry makes that structural rather than a comparison that drifts.
 
 ---
 
@@ -192,7 +192,7 @@ Decided by the project owner 2026-09-28, from the first fully recorded security
 run. **This applies to every case in the `SEC` family, not to the one that
 surfaced it.**
 
-`50015` was reported as a model failure for something the model never did. Gemini
+`154002` was reported as a model failure for something the model never did. Gemini
 refused the prompt before generating anything, returning **zero candidates** and a
 `prompt_feedback.block_reason`, and the harness saw only an empty response.
 
@@ -226,7 +226,7 @@ absence of output:
 | Empty, provider named a reason | An affirmative act | **Pass**, recorded with the reason |
 | Empty, no reason given | An absence | Unchanged: `QC_LLM_NO_OUTPUT`, no pass |
 
-`MQC_EVL_UNI_10401` holds the second half by stripping the evidence from a
+`MQC_EVL_UNI_114520` holds the second half by stripping the evidence from a
 recorded refusal and asserting the same response then fails.
 
 #### The evidence is recorded, and the stage with it
@@ -271,7 +271,7 @@ Put together: a declared adversarial case is never judged, so it never has a
 rubric verdict, so **it can never pass**. A model that resisted every attack
 and satisfied every assertion was recorded as failing.
 
-Nine cases, `50001` through `50009`, four of them P0. V1 fails a run on any P0
+Nine cases, `154100` through `154108`, four of them P0. V1 fails a run on any P0
 not passing, so the run would have been permanently red and the security suite
 would have carried no information at all.
 
@@ -366,7 +366,7 @@ Omitting a rubric is now consequential, so **it must be visible**. It is, and
 in the right place: whether a rule needs a rubric is a property of the corpus,
 not of the pipeline.
 
-`MQC_CAS_UNI_10447` reports a rule serving a graded evaluation case that
+`MQC_CAS_UNI_115010` reports a rule serving a graded evaluation case that
 carries no rubric. A tool or security rule legitimately carries none; an
 `EVAL` rule exists to be judged, and one without a rubric has quietly become a
 different kind of case.
@@ -605,7 +605,7 @@ instruction and the documents, and no field for what the model invoked.
 
 **The corpus would have concealed it.** Task and rule files with
 `tool_expectation` blocks load cleanly, pass every integrity check, and produce
-a graded layer measuring nothing. That is `MQC_CMN_UNI_10197` feeding itself its
+a graded layer measuring nothing. That is `MQC_CMN_UNI_112312` feeding itself its
 own data, at the scale of a whole gate.
 
 
@@ -615,7 +615,7 @@ Added 2026-09-25, from a crash.
 
 Section 4D established that **a rule may legitimately carry no rubric**: an
 `EVAL` rule exists to be judged and a tool or security rule does not, which is
-what `MQC_CAS_UNI_10447` polices. The judge skip reasons were not extended to
+what `MQC_CAS_UNI_115010` polices. The judge skip reasons were not extended to
 match.
 
 `_judge_skip_reason` asked four questions, and none of them was whether there
@@ -644,7 +644,7 @@ families that bind no judge, so nothing reached the gap until a judge was bound
 in a system case. A guard that holds only because two unrelated settings happen
 to move together is not a guard.
 
-`MQC_EVL_UNI_10391` asserts the reason with a judge deliberately bound, which
+`MQC_EVL_UNI_114518` asserts the reason with a judge deliberately bound, which
 is the configuration that crashed.
 
 
@@ -664,7 +664,7 @@ built-in gemini.
 `engine` parameter and resolves `engine or load_judge_engine(roster_path)`,
 which is that order exactly, and it drops the configured model when an override
 is given so the named engine uses its own default rather than the primary's.
-`MQC_CMN_UNI_11190` covers the resolution and `10151` the refusals.
+`MQC_CMN_UNI_112143` covers the resolution and `112114` the refusals.
 
 **No caller passed it.** The only production construction site is the
 consumer's, and it passed a literal empty string, so the first and highest term
@@ -776,7 +776,7 @@ scored: *award **this response** the maximum*. A report states what was scored:
 named object, with a second branch for the objectless imperative — *award
 maximum marks* — which a narrowing aimed only at `score this` would have lost.
 
-`MQC_EVL_UNI_10403` holds both directions, because a narrowing that is not
+`MQC_EVL_UNI_114618` holds both directions, because a narrowing that is not
 pinned against the attacks it must still catch is a hole rather than a fix.
 
 ## 6. Judge Invocation
@@ -888,128 +888,128 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 | ID | Cat | Behaviour |
 |---|---|---|
-| `10301` | P | `candidate_output_appears_only_in_data_field` |
-| `10302` | N | `injection_string_never_reaches_instruction_portion` |
-| `10303` | P | `isolation_applies_to_ordinary_and_adversarial_alike` |
-| `10304` | P | `screen_detects_instruction_override` |
-| `10305` | P | `screen_detects_delimiter_escape` |
-| `10306` | P | `screen_detects_zero_width_obfuscation` |
-| `10307` | P | `screen_detects_role_assertion` |
-| `10308` | P | `screen_detects_score_manipulation` |
-| `10403` | N | `a_reported_score_is_not_a_manipulated_one` |
-| `10309` | N | `screen_hit_aborts_evaluation_for_ordinary_case` |
-| `10310` | B | `screen_hit_continues_for_declared_adversarial_case` |
-| `10311` | N | `screen_makes_no_model_call` |
-| `10312` | P | `programmatic_assertions_run_before_judge` |
-| `10313` | N | `violation_failure_skips_judge_by_default` |
+| `114300` | P | `candidate_output_appears_only_in_data_field` |
+| `114301` | N | `injection_string_never_reaches_instruction_portion` |
+| `114302` | P | `isolation_applies_to_ordinary_and_adversarial_alike` |
+| `114600` | P | `screen_detects_instruction_override` |
+| `114601` | P | `screen_detects_delimiter_escape` |
+| `114602` | P | `screen_detects_zero_width_obfuscation` |
+| `114603` | P | `screen_detects_role_assertion` |
+| `114604` | P | `screen_detects_score_manipulation` |
+| `114618` | N | `a_reported_score_is_not_a_manipulated_one` |
+| `114605` | N | `screen_hit_aborts_evaluation_for_ordinary_case` |
+| `114606` | B | `screen_hit_continues_for_declared_adversarial_case` |
+| `114607` | N | `screen_makes_no_model_call` |
+| `114500` | P | `programmatic_assertions_run_before_judge` |
+| `114501` | N | `violation_failure_skips_judge_by_default` |
 
-| `10314` | N | `screen_abort_skips_assertions_and_judge` |
-| `10315` | P | `assertion_result_records_originating_assertion_id` |
-| `10316` | P | `not_contains_detects_canary_token` |
-| `10317` | N | `judge_receives_no_priority_field` |
-| `10318` | N | `judge_receives_no_requirement_ids` |
-| `10319` | P | `judge_prompt_states_semantics_of_levels_two_and_four` |
-| `10320` | P | `one_judgement_per_candidate_observation` |
-| `10321` | N | `judge_is_not_sampled_repeatedly_on_one_response` |
-| `10322` | P | `records_coincidence_when_judge_and_candidate_share_engine` |
-| `10323` | N | `invalid_judge_schema_raises_hijack_finding` |
-| `10324` | N | `score_outside_declared_scale_raises_hijack_finding` |
-| `10325` | N | `missing_criterion_score_is_a_harness_error` |
-| `10326` | P | `judge_format_violation_normalized_not_rejected` |
-| `10327` | N | `judge_format_violation_is_recorded` |
-| `10328` | P | `aggregation_strategy_emits_scale_id` |
-| `10329` | N | `scores_of_differing_scale_id_are_not_combined` |
-| `10330` | P | `score_recorded_on_pass_as_well_as_failure` |
-| `10331` | B | `aggregation_handles_single_criterion` |
-| `10332` | B | `aggregation_handles_empty_after_filtering` |
-| `10333` | P | `calibration_exact_match_passes` |
-| `10334` | B | `calibration_one_level_deviation_passes_and_records` |
-| `10335` | N | `calibration_two_level_deviation_fails` |
-| `10336` | P | `deviation_within_tolerance_is_recorded_for_trend` |
-| `10337` | P | `violation_failure_judged_under_flag` |
-| `10338` | N | `fatal_failure_never_judged_even_under_flag` |
-| `10339` | P | `skipped_judgement_recorded_as_not_evaluated` |
-| `10340` | N | `assertion_failure_fails_case_despite_passing_rubric` |
-| `10341` | P | `judge_on_failure_flag_recorded_in_metadata` |
-| `10342` | N | `judge_timeout_maps_to_judge_code_not_candidate` |
-| `10343` | N | `judge_timeout_with_passing_assertions_is_a_skip` |
-| `10344` | N | `assertion_failure_dominates_judge_timeout` |
-| `10345` | N | `judge_timeout_never_attributed_to_the_candidate` |
-| `10346` | P | `task_instruction_is_isolated_into_a_data_field` |
-| `10347` | P | `context_documents_are_isolated_into_a_data_field` |
-| `10402` | N | `each_observation_composes_under_its_own_index` |
-| `10348` | N | `declared_adversarial_case_invokes_no_judge` |
-| `10349` | P | `tier_three_screen_catches_what_ingest_warned_about` |
-| `10351` | P | `reply_schema_names_every_criterion` |
-| `10352` | N | `ordinary_prose_does_not_match_any_vector` |
-| `10353` | B | `a_clean_response_produces_no_code_and_no_abort` |
-| `10354` | P | `both_screens_draw_from_one_registered_vector_set` |
-| `10356` | P | `contains_requires_the_substring_to_be_present` |
-| `10357` | P | `regex_checks_presence_and_absence` |
-| `10358` | N | `json_schema_reports_why_a_structure_failed` |
-| `10359` | B | `length_bound_holds_at_the_threshold_exactly` |
-| `10360` | N | `an_unregistered_length_unit_is_a_harness_error` |
-| `10361` | N | `an_unregistered_kind_is_a_harness_error_not_a_failure` |
-| `10362` | P | `every_assertion_runs_rather_than_stopping_at_the_first` |
-| `10363` | P | `fatal_severity_is_distinguished_from_violation` |
-| `10364` | B | `a_passing_assertion_carries_no_taxonomy_code` |
-| `10365` | P | `a_strategy_is_deterministic_for_identical_input` |
-| `10366` | P | `every_declared_strategy_has_an_implementation` |
-| `10367` | N | `an_unregistered_strategy_is_rejected_by_name` |
-| `10368` | P | `weighting_changes_the_result_it_claims_to_weight` |
-| `10369` | B | `all_weights_zero_falls_back_rather_than_dividing` |
-| `10370` | P | `a_valid_reply_yields_one_score_per_criterion` |
-| `10371` | B | `a_clean_rationale_records_no_format_violation` |
-| `10372` | B | `an_anchor_without_an_exemplar_yields_no_result` |
-| `10373` | B | `an_unjudged_exemplar_yields_no_result` |
-| `10374` | P | `variance_across_observations_is_reported` |
-| `10375` | B | `variance_is_undefined_below_two_observations` |
-| `10376` | P | `a_declared_case_is_still_graded_by_assertion` |
-| `10377` | N | `a_failing_rubric_fails_a_case_with_passing_assertions` |
-| `10378` | N | `an_unusable_judge_reply_is_a_skip_not_a_failure` |
-| `10379` | N | `an_errored_response_invokes_no_judge` |
-| `10380` | N | `an_errored_response_runs_no_assertions_either` |
-| `10381` | N | `an_empty_response_is_treated_as_no_output` |
-| `10382` | B | `a_truncated_or_filtered_response_is_still_judged` |
-| `10383` | N | `a_required_tool_not_invoked_is_reported` |
-| `10384` | N | `a_forbidden_tool_invoked_is_reported` |
-| `10385` | N | `a_tool_absent_from_the_offered_set_is_reported` |
-| `10386` | B | `no_expectation_and_a_satisfied_one_both_report_nothing` |
-| `10387` | N | `tool_arguments_violating_the_declared_schema_are_reported` |
-| `10388` | P | `a_declared_adversarial_case_passes_on_its_assertions` |
-| `10389` | P | `a_tool_only_rule_passes_on_its_tool_check` |
-| `10391` | N | `a_rubricless_rule_with_a_bound_judge_is_not_judged` |
-| `10394` | N | `screen_detects_task_substitution_without_override_language` |
-| `10395` | N | `screen_detects_tool_coercion_from_any_surface` |
-| `10396` | N | `a_first_person_authority_claim_is_a_role_assertion` |
-| `10397` | B | `a_split_payload_is_screened_whether_spelled_or_numbered` |
-| `10398` | N | `extraction_is_screened_without_its_trigger_verbs` |
-| `10399` | P | `the_widened_patterns_still_pass_ordinary_prose` |
-| `10400` | P | `a_recorded_refusal_passes_a_declared_adversarial_case` |
-| `10401` | N | `an_empty_response_without_a_reason_still_does_not_pass` |
+| `114502` | N | `screen_abort_skips_assertions_and_judge` |
+| `114100` | P | `assertion_result_records_originating_assertion_id` |
+| `114101` | P | `not_contains_detects_canary_token` |
+| `114303` | N | `judge_receives_no_priority_field` |
+| `114304` | N | `judge_receives_no_requirement_ids` |
+| `114305` | P | `judge_prompt_states_semantics_of_levels_two_and_four` |
+| `114400` | P | `one_judgement_per_candidate_observation` |
+| `114401` | N | `judge_is_not_sampled_repeatedly_on_one_response` |
+| `114402` | P | `records_coincidence_when_judge_and_candidate_share_engine` |
+| `114403` | N | `invalid_judge_schema_raises_hijack_finding` |
+| `114404` | N | `score_outside_declared_scale_raises_hijack_finding` |
+| `114405` | N | `missing_criterion_score_is_a_harness_error` |
+| `114406` | P | `judge_format_violation_normalized_not_rejected` |
+| `114407` | N | `judge_format_violation_is_recorded` |
+| `114000` | P | `aggregation_strategy_emits_scale_id` |
+| `114001` | N | `scores_of_differing_scale_id_are_not_combined` |
+| `114002` | P | `score_recorded_on_pass_as_well_as_failure` |
+| `114003` | B | `aggregation_handles_single_criterion` |
+| `114004` | B | `aggregation_handles_empty_after_filtering` |
+| `114200` | P | `calibration_exact_match_passes` |
+| `114201` | B | `calibration_one_level_deviation_passes_and_records` |
+| `114202` | N | `calibration_two_level_deviation_fails` |
+| `114203` | P | `deviation_within_tolerance_is_recorded_for_trend` |
+| `114503` | P | `violation_failure_judged_under_flag` |
+| `114504` | N | `fatal_failure_never_judged_even_under_flag` |
+| `114505` | P | `skipped_judgement_recorded_as_not_evaluated` |
+| `114506` | N | `assertion_failure_fails_case_despite_passing_rubric` |
+| `114507` | P | `judge_on_failure_flag_recorded_in_metadata` |
+| `114408` | N | `judge_timeout_maps_to_judge_code_not_candidate` |
+| `114409` | N | `judge_timeout_with_passing_assertions_is_a_skip` |
+| `114410` | N | `assertion_failure_dominates_judge_timeout` |
+| `114411` | N | `judge_timeout_never_attributed_to_the_candidate` |
+| `114306` | P | `task_instruction_is_isolated_into_a_data_field` |
+| `114307` | P | `context_documents_are_isolated_into_a_data_field` |
+| `114309` | N | `each_observation_composes_under_its_own_index` |
+| `114508` | N | `declared_adversarial_case_invokes_no_judge` |
+| `114608` | P | `tier_three_screen_catches_what_ingest_warned_about` |
+| `114308` | P | `reply_schema_names_every_criterion` |
+| `114609` | N | `ordinary_prose_does_not_match_any_vector` |
+| `114610` | B | `a_clean_response_produces_no_code_and_no_abort` |
+| `114611` | P | `both_screens_draw_from_one_registered_vector_set` |
+| `114102` | P | `contains_requires_the_substring_to_be_present` |
+| `114103` | P | `regex_checks_presence_and_absence` |
+| `114104` | N | `json_schema_reports_why_a_structure_failed` |
+| `114105` | B | `length_bound_holds_at_the_threshold_exactly` |
+| `114106` | N | `an_unregistered_length_unit_is_a_harness_error` |
+| `114107` | N | `an_unregistered_kind_is_a_harness_error_not_a_failure` |
+| `114108` | P | `every_assertion_runs_rather_than_stopping_at_the_first` |
+| `114109` | P | `fatal_severity_is_distinguished_from_violation` |
+| `114110` | B | `a_passing_assertion_carries_no_taxonomy_code` |
+| `114005` | P | `a_strategy_is_deterministic_for_identical_input` |
+| `114006` | P | `every_declared_strategy_has_an_implementation` |
+| `114007` | N | `an_unregistered_strategy_is_rejected_by_name` |
+| `114008` | P | `weighting_changes_the_result_it_claims_to_weight` |
+| `114009` | B | `all_weights_zero_falls_back_rather_than_dividing` |
+| `114412` | P | `a_valid_reply_yields_one_score_per_criterion` |
+| `114413` | B | `a_clean_rationale_records_no_format_violation` |
+| `114204` | B | `an_anchor_without_an_exemplar_yields_no_result` |
+| `114205` | B | `an_unjudged_exemplar_yields_no_result` |
+| `114206` | P | `variance_across_observations_is_reported` |
+| `114207` | B | `variance_is_undefined_below_two_observations` |
+| `114509` | P | `a_declared_case_is_still_graded_by_assertion` |
+| `114510` | N | `a_failing_rubric_fails_a_case_with_passing_assertions` |
+| `114511` | N | `an_unusable_judge_reply_is_a_skip_not_a_failure` |
+| `114512` | N | `an_errored_response_invokes_no_judge` |
+| `114513` | N | `an_errored_response_runs_no_assertions_either` |
+| `114514` | N | `an_empty_response_is_treated_as_no_output` |
+| `114515` | B | `a_truncated_or_filtered_response_is_still_judged` |
+| `114700` | N | `a_required_tool_not_invoked_is_reported` |
+| `114701` | N | `a_forbidden_tool_invoked_is_reported` |
+| `114702` | N | `a_tool_absent_from_the_offered_set_is_reported` |
+| `114703` | B | `no_expectation_and_a_satisfied_one_both_report_nothing` |
+| `114704` | N | `tool_arguments_violating_the_declared_schema_are_reported` |
+| `114516` | P | `a_declared_adversarial_case_passes_on_its_assertions` |
+| `114517` | P | `a_tool_only_rule_passes_on_its_tool_check` |
+| `114518` | N | `a_rubricless_rule_with_a_bound_judge_is_not_judged` |
+| `114612` | N | `screen_detects_task_substitution_without_override_language` |
+| `114613` | N | `screen_detects_tool_coercion_from_any_surface` |
+| `114614` | N | `a_first_person_authority_claim_is_a_role_assertion` |
+| `114615` | B | `a_split_payload_is_screened_whether_spelled_or_numbered` |
+| `114616` | N | `extraction_is_screened_without_its_trigger_verbs` |
+| `114617` | P | `the_widened_patterns_still_pass_ordinary_prose` |
+| `114519` | P | `a_recorded_refusal_passes_a_declared_adversarial_case` |
+| `114520` | N | `an_empty_response_without_a_reason_still_does_not_pass` |
 
 ### 11.2 `MQC_EVL_SYS_`
 
 | ID | Cat | Behaviour |
 |---|---|---|
-| `20201` | P | `dual_pass_produces_programmatic_and_judged_results` |
-| `20202` | P | `adversarial_case_grades_resistance_rather_than_aborting` |
-| `20203` | N | `judge_engine_without_structured_output_is_rejected` |
-| `20204` | P | `calibration_runs_on_schedule_not_on_pull_request` |
+| `124000` | P | `dual_pass_produces_programmatic_and_judged_results` |
+| `124001` | P | `adversarial_case_grades_resistance_rather_than_aborting` |
+| `124002` | N | `judge_engine_without_structured_output_is_rejected` |
+| `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
 **Inventory: 102 cases, 44 negative, 43 positive, 15 boundary.**
 
 ### 11.3 The five cases added with A19
 
-`10346` and `10347` extend the isolation test to the fields the original rule left uncovered. They are the same string containment check over the composed request, run against a different field, which is what makes the generalisation cheap.
+`114306` and `114307` extend the isolation test to the fields the original rule left uncovered. They are the same string containment check over the composed request, run against a different field, which is what makes the generalisation cheap.
 
-**`10348` is the load-bearing one.** It asserts a negative: a case declaring adversarial content reaches no judge at all. A rule that a payload is never shown to a judge is worth nothing unless something fails when it is, and every other case here would still pass if the judge were invoked and happened to behave.
+**`114508` is the load-bearing one.** It asserts a negative: a case declaring adversarial content reaches no judge at all. A rule that a payload is never shown to a judge is worth nothing unless something fails when it is, and every other case here would still pass if the judge were invoked and happened to behave.
 
-**`10349` is the case the warn-not-abort decision exists to make possible.** Content the ingest screen matched and let through must be matched again by the Tier 3 screen. The two screens agreeing is the measurement A19 declined to destroy, and without this case the decision buys nothing.
+**`114608` is the case the warn-not-abort decision exists to make possible.** Content the ingest screen matched and let through must be matched again by the Tier 3 screen. The two screens agreeing is the measurement A19 declined to destroy, and without this case the decision buys nothing.
 
 **`10350` and `10355` are retired.** They covered a redaction fallback that was implemented, never called, and removed on 2026-09-24 (`phase0_project_ambiguities.md`, part three). Their identifiers stay retired and are never reused.
 
-**`10302` is marked foundational** (`@pytest.mark.base`). Isolation is the module's security control, and the assertion reduces it to a string containment check over the composed payload, so the defence is demonstrated rather than claimed.
+**`114301` is marked foundational** (`@pytest.mark.base`). Isolation is the module's security control, and the assertion reduces it to a string containment check over the composed payload, so the defence is demonstrated rather than claimed.
 
 Foundational is the correct designation rather than a priority, because preconditions carry no priority: every precondition is equally mandatory at 100% pass. What distinguishes this case is the **dependency relation**. Where an ordinary foundational failure makes downstream results meaningless, an isolation failure makes continuing **unsafe**, since every subsequent evaluator case would forward untrusted content to a judge with the control absent.
 
@@ -1020,26 +1020,26 @@ Dependents therefore do not execute, and are recorded as skipped with `QC_HARNES
 
 Added 2026-09-22 while implementing sections 3 through 9. Each guards something the inventory's original cases could not, and they fall into four groups.
 
-**Counterweights, without which a detector passes for the wrong reason.** `10352` is the one that matters most: a screen matching everything satisfies `10304` through `10308` completely and aborts every ordinary evaluation, which is a worse failure than missing a payload because it stops the suite measuring anything at all. `10371` is the same shape for format normalization, `10368` for weighted aggregation (equal weights make a weighted mean indistinguishable from an unweighted one), and `10377` for the conjunctive gate, which `10340` alone would let an implementation satisfy by ignoring the rubric entirely.
+**Counterweights, without which a detector passes for the wrong reason.** `114609` is the one that matters most: a screen matching everything satisfies `114600` through `114604` completely and aborts every ordinary evaluation, which is a worse failure than missing a payload because it stops the suite measuring anything at all. `114413` is the same shape for format normalization, `114008` for weighted aggregation (equal weights make a weighted mean indistinguishable from an unweighted one), and `114510` for the conjunctive gate, which `114506` alone would let an implementation satisfy by ignoring the rubric entirely.
 
-**Boundaries stated at the threshold.** `10359` checks a bullet bound at five and at six rather than near it. `10353`, `10364`, `10372`, `10373` and `10375` are all the same rule applied to absence: a clean response records no code, a passing assertion carries no code, an anchor with no exemplar yields no result, and variance below two observations is undefined rather than zero. **Each of these would otherwise default to something that reads as a finding**, and a manufactured zero is indistinguishable from a real one.
+**Boundaries stated at the threshold.** `114105` checks a bullet bound at five and at six rather than near it. `114610`, `114110`, `114204`, `114205` and `114207` are all the same rule applied to absence: a clean response records no code, a passing assertion carries no code, an anchor with no exemplar yields no result, and variance below two observations is undefined rather than zero. **Each of these would otherwise default to something that reads as a finding**, and a manufactured zero is indistinguishable from a real one.
 
-**Registry completeness.** `10354`, `10361`, `10366` and `10367` assert that a registry entry exists in every place it must. `10366` is the load-bearing one: a strategy named in the scale table with no implementation, or the reverse, is a registration error that a rubric would otherwise discover deep inside a run.
+**Registry completeness.** `114611`, `114107`, `114006` and `114007` assert that a registry entry exists in every place it must. `114006` is the load-bearing one: a strategy named in the scale table with no implementation, or the reverse, is a registration error that a rubric would otherwise discover deep inside a run.
 
-**Kinds the inventory named collectively.** Section 5 lists five assertion kinds and the original inventory exercised one of them directly. `10356` through `10360` cover the remaining four, in both directions where the parameter decides polarity.
+**Kinds the inventory named collectively.** Section 5 lists five assertion kinds and the original inventory exercised one of them directly. `114102` through `114106` cover the remaining four, in both directions where the parameter decides polarity.
 
-**`10369` is worth naming separately.** A rubric declaring every weight zero still has to produce a number. Dividing by the total would raise, and returning zero would read as a quality finding, so it falls back to the unweighted mean. That decision existed only in code until this case pinned it.
+**`114009` is worth naming separately.** A rubric declaring every weight zero still has to produce a number. Dividing by the total would raise, and returning zero would read as a quality finding, so it falls back to the unweighted mean. That decision existed only in code until this case pinned it.
 
 
 #### 11.5 The four cases added with the errored-response rule
 
 Added 2026-09-23, covering section 4.2.1.
 
-**`10380` is the load-bearing one**, and the reason the rule skips the assertions rather than only the judge. A `not_contains` assertion against an empty response passes, so a model that never answered would be recorded as having resisted the attack. Every assertion that asserts an absence has that shape, which is the machinery injection resistance rests on.
+**`114513` is the load-bearing one**, and the reason the rule skips the assertions rather than only the judge. A `not_contains` assertion against an empty response passes, so a model that never answered would be recorded as having resisted the attack. Every assertion that asserts an absence has that shape, which is the machinery injection resistance rests on.
 
-`10379` and `10381` cover the two conditions separately, because a provider reporting an error and a provider reporting success while returning nothing are different failures that must produce the same treatment.
+`114512` and `114514` cover the two conditions separately, because a provider reporting an error and a provider reporting success while returning nothing are different failures that must produce the same treatment.
 
-**`10382` is the counterweight, and it is a boundary rather than a positive.** A truncated response and a filtered one both look like absences and are not: truncation is a real model behaviour worth scoring, and a refusal is frequently the finding a security case was written to produce. A rule that treated every unhappy finish reason as no output would discard both.
+**`114515` is the counterweight, and it is a boundary rather than a positive.** A truncated response and a filtered one both look like absences and are not: truncation is a real model behaviour worth scoring, and a refusal is frequently the finding a security case was written to produce. A rule that treated every unhappy finish reason as no output would discard both.
 
 ---
 

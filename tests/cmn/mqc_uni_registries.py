@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What every registry contains, pinned so growth is deliberate.
 
-Covers ``MQC_CMN_UNI_11161``, inventoried in
+Covers ``MQC_CMN_UNI_112319``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.33.
 
 **Split from the metadata module on 2026-09-25**, when that module crossed the
@@ -34,7 +34,7 @@ pytestmark = pytest.mark.unit
 class TestMQCRegistryMembership:
     """Six registries had accessors nobody called and contents nobody asserted."""
 
-    def MQC_CMN_UNI_11161_a_registry_membership_change_without_a_case_is_reported(
+    def MQC_CMN_UNI_112319_a_registry_membership_change_without_a_case_is_reported(
         self,
     ) -> None:
         """Unasserted is not the same as dead, and wants the opposite repair.
@@ -46,7 +46,7 @@ class TestMQCRegistryMembership:
 
         **What a registry can do silently.** A member added is a vocabulary
         the design never sanctioned; a member removed is a value that was legal
-        yesterday and loads as an error today. `10143` through `10145` check
+        yesterday and loads as an error today. `112200` through `112202` check
         that emitted and documented codes are registered, which is the other
         direction entirely.
 

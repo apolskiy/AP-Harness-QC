@@ -35,24 +35,24 @@ flags:
 
   # --- declared gaps, dated ------------------------------------------------
   #
-  # CLOSED 2026-10-01 by MQC_CAS_UNI_10467. The consumer reads the flag into
+  # CLOSED 2026-10-01 by MQC_CAS_UNI_115208. The consumer reads the flag into
   # the dispatch session's ceiling, and that is the half that was broken: the
-  # session and the fail-closed rule were already covered by MQC_EXE_UNI_10301
-  # and 10303, while nothing proved the flag reached them.
+  # session and the fail-closed rule were already covered by MQC_EXE_UNI_113700
+  # and 113702, while nothing proved the flag reached them.
   "--max-spend": {owner: consumer}
 
   # --- declared gaps, dated ------------------------------------------------
   #
   # A RUN-SHAPING FLAG WITH NO CASE. Each changes what a run measures or where
   # it reports, and none is currently demonstrated by anything.
-  # CLOSED 2026-10-02 by MQC_CAS_UNI_10471. The flag was already read into
+  # CLOSED 2026-10-02 by MQC_CAS_UNI_115407. The flag was already read into
   # observation_count as an override above the roster entry, so this was a
   # coverage gap and not a defect. The case also pins that an override still
   # earns escalation, which keeps a named count meaning what a configured one
   # means. Design `consumer_ci.md` section 4.13.1.
   "--observations": {owner: consumer}
   "--golden-rules": {owner: harness}
-  # CLOSED 2026-10-02 by MQC_CAS_UNI_10470, AND IT WAS A DEFECT. The gap said
+  # CLOSED 2026-10-02 by MQC_CAS_UNI_115406, AND IT WAS A DEFECT. The gap said
   # nothing covered the flag reaching the resolution, which was accurate and
   # read as a coverage gap. It was not: `judge_binding` passed a literal empty
   # string, so `--judge-engine openai` graded with gemini while the flag, being

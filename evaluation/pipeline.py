@@ -210,7 +210,7 @@ class EvaluationResult:
             # it subsumes the adversarial one: those rules author none either.
             #
             # The escape risk moves to the corpus, where it can be seen:
-            # MQC_CAS_UNI_10447 reports a graded evaluation rule with no rubric.
+            # MQC_CAS_UNI_115010 reports a graded evaluation rule with no rubric.
             return True
         return bool(self.score is not None and self.score.passed)
 

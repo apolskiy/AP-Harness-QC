@@ -93,4 +93,4 @@ Every failure carries a code, attached to the assertion message and to the Allur
 
 **`docs/design/test_taxonomy.md` section 6 is the single registry of codes.** This file states the families and their meaning; it deliberately does **not** restate the code list.
 
-Two registries drift, and this file previously carried a stale copy naming two families when four existed. A code is registered in one place, and `MQC_CMN_UNI_10143` through `10145` verify that every emitted and referenced code is registered there.
+Two registries drift, and this file previously carried a stale copy naming two families when four existed. A code is registered in one place, and `MQC_CMN_UNI_112200` through `112202` verify that every emitted and referenced code is registered there.

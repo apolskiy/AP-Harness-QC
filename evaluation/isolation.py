@@ -62,7 +62,7 @@ class JudgeRequest:
 
     **The split is the security control**, which is why it is a field of the
     record rather than a convention in how a string is built. A containment
-    check over ``instruction`` is what `MQC_EVL_UNI_10302` asserts, and it can
+    check over ``instruction`` is what `MQC_EVL_UNI_114301` asserts, and it can
     only be asserted because the two halves are separable.
 
     Attributes:
