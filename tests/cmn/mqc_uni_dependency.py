@@ -21,7 +21,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 
@@ -34,14 +34,16 @@ from cmn.vectors import (
     match_vectors,
     registered_vectors,
 )
+from cmn.selection import (
+    select_priority_bands,
+    selected_bands,
+)
 from cmn.pytest_support import (
     adopt_carried_outcomes,
     adopt_prerequisites,
     carried_identifiers,
     publish_prerequisites,
 
-    select_priority_bands,
-    selected_bands,
     arrange_dependencies,
     case_identifier,
     declared_dependencies,
@@ -50,119 +52,15 @@ from cmn.pytest_support import (
     reset_dependency_state,
     unknown_dependencies,
 )
+from tests.cmn.selection_support import FakeConfig, FakeItem
 
 pytestmark = pytest.mark.unit
 
 _UNMET = "QC_HARNESS_DEPENDENCY_UNMET"
 
 
-class _Config:
-    """The parts of pytest's configuration the band filter reads.
-
-    Attributes:
-        deselected (list): Items the filter reported as deselected.
-    """
-
-    def __init__(self, supplied: dict[str, Any]) -> None:
-        """Build a stand-in answering ``getoption`` from what was supplied.
-
-        **Keyed by the flag as a user types it**, dashes included, so a case
-        names the thing under test rather than the field it lands in. That is
-        also what `MQC_CMN_UNI_112522` looks for: a case exercising an option
-        through its record alone leaves the flag ungreppable, and the flag is
-        what a reader has.
-
-        Args:
-            supplied (dict): Option values, keyed by flag including dashes.
-
-        Returns:
-            None
-        """
-        self._supplied = supplied
-        self.deselected: list[Any] = []
-        self.hook = self
-
-    def getoption(self, name: str, default: Any = None) -> Any:
-        """Return a supplied option value.
-
-        Args:
-            name (str): The flag, with or without leading dashes.
-            default (Any): What to return when it was not supplied.
-
-        Returns:
-            Any: The value.
-        """
-        wanted = f"--{name.lstrip('-').replace('_', '-')}"
-        return self._supplied.get(wanted, default)
-
-    def pytest_deselected(self, items: list[Any]) -> None:
-        """Record what the filter deselected.
-
-        Args:
-            items (list): The deselected items.
-
-        Returns:
-            None
-        """
-        self.deselected.extend(items)
-
-
-
-class _Item:
-    """The parts of a pytest item the cascade reads.
-
-    Attributes:
-        name (str): The test callable's name.
-    """
-
-    def __init__(
-        self, name: str, *, base: bool = False, depends: tuple = (),
-        priority: Optional[int] = None,
-    ) -> None:
-        """Build a stand-in carrying the markers the cascade looks for.
-
-        Args:
-            name (str): The test callable's name.
-            base (bool): Whether it is marked foundational.
-            depends (tuple): Identifiers it declares a dependency on.
-            priority (Optional[int]): The band it belongs to, absent on a
-                precondition, which carries none.
-
-        Returns:
-            None
-        """
-        self.name = name
-        self._base = base
-        self._depends = depends
-        self._priority = priority
-
-    def get_closest_marker(self, marker_name: str) -> Optional[Any]:
-        """Return the named marker, or ``None``.
-
-        Args:
-            marker_name (str): Which marker.
-
-        Returns:
-            Optional[Any]: The marker when present.
-        """
-        if marker_name == "base" and self._base:
-            return pytest.mark.base
-        if marker_name == "priority" and self._priority is not None:
-            return pytest.mark.priority(self._priority)
-        return None
-
-    def iter_markers(self, name: str) -> list[Any]:
-        """Return every instance of the named marker.
-
-        Args:
-            name (str): Which marker.
-
-        Returns:
-            list: The markers, empty when none apply.
-        """
-        if name != "depends_on" or not self._depends:
-            return []
-        return [pytest.mark.depends_on(*self._depends).mark]
+# THE DOUBLES ARE SHARED with `mqc_uni_selection.py`, so the two
+# modules cannot disagree about what pytest does.
 
 
 _SUITE = '''
@@ -432,19 +330,19 @@ class TestMQCDependencyCascade:
         """
         reset_dependency_state()
         record_base_outcome(
-            _Item("MQC_CMN_UNI_90001_the_foundation_holds", base=True), True
+            FakeItem("MQC_CMN_UNI_90001_the_foundation_holds", base=True), True
         )
 
         # Returning without raising is the whole assertion: no skip, no fail.
         enforce_dependencies(
-            _Item("MQC_CMN_UNI_90002_dependent", depends=("90001",))
+            FakeItem("MQC_CMN_UNI_90002_dependent", depends=("90001",))
         )
 
         # AN UNMARKED CASE IS NOT RECORDED, so it cannot be depended upon by
         # accident. Only a case declaring itself foundational becomes one.
         reset_dependency_state()
-        record_base_outcome(_Item("MQC_CMN_UNI_90003_ordinary"), True)
-        assert not declared_dependencies(_Item("MQC_CMN_UNI_90003_ordinary"))
+        record_base_outcome(FakeItem("MQC_CMN_UNI_90003_ordinary"), True)
+        assert not declared_dependencies(FakeItem("MQC_CMN_UNI_90003_ordinary"))
 
         # AND THE DEPENDENT SKIPS RATHER THAN FAILING. At setup an absent
         # identifier cannot be told from one whose base has not run yet, so
@@ -452,7 +350,7 @@ class TestMQCDependencyCascade:
         # (design section 10.28.6). What is left here is the outcome.
         with pytest.raises(pytest.skip.Exception, match="90003"):
             enforce_dependencies(
-                _Item("MQC_CMN_UNI_90004_dependent", depends=("90003",))
+                FakeItem("MQC_CMN_UNI_90004_dependent", depends=("90003",))
             )
 
     def MQC_CMN_UNI_112402_a_dependency_naming_no_collected_case_is_reported(
@@ -474,8 +372,8 @@ class TestMQCDependencyCascade:
         """
         reset_dependency_state()
         population = [
-            _Item("MQC_CMN_UNI_90001_foundation", base=True),
-            _Item("MQC_CMN_UNI_90005_dependent", depends=("99999",)),
+            FakeItem("MQC_CMN_UNI_90001_foundation", base=True),
+            FakeItem("MQC_CMN_UNI_90005_dependent", depends=("99999",)),
         ]
 
         reported = unknown_dependencies(population)
@@ -489,8 +387,8 @@ class TestMQCDependencyCascade:
         # A RESOLVED DEPENDENCY IS NOT REPORTED, or the check would fire on
         # every suite and say nothing about this one.
         assert not unknown_dependencies([
-            _Item("MQC_CMN_UNI_90001_foundation", base=True),
-            _Item("MQC_CMN_UNI_90002_dependent", depends=("90001",)),
+            FakeItem("MQC_CMN_UNI_90001_foundation", base=True),
+            FakeItem("MQC_CMN_UNI_90002_dependent", depends=("90001",)),
         ])
 
         # THE IDENTIFIER IS THE HANDLE, and it is read from the name rather
@@ -617,11 +515,11 @@ class TestMQCPriorityBands:
             list: Stand-in items.
         """
         return [
-            _Item("MQC_EVL_SEC_154100_blocking", priority=0),
-            _Item("MQC_EVL_EVAL_134205_foundation", priority=1, base=True),
-            _Item("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",)),
-            _Item("MQC_EVL_EVAL_134111_informational", priority=4),
-            _Item("MQC_CMN_UNI_11001_precondition"),
+            FakeItem("MQC_EVL_SEC_154100_blocking", priority=0),
+            FakeItem("MQC_EVL_EVAL_134205_foundation", priority=1, base=True),
+            FakeItem("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",)),
+            FakeItem("MQC_EVL_EVAL_134111_informational", priority=4),
+            FakeItem("MQC_CMN_UNI_11001_precondition"),
         ]
 
     def MQC_CMN_UNI_112406_a_band_selects_only_its_own_cases(self) -> None:
@@ -636,7 +534,7 @@ class TestMQCPriorityBands:
             None
         """
         items = self._banded()
-        config = _Config({"--priority": "0"})
+        config = FakeConfig({"--priority": "0"})
 
         select_priority_bands(config, items)
         kept = [item.name for item in items]
@@ -679,11 +577,11 @@ class TestMQCPriorityBands:
         """
         without = self._banded()
         with pytest.raises(ValueError, match="QC_HARNESS_DEPENDENCY_UNMET"):
-            select_priority_bands(_Config({"--priority": "2"}), without)
+            select_priority_bands(FakeConfig({"--priority": "2"}), without)
 
         asked = self._banded()
         select_priority_bands(
-            _Config({"--priority": "2", "--with-prerequisites": True}), asked
+            FakeConfig({"--priority": "2", "--with-prerequisites": True}), asked
         )
         kept = [item.name for item in asked]
 
@@ -747,14 +645,17 @@ class TestMQCCarriedPrerequisites:
 
         # THE DEPENDENT IS RESOLVABLE WITHOUT COLLECTING ITS BASE, which is
         # what lets a band run without the one before it.
-        dependent = _Item("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",))
+        dependent = FakeItem("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",))
         assert unknown_dependencies([dependent]) == []
         assert "134205" in carried_identifiers()
 
         # AND A FOUNDATION THAT DID NOT HOLD STILL GATES. Treating an absent
         # base as non-gating would let a case report a measurement that
         # presupposes something known to be false.
-        failing = _Item("MQC_EVL_EVAL_134401_rests_on_a_failure", priority=2, depends=("134400",))
+        failing = FakeItem(
+            "MQC_EVL_EVAL_134401_rests_on_a_failure",
+            priority=2, depends=("134400",),
+        )
         with pytest.raises(pytest.skip.Exception, match=_UNMET):
             enforce_dependencies(failing)
         reset_dependency_state()
@@ -819,7 +720,7 @@ class TestMQCCarriedPrerequisites:
             None
         """
         reset_dependency_state()
-        quiet = _Config({"--carry-outcomes": ""})
+        quiet = FakeConfig({"--carry-outcomes": ""})
 
         adopt_prerequisites(quiet)
         publish_prerequisites(quiet)
@@ -846,7 +747,7 @@ class TestMQCPrerequisiteFlagScope:
         Returns:
             None
         """
-        config = _Config({"--with-prerequisites": True, "--keyword": "134404"})
+        config = FakeConfig({"--with-prerequisites": True, "--keyword": "134404"})
 
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             select_priority_bands(config, [])
@@ -872,7 +773,7 @@ class TestMQCPrerequisiteFlagScope:
         Returns:
             None
         """
-        config = _Config({"--with-prerequisites": True})
+        config = FakeConfig({"--with-prerequisites": True})
 
         # NO REFUSAL, AND NO SELECTION EITHER. The band list is empty, so the
         # function returns having changed nothing.

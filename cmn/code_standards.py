@@ -719,15 +719,7 @@ def required_result_fields(taxonomy: Path) -> dict[str, str]:
             and pass for having read nothing.
     """
     declared: dict[str, str] = {}
-    inside = False
-    for line in taxonomy.read_text(encoding="utf-8").splitlines():
-        if line.startswith("### 9.1"):
-            inside = True
-            continue
-        if inside and line.startswith("### "):
-            break
-        if not inside:
-            continue
+    for line in section_lines(taxonomy, "### 9.1"):
         matched = _FIELD_ROW.match(line)
         if matched is not None:
             declared[matched.group(1)] = matched.group(3)
@@ -738,3 +730,33 @@ def required_result_fields(taxonomy: Path) -> dict[str, str]:
             "reader would report no problems by having read nothing"
         )
     return declared
+
+def section_lines(document: Path, heading: str) -> list[str]:
+    """Return the lines under one heading, stopping at the next of its rank.
+
+    **Bounded reads, because a document-wide scan finds rows that are not
+    rows.** A table anywhere in a design can match a pattern written for one
+    section, and the match is indistinguishable from a real one; section 11.1's
+    family table had this exposure until 2026-10-03.
+
+    Args:
+        document (Path): The document to read.
+        heading (str): The heading line's prefix, such as ``"### 9.1"``.
+
+    Returns:
+        list[str]: The lines between that heading and the next heading of the
+        same or higher rank, excluding the heading itself.
+    """
+    rank = heading.split(" ", 1)[0]
+    stops = tuple(("#" * level) + " " for level in range(1, len(rank) + 1))
+    collected: list[str] = []
+    inside = False
+    for line in document.read_text(encoding="utf-8").splitlines():
+        if line.startswith(heading):
+            inside = True
+            continue
+        if inside:
+            if line.startswith(stops):
+                break
+            collected.append(line)
+    return collected

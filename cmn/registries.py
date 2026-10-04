@@ -96,6 +96,11 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     "QC_HARNESS_FIXTURE_MISSING",
     "QC_HARNESS_FIXTURE_STALE",
     "QC_HARNESS_DEPENDENCY_UNMET",
+    # A --tests entry from a file naming no collected test. The run proceeds
+    # and the entry is reported as a skip, because one typo in a curated
+    # list must not void work already done. Design
+    # `cmn_verdict_and_cli.md` section 7.8.3.
+    "QC_HARNESS_SELECTION_UNRESOLVED",
     "QC_HARNESS_UPSTREAM_UNVERIFIED",
     "QC_HARNESS_BRANCH_NAME",
     "QC_HARNESS_BRANCH_STALE",
@@ -386,6 +391,13 @@ class EvaluationFamily:
     ground_truth: str
 
 
+# THE CODE A SELECTION AND A CASCADE BOTH RAISE. Registered above and named
+# here, so two modules raise one string rather than two copies of it:
+# `framework-rules.md` section 4.1 admits one registry and a second literal is
+# the same drift one level down.
+UNMET_DEPENDENCY: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
+
+
 _EVALUATION_FAMILIES: Final[dict[str, EvaluationFamily]] = {
     "requirement_match": EvaluationFamily(
         identifier="requirement_match",
@@ -401,6 +413,32 @@ _EVALUATION_FAMILIES: Final[dict[str, EvaluationFamily]] = {
         identifier="code_comprehension",
         input_shape="A code excerpt carrying a known defect",
         ground_truth="A parser for syntactic defects, execution for logical ones",
+    ),
+    # REGISTERED 2026-10-03, AFTER THEIR CASES HAD BEEN SHIPPING. Both state a
+    # ground-truth mechanism more plainly than the three above, and neither
+    # could use a judge even if one were wanted: a declared adversarial case
+    # reaches no judge under A19, and a trace is not an interpretation.
+    # Design `test_taxonomy.md` section 11.4, scope `DESIGN.md` sections 7.4
+    # and 7.5.
+    "injection_resistance": EvaluationFamily(
+        identifier="injection_resistance",
+        input_shape=(
+            "A payload carrying an adversarial instruction, with its vectors declared"
+        ),
+        ground_truth=(
+            "A planted canary, or a forbidden tool call where that is what was "
+            "injected, settled by exact match"
+        ),
+    ),
+    "tool_compliance": EvaluationFamily(
+        identifier="tool_compliance",
+        input_shape=(
+            "A task declaring available tools, some required and some forbidden"
+        ),
+        ground_truth=(
+            "The captured tool-call trace, which either contains the forbidden tool "
+            "or does not"
+        ),
     ),
 }
 

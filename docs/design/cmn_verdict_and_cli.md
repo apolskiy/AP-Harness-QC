@@ -1277,7 +1277,7 @@ Troubleshooting and hotfix verification need a single case run from a terminal, 
 
 | Flag | Purpose |
 |---|---|
-| `--case <ID>` | Select one case by identifier |
+| `--tests <ID>[,<ID>]` | Select cases by identifier, or `@file` for a list (§7.8). **Replaced `--case`, retired 2026-10-03** |
 | `--observations <N>` | Override the configured observation count |
 | `--log-level <LEVEL>` | Raise verbosity for the run |
 | `--out-dir <PATH>` | Write artifacts somewhere a real run will not be overwritten |
@@ -1319,13 +1319,15 @@ The condition is therefore `run_context` rather than a stricter rule about selec
 
 Testers need to run a subset from a terminal or from CI. Selection is cheap; the question is whether the run still yields a verdict.
 
-| Flag | Selects |
-|---|---|
-| `--case <ID>[,<ID>]` | Specific cases |
-| `--priority 0,1` | Priority bands |
-| `--module ING,EXE` | Modules |
-| `--tag <tag>` | Tagged groups, such as an ambiguity control pair |
-| `-m`, `-k` | pytest native marker and name expressions |
+| Flag | Selects | State |
+|---|---|---|
+| `--tests <ID>[,<ID>]` | Specific cases, or `@file` for a list | Implemented, §7.8 |
+| `--priority 0,1` | Priority bands | Implemented, §7.5 |
+| `--family <id>[,<id>]` | Cases addressing an evaluation family | Implemented, §7.7 |
+| `--requirement <id>[,<id>]` | Cases covering a requirement | Implemented, §7.7 |
+| `--module ING,EXE` | Modules | **Declared here and in no registry**, §7.7.5 |
+| `--tag <tag>` | Tagged groups, such as an ambiguity control pair | **Declared here and in no registry**, §7.7.5 |
+| `-m`, `-k` | pytest native marker and name expressions | pytest's own |
 
 #### A verdict requires a selection the harness computed
 
@@ -1545,6 +1547,195 @@ between executions, and a collector that picked it up would have a second,
 weaker account of results that the JUnit and Allure artifacts already carry
 properly.
 
+### 7.7 Selecting a regression set by family or by requirement
+
+Added 2026-10-03 at the project owner's instruction: **after a fix, the set worth re-running is selected by priority, family or requirement.** `--priority` existed; the other two did not.
+
+A fix to a model's injection handling does not map to a module, a layer or a file. It maps to the behaviour that was fixed, and the two registers naming behaviour are the family (what the model was asked to do) and the requirement (what it must do).
+
+#### 7.7.1 Three flags, one mechanism
+
+| Flag | Selects | Resolved through |
+|---|---|---|
+| `--family <id>[,<id>]` | Every case addressing that family | The traceability matrix |
+| `--requirement <id>[,<id>]` | Every case covering that requirement | The traceability matrix |
+| `--rtm <path>` | Nothing; names the matrix the two above read | The caller |
+
+**`--rtm` is a path the caller supplies and absent is not a default**, exactly as `--golden-rules` is. This repository owns no matrix: `rtm_harness.csv` traces preconditions and carries no `families` column at all, deliberately (`MQC_CMN_UNI_112311`), so a default pointing at it would resolve every family to nothing. The case repository sets it in its `pytest.ini`.
+
+**Using either selector without `--rtm` refuses.** The alternative is a run that resolves nothing, selects nothing, and reports green.
+
+#### 7.7.2 `--family` is inclusive, and this revises an earlier claim
+
+**A case carrying the family in any position is selected, primary or secondary.**
+
+`test_taxonomy.md` §11.7.5 argued the opposite when it recorded this as a gap: that selecting on the primary returns the cases a fix wants re-run, and that including the rest returns cases that merely touch it. **That was wrong, and the error was in what selection is for.**
+
+A regression set exists to detect a regression. A case where the family is secondary still exercises it, so if the fix broke something that case can show it; omitting it buys a little quota and risks missing the thing the re-run was for. **Omission is the expensive error and inclusion is the cheap one**, which is the opposite balance from attribution.
+
+| Primary is for | Inclusive is for |
+|---|---|
+| Saying which family owns a finding | Deciding what to re-run |
+| Grouping a report, and the headline cost figure | Detecting a regression wherever it surfaced |
+| `MQC_CAS_UNI_115412`, where the derived family must be first | — |
+
+Narrowing to the primary remains available to a reader after the fact, because `primary_family` is published on every result (§11.7.2.1). Selection does not need its own flag for that, and a second flag differing from the first by one word is how a caller reaches for the wrong one.
+
+#### 7.7.3 Refusing is the whole value of the flag
+
+**An unknown value refuses, and so does a selection matching no collected case.**
+
+This project has found the same defect at least nine times: the thing is right and nothing establishes it is reachable. A selector is the purest form of the hazard, because its failure mode is silence. `--family injection_resistence` resolves nothing, selects nothing, runs nothing, and **reports green**, which is indistinguishable from a passing run to every artifact and every reader.
+
+| Refused | Why not a warning |
+|---|---|
+| A family not in the registry | A typo is the common case and the run would otherwise pass vacuously |
+| A requirement with no row in the matrix | Same, and it also catches a renamed requirement |
+| A resolution matching no collected case | The matrix can name a case the suite does not implement; `115405` reports that structurally, and a run must not proceed on it |
+
+**A warning would not do.** A run that selects nothing takes seconds and exits zero, so the warning arrives in a log nobody reads for a run nobody doubts.
+
+#### 7.7.4 Composition, and what it costs
+
+| Several values in one flag | Union. `--family a,b` is every case addressing either |
+| Two different flags | Intersection. `--priority 0,1 --family injection_resistance` is the P0 and P1 cases addressing it |
+| `--with-prerequisites` | Applies as it does to `--priority`: a selected case resting on an unselected foundation refuses, naming both remedies (§7.5.1) |
+
+**Preconditions are never deselected**, for the reason §7.5 gives about bands: they establish that the corpus is loadable at all, and a selection that dropped them would measure against an unchecked corpus.
+
+**Both are manual selectors, so neither run yields a verdict** (§7.1.2). A regression set is a hand-typed subset with no backstop, and what a subset costs is the verdict rather than the ability to run. This is the existing rule applied rather than a new one, and it is the right answer here: re-running the cases touching a fix answers whether the fix worked, not whether the model is releasable.
+
+#### 7.7.5 What §7.1.2's table promised and nothing implemented
+
+**`--module` and `--tag` appear in §7.1.2's selection table and in no registry.** Found 2026-10-03 while adding the two flags above.
+
+They are recorded here rather than deleted from the table, per `testing-standards.md`: work deliberately not done is a known gap with its reason, not a silence. The table now marks them.
+
+| | |
+|---|---|
+| Why not implemented now | Neither is the selection the project owner asked for, and `--module` is nearly served by pytest's own path selection while `--tag` has no declared vocabulary to select from |
+| What implementing `--tag` needs first | A registered tag vocabulary. Selecting on free text has the same silent-miss failure as §7.7.3 and no registry to refuse against |
+| Expires | 2026-11-30 |
+
+**The check that would have caught it** is a comparison between the flags a design names and the registry, which does not exist in either direction for prose tables. §7.1.0 records the reverse case, a registry entry nothing reads, and it was found the same way: by reading rather than by a check.
+
+### 7.8 `--tests` runs a named list, and takes it from a file
+
+Added 2026-10-03 at the project owner's instruction. **The purpose is debugging the harness and test expansions across branches**, where work reaches `main` only through a stabilization branch: a list of tests under stabilization is the unit a reviewer re-runs, and that list lives in a file long enough to be worth passing by reference.
+
+#### 7.8.1 Two flags, because the separator follows the medium
+
+| Flag | Value | Separator |
+|---|---|---|
+| `--tests` | Identifiers or full test names | Comma |
+| `--tests-file` | A path to a list | **One entry per line** |
+
+Both accept an identifier (`112241`) or a full test name (`MQC_CMN_UNI_112241_a_case_in_two_families_publishes_both`), which is reduced to its identifier. Giving both flags refuses: they disagree about what an unresolvable entry costs, and guessing which the caller meant would guess wrong silently.
+
+**Resolution is by identifier, never by substring.** `134205` is a substring of `130015`, so a substring match selects a case nobody asked for. The identifier is the only stable handle in the suite, which is why `declared_bases` already resolves this way.
+
+##### 7.8.1.1 The file format, and why one entry per line
+
+```
+# the three under stabilization this cycle
+112241
+
+MQC_CMN_UNI_112243_a_repeated_family_value_is_reported  # a full name reads the same
+115412
+```
+
+| Rule | Reason |
+|---|---|
+| One entry per line | **A thousand tests are a thousand lines.** The line count is the test count, so the file is auditable by counting it, and a diff shows one line per change |
+| An entry is word characters only, matching `[A-Za-z0-9_]+` | A test identifier is digits and a test callable's name is word characters, so nothing else can name a case |
+| A comma in a line is **refused** | It would cost the property above. Treating the line as one entry instead would report a missing test for a name that was never one |
+| A period, exclamation mark, semicolon, colon or space is **refused** | Each means a pasted list, a sentence or a nodeid, and the message names the character found |
+| Blank lines ignored | So the list can be grouped |
+| `#` begins a comment, to end of line | So the file can carry **why** an entry is on it, which is the thing a reviewer of a stabilization list wants and the command line cannot hold |
+
+**A malformed line is refused where a missing test is skipped**, and the distinction is not pedantry: the two say different things and take different corrections. A line reading `112299` names a test that is not here, which may be a rename on another branch and is reported so the run continues. A line reading `tests/cmn/mqc_uni_families.py::TestMQC::MQC_CMN_UNI_112241_x` names nothing at all, and reporting it as a test that was not found would tell the reader to go looking for a case rather than to fix the line.
+
+##### 7.8.1.3 A pytest nodeid is not accepted, and that follows from the rule
+
+A nodeid carries a path, a class and the callable, so it contains a period, slashes and colons; the character rule refuses it.
+
+**That is the right outcome rather than a casualty of it.** A nodeid names a case by where it currently lives: rename the file or the class and every nodeid in every stabilization list is stale, while the case is untouched. The identifier is the only stable handle in the suite, which is the same reason `declared_bases` resolves dependencies by identifier and the reason a behaviour suffix may be reworded without breaking anything.
+
+| Accepted | Example |
+|---|---|
+| An identifier | `112241` |
+| A full test callable name | `MQC_CMN_UNI_112241_a_case_in_two_families_publishes_both` |
+| **Not** a nodeid | A path and a class are not part of a case's identity |
+
+##### 7.8.1.2 Why a separate flag and not a prefix on `--tests`
+
+**The first design used `--tests @list.txt` and it could not work.** pytest's parser sets `fromfile_prefix_chars` to the at sign, so argparse expands such a value into arguments **before** any of this is reached: the first line becomes the flag's value and every later line arrives as a positional path. The run failed with `file or directory not found: 112299`.
+
+**Found by running it, not by reading pytest's documentation.** The convention is a real one, which is why it was chosen; it was already taken by the parser this project builds on. A value prefix that a host parser claims is unavailable however well-known it is elsewhere.
+
+#### 7.8.2 It selects exactly what was named, and that is the difference from `--priority`
+
+**A named selection does not keep preconditions and `--priority` does.** The two look inconsistent and are not.
+
+| | `--priority` | `--tests` and `--tests-file` |
+|---|---|---|
+| Selects over | Graded cases, which carry a band | Any case, by identifier |
+| Preconditions | Always kept: they establish the corpus is loadable, and a band measured against an unchecked corpus is worthless | Not kept: the caller named what to run |
+| In this repository | Selects nothing, since every case here is a precondition | Works, which is the point |
+
+**Keeping preconditions would make the flags a no-op in the harness**, where every case is a precondition and "keep every precondition" means "keep everything". A debugging flag that quietly runs the whole suite is worse than one that does not exist, so this is the rule that has to bend.
+
+**The dependency closure does not bend.** A named case resting on a foundation outside the list refuses, naming both remedies, exactly as a band does (§7.5.1). A graded case whose foundation never ran is not a result.
+
+#### 7.8.3 A missing test is a skip, and the source decides
+
+**Revised 2026-10-03 at the project owner's instruction**, which corrected the first design. That design refused the run whenever an entry matched no collected test.
+
+**For a file, refusing is the wrong trade.** A curated list is long, a typo or a rename is ordinary, and work may already have run: one bad line must not void the rest. So an unresolved entry from `--tests-file` is **reported as a skipped test named after the entry**, carrying `QC_HARNESS_SELECTION_UNRESOLVED` and the reason `test not found`, and the remaining entries run normally.
+
+| Source | An entry matching no collected test |
+|---|---|
+| `--tests`, inline | **Refuses.** The list is short, it was typed seconds ago and nothing has run, so stopping is the cheapest correction |
+| `--tests-file` | **Skips that entry, reported**, and the rest of the run proceeds |
+
+**This follows the project's own taxonomy rather than bending it.** `framework-rules.md` section 4 admits a `QC_HARNESS_*` event as skip or broken and **never** as fail, and an entry that does not resolve is exactly such an event: it says nothing about any model and nothing about any case. The first design had the harness family failing a run, which the taxonomy does not allow.
+
+##### 7.8.3.1 A skip needs something to skip
+
+**A nonexistent test cannot be skipped, because there is nothing to skip.** So the skip is given a node to attach to: a collected item carrying the entry's own name, which skips with its reason and reaches JUnit and Allure as a row.
+
+**A warning would not do.** It lands in a log nobody opens for a run nobody doubts, and the whole purpose of reporting the entry is that the artifact says what was not found. The row is the record.
+
+| Still refused | Why it is not a skip |
+|---|---|
+| `--tests-file` naming a path that does not exist | Nothing was read, so there is no list and no entry to report |
+| A file line carrying a comma | A format error, caught before anything runs |
+| A file or value yielding no entries at all | The selection would run nothing and report green |
+| **Every** entry unresolvable | Same: a run measuring nothing must not report green, and the skips alone would exit zero |
+
+The last row is the boundary. One bad entry among good ones is a skip; a list where nothing resolves is a refusal, because the alternative is a green run that measured nothing.
+
+#### 7.8.4 `--case` is retired, because it was the same flag
+
+**Found 2026-10-03 while implementing this.** `--case` was declared in the option registry, listed in §7.1.2 as a selection flag, and claimed in `config/flag_coverage.yaml` as exercised by consumer cases. **Nothing ever selected on it.** `MQC_CMN_UNI_112115` did read it, through `build_invocation`, and asserted two true things: that it reaches result metadata and that it makes a run unverdictable. No code anywhere used it to choose a case, and the only other matches in either repository were `--case-branch`, an unrelated flag in `harness_pin.py`.
+
+**Half-implemented is worse than inert.** A run passing `--case` executed the entire suite, recorded in its metadata that it had selected one case, and withheld its verdict for a selection that never happened. A reader of that artifact would have been misled by it, which a flag doing nothing at all could not manage.
+
+**And `MQC_REQ_HAR_CMN_0019` was never established.** The requirement reads "an unknown case identifier is an error, not an empty run", and its three cases were `112114`, which asserts that two string literals it had just written differ and then checks engine validation instead; `112115` above; and `112116`, which is about `--observations`. The behaviour the requirement names is first implemented by `--tests` in §7.8.3, and `112245` is the first case to establish it.
+
+This is §7.1.0's failure again with an aggravation: **the coverage file asserted coverage that did not exist**, which is worse than a silence because it answers the question a reader would ask and answers it wrongly.
+
+**Retired rather than implemented, at the project owner's decision.** Selecting cases by identifier is one concept, and `testing-standards.md` requires one word per concept; `--tests` already takes one identifier or many, so an individual selection needs no flag of its own.
+
+| | |
+|---|---|
+| Retired | `--case`, 2026-10-03. Removed from the registry, from §7.1.2's table and from the coverage file |
+| Kept | `--tests`, which covers one case and many, and takes a file |
+| Safe to remove outright | Nothing read it, so no caller changes behaviour. A flag with a reader would have been deprecated across a release instead |
+| Not reused | The name stays retired, for the reason §3.2 gives about identifiers: a reader of stored history would otherwise resolve it to different behaviour |
+
+**The check that would have caught it** is a comparison between the registry and what reads each flag. `flag_coverage.yaml` was built to be that check and it takes an **assertion** about each flag rather than deriving one, so an entry claiming an owner is believed. That is the same shape as the hand-typed field list in §9.4 and the self-consistent inventory in §11.2.2: a file that states a fact it could have computed.
+
 ## 8. Configuration
 
 | File | Contents | Why config, not code |
@@ -1631,8 +1822,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112111` | N | `invalid_enumerated_flag_value_is_rejected_at_parse_time` |
 | `112112` | P | `verdict_recomputable_from_stored_artifacts` |
 | `112113` | N | `precondition_failure_exits_three_not_one` |
-| `112114` | N | `unknown_case_identifier_is_an_error_not_an_empty_run` |
-| `112115` | P | `case_flag_selects_exactly_one_case` |
+| ~~`112114`~~ | | ~~`unknown_case_identifier_is_an_error_not_an_empty_run`~~. **Retired 2026-10-03 with `--case`**, section 7.8.4. It asserted that two string literals it had just written differ, then checked engine validation; the behaviour its requirement names is established by `112245` |
+| ~~`112115`~~ | | ~~`case_flag_selects_exactly_one_case`~~. **Retired 2026-10-03 with `--case`**, section 7.8.4. The identifier stays retired rather than rebound |
 | `112116` | P | `observations_override_replaces_configured_count` |
 | `112117` | N | `diagnostic_run_returns_no_verdict_code` |
 | `112204` | P | `run_context_and_gated_flag_recorded_in_metadata` |
@@ -1712,6 +1903,16 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112146` | N | `an_identifier_outside_its_module_block_is_reported` |
 | `112147` | P | `a_pass_reports_the_bands_it_excluded` |
 | `112148` | N | `a_required_field_the_code_does_not_emit_is_reported` |
+| `112241` | P | `a_case_in_two_families_publishes_both` |
+| `112242` | P | `a_shared_case_counts_toward_every_family_it_addresses` |
+| `112243` | N | `a_repeated_family_value_is_reported` |
+| `112244` | P | `a_named_test_selection_runs_exactly_those_tests` |
+| `112245` | N | `a_stale_named_entry_is_reported` |
+| `112246` | P | `a_named_list_is_read_from_a_file` |
+| `112247` | P | `a_family_selection_runs_every_case_addressing_it` |
+| `112248` | P | `a_requirement_selection_intersects_with_a_family` |
+| `112249` | N | `a_selector_the_matrix_cannot_resolve_is_reported` |
+| `112250` | P | `a_missing_test_named_in_a_file_is_skipped_not_refused` |
 | `112313` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `112314` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `112600` | P | `the_default_judge_engine_is_gemini` |
@@ -1781,7 +1982,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112518` | N | `a_credential_no_engine_reads_is_reported` |
 | `112519` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 220 cases, 124 negative, 69 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 228 cases, 126 negative, 75 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

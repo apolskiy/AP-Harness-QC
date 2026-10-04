@@ -146,7 +146,7 @@ def _run_chain(
                 outcome="pass" if evaluated.passed else "fail",
                 observation_index=index,
                 priority=rules.priority,
-                family="code_comprehension",
+                families=("code_comprehension",),
                 engine=_ENGINE,
                 mode="replay",
                 resolved_model=outcome.response.resolved_model,

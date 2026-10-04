@@ -43,7 +43,7 @@ _DERIVED_FIELDS: Final[frozenset[str]] = frozenset({
 # cannot be required of its parameters. Design `cmn_verdict_and_cli.md`
 # section 5.2.
 _ABSENT_WHEN_UNSET: Final[frozenset[str]] = frozenset({
-    "family", "requirement_ids", "skip_reason", "score", "scale_id",
+    "families", "primary_family", "requirement_ids", "skip_reason", "score", "scale_id",
     "rubric_result", "quarantine_hash", "rule_set_hash", "timeout_ms",
     "cli_flags", "effective_thresholds",
 })
@@ -141,7 +141,7 @@ class TestMQCResultEmission:
             priority_conditions=["P1_SOURCED_FIGURE"],
             requirement_ids=["MQC_REQ_MDL_GND_0003"],
             duration=1.25, duration_kind="measured", output_tokens=96,
-            family="requirement_match",
+            families=("requirement_match",),
         )
         run = RunContext(
             run_context="ci", selection_mode="full", preconditions_executed=True,

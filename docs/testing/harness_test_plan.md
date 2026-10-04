@@ -251,7 +251,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0016` | Every emitted and referenced taxonomy code is registered | CMN section 10.1 |
 | `MQC_REQ_HAR_CMN_0017` | Inventory counts match their rows | CMN section 10.1 |
 | `MQC_REQ_HAR_CMN_0018` | Traceability is verified in both directions, and derived columns match their source | T1 to T5 |
-| `MQC_REQ_HAR_CMN_0019` | An unknown case identifier is an error, not an empty run | CMN section 7.1.1 |
+| `MQC_REQ_HAR_CMN_0019` | An unknown named test is an error rather than an empty run, established by `--tests` since 2026-10-03; `--case` is retired and its two cases with it | CMN section 7.1.1 |
 | `MQC_REQ_HAR_CMN_0020` | A verdict is recomputable from stored artifacts | CMN section 7.2 |
 | `MQC_REQ_HAR_CMN_0021` | Each verdict rule produces the correct outcome at its threshold and on either side of it | CMN section 4.3 |
 | `MQC_REQ_HAR_CMN_0022` | Demotion follows match count, is reported, and security cases are never demoted | Taxonomy section 4.1.4 |
@@ -261,7 +261,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0026` | A truncated duration is excluded from latency statistics | Taxonomy section 9.3 |
 | `MQC_REQ_HAR_CMN_0028` | A debug run is ungated whatever its selection, and notifies without emitting a status check | CI pipeline section 6 |
 | `MQC_REQ_HAR_CMN_0029` | A diagnostic summary identifies the run, both refs, the changed areas and the resolved model version | CI pipeline section 6.5 |
-| `MQC_REQ_HAR_CMN_0030` | Every graded result carries a registered evaluation family, and preconditions carry none | Taxonomy section 11 |
+| `MQC_REQ_HAR_CMN_0030` | Every graded result carries its registered evaluation families, each value checked individually because the relation is many to many, and preconditions carry none | Taxonomy section 11 |
 | `MQC_REQ_HAR_CMN_0031` | Every result records the platform it ran on | Taxonomy section 9.1 |
 | `MQC_REQ_HAR_CMN_0032` | Every collected test is present in a design inventory, under the name the inventory gives it | CMN section 10.2 |
 | `MQC_REQ_HAR_CMN_0033` | Dependencies are declared once, and any generated copy is checked against the declaration | DESIGN.md section 5.0.1 |
@@ -378,6 +378,11 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0110` | Every collected case identifier carries six digits whose layer and module positions agree with its tokens, so a module cannot occupy another's block without being reported | test_taxonomy.md section 3.2.1.4 |
 | `MQC_REQ_HAR_CMN_0111` | A run that passes reports every case its quarantine excluded and the priority band of each, with a blocking band raised as a warning, so a green cannot read as green over everything when a release blocker is open and accepted | cmn_verdict_and_cli.md section 4.6.11 |
 | `MQC_REQ_HAR_CMN_0112` | The field list section 9 declares and the fields the code emits agree in both directions, so the normative list cannot fall behind the code and the code cannot emit a field the standard never declared | test_taxonomy.md section 9.5 |
+| `MQC_REQ_HAR_CMN_0113` | A case belonging to several families publishes all of them, and per-family cost totals attribute a shared case to each family it addresses, so the totals overlap and answer what a family costs to run rather than how the bill divides | test_taxonomy.md section 11.7 |
+| `MQC_REQ_HAR_CMN_0114` | A run selects the cases a fix wants re-run by evaluation family or by requirement, resolved through the traceability matrix the caller names, inclusive of a secondary family, and neither selection yields a verdict | cmn_verdict_and_cli.md section 7.7 |
+| `MQC_REQ_HAR_CMN_0115` | A selection that cannot be resolved refuses the run rather than selecting nothing, and names what it could not resolve | cmn_verdict_and_cli.md section 7.7.3 |
+| `MQC_REQ_HAR_CMN_0116` | A named test list is taken from a file holding one entry per line, and an entry in it matching no collected test is reported as a skip while the rest of the run proceeds | cmn_verdict_and_cli.md sections 7.8.1 and 7.8.3 |
+| `MQC_REQ_HAR_CMN_0117` | Overriding the observation count is recorded in result metadata and makes the run unverdictable, so a run that measured a different population is distinguishable from one that did not | cmn_verdict_and_cli.md section 7.1.1 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---

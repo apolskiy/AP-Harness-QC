@@ -221,7 +221,8 @@ class CostLine:
 
     Attributes:
         case_id (str): Which case.
-        family (Optional[str]): Its evaluation family, where it has one.
+        families (tuple): Its evaluation families, empty where it has none.
+            Many to many, per ``test_taxonomy.md`` section 11.7.
         observations (int): How many times it was observed, so a per-observation
             figure is derivable without re-reading the corpus.
         candidate (TokenUsage): What the model under test consumed.
@@ -235,7 +236,7 @@ class CostLine:
     """
 
     case_id: str
-    family: Optional[str]
+    families: tuple[str, ...]
     observations: int
     candidate: TokenUsage
     judge: TokenUsage
@@ -260,7 +261,14 @@ class CostReport:
     unpriced: frozenset[str] = frozenset()
 
     def by_family(self) -> dict[str, float]:
-        """Return the priced total per family.
+        """Return the priced total per family, overlapping where a case is shared.
+
+        **The totals do not sum to the run total, and that is correct.** A case
+        addressing two families is attributed in full to each, because the
+        figure answers what a family costs to run rather than how the bill
+        divides: dropping either family still saves what that case costs. A
+        division would need an attribution rule for shared cases that nothing
+        could justify. Design ``test_taxonomy.md`` section 11.7.3.
 
         Returns:
             dict[str, float]: Family to its cost, for every case carrying one.
@@ -270,9 +278,10 @@ class CostReport:
         """
         totals: dict[str, float] = {}
         for line in self.lines:
-            if line.family is None or line.cost is None:
+            if line.cost is None:
                 continue
-            totals[line.family] = totals.get(line.family, 0.0) + line.cost
+            for name in line.families:
+                totals[name] = totals.get(name, 0.0) + line.cost
         return totals
 
 
@@ -305,7 +314,7 @@ def cost_report(
         held = gathered.setdefault(
             entry.case_id,
             {
-                "family": getattr(entry, "family", None),
+                "families": list(getattr(entry, "families", ())),
                 "model": getattr(entry, "resolved_model", ""),
                 "observations": 0,
                 "tokens": CaseUsage(),
@@ -331,7 +340,7 @@ def cost_report(
         lines.append(
             CostLine(
                 case_id=case,
-                family=held["family"],
+                families=tuple(held["families"]),
                 observations=held["observations"],
                 candidate=tokens.candidate,
                 judge=tokens.judge,

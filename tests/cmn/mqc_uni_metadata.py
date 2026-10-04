@@ -32,6 +32,7 @@ from typing import Any, Optional
 import pytest
 from packaging.specifiers import SpecifierSet
 
+from cmn.code_standards import section_lines
 from cmn.metadata import (
     DiagnosticSummary,
     artifact_name,
@@ -336,8 +337,9 @@ class TestMQCResultEmission:
         Returns:
             None
         """
-        emitted = emit_result(_graded(family="code_comprehension"), gated_run)
-        assert emitted["family"] == "code_comprehension"
+        emitted = emit_result(_graded(families=("code_comprehension",)), gated_run)
+        assert emitted["families"] == ["code_comprehension"]
+        assert emitted["primary_family"] == "code_comprehension"
         assert "code_comprehension" in registered_evaluation_families()
 
     def MQC_CMN_UNI_112217_precondition_result_carries_no_family(
@@ -356,16 +358,23 @@ class TestMQCResultEmission:
             None
         """
         precondition = Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")
-        assert emit_result(precondition, gated_run)["family"] is None
+        assert not emit_result(precondition, gated_run)["families"]
+        assert emit_result(precondition, gated_run)["primary_family"] is None
 
     def MQC_CMN_UNI_112216_unregistered_family_value_is_rejected(self) -> None:
         """Families are a registry, and an unregistered value is untraceable.
 
+        **Rejected on the record rather than merely absent from the registry.**
+        Until 2026-10-03 this asserted registry membership, which establishes
+        that the lookup works and not that anything consults it; the per-value
+        check in section 11.7.2 is what it has to reach.
+
         Returns:
             None
         """
-        assert "requirement_match" in registered_evaluation_families()
         assert "invented_family" not in registered_evaluation_families()
+        with pytest.raises(ValueError, match="are not registered"):
+            _graded(families=("invented_family",))
 
 
 class TestMQCLatencyStatistics:
@@ -554,7 +563,8 @@ class TestMQCObservationAssembly:
         """
         case_metadata = {
             "case_id": "MQC_TASK_a::MQC_RULE_r", "layer": "EVAL", "priority": 1,
-            "priority_conditions": ["P1_ATTRIBUTION"], "family": "requirement_match",
+            "priority_conditions": ["P1_ATTRIBUTION"],
+            "families": ("requirement_match",),
             "requirement_ids": ["MQC_REQ_MDL_GND_0001"],
         }
         tier_results = {
@@ -841,8 +851,13 @@ class TestMQCFamilyRegistrationMechanism:
             Path(__file__).resolve().parents[2]
             / "docs" / "design" / "test_taxonomy.md"
         )
+        # BOUNDED TO SECTION 11.1, because that is the table the procedure
+        # names and the registry is open: a sixth family is expected (section
+        # 11.6), and an unbounded scan makes any four-column table in this
+        # document a family the moment its first cell is a backticked
+        # lowercase token. This read the whole file until 2026-10-03.
         tabled: set[str] = set()
-        for line in taxonomy.read_text(encoding="utf-8").splitlines():
+        for line in section_lines(taxonomy, "### 11.1"):
             match = _FAMILY_ROW.match(line.strip())
             if match is not None:
                 tabled.add(match.group("identifier"))

@@ -922,7 +922,8 @@ Emitted as Allure parameters and labels, and through JUnit XML, so both reach a 
 | Identity | `case_id` | Result | |
 | | `layer` | Result | Verdict reads graded status from it |
 | | `observation_index` | Result | A4 gives three observations per case |
-| | `family` | Result | Which evaluation family the case belongs to, §11. Graded results only |
+| | `families` | Result | Which evaluation families the case belongs to, **ordered with the primary first** and `;`-joined, §11. Graded results only |
+| | `primary_family` | Result | The first of `families`, published rather than left to position, §11.7.2.1 |
 | Context | `engine` | Result | Which provider produced it |
 | | `mode` | Result | A replayed result must never be mistaken for an observation (A6) |
 | | `os` | Result | Which platform produced it. The harness is verified on two (A18) |
@@ -1078,6 +1079,8 @@ A **family** is a task type with its own input shape and its own source of groun
 
 Families apply to graded cases only. A precondition tests the harness, which has no task.
 
+**The relation is many to many, with one family primary.** A family covers many cases, and one case addresses several; a complex case commonly does. Ideally a case belongs to one family, and where it does not, one is primary and the rest secondary. §11.7 carries what that requires of the record, the cost totals and the matrix checks.
+
 ### 11.1 Registered families
 
 | Identifier | Input | Ground truth from | Scope |
@@ -1085,8 +1088,10 @@ Families apply to graded cases only. A precondition tests the harness, which has
 | `requirement_match` | Resume material and a job posting's requirements | Provided source material, making invention a set operation | `DESIGN.md` §7.1 |
 | `output_shape` | Any content plus declared shape constraints | Parsers and counters applied to the response | `DESIGN.md` §7.2 |
 | `code_comprehension` | A code excerpt carrying a known defect | A parser for syntactic defects, execution for logical ones | `DESIGN.md` §7.3 |
+| `injection_resistance` | A payload carrying an adversarial instruction, with its vectors declared | A planted canary, or a forbidden tool call where that is what was injected, settled by exact match | `DESIGN.md` §7.4 |
+| `tool_compliance` | A task declaring available tools, some required and some forbidden | The captured tool-call trace, which either contains the forbidden tool or does not | `DESIGN.md` §7.5 |
 
-**The middle column is the admission criterion, not a description.** Both original families were chosen because they supply ground truth for a property that would otherwise be judged: provided source material makes fabrication checkable, and a parser makes falsehood checkable. A family that can only be graded by rubric adds cases without adding confidence, because it measures a judge as much as a candidate.
+**The middle column is the admission criterion, not a description.** The first two families were chosen because they supply ground truth for a property that would otherwise be judged: provided source material makes fabrication checkable, and a parser makes falsehood checkable. A family that can only be graded by rubric adds cases without adding confidence, because it measures a judge as much as a candidate.
 
 ### 11.2 Adding a family
 
@@ -1164,9 +1169,10 @@ All of the following must hold. Each is checked programmatically, and a failure 
 | Every priority names a registered condition | §4.1.0 |
 | The distribution stays within its ceilings | §4.2 |
 | Every requirement has at least one case, and every case a known requirement | T1 to T4 |
-| Every emitted `family` value is registered | `MQC_CMN_UNI_112216` |
+| Every emitted `families` value is registered, individually | `MQC_CMN_UNI_112216` |
 | The §11.1 table and the code registry agree | `MQC_CMN_UNI_112228` |
 | Every family the case matrix names is registered | `MQC_CMN_UNI_112229` |
+| A layer mapping to one family carries it in the matrix | `MQC_CAS_UNI_115412` |
 | Every registered family declares a ground-truth mechanism | `MQC_CMN_UNI_112230` |
 | Stated inventory totals match their rows | `MQC_CMN_UNI_112203` |
 
@@ -1215,3 +1221,191 @@ a step with no verification named.
 The families here were not planned together. Two were scoped early and the third arrived when code excerpts were introduced as formulations, and **it was specified in the test plan and shipped in the layout before anything recorded that a third family existed.** A registry makes that omission visible rather than leaving the v1 scope quietly describing two families while the suite exercised three.
 
 The `family` field in §9.1 carries the value onto every graded result, so analysis can group by task type without inferring it from case identifiers. An unregistered value is a defect for the same reason an unregistered taxonomy code is: nothing downstream can interpret it.
+
+### 11.4 Two families registered after their cases, and what that cost
+
+Registered 2026-10-03 at the project owner's instruction. **The cases already shipped**: 9 requirement rows covering 29 case entries, written and passing since 2026-09-28. So §11.2's procedure is applied retroactively here, and saying which steps were already done is the honest record rather than a tidy one.
+
+| Step | State |
+|---|---|
+| 1, confirm it is a family | **Done here.** Each is a new task the model performs with its own ground truth, which is step 1's fourth row |
+| 2, state the ground-truth mechanism | **Done here**, and both state one more plainly than the three already registered |
+| 3, choose an identifier | `injection_resistance`, and `tool_compliance` which the corpus was already using as a file name |
+| 4, register the row | Done, §11.1, and in `_EVALUATION_FAMILIES` |
+| 5, write the scope section | `DESIGN.md` §7.4 and §7.5 |
+| 6 to 8, requirements, identifiers, cases, fixtures | **Already done, by implementation that ran ahead of this registration.** `MQC_REQ_MDL_SEC_0001` to `0005` and `TUL_0001` to `0004`, 29 cases, no file fixtures |
+| 9, update the matrix and the counts | The 29 mislabelled entries, §11.4.2 |
+| 10, verify | §11.4.3 |
+
+#### 11.4.1 What the late registration actually cost
+
+Not the cases: those are written, traced and passing. What it cost is everything the registry exists to provide.
+
+| Consequence | Detail |
+|---|---|
+| The v1 scope understated the suite | Three families described, five exercised. §11.3 records this exact failure happening once before with `code_comprehension`, and the remedy it introduced did not prevent the second instance |
+| 29 case entries were labelled wrong | Covered in §11.4.2. A family with no row cannot be the right label, so the matrix used the nearest registered one |
+| `Observation.family` could not carry the true value | An unregistered value is refused by `112216`, so a `SEC` result could be published labelled `requirement_match` or not at all |
+
+**The second instance is the finding, not the first.** §11.3 was written to make this visible and it did not, because what it added was a registry rather than a check that a shipped family appears in it. A record that depends on an author remembering to write the record is the thing §11.2.2 already identified one level down.
+
+#### 11.4.2 The 29 entries this corrected
+
+Before this, `rtm_model.csv` labelled all 9 `SEC` and `TUL` requirement rows `requirement_match`, covering **29 case entries**. That is wrong by §11.1's own criterion: `requirement_match` takes its ground truth from provided source material, and neither a canary nor a call trace is that.
+
+**Nothing could catch it, and the reason is worse than it first looked.**
+
+| Check | What it does | Why the 29 rows passed it |
+|---|---|---|
+| `CAS_COR_0012` | Compares each value against the registry | `requirement_match` is registered. Registration says a value is resolvable, not that it is true |
+| T5 | Compares the column against the cases named in the same row | **It never ran on this matrix.** Corrected 2026-10-03 |
+
+**T5 did not pass on these rows; it never saw them.** `check_matrix_integrity` takes `case_families`, a mapping from test name to its family, and T5 is written as `if derived and ...`: with no mapping, `derived` is empty and the check **abstains silently**. The mapping is supplied in exactly two places, both synthetic rows inside `112304` and `112308`.
+
+**Nothing calls it on `rtm_model.csv` at all.** `112312` runs the real matrix and asserts only T2, deliberately narrowed, against `rtm_harness.csv`; and that matrix carries no `families` column by design (`112311`). So the one check written to compare this column against the cases has never been run on the only matrix that has the column.
+
+| | |
+|---|---|
+| Written | T5, with a per-case family mapping as an argument |
+| Exercised by | Synthetic rows in two cases |
+| Run against `rtm_model.csv` | **Never.** The consumer owns that matrix and never calls `check_matrix_integrity` |
+| Why the abstention is silent | `if derived and ...` treats an absent mapping as nothing to check, rather than as nothing to check **with** |
+
+**So the gap was a third source, not a third check.** Nothing outside the matrix said what family a case belongs to, which is the shape this project keeps finding: the subject supplied the evidence. A check designed to need an independent source, handed none, passes.
+
+So the mislabelling was invisible in the way this project keeps rediscovering: the subject supplied the evidence. It is the same shape as the hand-typed field list in §9.4 and the self-consistent inventory in §11.2.2.
+
+#### 11.4.3 What is now checked, and what still is not
+
+These two families are **one to one with a layer**, which makes the label derivable rather than declared: a row naming a `SEC` case takes `injection_resistance`, a row naming a `TOOL` case takes `tool_compliance`. `MQC_CAS_UNI_115412` checks that, and it is the check whose absence let 29 entries sit mislabelled. **It requires the derived family to be the primary one rather than the only one**, because the relation is many to many; §11.7.4.
+
+**It is written as a derivation table rather than a pair of conditionals**, per §11.6: a sixth family mapping one to one with a layer adds a row to that table and no logic.
+
+**The three `EVAL` families remain unchecked for correctness.** That layer spans all three and nothing in a task, a rule or a case declares which one applies, so there is no second source to check the matrix against. §11.5.1 carries it as the gap it is.
+
+### 11.5 "Family" carries three concepts, and that is the drift this found
+
+Recorded 2026-10-03 as a finding, at the project owner's instruction.
+
+`testing-standards.md` requires one word per concept, and records a previous instance of breaking that rule in `corpus`, `dataset` and `DAT`. This word carries four senses:
+
+| Sense | Values | Where it is used |
+|---|---|---|
+| **Evaluation family**, this section | The five rows in §11.1 | §11, and `Observation.family` |
+| Layer-aligned family | "the security family", "the tool family", "the evaluator family" | `phase0_project_ambiguities.md` A4, `consumer_ci.md` §4D.3, `tier3_evaluation.md` §5A.6, `DESIGN.md` §7.6 |
+| Corpus-file family | `security`, `tool_compliance` as **file names** | `_UNJUDGED_FAMILIES` in the case repository's `mqc_uni_corpus.py`. `model_evaluation_test_plan.md` §8.6 exists to separate this sense from the first, and `tool_compliance` is now both a corpus file and a registered family, which is the collision that section warned about |
+| Failure-code family | `QC_LLM_*`, `QC_HARNESS_*`, `QC_DATA_*`, `QC_SEC_*` | `framework-rules.md` §4, A5a |
+
+**The fourth sense is the one that bites next.** `tool_compliance` now names a corpus file *and* a registered family, and the two are not the same set: the corpus file holds 8 `TOOL` cases while the family also covers none of the 4 `SEC` tool cases, which belong to `injection_resistance` (`DESIGN.md` §7.4.6). A reader meeting `tool_compliance` has to know which register is meant.
+
+**This is what made the 29 entries hard to see.** A reader meeting "the security family" in one document and a three-row registry in another has no way to tell that the first names a layer and the second records an admission decision. A `SEC` case labelled with an evaluation family then reads as a category error only to a reader holding both senses at once, and the sentence "the security family is recorded and passing" is true in sense two while sense one had no row for it at all.
+
+**Senses two and three keep the word, and that is a decision rather than an omission.** Sense three is the published failure taxonomy and renaming it would rebind every code in the project and in stored history. Sense two is prose, and "the security layer" would be the correct phrase in most of its occurrences. What is fixed here is that this table says which is which, so a reader is not left to infer it from context.
+
+| | |
+|---|---|
+| Resolved | The registry is the evaluation sense, now five rows, and it is what `Observation.families` means |
+| Recorded, not fixed | The other three senses keep the word. Sense two is a prose edit worth doing, sense three is not worth the rebind, and sense four is a private constant whose rename is cheap and belongs to the case repository |
+| Expiry | None. This is a finding about vocabulary rather than a dated gap |
+
+#### 11.5.1 The remaining gap: no case declares its own family
+
+**Documentation is ahead of implementation here, deliberately.** For `SEC` and `TOOL` the family is derivable from the layer, which §11.4.3 now checks. For `EVAL` it is not: that layer spans three families and nothing in a task, a rule or a case says which.
+
+So `Observation.family` has no source for an `EVAL` case, the emission hook in `cmn_verdict_and_cli.md` §5 cannot populate it, and the matrix column is the only record of a value that analysis is meant to group by. Closing it needs a declaration on the corpus, which is a Tier 1 schema change and a decision of its own.
+
+| | |
+|---|---|
+| Derivable now | `SEC` to `injection_resistance`, `TOOL` to `tool_compliance` |
+| No source | Which of the three families an `EVAL` case belongs to |
+| What it needs | A family **list** on the task or the rule set, per §11.7, with the referential check that every value is registered |
+| What it would also close | **T5 against `rtm_model.csv`.** That check takes a per-case family mapping and nothing can build one, so it abstains; the declaration is the mapping it has been missing (§11.4.2) |
+| And the caller it needs | The consumer calling `check_matrix_integrity` on its own matrix. The harness cannot: the matrix is the case repository's data |
+| Expires | 2026-11-30 |
+
+### 11.6 The registry is open, and the checks are written for that
+
+**Five families is where v1 landed, not a closed set.** A real programme adds task types as it finds behaviours worth measuring, and this one has already added two after declaring its scope settled. So expansion is the expected case rather than the exception, and the cost of a sixth family is kept to its own content:
+
+| Already built for it | How |
+|---|---|
+| Runtime registration | `register_evaluation_family` adds one and `unregister_evaluation_family` removes it, which the extension cases use and leave as they found it |
+| The admission criterion is enforced, not remembered | Registration refuses a family stating no ground-truth mechanism, so §11.2 step 2 holds without an author recalling it |
+| Identifier room | §3's layer blocks and the 6-digit scheme leave a hundred-slot category free per module, so a new family takes the next free block rather than a renumbering |
+| A documented procedure | §11.2's ten steps, with §11.4 as the worked example of applying them to a family that already ships |
+| Derivation by table | The layer-to-family map in `MQC_CAS_UNI_115412` is data, so a new one-to-one family is a row |
+
+**What a sixth family must still do by hand** is §11.2 steps 1 to 10, and that is the point of the procedure rather than a shortfall in it. The two mechanical gates are that the §11.1 table and `_EVALUATION_FAMILIES` agree, and that every emitted value is registered; both fail loudly on a family added to one place only.
+
+**The retirement path is open too.** §11.2.1 keeps a retired identifier reserved permanently and its row present and marked, because stored history carries the value and a reader of that history has to resolve it. An expanding registry needs that more than a fixed one does.
+
+### 11.7 A case may belong to several families, and the record has to say so
+
+Stated 2026-10-03 by the project owner: **the mapping between cases and families is many to many.** A family covers many cases, and one case, especially a complex one, addresses several.
+
+This is the same shape the project already uses for requirements, and for the same reason: one requirement is covered by many cases, and one case partially closes several. A matrix is the right structure for a many-to-many relation and a scalar column is not.
+
+#### 11.7.1 What already supported it, and what did not
+
+| Place | State before 2026-10-03 |
+|---|---|
+| `rtm_model.csv`, the `families` column | **Already many to many.** A `;`-separated set, and three rows carried `code_comprehension;requirement_match` |
+| `Observation.family`, the durable record | **Singular**, `Optional[str]`, so a case in two families could publish only one of them, and nothing said which |
+| §9.1's row for it | Described the singular field, so the standard and the intent disagreed |
+| `CostReport.by_family` | Summed each case into one family, which a shared case makes ambiguous |
+
+**The matrix was ahead of the record.** A case addressing two families could be traced correctly and then published as belonging to one, so the artifact a reviewer reads would disagree with the matrix a reviewer traces. `requirement_ids` on the same record is already a sequence; `family` was the one many-to-many relation stored as a scalar.
+
+#### 11.7.2 One primary family, and the rest secondary
+
+Stated 2026-10-03 by the project owner: **ideally a case belongs to one family. A complex case addresses several, and then one is primary and the others secondary.**
+
+`families` is therefore an **ordered** sequence and not a set. The first value is the primary family, joined with `;` on the wire exactly as `requirement_ids` is, and empty for a precondition, which performs no task and belongs to no family.
+
+**The project already has this shape and this is the second use of it.** A security task declares `vectors:` and then `primary:`, so a finding is attributable to the vector the case is about rather than to whichever one a reader noticed first (`DESIGN.md` section 7.4.1). A case addressing three families has the same problem and takes the same answer.
+
+Every value is checked against the registry individually, so a case naming two families fails if either is unregistered rather than only if the first is. **A repeated value is refused**, because a duplicate makes primacy ambiguous and would count the case twice in a per-family total.
+
+##### 11.7.2.1 Primacy is published, not left to position
+
+The record carries `primary_family` as its own field alongside `families`.
+
+**Ordering alone is too easy to destroy silently.** A `;`-separated cell in a matrix, a serialization round trip, or a maintainer alphabetizing a list all preserve the set and lose the primary, and nothing downstream could detect it: every value is still registered and still matches the row's cases. A derived field that disagrees with its source is detectable, and `MQC_CMN_UNI_112241` checks the two agree.
+
+This is the same argument section 9.4 makes about a restated list, applied to a restated ordering: the restatement is what makes the drift visible.
+
+#### 11.7.3 Per-family cost totals overlap, and that is correct
+
+`CostReport.by_family` attributes a shared case's full cost to **each** family it addresses, primary or secondary, so the per-family totals no longer sum to the run total.
+
+**That is the right answer to the question the figure exists for.** The design states it: a run total answers whether a weekly run is affordable, and this answers which family is expensive. "What would dropping this family save" is the decision a corpus owner makes, and a case shared with another family does cost what it costs to run under either.
+
+A figure dividing the bill between families would answer a question nobody asked, and would need an attribution rule for shared cases that nothing could justify. The overlap is stated where the totals are reported rather than left for a reader to discover by adding them up.
+
+#### 11.7.4 What the matrix check can and cannot require
+
+Section 11.4.3 derives a family from a layer for `SEC` and `TOOL`. Because the relation is many to many, that check cannot require equality: a `SEC` case that also exercises `output_shape` is a legitimate case and not a labelling error.
+
+**It requires the derived family to be the primary one.** For a layer that maps to exactly one family, the task that put the case in that layer is the task the case is primarily about, so primacy is the stronger claim that is still true:
+
+| Rule | Why |
+|---|---|
+| The derived family is **first** in the row's values | A `SEC` case is primarily about resisting an attacker; that is what put it in the `SEC` layer |
+| Further values are permitted after it | Many to many, section 11.7 |
+| Every value is registered | `CAS_COR_0012`, unchanged |
+| The row's values match its cases | T5, unchanged |
+
+**So the check catches an omission, a wrong label and a demoted primary, and not an addition.** An extra secondary family wrongly added to a row is not reported, and that remains uncovered for the reason section 11.5.1 gives: nothing outside the matrix declares a case's families, so there is no source to contradict a surplus value.
+
+#### 11.7.5 The purpose of the ordering: selecting a regression set
+
+**Recorded 2026-10-03 as a gap, with its reason.** The project owner's rationale for primacy is selection: when one piece of functionality is fixed, the regression set is the cases addressing it, and that selection is by family and by requirement rather than by layer or module.
+
+**Corrected on implementation, 2026-10-03.** This section first argued that selection should read the primary, because selecting every case mentioning a family returns the ones that merely touch it. That was wrong: a case where the family is secondary still exercises it, so omitting it risks missing the regression the re-run exists to find. Selection is inclusive and primacy serves attribution; `cmn_verdict_and_cli.md` §7.7.2 carries the argument.
+
+| | |
+|---|---|
+| Implemented 2026-10-03 | `--family` and `--requirement`, resolving through the matrix named by `--rtm`, designed in `cmn_verdict_and_cli.md` §7.7 |
+| Inclusive, not primary-only | Omitting a case where the family is secondary risks missing the regression; §7.7.2 |
+| Refuses rather than warns | An unknown value, or a resolution matching no collected case. A selector's failure mode is a vacuous green; §7.7.3 |
+| Neither yields a verdict | Both are manual selectors. A regression set answers whether a fix worked, not whether the model is releasable |

@@ -30,7 +30,15 @@ flags:
   "--carry-outcomes": {owner: harness}
 
   # --- exercised by consumer cases ----------------------------------------
-  "--case": {owner: consumer}
+  # `--case` WAS RETIRED 2026-10-03, section 7.8.4. It claimed a consumer
+  # owner while the only case naming it was in the harness, and nothing
+  # selected on it. This file takes an assertion about each flag rather
+  # than deriving one, which is why the claim was believed.
+  "--tests": {owner: harness}
+  "--tests-file": {owner: harness}
+  "--family": {owner: harness}
+  "--requirement": {owner: harness}
+  "--rtm": {owner: harness}
   "--judge-on-failure": {owner: consumer}
 
   # --- declared gaps, dated ------------------------------------------------
@@ -81,10 +89,7 @@ flags:
   # nothing in either test tree can pass it and reach anything. The coverage
   # question is whether the workflow translates it correctly, which is a
   # workflow case rather than an invocation one.
-  "--tests":
-    gap:
-      reason: >-
-        A debug workflow input translated into a selection before pytest sees
-        it, so no invocation case can exercise it. What is coverable is the
-        workflow's translation.
-      expires_on: 2026-11-30
+  # CLOSED 2026-10-03 by MQC_CMN_UNI_112244, 112246 and 112250. The flag is
+  # now a real collection-time selection rather than a -k expression a workflow
+  # builds, so an invocation case can exercise it and three do. `-k` could not
+  # carry the dependency closure and could not refuse a stale entry.

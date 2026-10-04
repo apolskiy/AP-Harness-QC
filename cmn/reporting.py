@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 # these are rendered rather than handed over as objects: a collector reading a
 # standard format should not have to learn this project's nesting.
 _RENDERED: frozenset[str] = frozenset(
-    {"priority_conditions", "requirement_ids", "effective_thresholds", "cli_flags"}
+    {"priority_conditions", "requirement_ids", "effective_thresholds", "cli_flags",
+     "families"}
 )
 
 

@@ -1,0 +1,425 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+"""Selecting the cases a fix wants re-run, by name, family or requirement.
+
+Covers ``MQC_CMN_UNI_112244`` through ``112249``, inventoried in
+``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in sections 7.7
+and 7.8.
+
+**Written 2026-10-03.** ``--priority`` was the only working case filter;
+``--tests`` was translated into a ``-k`` expression by a workflow before pytest
+saw it, and ``--case`` recorded itself into metadata and made a run
+unverdictable while selecting nothing at all.
+
+A failure here is our defect, so the module carries no priority marker, per
+``framework-rules.md`` section 3.3.
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from cmn.selection import select_named_tests, select_traced_cases
+from tests.cmn.selection_support import FakeConfig, FakeItem
+
+pytestmark = pytest.mark.unit
+
+_MATRIX = "requirement_id,requirement_text,source,category,families,test_ids,notes\n"
+
+
+def _matrix(tmp_path: Path, *rows: str) -> Path:
+    """Write a traceability matrix carrying the given rows.
+
+    Args:
+        tmp_path (Path): pytest's temporary directory.
+        *rows (str): CSV rows, without the header.
+
+    Returns:
+        Path: The written matrix.
+    """
+    written = tmp_path / "rtm.csv"
+    written.write_text(_MATRIX + "".join(row + "\n" for row in rows), encoding="utf-8")
+    return written
+
+
+def _graded(number: str, behaviour: str = "does_a_thing") -> FakeItem:
+    """Return a graded item carrying a band, as a selector reads one.
+
+    Args:
+        number (str): The six-digit identifier.
+        behaviour (str): The behaviour suffix.
+
+    Returns:
+        FakeItem: The stand-in.
+    """
+    return FakeItem(f"MQC_EVL_SEC_{number}_{behaviour}", priority=1)
+
+
+class TestMQCNamedTestSelection:
+    """A list of names, which is what a stabilization branch re-runs."""
+
+    def MQC_CMN_UNI_112244_a_named_test_selection_runs_exactly_those_tests(
+        self,
+    ) -> None:
+        """Both spellings resolve, and nothing else survives.
+
+        An identifier and a full test name name the same case, and resolution
+        is by identifier because ``134205`` is a substring of ``130015``: a
+        substring match would silently select a case nobody asked for.
+
+        **A precondition is deselected here and never by a band.** The caller
+        named what to run, and keeping preconditions would make the flag a
+        no-op in this repository, where every case is one.
+
+        Design: ``cmn_verdict_and_cli.md`` sections 7.8.1 and 7.8.2.
+
+        Returns:
+            None
+        """
+        wanted = _graded("154100")
+        other = _graded("154101")
+        precondition = FakeItem("MQC_CMN_UNI_112244_a_precondition")
+        items = [wanted, other, precondition]
+        config = FakeConfig({"--tests": "154100"})
+
+        select_named_tests(config, items)
+
+        assert items == [wanted], (
+            "a named selection kept a case nobody asked for, so a debug run "
+            "measures more than the caller named"
+        )
+        assert set(config.deselected) == {other, precondition}
+
+        # THE FULL NAME RESOLVES TO THE SAME CASE, so a caller pasting a nodeid
+        # from a failure report need not reduce it by hand.
+        by_name = [_graded("154100"), _graded("154101")]
+        select_named_tests(
+            FakeConfig({"--tests": "MQC_EVL_SEC_154100_does_a_thing"}), by_name
+        )
+
+        assert [item.name for item in by_name] == ["MQC_EVL_SEC_154100_does_a_thing"]
+
+    def MQC_CMN_UNI_112245_a_stale_named_entry_is_reported(self) -> None:
+        """An unknown identifier is an error, not an empty run.
+
+        **This is the failure a branch workflow invites.** A list written
+        against one branch and re-run against another, where a case was renamed
+        or has not landed, selects fewer tests than it names and reports green
+        on the subset.
+
+        The message names the offending entries rather than counting them,
+        because the caller's next action is editing the list.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.8.3.
+
+        Returns:
+            None
+        """
+        items = [_graded("154100")]
+
+        with pytest.raises(ValueError, match="matching no collected test"):
+            select_named_tests(FakeConfig({"--tests": "154100,159999"}), items)
+
+        assert items == [_graded("154100")] or len(items) == 1, (
+            "the refusal must leave the collection alone, so a caller can "
+            "correct the list and re-run"
+        )
+
+        # AN ENTRY CARRYING NO IDENTIFIER IS ITS OWN REFUSAL, distinguished
+        # from a stale one because the remedies differ.
+        with pytest.raises(ValueError, match="carry no case identifier"):
+            select_named_tests(FakeConfig({"--tests": "the_canary_one"}), [_graded("154100")])
+
+    def MQC_CMN_UNI_112246_a_named_list_is_read_from_a_file(
+        self, tmp_path: Path
+    ) -> None:
+        """``--tests-file`` takes one entry per line.
+
+        **One entry per line, so the line count is the test count.** A thousand
+        tests are a thousand lines, which makes the file auditable by counting
+        it and shows one line per change in a diff. Blank lines and ``#``
+        comments are dropped so the file can carry why an entry is on it.
+
+        **A comma in a file line is refused rather than split.** Accepting it
+        would cost the property the format exists for, and treating the line as
+        a single entry would report a missing test for a name that was never
+        one. ``--tests`` keeps commas, because a command line has no newlines.
+
+        **So is every other punctuation mark.** An entry is word characters
+        only, because a test identifier is digits and a callable's name is word
+        characters; a period, exclamation mark, semicolon, colon or space means
+        a pasted list, a sentence or a nodeid. **A malformed line is refused
+        where a missing test is skipped**, since the two take different
+        corrections: one sends the reader to the list, the other to the suite.
+
+        **It is a separate flag and not a prefix on ``--tests``** because
+        pytest's parser reserves the at sign for argument files, so a value
+        naming one is expanded before this flag sees it.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.8.1.
+
+        Returns:
+            None
+        """
+        listing = tmp_path / "stabilization.txt"
+        listing.write_text(
+            "\n".join([
+                "# the three under stabilization this cycle",
+                "154100",
+                "",
+                "MQC_EVL_SEC_154102_does_a_thing  # a full name reads the same",
+                "154103",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        items = [_graded(number) for number in ("154100", "154101", "154102", "154103")]
+
+        select_named_tests(FakeConfig({"--tests-file": str(listing)}), items)
+
+        assert [item.name.split("_")[3] for item in items] == [
+            "154100", "154102", "154103",
+        ], "a comment, a blank line or a full name was mishandled"
+
+        # THE LINE COUNT IS THE TEST COUNT, which is the whole reason for the
+        # format and the thing a comma would take away.
+        written = [
+            line for line in listing.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        assert len(written) == 3
+
+        comma = tmp_path / "comma.txt"
+        comma.write_text("154100, 154101\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="one entry per line"):
+            select_named_tests(
+                FakeConfig({"--tests-file": str(comma)}), [_graded("154100")]
+            )
+
+        # EVERY OTHER PUNCTUATION MARK IS REFUSED TOO, naming the character
+        # found. A nodeid carries three of them at once, and it is refused
+        # deliberately: a path and a class are not part of a case's identity,
+        # so a renamed file would stale every list naming one.
+        malformed = {
+            "period": "mqc_uni_families.py",
+            "exclamation": "154100!",
+            "semicolon": "154100;154101",
+            "colon": "154100:154101",
+            "sentence": "run the injection ones",
+            "nodeid": "tests/cmn/mqc_sec.py::TestMQC::MQC_EVL_SEC_154100_does_a_thing",
+        }
+        for label, line in malformed.items():
+            written = tmp_path / f"{label}.txt"
+            written.write_text(line + "\n", encoding="utf-8")
+            with pytest.raises(ValueError, match="cannot contain"):
+                select_named_tests(
+                    FakeConfig({"--tests-file": str(written)}), [_graded("154100")]
+                )
+
+        # A FILE THAT IS NOT THERE REFUSES, one step before selecting nothing.
+        with pytest.raises(ValueError, match="does not exist"):
+            select_named_tests(
+                FakeConfig({"--tests-file": str(tmp_path / "absent.txt")}),
+                [_graded("154100")],
+            )
+
+        # AND NAMING BOTH SOURCES REFUSES, because they disagree about what an
+        # unresolvable entry costs.
+        with pytest.raises(ValueError, match="both"):
+            select_named_tests(
+                FakeConfig({"--tests": "154100", "--tests-file": str(listing)}),
+                [_graded("154100")],
+            )
+
+    def MQC_CMN_UNI_112250_a_missing_test_named_in_a_file_is_skipped_not_refused(
+        self, tmp_path: Path
+    ) -> None:
+        """A typo in a curated list costs that entry and not the run.
+
+        **Run through a real pytest invocation**, because the claim is that a
+        row reaches the report. A unit double cannot supply the session a node
+        hangs from, so the selection records what it could not resolve and
+        ``report_unresolved_selection`` turns that into rows; only a real run
+        establishes that the row appears.
+
+        The outcome is a skip rather than a failure because an unresolvable
+        entry is a harness event, which ``framework-rules.md`` section 4 admits
+        as skip or broken and never as fail.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.8.3.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        listing = tmp_path / "list.txt"
+        listing.write_text(
+            "\n".join([
+                "112241",
+                "112299  # renamed on another branch, or never landed",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+
+        completed = subprocess.run(
+            [
+                sys.executable, "-m", "pytest", "-rs", "-p", "no:randomly",
+                "--tests-file", str(listing),
+                str(root / "tests" / "cmn" / "mqc_uni_families.py"),
+            ],
+            capture_output=True, text=True, check=False, shell=False,
+            cwd=str(root),
+            # EXPLICIT ON WINDOWS. pytest has replaced the standard handles,
+            # and inheriting them raises WinError 6 before the child starts.
+            stdin=subprocess.DEVNULL,
+        )
+        output = completed.stdout + completed.stderr
+
+        assert "1 passed" in output and "1 skipped" in output, (
+            "a missing entry either voided the run or vanished from it; the "
+            f"run reported:\n{output[-700:]}"
+        )
+        assert completed.returncode == 0, (
+            "the run did not succeed, so one unresolvable entry still cost the "
+            "work that resolved"
+        )
+
+        # THE REASON IS IN THE REPORT, which is what a warning would not give.
+        assert "QC_HARNESS_SELECTION_UNRESOLVED" in output
+        assert "test not found" in output
+
+
+class TestMQCTracedSelection:
+    """A family or a requirement, resolved through the matrix a caller names."""
+
+    def MQC_CMN_UNI_112247_a_family_selection_runs_every_case_addressing_it(
+        self, tmp_path: Path
+    ) -> None:
+        """A secondary family is selected, and that is the correction.
+
+        A case where the family is secondary still exercises it, so omitting it
+        risks missing the regression the re-run exists to find. **Omission is
+        the expensive error and inclusion the cheap one**, which is the
+        opposite balance from attribution: primacy says which family owns a
+        finding, and `MQC_CAS_UNI_115412` is what reads it.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.7.2.
+
+        Returns:
+            None
+        """
+        matrix = _matrix(
+            tmp_path,
+            "MQC_REQ_MDL_SEC_0001,text,self-authored,cat,injection_resistance,"
+            "MQC_EVL_SEC_154100_does_a_thing,",
+            "MQC_REQ_MDL_EVL_0001,text,self-authored,cat,"
+            "output_shape;injection_resistance,MQC_EVL_SEC_154101_does_a_thing,",
+            "MQC_REQ_MDL_EVL_0002,text,self-authored,cat,output_shape,"
+            "MQC_EVL_SEC_154102_does_a_thing,",
+        )
+        items = [_graded(number) for number in ("154100", "154101", "154102")]
+        config = FakeConfig(
+            {"--family": "injection_resistance", "--rtm": str(matrix)}
+        )
+
+        select_traced_cases(config, items)
+
+        assert [item.name.split("_")[3] for item in items] == ["154100", "154101"], (
+            "the case carrying the family second was dropped, so a fix to that "
+            "family would not re-run a case that exercises it"
+        )
+
+    def MQC_CMN_UNI_112248_a_requirement_selection_intersects_with_a_family(
+        self, tmp_path: Path
+    ) -> None:
+        """Values unite within one flag and the flags intersect.
+
+        Asking for a family and a requirement asks for the cases that are both,
+        so a caller narrows rather than widens by adding a dimension.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.7.4.
+
+        Returns:
+            None
+        """
+        matrix = _matrix(
+            tmp_path,
+            "MQC_REQ_MDL_SEC_0001,text,self-authored,cat,injection_resistance,"
+            "MQC_EVL_SEC_154100_does_a_thing;MQC_EVL_SEC_154101_does_a_thing,",
+            "MQC_REQ_MDL_SEC_0002,text,self-authored,cat,injection_resistance,"
+            "MQC_EVL_SEC_154102_does_a_thing,",
+        )
+        items = [_graded(number) for number in ("154100", "154101", "154102")]
+
+        select_traced_cases(
+            FakeConfig({
+                "--family": "injection_resistance",
+                "--requirement": "MQC_REQ_MDL_SEC_0002",
+                "--rtm": str(matrix),
+            }),
+            items,
+        )
+
+        assert [item.name.split("_")[3] for item in items] == ["154102"], (
+            "the two dimensions united instead of intersecting, so adding a "
+            "requirement widened the selection"
+        )
+
+    def MQC_CMN_UNI_112249_a_selector_the_matrix_cannot_resolve_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """Four ways a selection resolves to nothing, each refused.
+
+        **A selector's failure mode is silence.** A misspelled family resolves
+        to nothing, selects nothing, runs nothing and exits zero, which no
+        artifact can tell from a passing run. A warning would arrive in a log
+        nobody reads for a run nobody doubts.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.7.3.
+
+        Returns:
+            None
+        """
+        matrix = _matrix(
+            tmp_path,
+            "MQC_REQ_MDL_SEC_0001,text,self-authored,cat,injection_resistance,"
+            "MQC_EVL_SEC_154100_does_a_thing,",
+            "MQC_REQ_MDL_SEC_0009,text,self-authored,cat,injection_resistance,,",
+        )
+        items: list[Any] = [_graded("154100")]
+
+        # NO MATRIX AT ALL. This repository owns none, so there is no default.
+        with pytest.raises(ValueError, match="no --rtm was given"):
+            select_traced_cases(FakeConfig({"--family": "output_shape"}), list(items))
+
+        # A FAMILY NO ROW NAMES, which is the typo case.
+        with pytest.raises(ValueError, match="no matrix row names"):
+            select_traced_cases(
+                FakeConfig({"--family": "injection_resistence", "--rtm": str(matrix)}),
+                list(items),
+            )
+
+        # A REQUIREMENT WITH NO ROW, which also catches a renamed one.
+        with pytest.raises(ValueError, match="no row for"):
+            select_traced_cases(
+                FakeConfig({"--requirement": "MQC_REQ_MDL_SEC_9999", "--rtm": str(matrix)}),
+                list(items),
+            )
+
+        # A REQUIREMENT TRACED TO NO CASE, which is a coverage gap rather than
+        # a selection, and must not read as an empty run.
+        with pytest.raises(ValueError, match="traced to no case"):
+            select_traced_cases(
+                FakeConfig({"--requirement": "MQC_REQ_MDL_SEC_0009", "--rtm": str(matrix)}),
+                list(items),
+            )
+
+        # AND A RESOLUTION NAMING ONLY UNCOLLECTED CASES, where the matrix is
+        # right and this run collected none of what it names.
+        with pytest.raises(ValueError, match="none of them is collected"):
+            select_traced_cases(
+                FakeConfig({"--family": "injection_resistance", "--rtm": str(matrix)}),
+                [_graded("154999")],
+            )

@@ -265,6 +265,20 @@ def configure_invocation(config: Any) -> None:
         logger.warning("%s", warning)
 
 
+def registered_priority_levels() -> frozenset[int]:
+    """Return every priority level the scale defines.
+
+    **Read from the severity map rather than restated as a range.** The map is
+    what translates a priority into an Allure label, so a level that can be
+    assigned is exactly a level that can be reported, and a second statement of
+    0 to 4 would be a copy that drifts.
+
+    Returns:
+        frozenset[int]: The assignable levels.
+    """
+    return frozenset(_SEVERITY_BY_PRIORITY)
+
+
 def label_priority_severity(items: list[pytest.Item]) -> None:
     """Translate the priority marker into an Allure severity label.
 
@@ -637,35 +651,6 @@ def order_by_dependency(items: list[pytest.Item]) -> list[pytest.Item]:
     return ordered
 
 
-def selected_bands(raw: str) -> frozenset[int]:
-    """Return the priority bands a run asked for.
-
-    Args:
-        raw (str): The comma-separated value of ``--priority``, empty for all.
-
-    Returns:
-        frozenset[int]: The bands, empty when none was named.
-
-    Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when a band is not 0 to 4.
-            **Refused rather than ignored**, because a typo that silently
-            selected everything would report a full run as a band.
-    """
-    if not raw or not raw.strip():
-        return frozenset()
-    bands: set[int] = set()
-    for piece in raw.split(","):
-        text = piece.strip()
-        if not text:
-            continue
-        if not text.isdigit() or int(text) not in _SEVERITY_BY_PRIORITY:
-            raise ValueError(
-                f"QC_HARNESS_PARSER_ERROR: priority band {text!r} is not 0 to 4"
-            )
-        bands.add(int(text))
-    return frozenset(bands)
-
-
 def item_priority(item: pytest.Item) -> Optional[int]:
     """Return the priority a test declares, or None.
 
@@ -684,7 +669,7 @@ def item_priority(item: pytest.Item) -> Optional[int]:
         return None
 
 
-def _closure(chosen: list[pytest.Item], items: list[pytest.Item]) -> set[str]:
+def dependency_closure(chosen: list[pytest.Item], items: list[pytest.Item]) -> set[str]:
     """Return every identifier the chosen items rest on, transitively.
 
     Args:
@@ -705,118 +690,6 @@ def _closure(chosen: list[pytest.Item], items: list[pytest.Item]) -> set[str]:
             needed.add(identifier)
             frontier.extend(by_identifier.get(identifier, []))
     return needed
-
-
-def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Deselect every graded case outside the requested bands.
-
-    **Preconditions are never deselected.** They carry no priority and they are
-    what establishes that the corpus is loadable at all, so a band run that
-    dropped them would measure against an unchecked corpus.
-
-    **A band takes its foundations only when asked.** Inside the CI sequence
-    the earlier band has already run them, so carrying them here would re-run
-    work reported minutes ago and, where one failed, would colour this band
-    with a failure belonging to another. `--with-prerequisites` is therefore
-    explicit: inferring it would let a misconfigured job silently become a
-    standalone run that passes having re-established its own premises.
-
-    **Without it, a band needing an absent foundation refuses**, naming both
-    remedies. Letting the foundation drop would surface as a dependency naming
-    no collected base, which is true and indistinguishable from a corpus
-    defect.
-
-    Args:
-        config (pytest.Config): pytest's configuration, read for ``--priority``.
-        items (list): The collected items, filtered in place.
-
-    Returns:
-        None
-    """
-    carry = bool(config.getoption("--with-prerequisites", False))
-    bands = selected_bands(str(config.getoption("--priority") or ""))
-    if not bands:
-        # THE FLAG ACTS ONLY THROUGH `--priority`, AND SAYS SO. pytest applies
-        # `-k` before this hook, so the foundations are already gone and no
-        # closure computed here can bring them back. Proceeding silently cost
-        # two live recording runs that dispatched nothing and reported a skip
-        # indistinguishable from a corpus defect. Design section 7.5.2.
-        if carry and str(config.getoption("keyword", "") or ""):
-            raise ValueError(
-                "QC_HARNESS_PARSER_ERROR: --with-prerequisites selects "
-                "foundations through --priority, and -k has already "
-                "deselected them before collection reaches here. Name the "
-                "band with --priority, or drop -k"
-            )
-        if carry:
-            logger.warning(
-                "--with-prerequisites has nothing to do: no --priority was "
-                "given, so every case is collected and no foundation is absent"
-            )
-        return
-
-    graded = sum(1 for item in items if item_priority(item) is not None)
-    chosen = [item for item in items if item_priority(item) in bands]
-    needed = _closure(chosen, items)
-
-    # IDENTIFIED THE WAY `declared_bases` DOES rather than by substring: two
-    # conventions for what a case is called would eventually disagree about
-    # which foundations a band needs, and `134205` is a substring of `130015`.
-    outside = {
-        item for item in items
-        if item_priority(item) not in (None, *bands)
-        and case_identifier(item.name) in needed
-    }
-    # A CARRIED FOUNDATION NEEDS NEITHER. An earlier band published whether it
-    # held, so this band is resolvable without collecting it and without being
-    # asked to run it again, which is the whole point of the carry.
-    outside = {
-        item for item in outside
-        if case_identifier(item.name) not in carried_identifiers()
-    }
-
-    if outside and not carry:
-        # REFUSED HERE, AND NAMING THE REMEDY. Letting the foundations drop
-        # would reach `arrange_dependencies`, which reports a dependency naming
-        # no collected base: true, and a reader has no way to tell it from a
-        # corpus defect. The two remedies differ, so the message states both.
-        elsewhere = sorted(
-            {
-                str(item_priority(item))
-                for item in outside
-                if item_priority(item) is not None
-            }
-        )
-        raise ValueError(
-            f"{_UNMET}: band {','.join(str(band) for band in sorted(bands))} "
-            f"rests on foundations in band {','.join(elsewhere)}, which this "
-            f"selection does not include. Run that band first so its outcomes "
-            f"carry, or pass --with-prerequisites to run them here"
-        )
-
-    keep, drop, foundations = [], [], []
-    for item in items:
-        priority = item_priority(item)
-        if priority is None or priority in bands:
-            keep.append(item)
-        elif item in outside:
-            foundations.append(item)
-            keep.append(item)
-        else:
-            drop.append(item)
-
-    if drop:
-        config.hook.pytest_deselected(items=drop)
-        items[:] = keep
-    # THE BAND IS WHAT WAS CHOSEN, not what survived. A foundation kept for the
-    # band is graded and out of band, so reporting the kept set as the band
-    # would overstate what this run measured.
-    logger.info(
-        "priority bands %s selected %d graded case(s) of %d, keeping %d foundation(s)",
-        ",".join(str(band) for band in sorted(bands)),
-        len(chosen), graded, len(foundations),
-    )
-
 
 
 def inverted_priority_dependencies(items: list[pytest.Item]) -> list[str]:

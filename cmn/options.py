@@ -179,11 +179,11 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         default="",
         help_text="ISO date the verdict is evaluated against, for quarantine expiry",
     ),
-    Option(
-        name="case",
-        default="",
-        help_text="Run exactly one case by identifier, a diagnostic selection",
-    ),
+    # `--case` WAS RETIRED 2026-10-03. It was declared here, listed in the
+    # design's selection table and claimed as covered in `flag_coverage.yaml`,
+    # and nothing read it. `--tests` takes one identifier or many, so selecting
+    # cases by identifier needed one spelling rather than two. Design section
+    # 7.8.4. The name stays retired rather than reused.
     Option(
         name="observations",
         default=0,
@@ -195,17 +195,59 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         help_text="Where artifacts are written, so a diagnostic run stays separate",
     ),
     Option(
+        name="family",
+        default="",
+        help_text=(
+            "Comma-separated evaluation families whose cases to run, resolved "
+            "through --rtm. Inclusive of a secondary family"
+        ),
+    ),
+    Option(
+        name="requirement",
+        default="",
+        help_text=(
+            "Comma-separated requirement identifiers whose cases to run, "
+            "resolved through --rtm"
+        ),
+    ),
+    Option(
+        name="rtm",
+        default="",
+        help_text=(
+            "Path to the traceability matrix --family and --requirement "
+            "resolve through. Not a selector"
+        ),
+    ),
+    Option(
         name="tests",
         default="",
-        help_text="Named test identifiers to run, a diagnostic selection",
+        help_text=(
+            "Comma-separated test identifiers or names to run. An entry naming "
+            "no collected test refuses the run"
+        ),
+    ),
+    # SEPARATE FLAG RATHER THAN A VALUE PREFIX. pytest's parser reserves `@`
+    # for argument files, so `--tests @list.txt` is expanded by argparse before
+    # this flag sees it and every line after the first arrives as a path.
+    # Design section 7.8.1.
+    Option(
+        name="tests-file",
+        default="",
+        help_text=(
+            "File of test identifiers or names, one per line. An entry naming "
+            "no collected test is reported as a skip and the rest run"
+        ),
     ),
 )
 
 # Flags whose presence makes a selection manual, and therefore unverdictable.
 # A hand-typed subset is arbitrary with no backstop; what it costs is the
 # verdict, never the ability to run.
+# `rtm` IS ABSENT DELIBERATELY. It names where a selection resolves through
+# and selects nothing itself, so a run supplying it and no selector is a full
+# run. Design section 7.7.1.
 _MANUAL_SELECTORS: Final[frozenset[str]] = frozenset(
-    {"priority", "case", "observations", "tests"}
+    {"priority", "observations", "tests", "tests-file", "family", "requirement"}
 )
 
 

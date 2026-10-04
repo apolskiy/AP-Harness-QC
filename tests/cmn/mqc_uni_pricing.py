@@ -244,7 +244,7 @@ class TestMQCCostReport:
         observations = [
             Observation(
                 case_id="MQC_TASK_cod::MQC_RULE_cod", layer="EVAL", outcome="pass",
-                mode="live", priority=2, family="code_comprehension",
+                mode="live", priority=2, families=("code_comprehension",),
                 resolved_model=_FLASH, output_tokens=400,
                 tokens=CaseUsage(
                     candidate=TokenUsage(
@@ -295,3 +295,53 @@ class TestMQCCostReport:
 
         assert not report.lines
         assert report.total == 0.0
+
+    def MQC_CMN_UNI_112242_a_shared_case_counts_toward_every_family_it_addresses(
+        self,
+        table: PriceTable,
+    ) -> None:
+        """Per-family totals overlap, because the question they answer does.
+
+        **The totals do not sum to the run total and that is correct.** The
+        figure answers which family is expensive, which is the decision a
+        corpus owner makes: dropping either family still saves what a shared
+        case costs to run. Dividing the bill would need an attribution rule for
+        a shared case that nothing could justify.
+
+        A secondary family counts the same as a primary one here. Primacy says
+        what a case is about, not who pays for it.
+
+        Design: ``test_taxonomy.md`` section 11.7.3.
+
+        Args:
+            table (PriceTable): The shipped table.
+
+        Returns:
+            None
+        """
+        shared = [
+            Observation(
+                case_id="MQC_TASK_cod::MQC_RULE_cod", layer="EVAL", outcome="pass",
+                mode="live", priority=2,
+                families=("code_comprehension", "requirement_match"),
+                resolved_model=_FLASH, output_tokens=400,
+                tokens=CaseUsage(
+                    candidate=TokenUsage(input_tokens=154, output_tokens=400)
+                ),
+            )
+        ]
+
+        report = cost_report(shared, table, _BEFORE_THE_RISE)
+        totals = report.by_family()
+
+        assert sorted(totals) == ["code_comprehension", "requirement_match"]
+        assert totals["code_comprehension"] == totals["requirement_match"], (
+            "a shared case was split between its families, which answers how "
+            "the bill divides rather than what a family costs to run"
+        )
+
+        # THE OVERLAP IS THE POINT. A reader adding the per-family figures gets
+        # more than the run total, and the design says so rather than leaving
+        # it to be discovered.
+        assert report.total == pytest.approx(totals["code_comprehension"])
+        assert sum(totals.values()) == pytest.approx(2 * report.total)

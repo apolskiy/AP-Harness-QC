@@ -19,9 +19,11 @@ cases named in the same row, so it cannot disagree with the inventory. A
 hand-maintained copy would be a second statement of one fact.
 """
 
+import csv
 import logging
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Final, Iterable, Optional
 
 logger = logging.getLogger(__name__)
@@ -460,3 +462,123 @@ def model_only_columns() -> tuple[str, ...]:
         tuple[str, ...]: The model-only column names.
     """
     return _MODEL_ONLY_COLUMNS
+
+
+def load_matrix_rows(path: Path) -> list["MatrixRow"]:
+    """Return a traceability matrix at a caller-supplied path.
+
+    **The path is the caller's and absent is not a default.** This repository
+    owns no case matrix: ``rtm_harness.csv`` traces preconditions and carries no
+    ``families`` column at all, so a default pointing at it would resolve every
+    family to nothing. What this repository owns is the matrix **schema**, which
+    is why reading one a caller names is within its remit.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.7.1.
+
+    Args:
+        path (Path): The matrix to read.
+
+    Returns:
+        list: The loaded rows.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the file is absent. A
+            selection resolving through a matrix that is not there would select
+            nothing and report green.
+    """
+    if not path.is_file():
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: no traceability matrix at {path}, so a "
+            f"--family or --requirement selection has nothing to resolve through"
+        )
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        return [MatrixRow.from_row(entry) for entry in csv.DictReader(handle)]
+
+
+def cases_for_families(
+    rows: list["MatrixRow"], wanted: Iterable[str]
+) -> dict[str, set[str]]:
+    """Return the cases addressing each named family.
+
+    **Inclusive of a secondary family.** A case where the family is secondary
+    still exercises it, so omitting it from a regression set risks missing the
+    regression the re-run exists to find. Primacy serves attribution rather
+    than selection, which ``test_taxonomy.md`` section 11.7.2 records as a
+    correction to an earlier claim.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.7.2.
+
+    Args:
+        rows (list): The matrix rows.
+        wanted (Iterable[str]): The family identifiers asked for.
+
+    Returns:
+        dict[str, set[str]]: Each family to the case identifiers covering it.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when a named family
+            appears in no row. **The matrix is what is checked, not the
+            registry**: a family may be registered and carried by no case yet,
+            and selecting it would run nothing while reporting green.
+    """
+    found: dict[str, set[str]] = {name: set() for name in wanted}
+    for row in rows:
+        declared = set(row.families)
+        for name in found:
+            if name in declared:
+                found[name].update(row.test_ids)
+
+    empty = sorted(name for name, cases in found.items() if not cases)
+    if empty:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: no matrix row names "
+            f"{', '.join(empty)}, so the selection would run nothing and "
+            f"report green"
+        )
+    return found
+
+
+def cases_for_requirements(
+    rows: list["MatrixRow"], wanted: Iterable[str]
+) -> dict[str, set[str]]:
+    """Return the cases covering each named requirement.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.7.1.
+
+    Args:
+        rows (list): The matrix rows.
+        wanted (Iterable[str]): The requirement identifiers asked for.
+
+    Returns:
+        dict[str, set[str]]: Each requirement to the case identifiers covering
+        it.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when a named requirement
+            has no row, or has one naming no case. The second is the coverage
+            gap T1 reports, and a run must not proceed on it.
+    """
+    by_requirement = {row.requirement_id: set(row.test_ids) for row in rows}
+    found: dict[str, set[str]] = {}
+    unknown: list[str] = []
+    uncovered: list[str] = []
+    for name in wanted:
+        if name not in by_requirement:
+            unknown.append(name)
+        elif not by_requirement[name]:
+            uncovered.append(name)
+        else:
+            found[name] = set(by_requirement[name])
+
+    if unknown:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: the matrix has no row for "
+            f"{', '.join(sorted(unknown))}, so the selection would run nothing "
+            f"and report green"
+        )
+    if uncovered:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: {', '.join(sorted(uncovered))} is traced "
+            f"to no case, which is a coverage gap rather than a selection"
+        )
+    return found

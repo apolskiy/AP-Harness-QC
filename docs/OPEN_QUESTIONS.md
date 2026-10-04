@@ -9,7 +9,7 @@ here is either a judgement I should not make alone or an action only the account
 owner can take.
 
 **This is not a backlog.** Work that is merely unfinished lives in `DESIGN.md`
-section 7.4 as a known gap. What is here is waiting on somebody.
+section 7.6 as a known gap. What is here is waiting on somebody.
 
 **A settled question leaves.** Once a decision is recorded in the document that
 owns it, keeping the question here makes this file a history rather than a list

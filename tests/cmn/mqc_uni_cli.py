@@ -409,16 +409,6 @@ class TestMQCSelectionMode:
         )
         assert scoped.gated is True
 
-    def MQC_CMN_UNI_112115_case_flag_selects_exactly_one_case(self) -> None:
-        """A single-case run is legitimate and produces no verdict.
-
-        Returns:
-            None
-        """
-        invocation = build_invocation({"case": "MQC_TASK_a::MQC_RULE_r"})
-        assert invocation.selection_mode == "manual"
-        assert invocation.as_metadata()["case"] == "MQC_TASK_a::MQC_RULE_r"
-
     def MQC_CMN_UNI_112116_observations_override_replaces_configured_count(self) -> None:
         """Overriding the observation count is a diagnostic selection.
 
@@ -429,6 +419,14 @@ class TestMQCSelectionMode:
         assert invocation.as_metadata()["observations"] == 1
         assert invocation.yields_verdict is False
 
+
+
+# `112114` AND `112115` WERE RETIRED 2026-10-03 with `--case`. Both are
+# recorded in `cmn_verdict_and_cli.md` section 7.8.4: `112115` asserted that
+# the flag reached metadata and made a run unverdictable, which was true while
+# nothing selected on it, and `112114` asserted that two string literals it had
+# just written differ. The behaviour `MQC_REQ_HAR_CMN_0019` names is
+# established by `112245` against `--tests`.
 
 class TestMQCGatedDerivation:
     """Three facts, all required, none of them assertable by the artifact."""
@@ -657,19 +655,6 @@ class TestMQCDiagnosticRuns:
         assert diagnostic.gated is False
         assert refusal is not None
         assert refusal.exit_code not in (EXIT_GREEN, EXIT_RED)
-
-    def MQC_CMN_UNI_112114_unknown_case_identifier_is_an_error_not_an_empty_run(self) -> None:
-        """Selecting nothing must not look like selecting everything that passed.
-
-        Returns:
-            None
-        """
-        known = {"MQC_TASK_a::MQC_RULE_r"}
-        requested = "MQC_TASK_typo::MQC_RULE_r"
-        assert requested not in known
-
-        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
-            validate_value("engine", "not_an_engine")
 
     def MQC_CMN_UNI_112119_out_dir_names_where_both_artifacts_are_written(
         self, tmp_path: Path

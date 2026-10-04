@@ -158,7 +158,11 @@ class Observation:
         skip_reason (Optional[str]): Why it skipped, counted differently by
             reason (A13).
         taxonomy_code (Optional[str]): Root-cause class.
-        family (Optional[str]): The evaluation family, on graded results only.
+        families (tuple): The evaluation families, on graded results only.
+            **Ordered, with the primary first.** The relation is many to
+            many: ideally a case belongs to one family, and a complex case
+            addresses several, of which one is primary. Design
+            ``test_taxonomy.md`` section 11.7.
         engine (str): Which provider produced it.
         mode (str): ``live`` or ``replay`` (A6).
         requested_model (str): What was asked for.
@@ -188,7 +192,7 @@ class Observation:
     priority_conditions: list[str] = field(default_factory=list)
     skip_reason: Optional[str] = None
     taxonomy_code: Optional[str] = None
-    family: Optional[str] = None
+    families: tuple[str, ...] = ()
     engine: str = ""
     mode: str = "replay"
     requested_model: str = ""
@@ -231,17 +235,31 @@ class Observation:
                 f"marking them would put them in a distribution denominator measured "
                 f"over graded cases"
             )
-        if self.family is not None:
+        if self.families:
             if not properties.graded:
                 raise ValueError(
                     f"QC_HARNESS_PARSER_ERROR: {self.case_id} is a precondition carrying "
-                    f"family {self.family!r}; a precondition tests the harness, which "
-                    f"performs no task"
+                    f"families {list(self.families)!r}; a precondition tests the harness, "
+                    f"which performs no task"
                 )
-            if self.family not in registered_evaluation_families():
+            # EACH VALUE, NOT THE FIRST. A case naming two families publishes
+            # both, so checking one would let the second reach the record
+            # unresolvable. Design `test_taxonomy.md` section 11.7.2.
+            registered = registered_evaluation_families()
+            unknown = [name for name in self.families if name not in registered]
+            if unknown:
                 raise ValueError(
-                    f"QC_HARNESS_PARSER_ERROR: family {self.family!r} is not registered; "
-                    f"registered families are {sorted(registered_evaluation_families())}"
+                    f"QC_HARNESS_PARSER_ERROR: families {unknown!r} are not registered; "
+                    f"registered families are {sorted(registered)}"
+                )
+            # A REPEATED VALUE IS REFUSED. It makes primacy ambiguous and
+            # would count the case twice in a per-family total. Design
+            # `test_taxonomy.md` section 11.7.2.
+            if len(set(self.families)) != len(self.families):
+                raise ValueError(
+                    f"QC_HARNESS_PARSER_ERROR: {self.case_id} repeats a family in "
+                    f"{list(self.families)!r}; a duplicate makes the primary ambiguous "
+                    f"and double-counts the case in a per-family total"
                 )
         if self.duration_kind not in _DURATION_KINDS:
             raise ValueError(
@@ -266,6 +284,24 @@ class Observation:
             bool: Read from the outcome registration.
         """
         return outcome_properties(self.outcome).is_pass
+
+    @property
+    def primary_family(self) -> Optional[str]:
+        """Return the family this case is principally about.
+
+        **Published as its own field rather than left to position.** A
+        semicolon-separated cell, a serialization round trip or a maintainer
+        alphabetizing a list all keep the set and lose the order, and nothing
+        downstream could detect it: every value would still be registered and
+        still match the row's cases.
+
+        Design: ``test_taxonomy.md`` section 11.7.2.1.
+
+        Returns:
+            Optional[str]: The first family, or ``None`` for a precondition,
+            which performs no task and belongs to no family.
+        """
+        return self.families[0] if self.families else None
 
     @property
     def counts_in_latency(self) -> bool:

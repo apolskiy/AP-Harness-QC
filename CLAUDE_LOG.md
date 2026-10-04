@@ -7761,3 +7761,260 @@ identifier where its tokens say it belongs.
 
 666 passing, pylint 10.00/10 exit 0. `identifier_map.csv` holds all 670
 mappings, so history carrying a five-digit identifier stays readable.
+
+## 2026-10-03: Two families registered after their cases, and the record made many to many
+
+Registered `injection_resistance` and `tool_compliance` at the project owner's
+instruction, recorded the word drift as a finding, and made the case-to-family
+relation many to many with a primary.
+
+### What was already shipping
+
+**The cases.** 9 requirement rows covering 29 case entries, written and passing
+since 2026-09-28, with `tool_compliance` already a corpus file name. So
+§11.2's ten-step admission procedure was applied retroactively, and `test_taxonomy.md`
+§11.4 says which steps implementation had already done rather than presenting a
+tidy forward application.
+
+**What the late registration cost** was not the cases. It was that the v1 scope
+described three families while the suite exercised five, that 29 entries were
+labelled `requirement_match`, and that `Observation.family` could not carry the
+true value at all, because an unregistered value is refused.
+
+§11.3 was written to make exactly this visible when it happened to
+`code_comprehension`, and it did not: what it added was a registry, not a check
+that a shipped family appears in one. **The second instance is the finding.**
+
+### Registered and consistent is not correct
+
+`CAS_COR_0012` checks a family is registered and T5 checks it matches the row's
+cases. Both passed on all 9 rows: `requirement_match` is registered, and the
+label was applied consistently to every affected row. **Consistency was checked
+and correctness had no source**, because nothing outside the matrix said what
+family a case belongs to. A bulk mislabelling is consistent by construction.
+
+`MQC_CAS_UNI_115412` supplies that source for the two layers that map to one
+family, deriving the label from the layer token in the case identifier. It is a
+derivation table rather than a pair of conditionals, because §11.6 records that
+the registry is open and a sixth family is expected.
+
+### One family with two mechanisms, found by reading the corpus
+
+**4 of the 21 `SEC` rules grade on a tool trace and 17 on a canary.** Filing the
+four by mechanism would put them in `tool_compliance`; they are
+`injection_resistance`, because a family names the task the model was asked to
+do and the task there is adversarial.
+
+**The matrix proved it rather than illustrating it.** Those four trace to
+`MQC_REQ_MDL_TUL_0004`, a *tool* requirement: "does not invoke a forbidden tool
+when injected content instructs it to". A label derived from the requirement
+prefix would have been wrong on exactly those four; derived from the layer it is
+right, which is why `115412` reads the layer. `DESIGN.md` §7.4.6.
+
+### Many to many, with a primary
+
+The project owner stated it: ideally a case belongs to one family, a complex
+case addresses several, and then one is primary and the rest secondary.
+Selection of a regression set by priority, family or requirement is what the
+ordering is for.
+
+**The matrix was ahead of the record.** The `families` column had been a
+semicolon-separated set since it was introduced and three rows used it, while
+`Observation.family` was `Optional[str]`. `requirement_ids` on the same record
+was already a sequence, so `family` was the one many-to-many relation stored as
+a scalar.
+
+| Change | Why |
+|---|---|
+| `families`, ordered, primary first | The relation is many to many and the order carries which is primary |
+| `primary_family` published beside it | A `;`-cell, a round trip or an alphabetizing maintainer keeps the set and loses the order, and nothing downstream could detect it. A derived field that disagrees with its source is detectable |
+| Every value checked individually | Validating the first would let the second reach the record unresolvable |
+| A repeated value refused | A duplicate makes the primary ambiguous and bills the case twice in a per-family total |
+| `by_family` totals overlap | A shared case is attributed in full to each family, because the figure answers what a family costs to run, not how the bill divides |
+
+### Four senses of one word
+
+`testing-standards.md` requires one word per concept. "Family" carries four:
+the evaluation registry, a layer ("the security family"), a failure-code
+prefix (`QC_SEC_*`), and a corpus file name in `_UNJUDGED_FAMILIES`.
+
+**The fourth is the one that bites next.** `tool_compliance` now names a corpus
+file *and* a registered family, and the sets differ: the file holds the 8 `TOOL`
+cases and the family excludes the 4 `SEC` tool cases. Recorded in §11.5 rather
+than renamed: the failure taxonomy is published and sense two is prose.
+
+### Two checks strengthened, both found by their own machinery
+
+**`112228` read the whole document** where the design says "the §11.1 table". An
+unbounded scan makes any four-column table a family the moment its first cell is
+a backticked lowercase token, which matters more as the registry grows. Bounded
+to §11.1, and probed with a decoy row outside it.
+
+**`112216` asserted registry membership**, which establishes the lookup works
+and not that anything consults it. §11.2.2 had already recorded that shape about
+this very case. It now constructs an observation and requires the refusal.
+
+**Pylint found a duplicate-code instance I introduced**, bounding the second
+reader by copying the first. One `section_lines` helper, two callers.
+
+### State
+
+Harness 671 passing, pylint 10.00/10 exit 0. Consumer 78 preconditions passing,
+pylint 10.00/10 exit 0; the 2 remaining graded failures are the known gemini
+replay findings under triage.
+
+**Recorded as unimplemented**, because documentation precedes implementation: no
+selection flag takes a family or a requirement (§11.7.5), and no case declares
+its own families, so an `EVAL` case's family has no source outside the matrix
+(§11.5.1).
+
+## 2026-10-03: Selecting a regression set by family, requirement or name
+
+`--priority` was the only working case filter. A fix to a model maps to a
+behaviour rather than to a module or a file, and the two registers naming
+behaviour are the evaluation family and the requirement, so both became
+selectors: `--family`, `--requirement` and `--rtm` naming the matrix they
+resolve through. `--tests` became a real selection and gained `--tests-file`.
+
+### Four flags were declared and two of them did nothing
+
+| Flag | State before |
+|---|---|
+| `--family`, `--requirement` | Did not exist |
+| `--tests` | Translated into a `-k` expression by a workflow before pytest saw it |
+| `--case` | **Half-implemented**, and worse than inert |
+| `--module`, `--tag` | In the design's selection table and in no registry, recorded as a dated gap |
+
+**`--case` is the one worth recording.** It reached result metadata and made a
+run unverdictable, both asserted by `112115`, and **nothing ever selected on
+it**. A run passing it executed the whole suite, recorded that it had selected
+one case, and withheld its verdict for a selection that never happened. A flag
+doing nothing at all could not mislead a reader that way.
+
+It is retired rather than fixed, at the project owner's decision: selecting
+cases by identifier is one concept and `--tests` already takes one or many.
+
+### A requirement that nothing established
+
+`MQC_REQ_HAR_CMN_0019` reads "an unknown case identifier is an error, not an
+empty run", and its three cases established none of it: `112114` asserted that
+two string literals it had just written differ and then checked engine
+validation; `112115` is above; `112116` is about `--observations` and was
+traced to this requirement by mistake.
+
+**The mis-tracing was invisible** because T7 checks that **some** row names each
+test and nothing checks that the row's requirement is the one the case
+satisfies. `112116` now has `MQC_REQ_HAR_CMN_0117`, written for the behaviour it
+actually tests.
+
+The behaviour `CMN_0019` names is first implemented here and first established
+by `112245`.
+
+### A missing test is a skip, and the source decides
+
+**The first design refused the run on any unresolvable entry. The project owner
+corrected it**, and the correction follows this project's own taxonomy rather
+than bending it: `framework-rules.md` section 4 admits a `QC_HARNESS_*` event
+as skip or broken and **never** as fail, and an entry that does not resolve says
+nothing about any model and nothing about any case.
+
+| Source | An entry matching no collected test |
+|---|---|
+| `--tests`, inline | Refuses. Short, typed seconds ago, nothing has run |
+| `--tests-file` | **Skips that entry, reported**, and the rest of the run proceeds |
+
+**A nonexistent test cannot be skipped**, so the skip is given a node to hang
+from: a collected item named after the entry that skips carrying
+`QC_HARNESS_SELECTION_UNRESOLVED` and the reason `test not found`. A warning
+would land in a log nobody opens for a run nobody doubts; the row is the record.
+
+The boundary is that **every** entry unresolvable still refuses, because skips
+alone exit zero and a run measuring nothing must not report green.
+
+### The file format, and one entry per line
+
+At the project owner's instruction: one entry per line, so **a thousand tests
+are a thousand lines**. The line count is the test count, the file is auditable
+by counting it, and a diff shows one line per change.
+
+A comma, period, exclamation mark, semicolon, colon or space is a format error
+naming the character found. **A pytest nodeid is therefore refused**, which is
+the right outcome rather than a casualty: a nodeid names a case by where it
+currently lives, so renaming a file stales every list naming one, while the
+identifier is the only stable handle in the suite.
+
+**A malformed line is refused where a missing test is skipped.** The two take
+different corrections: one sends the reader to the list, the other to the suite.
+
+### `@file` was the first design and could not work
+
+`--tests @list.txt` failed with `file or directory not found: 112299`. pytest
+sets `fromfile_prefix_chars` to the at sign, so argparse expands such a value
+**before** any of this is reached: the first line becomes the flag's value and
+every later line arrives as a positional path.
+
+**Found by running it.** The convention is a real one, which is why it was
+chosen; it was already claimed by the parser this project builds on.
+
+### Three things pylint found that review did not
+
+**A duplicate restriction mechanism.** `select_priority_bands` kept its own
+keep-and-drop loop while the new selectors used a shared `_restrict_items`, and
+the duplicate-code check reported it. Both now use one mechanism, which is what
+the band's own comment asks for: two copies of "which foundations does this
+selection need" would disagree, and the disagreement surfaces as a dependency
+naming no collected base, true and indistinguishable from a corpus defect.
+
+**The thousand-line ceiling.** The flags took `pytest_support.py` to 1379 lines,
+so selection became `cmn/selection.py`. The ceiling asked the architectural
+question and the answer was already obvious once asked.
+
+**Two private names shared across modules.** `_closure` became
+`dependency_closure` and the dependency code became `UNMET_DEPENDENCY` in the
+registry, so two modules raise one string rather than two copies of a
+registered code.
+
+### A module was overwritten and recovered
+
+`cmn/traceability.py` already existed, holding T1 to T6, and a new module was
+written to that path. Recovered from the index, verified byte-identical by blob
+hash, and the resolvers were appended to it instead: it is the module that owns
+the matrix, so it was the right home from the start.
+
+**Verified rather than assumed**, at the project owner's request: the worktree
+and index both match `HEAD` at `c41554f8`, 16776 bytes, and the module's 14
+cases pass.
+
+### T5 has never run on the matrix it was written for
+
+Found while reading the recovered module, and it corrects what this log and two
+designs said earlier about the 29 mislabelled rows.
+
+**T5 compares the `families` column against the cases named in the same row,
+and it takes the per-case mapping as an argument.** It is written `if derived
+and ...`, so an absent mapping means nothing to check rather than nothing to
+check **with**: it abstains, silently.
+
+| | |
+|---|---|
+| Supplies the mapping | Two cases, both with synthetic rows |
+| Calls `check_matrix_integrity` on `rtm_model.csv` | **Nothing, ever** |
+| `112312`, the live-matrix case | Asserts T2 alone, deliberately, against the harness matrix |
+| That matrix's `families` column | Absent by design, `112311` |
+
+So the one check written for this column has never been run against the only
+matrix that has it. **The 29 rows did not pass T5; they never reached it.**
+Closing that needs the per-case family declaration, which is the same gap
+`test_taxonomy.md` section 11.5.1 already carried: the declaration is the
+mapping T5 has been missing.
+
+### State
+
+Harness 678 passing, pylint 10.00/10 exit 0. Consumer 78 preconditions passing,
+pylint 10.00/10 exit 0; the 2 graded failures are the known gemini replay
+findings.
+
+Measured against the real matrix: `--family injection_resistance` selects 21
+cases, `--family tool_compliance` 8, `--requirement MQC_REQ_MDL_TUL_0004` 4, and
+`--priority 0 --family injection_resistance` 15, which is the intersection
+narrowing rather than widening. A misspelled family refuses, naming it.

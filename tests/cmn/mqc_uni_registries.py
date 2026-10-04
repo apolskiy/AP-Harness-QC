@@ -67,7 +67,8 @@ class TestMQCRegistryMembership:
         ), "a selection mode decides whether a run yields a verdict at all"
 
         assert registered_evaluation_families() == frozenset(
-            {"code_comprehension", "output_shape", "requirement_match"}
+            {"code_comprehension", "output_shape", "requirement_match",
+             "injection_resistance", "tool_compliance"}
         ), "a family is a ground-truth mechanism, not a label"
 
         # THE MEMBERSHIP PREDICATES AGREE WITH THE SETS, which is what makes
