@@ -27,11 +27,14 @@ from cmn.registries import UNMET_DEPENDENCY
 from cmn.pytest_support import (
     carried_identifiers,
     case_identifier,
+    case_module,
     dependency_closure,
     item_priority,
     registered_priority_levels,
 )
 from cmn.traceability import (
+    cases_for_index_values,
+    load_case_index,
     cases_for_families,
     cases_for_requirements,
     load_matrix_rows,
@@ -146,6 +149,85 @@ def _comma_separated(raw: str) -> list[str]:
     return [entry.strip() for entry in (raw or "").split(",") if entry.strip()]
 
 
+def _resolve_traced(
+    config: pytest.Config,
+    families: list[str],
+    requirements: list[str],
+    tags: list[str],
+) -> list[set[str]]:
+    """Return one case set per dimension the caller named.
+
+    **A family and a tag resolve through the per-case index and a requirement
+    through the matrix.** The index is exact; the matrix is keyed by
+    requirement, so resolving a family through it returns the whole row.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.7.6.
+
+    Args:
+        config (pytest.Config): pytest's configuration.
+        families (list[str]): The families asked for.
+        requirements (list[str]): The requirements asked for.
+        tags (list[str]): The tags asked for.
+
+    Returns:
+        list[set[str]]: One set of case names per dimension, for the caller to
+        intersect.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when a dimension has no
+            source to resolve through.
+    """
+    indexed = str(config.getoption("--case-index", "") or "")
+    index = load_case_index(Path(indexed)) if indexed else {}
+
+    # A TAG LIVES ONLY ON A CASE, so there is no row-grain fallback: the matrix
+    # carries no tag column and none would fit a requirement-keyed schema.
+    if tags and not index:
+        raise ValueError(
+            "QC_HARNESS_PARSER_ERROR: --tag resolves through the per-case index "
+            "and no --case-index was given. A tag lives on a task, so there is "
+            "nowhere else for it to resolve"
+        )
+
+    resolved: list[set[str]] = []
+    if tags:
+        resolved.append(set().union(
+            *cases_for_index_values(index, tags, attribute="tags").values()
+        ))
+    if families and index:
+        # EXACT. Through the matrix this returned the whole requirement row:
+        # `source_fidelity` selected 15 cases of which 6 graded it.
+        resolved.append(set().union(
+            *cases_for_index_values(index, families, attribute="families").values()
+        ))
+    elif families:
+        logger.warning(
+            "--family resolved through the matrix at row grain because no "
+            "--case-index was given, so the selection may include cases "
+            "grading another family of the same requirement"
+        )
+
+    if not requirements and not (families and not index):
+        return resolved
+
+    named = str(config.getoption("--rtm", "") or "")
+    if not named:
+        asked = "--requirement" if requirements else "--family"
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: {asked} resolves through a traceability "
+            f"matrix and no --rtm was given. This repository owns no case "
+            f"matrix, so there is no default to fall back to"
+        )
+    rows = load_matrix_rows(Path(named))
+    if families and not index:
+        resolved.append(set().union(*cases_for_families(rows, families).values()))
+    if requirements:
+        resolved.append(
+            set().union(*cases_for_requirements(rows, requirements).values())
+        )
+    return resolved
+
+
 def select_traced_cases(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Deselect every graded case outside the requested families or requirements.
 
@@ -153,9 +235,12 @@ def select_traced_cases(config: pytest.Config, items: list[pytest.Item]) -> None
     to a module or a file, and the two registers naming behaviour are the
     evaluation family and the requirement.
 
-    **Both resolve through the matrix named by ``--rtm``**, which the caller
-    supplies because this repository owns no case matrix. Using either selector
-    without it refuses rather than resolving nothing.
+    **A family and a tag resolve through the per-case index named by
+    ``--case-index``, and a requirement through the matrix named by
+    ``--rtm``.** Both are supplied by the caller, because this repository owns
+    neither. Without an index a family falls back to the matrix at row grain
+    and says so, and a tag refuses: a tag lives on a task and has nowhere else
+    to resolve. Section 7.7.6.4.
 
     **Several values in one flag are a union and the two flags intersect**, so
     ``--family a,b`` is every case addressing either and adding
@@ -165,7 +250,7 @@ def select_traced_cases(config: pytest.Config, items: list[pytest.Item]) -> None
 
     Args:
         config (pytest.Config): pytest's configuration, read for ``--family``,
-            ``--requirement`` and ``--rtm``.
+            ``--requirement``, ``--tag``, ``--rtm`` and ``--case-index``.
         items (list): The collected items, filtered in place.
 
     Returns:
@@ -180,24 +265,11 @@ def select_traced_cases(config: pytest.Config, items: list[pytest.Item]) -> None
     """
     families = _comma_separated(str(config.getoption("--family", "") or ""))
     requirements = _comma_separated(str(config.getoption("--requirement", "") or ""))
-    if not families and not requirements:
+    tags = _comma_separated(str(config.getoption("--tag", "") or ""))
+    if not families and not requirements and not tags:
         return
 
-    named = str(config.getoption("--rtm", "") or "")
-    if not named:
-        asked = "--family" if families else "--requirement"
-        raise ValueError(
-            f"QC_HARNESS_PARSER_ERROR: {asked} resolves through a traceability "
-            f"matrix and no --rtm was given. This repository owns no case "
-            f"matrix, so there is no default to fall back to"
-        )
-
-    rows = load_matrix_rows(Path(named))
-    resolved: list[set[str]] = []
-    if families:
-        resolved.append(set().union(*cases_for_families(rows, families).values()))
-    if requirements:
-        resolved.append(set().union(*cases_for_requirements(rows, requirements).values()))
+    resolved = _resolve_traced(config, families, requirements, tags)
 
     # INTERSECTED ACROSS DIMENSIONS, united within one. Asking for a family and
     # a requirement asks for the cases that are both.
@@ -216,6 +288,7 @@ def select_traced_cases(config: pytest.Config, items: list[pytest.Item]) -> None
         part for part in (
             f"families {','.join(families)}" if families else "",
             f"requirements {','.join(requirements)}" if requirements else "",
+            f"tags {','.join(tags)}" if tags else "",
         ) if part
     )
     if not chosen:
@@ -619,4 +692,69 @@ def select_priority_bands(config: pytest.Config, items: list[pytest.Item]) -> No
     logger.info(
         "priority bands %s selected %d graded case(s) of %d, keeping %d foundation(s)",
         named, len(chosen), graded, foundations,
+    )
+
+
+# THE MODULES A CASE MAY BELONG TO, from `framework-rules.md` section 2 plus the
+# consumer's own. A closed set, so a typo is refused rather than selecting
+# nothing: `--module CNM` would otherwise run no case and report green.
+_MODULES: Final[frozenset[str]] = frozenset({"ING", "EXE", "EVL", "CMN", "CAS"})
+
+
+def select_modules(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Deselect every case outside the named modules.
+
+    **The only selector needing no source but the collected suite.** A case
+    identifier carries its module token, so nothing has to be resolved through
+    a matrix or a corpus.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.7.5.
+
+    Args:
+        config (pytest.Config): pytest's configuration, read for ``--module``.
+        items (list): The collected items, filtered in place.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when a named module is
+            outside the registered set, or when the selection matches no
+            collected case. Either would otherwise run nothing and report
+            green.
+    """
+    named = [
+        entry.upper()
+        for entry in _comma_separated(str(config.getoption("--module", "") or ""))
+    ]
+    if not named:
+        return
+
+    unknown = sorted(set(named) - _MODULES)
+    if unknown:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: --module names {', '.join(unknown)}, "
+            f"which is not a registered module; registered modules are "
+            f"{', '.join(sorted(_MODULES))}"
+        )
+
+    wanted = set(named)
+    chosen = [item for item in items if case_module(item.name) in wanted]
+    if not chosen:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: no collected case belongs to "
+            f"{', '.join(sorted(wanted))}, so this run would measure nothing "
+            f"and report green"
+        )
+
+    # PRECONDITIONS ARE NOT KEPT, because a module selection is over every
+    # case rather than over the graded ones: keeping them would make the flag a
+    # no-op in this repository, as it would for a named list (section 7.8.2).
+    foundations = _restrict_items(
+        config, items, chosen, f"modules {','.join(sorted(wanted))}",
+        keep_preconditions=False,
+    )
+    logger.info(
+        "modules %s selected %d case(s), keeping %d foundation(s)",
+        ",".join(sorted(wanted)), len(chosen), foundations,
     )

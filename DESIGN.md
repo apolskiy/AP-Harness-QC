@@ -4,7 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -->
 # AP-Harness-QC: Design Overview
 
-> **Status:** current as of 2026-09-28. **Phase 3: the harness is implemented across all four modules and seven CI workflows, the graded model evaluations are written, and the security family is recorded and passing against a paid tier.** What remains unrecorded is the `EVAL` and `TOOL` corpus, which section 7.6 carries as a known gap. The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_112303`, `112305` and `112306` rather than by intention.
+> **Status:** current as of 2026-09-28. **Phase 3: the harness is implemented across all four modules and seven CI workflows, the graded model evaluations are written, and the security family is recorded and passing against a paid tier.** What remains unrecorded is the `EVAL` and `TOOL` corpus, which section 7.8 carries as a known gap. The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_112303`, `112305` and `112306` rather than by intention.
 >
 > **Purpose:** the referential basis for every other design document. It states what the system is, which document holds which decision, and where the boundaries between them fall. It does not restate their contents.
 
@@ -210,13 +210,15 @@ something dangling.
 
 ## 3. Document Map
 
+**This is the reading order, not the inventory.** `docs/document_register.md` names every tracked document and is checked against the repository both ways; this section says what to read first and what each design covers. The two were one table until 2026-10-04, when it turned out that `test_taxonomy.md` had fallen behind while named here the whole time, and that two tracked documents and seven governance files were in no list at all. `test_taxonomy.md` section 12 carries it.
+
 ### 3.1 Normative references
 
 Read these before any other document; the rest assume them.
 
 | Document | Holds |
 |---|---|
-| `docs/OPEN_QUESTIONS.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog**: unfinished work is a known gap in section 7.6 | **Live** |
+| `docs/OPEN_QUESTIONS.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog**: unfinished work is a known gap in section 7.8 | **Live** |
 | `docs/design/phase0_project_ambiguities.md` | Every project-level decision, with the options considered and the reason each was chosen. Items are cited elsewhere as A1 to A13 and B1 to B10. A dated record: it is never rewritten to match later decisions |
 | `docs/design/test_taxonomy.md` | What every identifier means. Module and layer registries, priority definitions and distribution ceilings, the outcome model, four failure taxonomy families, the run verdict rules, required result metadata |
 | `docs/design/extensibility_standard.md` | How the system absorbs a new provider, layer, suite, or unanticipated test type. Tier API contracts, the adapter interface, conformance suites, interface stability tiers, schema versioning, deprecation |
@@ -225,8 +227,8 @@ Read these before any other document; the rest assume them.
 
 | Document | Covers | Status |
 |---|---|---|
-| `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 92 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 228 cases | **Implemented** |
+| `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 93 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 234 cases | **Implemented** |
 | `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 115 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 102 cases | **Implemented** |
@@ -897,7 +899,95 @@ The optional argument in case `40003` is typed, **so conforming to it is observa
 | Whether the answer built from the result was any good | That is what `EVAL` measures, and it is why the two layers are separate |
 | Whether the tool would have worked | Intent is captured and never executed, per Tier 2. A family that ran tools would need a sandbox and a security posture, neither of which is in v1 |
 
-### 7.6 Known gaps, recorded rather than left silent
+### 7.6 v1 Test Plan Scope: Source Fidelity Family
+
+**Registered 2026-10-04**, after the project owner settled that the grounding corpus is its own family rather than a fixture set of section 7.1's. Its 6 task and rule pairs have shipped since 2026-09-23.
+
+**Why it is not section 7.1.** Both take their ground truth from provided source material, which is one admission criterion, and §11.2 step 1 admits a family where **either** the input shape **or** the ground truth differs. Here the task differs: section 7.1 asks the model to **compute a match decision** against a posting's requirements, and this asks it to **answer from a source without inventing**. Families say what the model was asked to do, so two tasks sharing a mechanism are two families.
+
+`model_evaluation_test_plan.md` section 9.4 reached the same conclusion from the other direction before any family was registered: "Grounding is measured against a source, which is why it is a separate corpus. The instruction-following family can be judged from the answer alone; this one cannot."
+
+#### 7.6.1 Input
+
+| Item | Shape |
+|---|---|
+| Source | One `context_document` carrying exact figures. The shipped one is a quarterly report naming four regions with their revenue |
+| Question | Asks something answerable from the source alone |
+| Glossary | A second source where the question turns on a defined term, so answering requires reading both |
+
+#### 7.6.2 Why it earns a place in v1
+
+**It converts two judged properties into asserted ones**, and they are the two hardest in the grounding requirement set.
+
+| Property | Made checkable by | Settles |
+|---|---|---|
+| A stated value was altered | The figures being exact | A string match, so `QC_LLM_SOURCE_ALTERATION` is an assertion rather than an opinion |
+| Something absent was asserted | **A designed fabrication target** | The report names four regions and says nothing about a fifth, so a model mentioning one has invented it and the check is exact |
+
+**The fabrication target is the device.** Without it, "did the model make something up" needs a judge holding the whole source, which is a model grading a model on a property neither can enumerate. With it, the absent thing is known and named, so the check is a set operation.
+
+#### 7.6.3 Fixtures
+
+The corpus is the fixture: `data/tasks/grounding.yaml` and `data/rules/grounding.yaml` **in the case repository**, 6 pairs. No file fixtures, so nothing a formatter could silently repair and no fixture precondition is owed under §11.2 step 8.
+
+**The figures are the thing under guard.** A corpus change that rounded a revenue figure would leave every `contains` assertion checking a value the source no longer states, which is why `MQC_CAS_UNI_115000` loads the real files through the real loaders rather than a constructed payload.
+
+#### 7.6.4 What it does not cover
+
+| Not covered | Why, and where it would belong |
+|---|---|
+| Whether the answer reads well | A judged quality. The rubric covers it where one is authored; the family's own measurement is fidelity |
+| A claim that is true but unsourced | Only an **absent** claim is checkable. A model asserting something true of the world and absent from the source is a grounding failure this corpus cannot settle, and `QC_LLM_UNSOURCED_CLAIM` carries it where an assertion can |
+| Multi-document synthesis | The glossary case reads two sources; nothing here reads five, and the failure modes of synthesis at scale are a different corpus |
+| Whether the model said it was uncertain | That is section 7.7's subject |
+
+### 7.7 v1 Test Plan Scope: Ambiguity Discrimination Family
+
+**Registered 2026-10-04**, alongside section 7.6 and for the same reason. Its 3 task and rule pairs have shipped since 2026-09-23.
+
+**The name is the design's own word.** `model_evaluation_test_plan.md` section 9.6 states it twice: "The requirement is discrimination, and a single task cannot observe it", and "The discrimination is the finding, not the dialogue." The family is not about handling ambiguity well; it is about telling ambiguity from its absence.
+
+#### 7.7.1 Input
+
+**An ablation pair, and the pair is the unit.**
+
+| Task | Input | Compliant behaviour |
+|---|---|---|
+| `amb_ambiguous_request` | A change request naming neither which threshold nor what value | **Ask** |
+| `amb_unambiguous_request` | The same shape of request, fully specified | **Proceed without asking** |
+| `amb_threshold_warning` | An availability figure below a stated threshold | Warn, and name which threshold failed |
+
+Both members of the pair carry the same standing instruction to ask when something is unclear, and differ only in whether anything is unclear.
+
+#### 7.7.2 Why it earns a place in v1
+
+**The ground truth is the designed answerability of the input, which nothing else in the registry supplies.** Whether a request is answerable is a fact about the fixture, decided when it was written, not a property of the response to be judged.
+
+**Neither task alone measures the requirement.** A model that always asks passes the first and fails the second; one that never asks does the reverse. So the measurement is the pair, and that is a shape no single-task family has:
+
+| | A single task | The pair |
+|---|---|---|
+| A model that always asks | Looks compliant | **Reported**, on the unambiguous twin |
+| A model that never asks | Looks compliant on the twin | **Reported**, on the ambiguous one |
+
+This is why `QC_LLM_AMBIGUITY_UNHANDLED` and `QC_LLM_OVER_CLARIFICATION` are separate registered codes: over-asking and under-asking call for different fixes, and a family measuring only one of them would report the two as the same defect.
+
+**The deterministic half is the asking.** `A_AMB_ASKS_FOR_DETAIL` reads the response for a question naming a missing value and `A_AMB_NO_SILENT_ASSUMPTION` reads it for a value invented instead; `amb_threshold_warning` adds `AMB_NAME_THE_GATE`, so "warned but uselessly" is distinguishable from "did not warn". **Whether the question was a good question is judged**, which §11.2 step 2 permits where the mechanism is partial, exactly as `output_shape` leaves readability to a rubric.
+
+#### 7.7.3 Fixtures
+
+`data/tasks/ambiguity.yaml` and `data/rules/ambiguity.yaml` **in the case repository**, 3 pairs. The unambiguous twin is a **control** and carries the `control` tag, so `MQC_CAS_UNI_115002` guards that it states no constraint its rule set does not check: a control destroyed by an edit would silently become a second ambiguous case and the discrimination would stop being measurable.
+
+#### 7.7.4 What it does not cover
+
+| Not covered | Why, and where it would belong |
+|---|---|
+| What the model does with an answer | A19 issues **one request per case** with no loop and no follow-up turn. Multi-turn behaviour has state, and state has to be constructed, seeded and compared, none of which the fixture store or the verdict is shaped for |
+| Whether a second turn resolves the ambiguity | As above. Section 9.6.1 of the test plan draws this line explicitly and says so before somebody widens the assertions |
+| Whether the clarifying question was well phrased | Judged, where a rubric is authored |
+| Ambiguity the fixture did not design in | The ground truth **is** the designed answerability, so an input that turns out ambiguous in a way nobody intended is not measured. That is a fixture defect rather than a finding |
+
+### 7.8 Known gaps, recorded rather than left silent
 
 Added 2026-09-25 from a documentation review, which is how they were found.
 

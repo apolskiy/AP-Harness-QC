@@ -24,6 +24,7 @@ from dataclasses import dataclass, field, fields
 from typing import Any, Final, Optional
 
 from cmn.registries import (
+    registered_evaluation_families,
     aggregation_scale,
     is_windows_reserved_name,
     priority_condition_level,
@@ -702,6 +703,10 @@ class GoldenRuleSet:
         rubric (Optional[Rubric]): The judged half.
         tool_expectation (Optional[ToolExpectation]): Tool compliance half.
         requirement_ids (list): Traceability identifiers, emitted to metadata.
+        families (tuple): The evaluation families this rule grades,
+            **ordered with the primary first**. Every value is registered
+            and the relation is many to many, so a complex rule names
+            several. Design ``test_taxonomy.md`` sections 11.7 and 11.8.
     """
 
     rule_id: str
@@ -721,6 +726,64 @@ class GoldenRuleSet:
     # is still a case about one of them, and asserting that a payload matches
     # some registered vector is satisfied by an incidental match.
     primary: Optional[str] = None
+    # WHICH EVALUATION FAMILIES THIS RULE GRADES, primary first. Declared
+    # rather than derived: the layer answers for SEC and TOOL because each
+    # maps to one family, and EVAL spans four, so the layer could never
+    # have answered for them. This is the source `test_taxonomy.md` section
+    # 11.5.1 recorded as missing, and the per-case mapping T5 takes.
+    families: tuple[str, ...] = ()
+
+
+    @staticmethod
+    def _validate_families(payload: Any, owner: str) -> tuple[str, ...]:
+        """Return the declared families, refusing a value nothing can resolve.
+
+        **Every value individually**, because a rule naming two families fails
+        if either is unregistered rather than only if the first is.
+
+        **A repeat is refused**, since a duplicate makes the primary ambiguous
+        and would count the case twice in a per-family cost total.
+
+        Design: ``test_taxonomy.md`` sections 11.7.2 and 11.8.
+
+        Args:
+            payload (Any): The declared value, absent or a sequence.
+            owner (str): The rule identifier, for the message.
+
+        Returns:
+            tuple[str, ...]: The families in declared order, primary first.
+            **Empty is permitted here and refused one level up**: a rule set is
+            also built in tests from a minimal payload, and which rules must
+            declare a family is a property of a shipped corpus rather than of
+            the schema.
+
+        Raises:
+            ValueError: With ``QC_DATA_INVARIANT_VIOLATION`` when a value is
+                unregistered or repeated.
+        """
+        declared = tuple(_normalize_text(entry) for entry in (payload or ()))
+        if not declared:
+            return ()
+
+        registered = registered_evaluation_families()
+        unknown = [name for name in declared if name not in registered]
+        if unknown:
+            logger.error(
+                "QC_DATA_INVARIANT_VIOLATION %s names unregistered families %s",
+                owner, unknown,
+            )
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: GoldenRuleSet {owner} names families "
+                f"{unknown}, which are not registered; registered families are "
+                f"{sorted(registered)}"
+            )
+        if len(set(declared)) != len(declared):
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: GoldenRuleSet {owner} repeats a family "
+                f"in {list(declared)}, which makes the primary ambiguous and would "
+                f"count the case twice in a per-family total"
+            )
+        return declared
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "GoldenRuleSet":
@@ -780,6 +843,7 @@ class GoldenRuleSet:
             tool_expectation=expectation,
             requirement_ids=[_normalize_text(entry)
                              for entry in payload.get("requirement_ids", ())],
+            families=cls._validate_families(payload.get("families", ()), owner),
             # CAST EXPLICITLY AT THE BOUNDARY, like every other field here. A
             # YAML `true` is already a bool and a quoted "true" is not, and the
             # difference would decide whether a vector reads as declared.

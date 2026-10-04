@@ -899,6 +899,7 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111112` | P | `a_finding_names_its_task_field_vector_and_excerpt` |
 | `111329` | P | `count_and_ordering_are_registered_constraint_kinds` |
 | `111330` | N | `a_declared_adversarial_task_with_a_rubric_is_refused` |
+| `111331` | N | `a_rule_set_naming_an_unregistered_family_is_reported` |
 
 ### 13.2 `MQC_ING_SYS_`: integration
 
@@ -969,7 +970,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 92 cases, 50 negative, 31 positive, 11 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 93 cases, 51 negative, 31 positive, 11 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

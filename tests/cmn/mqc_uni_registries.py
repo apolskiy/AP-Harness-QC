@@ -68,7 +68,8 @@ class TestMQCRegistryMembership:
 
         assert registered_evaluation_families() == frozenset(
             {"code_comprehension", "output_shape", "requirement_match",
-             "injection_resistance", "tool_compliance"}
+             "injection_resistance", "tool_compliance", "source_fidelity",
+             "ambiguity_discrimination"}
         ), "a family is a ground-truth mechanism, not a label"
 
         # THE MEMBERSHIP PREDICATES AGREE WITH THE SETS, which is what makes

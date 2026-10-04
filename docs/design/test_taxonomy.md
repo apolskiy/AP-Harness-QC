@@ -913,7 +913,7 @@ The two are **independent cases sharing a tag** (`ambiguity_pair_<nnn>`), not a 
 
 Emitted as Allure parameters and labels, and through JUnit XML, so both reach a downstream collector without changes on its side.
 
-**Corrected 2026-10-03: for most of this project nothing emitted any of it.** A published Allure result carried empty parameters and a severity label, and no `allure.dynamic` call existed in either repository. The mapping was never the gap: `emit_result` returns this whole list and had no caller outside the test suite. `cmn_verdict_and_cli.md` sections 5.1 to 5.4.1 carry what that cost and where the emission belongs, and this sentence describes the contract rather than the state until the hook lands.
+**Corrected 2026-10-03: for most of this project nothing emitted any of it.** A published Allure result carried empty parameters and a severity label, and no `allure.dynamic` call existed in either repository. The mapping was never the gap: `emit_result` returns this whole list and had no caller outside the test suite. `cmn_verdict_and_cli.md` sections 5.1 to 5.4.1 carry what that cost and where the emission belongs. **Landed 2026-10-03**: the reporting hook publishes every field in this table as an Allure parameter, the taxonomy code as a label as well, and a failing case's reproduction as an attachment, verified by `MQC_CMN_UNI_112253` against a result a real reporter wrote.
 
 ### 9.1 Fields
 
@@ -1090,6 +1090,8 @@ Families apply to graded cases only. A precondition tests the harness, which has
 | `code_comprehension` | A code excerpt carrying a known defect | A parser for syntactic defects, execution for logical ones | `DESIGN.md` §7.3 |
 | `injection_resistance` | A payload carrying an adversarial instruction, with its vectors declared | A planted canary, or a forbidden tool call where that is what was injected, settled by exact match | `DESIGN.md` §7.4 |
 | `tool_compliance` | A task declaring available tools, some required and some forbidden | The captured tool-call trace, which either contains the forbidden tool or does not | `DESIGN.md` §7.5 |
+| `source_fidelity` | One source carrying exact figures, and a question answerable from it alone | The source itself: an exact match on a stated figure, and a designed fabrication target so an absent claim is a set operation | `DESIGN.md` §7.6 |
+| `ambiguity_discrimination` | An ablation pair of requests, one genuinely ambiguous and one fully specified | **The designed answerability of the input**, which is a fact about the fixture rather than a property of the response | `DESIGN.md` §7.7 |
 
 **The middle column is the admission criterion, not a description.** The first two families were chosen because they supply ground truth for a property that would otherwise be judged: provided source material makes fabrication checkable, and a parser makes falsehood checkable. A family that can only be graded by rubric adds cases without adding confidence, because it measures a judge as much as a candidate.
 
@@ -1268,10 +1270,22 @@ Before this, `rtm_model.csv` labelled all 9 `SEC` and `TUL` requirement rows `re
 |---|---|
 | Written | T5, with a per-case family mapping as an argument |
 | Exercised by | Synthetic rows in two cases |
-| Run against `rtm_model.csv` | **Never.** The consumer owns that matrix and never calls `check_matrix_integrity` |
+| Run against `rtm_model.csv` | **Never, until 2026-10-04.** `MQC_CAS_UNI_115415` now runs every check against it with the real mapping |
 | Why the abstention is silent | `if derived and ...` treats an absent mapping as nothing to check, rather than as nothing to check **with** |
 
 **So the gap was a third source, not a third check.** Nothing outside the matrix said what family a case belongs to, which is the shape this project keeps finding: the subject supplied the evidence. A check designed to need an independent source, handed none, passes.
+
+**What running it found, 2026-10-04.** With the declaration supplying the mapping, T5 reported **10 rows mislabelled beyond the 9** that §11.4.3's layer-derived check had corrected, plus 5 precondition rows carrying a family when a precondition belongs to none:
+
+| Rows | Stated | Their cases actually grade |
+|---|---|---|
+| `INS_0004`, `INS_0005` | `requirement_match` | `output_shape` |
+| `GND_0001`, `0002`, `0004` | `code_comprehension;requirement_match` | `code_comprehension;source_fidelity` |
+| `GND_0003`, `GND_0005` | `requirement_match` | `source_fidelity` |
+| `AMB_0001` to `0003` | `requirement_match` | `ambiguity_discrimination` |
+| 5 `CAS_COR_*` rows | A family | Nothing: they name preconditions |
+
+**19 of 93 rows were wrong in total**, and the layer could only ever have found 9 of them. The column is now generated from the declaration rather than authored, which is what `cmn/traceability.py` has said it should be since it was written, that `families` is derived and never authored.
 
 So the mislabelling was invisible in the way this project keeps rediscovering: the subject supplied the evidence. It is the same shape as the hand-typed field list in §9.4 and the self-consistent inventory in §11.2.2.
 
@@ -1308,20 +1322,27 @@ Recorded 2026-10-03 as a finding, at the project owner's instruction.
 | Recorded, not fixed | The other three senses keep the word. Sense two is a prose edit worth doing, sense three is not worth the rebind, and sense four is a private constant whose rename is cheap and belongs to the case repository |
 | Expiry | None. This is a finding about vocabulary rather than a dated gap |
 
-#### 11.5.1 The remaining gap: no case declares its own family
+#### 11.5.1 No case declared its own family, and now every rule set does
 
-**Documentation is ahead of implementation here, deliberately.** For `SEC` and `TOOL` the family is derivable from the layer, which §11.4.3 now checks. For `EVAL` it is not: that layer spans three families and nothing in a task, a rule or a case says which.
+**Closed 2026-10-04**, when the project owner settled the three unassigned
+corpora and `GoldenRuleSet.families` became declarable. What follows is what the
+gap was, kept because the closure is only legible against it.
+
+**For `SEC` and `TOOL` the family was derivable from the layer**, which §11.4.3
+checks. For `EVAL` it was not: that layer spans four families and nothing in a
+task, a rule or a case said which.
 
 So `Observation.family` has no source for an `EVAL` case, the emission hook in `cmn_verdict_and_cli.md` §5 cannot populate it, and the matrix column is the only record of a value that analysis is meant to group by. Closing it needs a declaration on the corpus, which is a Tier 1 schema change and a decision of its own.
 
 | | |
 |---|---|
-| Derivable now | `SEC` to `injection_resistance`, `TOOL` to `tool_compliance` |
-| No source | Which of the three families an `EVAL` case belongs to |
-| What it needs | A family **list** on the task or the rule set, per §11.7, with the referential check that every value is registered |
-| What it would also close | **T5 against `rtm_model.csv`.** That check takes a per-case family mapping and nothing can build one, so it abstains; the declaration is the mapping it has been missing (§11.4.2) |
-| And the caller it needs | The consumer calling `check_matrix_integrity` on its own matrix. The harness cannot: the matrix is the case repository's data |
-| Expires | 2026-11-30 |
+| Was derivable | `SEC` to `injection_resistance`, `TOOL` to `tool_compliance` |
+| Had no source | Which of the four families an `EVAL` case belongs to |
+| **Declared now** | `GoldenRuleSet.families`, on all 69 shipped rule sets, validated against the registry |
+| What it took | A family **list** on the rule set, per §11.7, with the referential check that every value is registered. `MQC_CAS_UNI_115414` |
+| What it also closed | **T5 against `rtm_model.csv`.** The declaration is the per-case mapping it takes, and its first run found 10 more mislabelled rows (§11.4.2) |
+| And the caller it needed | The consumer calling `check_matrix_integrity` on its own matrix, which `MQC_CAS_UNI_115415` now does. The harness cannot: the matrix is the case repository's data |
+| Closed | 2026-10-04 |
 
 ### 11.6 The registry is open, and the checks are written for that
 
@@ -1409,3 +1430,132 @@ Section 11.4.3 derives a family from a layer for `SEC` and `TOOL`. Because the r
 | Inclusive, not primary-only | Omitting a case where the family is secondary risks missing the regression; §7.7.2 |
 | Refuses rather than warns | An unknown value, or a resolution matching no collected case. A selector's failure mode is a vacuous green; §7.7.3 |
 | Neither yields a verdict | Both are manual selectors. A regression set answers whether a fix worked, not whether the model is releasable |
+
+
+### 11.8 Two more families, and what the registry looks like at seven
+
+Registered 2026-10-04 at the project owner's decision, after a documentation
+review found that three corpora were producing graded results no family
+described.
+
+**This is §11.4's situation again and the third instance of it.** The cases
+shipped on 2026-09-23; the families were registered today. What makes it worth
+recording a third time is that the review which found it was the one §12's
+register now exists to support, so the pattern was found by looking rather than
+by a check, and the thing that would have caught it does not exist.
+
+#### 11.8.1 The three corpora, and where each landed
+
+| Corpus | Rules | Family | Why |
+|---|---|---|---|
+| `instruction_following` | 9 | **`output_shape`**, existing | Bullet ceilings, word ceilings, a JSON schema, a prohibited character, ordering and capitalisation. Parsers and counters applied to the response, which is §7.2 exactly |
+| `grounding` | 6 | **`source_fidelity`**, new | Ground truth is the provided source. The task differs from `requirement_match`: answering from a source rather than computing a match decision |
+| `ambiguity` | 3 | **`ambiguity_discrimination`**, new | Ground truth is the designed answerability of an ablation pair, which no existing row supplies |
+
+**`instruction_following` needed no new row**, and that is the step 1 outcome the
+procedure most wants: a corpus whose task is already registered is a fixture set,
+not a family. Treating all three alike would have added two unnecessary rows.
+
+#### 11.8.2 Why `grounding` is not a fixture set of `requirement_match`
+
+They share an admission criterion, which is what made this the hard call. Both
+take ground truth from provided source material.
+
+| | `requirement_match` | `source_fidelity` |
+|---|---|---|
+| The model is asked to | Compute a match decision against a posting's requirements | Answer a question from a source without inventing |
+| Input | Two documents in a stated relation, with a gate to apply | One source and a question |
+| A failure means | The gate semantics were not followed | Something absent from the source was asserted, or a stated value was altered |
+
+**§11.2 step 1 admits a family where either the input shape or the ground truth
+differs**, and §11's opening says families say what the model was asked to do.
+Two tasks sharing a mechanism are two families, and the alternative reading was
+available: generalise `requirement_match`'s input column to "provided source
+material and a question about it" and fold both corpora in. That was offered and
+declined, on the ground that a row describing three unrelated tasks stops being
+an admission decision.
+
+#### 11.8.3 What registering them closed
+
+Three gaps, and they were one gap seen from three places.
+
+| Was open | Closed by |
+|---|---|
+| §11.5.1: no case declares its own family | `GoldenRuleSet.families`, declared per rule set and validated against the registry |
+| §11.4.2: T5 has never run on `rtm_model.csv` | The declaration **is** the per-case mapping T5 takes, so the consumer can now call `check_matrix_integrity` with one |
+| §5.4.1: an `EVAL` case publishes no family | The hook reads the declaration rather than deriving from the layer, so all three `EVAL` families reach the artifact |
+
+**Deriving from the layer was always a stopgap and is now gone.** It worked for
+`SEC` and `TOOL` because those layers map one to one, and `EVAL` spans four
+families, so the layer could never have answered for them. The declaration is
+the source the layer was standing in for.
+
+## 12. The Document Register
+
+Added 2026-10-04 at the project owner's instruction, after `test_taxonomy.md`
+was found to have fallen behind the changes made around it: section 9's
+normative list existed in three copies, its emission claim described behaviour
+no code performed, and the identifier width in its own examples was the old one.
+
+### 12.1 A reading order is not an inventory
+
+**`DESIGN.md` section 3 already named this document**, so the omission was not
+that the map lacked it. The map answers **what to read first**; a review needs
+**what exists**, and those are different questions that the same table was being
+asked to serve.
+
+| | `DESIGN.md` section 3 | `docs/document_register.md` |
+|---|---|---|
+| Answers | What to read, in what order, and what each design covers | What documents exist |
+| Complete | No, and it does not need to be | **Yes, and checked** |
+| Named `.claude/rules/` | As a directory | Each file |
+| Named `README.md`, `docs/running_jobs.md` | **No** | Yes |
+
+**Two tracked documents were in no list at all** and seven were covered only by
+the directory they sit in. A reviewer working from section 3 would have reached
+none of the nine.
+
+### 12.2 Checked in both directions, for two different failures
+
+| Direction | What it catches |
+|---|---|
+| Tracked and unnamed | A document a review never reaches, which is how this section came to be written |
+| Named and absent | A citation that will not resolve |
+
+`MQC_CMN_UNI_112255` and `MQC_CAS_UNI_115413` call one implementation with each
+repository's root, which is the arrangement the encoding, header and annotation
+rules already use.
+
+**The two directions take different sources, and each is the right one.**
+Trackedness is asked of `git ls-files`, because a filesystem walk finds a
+generated `.pytest_cache/README.md` and whatever the next tool leaves behind, so
+it would need a denylist that grows every time one is added. Existence is asked
+of the filesystem, because a register names `.claude/logs/PROMPT_LOG.md`, which
+is deliberately untracked and present, and names the paired repository's
+documents, which resolve elsewhere.
+
+**Git failing is not an empty answer.** A register check that found no tracked
+documents would pass for having compared nothing, so the reader raises
+`QC_HARNESS_PARSER_ERROR` instead.
+
+### 12.3 What the register does not carry, and why
+
+**No review date.** A date per document would make staleness visible, which is
+exactly the failure this section records, and it was considered and rejected:
+nothing updates it but intention, so it becomes the always-empty column that
+`testing-standards.md` warns teaches a reader to ignore a column. The project
+already has a convention for work deliberately not done, which is a dated gap
+with its reason, and a register is not the place to restate it.
+
+**No status.** `DESIGN.md` section 3.2 carries implementation status for the
+module designs, and a second copy would drift.
+
+**What the register is for** is that a documentation review has a list it can
+work through and know it is complete. The completeness is the mechanism.
+
+### 12.4 The rules load it
+
+`CLAUDE.md` in both repositories names the register among the documents read
+before any work begins. **A complete list nobody opens prevents nothing**, which
+is the same reason the governance files are listed there rather than merely
+existing.

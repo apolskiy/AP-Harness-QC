@@ -195,6 +195,14 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         help_text="Where artifacts are written, so a diagnostic run stays separate",
     ),
     Option(
+        name="module",
+        default="",
+        help_text=(
+            "Comma-separated modules whose cases to run, from ING, EXE, EVL, "
+            "CMN and CAS"
+        ),
+    ),
+    Option(
         name="family",
         default="",
         help_text=(
@@ -208,6 +216,22 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         help_text=(
             "Comma-separated requirement identifiers whose cases to run, "
             "resolved through --rtm"
+        ),
+    ),
+    Option(
+        name="tag",
+        default="",
+        help_text=(
+            "Comma-separated task tags whose cases to run, resolved through "
+            "--case-index"
+        ),
+    ),
+    Option(
+        name="case-index",
+        default="",
+        help_text=(
+            "Path to the generated per-case index of families and tags. Makes "
+            "--family exact and --tag possible. Not a selector"
         ),
     ),
     Option(
@@ -247,7 +271,8 @@ _OPTIONS: Final[tuple[Option, ...]] = (
 # and selects nothing itself, so a run supplying it and no selector is a full
 # run. Design section 7.7.1.
 _MANUAL_SELECTORS: Final[frozenset[str]] = frozenset(
-    {"priority", "observations", "tests", "tests-file", "family", "requirement"}
+    {"priority", "observations", "tests", "tests-file", "family", "requirement",
+     "module", "tag"}
 )
 
 

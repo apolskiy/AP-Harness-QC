@@ -690,7 +690,13 @@ class TestMQCDependencyDeclaration:
         }
         # The import name and the distribution name differ for these, which is
         # exactly the kind of mapping a check has to state rather than infer.
-        aliases = {"yaml": "pyyaml", "google": "google_genai"}
+        aliases = {
+            "yaml": "pyyaml",
+            "google": "google_genai",
+            # `allure` is shipped by allure-python-commons, which
+            # allure-pytest depends on and does not provide.
+            "allure": "allure_python_commons",
+        }
 
         # Parsed, not pattern-matched. A regex over source lines also matches
         # prose: a docstring line beginning "from the artifact alone" reads as

@@ -440,6 +440,32 @@ _EVALUATION_FAMILIES: Final[dict[str, EvaluationFamily]] = {
             "or does not"
         ),
     ),
+    # REGISTERED 2026-10-04, their cases having shipped since 2026-09-23. The
+    # third retroactive registration, found by the documentation review that
+    # section 12's register exists to support. Design `test_taxonomy.md`
+    # section 11.8, scope `DESIGN.md` sections 7.6 and 7.7.
+    "source_fidelity": EvaluationFamily(
+        identifier="source_fidelity",
+        input_shape=(
+            "One source carrying exact figures, and a question answerable from "
+            "it alone"
+        ),
+        ground_truth=(
+            "The source itself: an exact match on a stated figure, and a "
+            "designed fabrication target so an absent claim is a set operation"
+        ),
+    ),
+    "ambiguity_discrimination": EvaluationFamily(
+        identifier="ambiguity_discrimination",
+        input_shape=(
+            "An ablation pair of requests, one genuinely ambiguous and one "
+            "fully specified"
+        ),
+        ground_truth=(
+            "The designed answerability of the input, which is a fact about "
+            "the fixture rather than a property of the response"
+        ),
+    )
 }
 
 

@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Precondition suite (`UNI`, `SYS`) | **537 cases, all passing** |
+| Precondition suite (`UNI`, `SYS`) | **544 cases, all passing** |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 230, none uncovered, none untraced |
+| Requirements traced | 236, none uncovered, none untraced |
 | Specified and not yet built | Recorded as deferrals, not as silence |
 
 Every case is inventoried in a design document before it is implemented, traced
@@ -77,6 +77,8 @@ reverting a shared tree.
 Results are published as standard CI artifacts, JUnit XML and Allure, for
 read-only downstream consumption. This repository depends on no consumer and
 names none.
+
+**To download a run's results and view them**, `docs/running_jobs.md` section 5 has the artifact names, the `gh run download` line and the Allure commands, verified against Allure 2.41.0.
 
 ## Repository Layout
 

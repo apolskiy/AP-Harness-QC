@@ -23,6 +23,7 @@ module is deliberately only the part pylint cannot express.
 
 import ast
 import re
+import subprocess
 from datetime import date
 from pathlib import Path
 from typing import Any, Final
@@ -760,3 +761,120 @@ def section_lines(document: Path, heading: str) -> list[str]:
                 break
             collected.append(line)
     return collected
+
+
+# A PATH NAMED IN A REGISTER ROW, which is a backticked path in the first cell.
+# Parsed rather than substring-matched, because prose naming a document is not a
+# row and reporting it would be the over-reporting that trains a check away on
+# its second run. Design `test_taxonomy.md` section 12.
+_REGISTER_ROW: Final[re.Pattern] = re.compile(
+    r"^\|\s*`([A-Za-z0-9_./-]+\.(?:md|csv))`\s*\|"
+)
+
+
+def registered_documents(register: Path) -> set[str]:
+    """Return every document path a register names.
+
+    Args:
+        register (Path): The register to read.
+
+    Returns:
+        set[str]: The paths, as the register spells them, with forward slashes.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the register names
+            nothing, because a reader finding no rows would report no problems
+            and pass for having read nothing.
+    """
+    named: set[str] = set()
+    for line in register.read_text(encoding="utf-8").splitlines():
+        matched = _REGISTER_ROW.match(line.strip())
+        if matched is not None:
+            named.add(matched.group(1))
+
+    if not named:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: {register.name} names no document, so "
+            f"this reader would report no problems by having read nothing"
+        )
+    return named
+
+
+def document_register_problems(root: Path, register: Path) -> list[str]:
+    """Return every disagreement between a register and the documents present.
+
+    **Both directions, because each one hides a different failure.** A tracked
+    document the register does not name is a document a review never reaches,
+    which is how a design came to sit behind the changes made around it. A path
+    the register names and nothing provides is a citation that will not resolve.
+
+    **A path outside this root is not checked for existence.** A register
+    legitimately names documents in the paired repository so a reader following
+    a citation knows where it points, and this repository does not hold them.
+
+    Design: ``test_taxonomy.md`` section 12.
+
+    Args:
+        root (Path): The repository root.
+        register (Path): The register within it.
+
+    Returns:
+        list[str]: One description per disagreement, empty when they agree.
+    """
+    named = registered_documents(register)
+    problems: list[str] = []
+
+    for path in sorted(tracked_documents(root) - named):
+        problems.append(
+            f"{path} is tracked and this register does not name it, so a "
+            f"documentation review would not reach it"
+        )
+
+    # EXISTENCE, NOT TRACKEDNESS, in this direction. A register names a
+    # document deliberately left untracked, and it names the paired
+    # repository's documents so a reader following a citation knows where it
+    # points; the first is present and the second resolves elsewhere.
+    for path in sorted(named):
+        if (root / path).exists() or "/" not in path:
+            continue
+        problems.append(
+            f"{path} is named by this register and is not present, so a "
+            f"citation to it will not resolve"
+        )
+    return problems
+
+
+def tracked_documents(root: Path) -> set[str]:
+    """Return every document git tracks in a repository.
+
+    **Asked of git rather than walked.** A filesystem walk finds a generated
+    `.pytest_cache/README.md` and whatever the next tool leaves behind, so it
+    needs a denylist that grows every time one is added. What the register is
+    about is the **tracked** documents, and git is the authority on which those
+    are.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        set[str]: Tracked ``.md`` and ``.csv`` paths, with forward slashes.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when git cannot answer.
+            **Not treated as nothing tracked**, which would make the register
+            check pass by finding no documents to compare.
+    """
+    try:
+        listed = subprocess.run(
+            ["git", "ls-files", "*.md", "*.csv"],
+            capture_output=True, text=True, check=True, shell=False,
+            cwd=str(root), stdin=subprocess.DEVNULL,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: git could not list the tracked "
+            f"documents in {root}, so the register cannot be checked against "
+            f"them and an empty answer would pass for having compared nothing"
+        ) from error
+
+    return {line.strip() for line in listed.splitlines() if line.strip()}

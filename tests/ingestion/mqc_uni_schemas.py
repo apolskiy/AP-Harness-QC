@@ -245,6 +245,66 @@ class TestMQCTaskSchema:
 class TestMQCGoldenRuleSchema:
     """Validation of `GoldenRuleSet`, including invariants G1 and G6."""
 
+    def MQC_ING_UNI_111331_a_rule_set_naming_an_unregistered_family_is_reported(
+        self,
+    ) -> None:
+        """Every declared family is registered, and no family is repeated.
+
+        **Each value, not the first.** A rule naming two families fails if
+        either is unregistered, so a second value cannot reach the durable
+        record unresolvable while the first vouches for it.
+
+        **A repeat is refused** because the order is load-bearing: the first
+        value is the primary family, and a duplicate makes that ambiguous while
+        counting the case twice in a per-family cost total.
+
+        **Absent is permitted here and required one level up.** Which rules must
+        declare a family is a property of a shipped corpus rather than of the
+        schema, and `MQC_CAS_UNI_115414` holds the corpus to it.
+
+        Design: ``test_taxonomy.md`` sections 11.7.2 and 11.8.
+
+        Returns:
+            None
+        """
+        base = {
+            "rule_id": "MQC_RULE_fam",
+            "priority": 2,
+            "priority_conditions": ["P2_DOCUMENTED_BEHAVIOUR"],
+            "assertions": [{
+                "assertion_id": "A_FAM",
+                "kind": "contains",
+                "parameters": {"value": "anything"},
+                "taxonomy_code": "QC_LLM_SOURCE_ALTERATION",
+                "severity": "violation",
+            }],
+        }
+
+        declared = GoldenRuleSet.from_dict(
+            {**base, "families": ["source_fidelity", "output_shape"]}
+        )
+        assert declared.families == ("source_fidelity", "output_shape"), (
+            "the declared order was not preserved, so the primary family is "
+            "whatever a set iteration produced"
+        )
+
+        with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION"):
+            GoldenRuleSet.from_dict({**base, "families": ["invented_family"]})
+
+        # THE SECOND VALUE IS CHECKED TOO, which is the half a first-value-only
+        # check would pass.
+        with pytest.raises(ValueError, match="are not registered"):
+            GoldenRuleSet.from_dict(
+                {**base, "families": ["output_shape", "invented_family"]}
+            )
+
+        with pytest.raises(ValueError, match="repeats a family"):
+            GoldenRuleSet.from_dict(
+                {**base, "families": ["output_shape", "output_shape"]}
+            )
+
+        assert not GoldenRuleSet.from_dict(base).families
+
     def MQC_ING_UNI_111301_accepts_complete_golden_rule_payload(
         self,
         sample_rule_payload: dict[str, Any],

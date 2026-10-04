@@ -39,6 +39,9 @@ flags:
   "--family": {owner: harness}
   "--requirement": {owner: harness}
   "--rtm": {owner: harness}
+  "--module": {owner: harness}
+  "--tag": {owner: harness}
+  "--case-index": {owner: harness}
   "--judge-on-failure": {owner: consumer}
 
   # --- declared gaps, dated ------------------------------------------------

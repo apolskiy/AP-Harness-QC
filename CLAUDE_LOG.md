@@ -8018,3 +8018,386 @@ Measured against the real matrix: `--family injection_resistance` selects 21
 cases, `--family tool_compliance` 8, `--requirement MQC_REQ_MDL_TUL_0004` 4, and
 `--priority 0 --family injection_resistance` 15, which is the intersection
 narrowing rather than widening. A misspelled family refuses, naming it.
+
+## 2026-10-03: The record reaches the artifact, and a documentation review found what was left
+
+A review of both repositories' documentation against their implementation, at
+the project owner's instruction. The machinery already covers one class of gap:
+`MQC_CMN_UNI_112325` reports an inventory row naming a case nobody built, and it
+gates and passes, so every designed case in both repositories is implemented.
+What it cannot see is a design that describes behaviour no code performs, and
+that is where the gaps were.
+
+### The emission hook, which was the largest gap in the project
+
+Section 5.1 recorded it on 2026-10-02 and nothing had closed it: a published
+Allure result carried empty parameters and a severity label, so **a collector
+could not say which engine produced a result** and the three-engine comparison
+was unattributable from the artifact.
+
+**Everything was built.** `emit_result` returned the whole section 9 mapping,
+`observation_parameters` and `vendor_report` built the published forms,
+`assemble_observation` joined the halves, and **none had a caller outside the
+test suite**. This is the eleventh instance of one shape: the thing is right and
+nothing establishes it is reachable.
+
+`cmn/emission.py` is the join. `observe` records what it measured as a run takes
+it; the reporting hook publishes once the verdict is known, which is also the
+first point that knows whether to attach a reproduction.
+
+| Published | As |
+|---|---|
+| Every field of section 9 | An Allure parameter |
+| `taxonomy_code` | A parameter **and** a label, so root-cause class is filterable |
+| `observations_taken`, `observations_passed` | Parameters, so the population is readable without opening anything |
+| `resolved_models` | Only where more than one model served, which is the unsound-run condition |
+| The reproduction | A `vendor-report` attachment, on a failing case only |
+
+### Two things the design left open, decided on implementing
+
+**A case has several observations and a test has one parameter list.** Three
+observations of twenty-five fields would publish seventy-five parameters with
+colliding names. So the parameters describe the case, taken from the
+**representative** observation, and the attachment carries the observations. The
+representative is the first failing one and the first otherwise: a reader
+scanning a failure wants the call that failed.
+
+**Where the emission is possible was probed, not assumed.** A parameter, a label
+and an attachment all reach the open result from `pytest_runtest_makereport` on
+the call phase, verified by emitting from it and reading the `*-result.json`
+that came out. Had that API already closed its result, the design would have had
+to go somewhere worse, and finding out by writing the hook first would have been
+the expensive order.
+
+### Verified the way the defect was found
+
+`112253` runs a real pytest invocation with a real reporter and reads the result
+it wrote. **Every earlier case asserted against the builders and the builders
+were never the gap**, which is exactly why the defect survived: every case about
+the mapping passed while nothing published it. Section 5.1 was established by
+reading a raw result rather than the code meant to produce it, and this is that
+reading, automated.
+
+Injection: disabling the hook fails all three cases; restoring it passes all
+three.
+
+Read off a real consumer run: `engine='gemini'`, `mode='replay'`,
+`resolved_model='gemini-3.8-flash'`, `layer='SEC'`,
+`families='injection_resistance'`, 29 parameters in all. On the failing
+`134205`: `taxonomy_code='QC_LLM_SOURCE_ALTERATION'` as both parameter and
+label, `observations_passed='0'`, and a `vendor-report` attachment carrying all
+three calls with their requests and responses.
+
+### An undeclared dependency the import check caught
+
+`cmn/emission.py` imports `allure`, which **`allure-pytest` depends on and does
+not provide**: the module ships in `allure-python-commons`. `112223` reported
+the undeclared import, and the fix is to declare it, because the project now
+imports it directly rather than transitively. The alias map in that case already
+exists for import names that differ from distribution names.
+
+### `--module` lands and `--tag`'s reason was wrong
+
+Both appeared in section 7.1.2's selection table and in no registry.
+
+**`--module` is implemented.** A case identifier carries its module token, so
+the selection needs no source beyond the collected suite, and the module set is
+closed so a typo refuses rather than selecting nothing.
+
+**`--tag` is not, and the recorded reason changed on inspection.** It said there
+was no vocabulary to select from; there is one, `TaskDataSet.tags`, carrying
+values such as `control`. The real blockers are that tags are **task data** the
+harness is forbidden to read, that no matrix column carries them and none would
+fit a requirement-keyed schema, and that the vocabulary is free text with no
+registry to refuse a typo against.
+
+**A gap recorded with the wrong reason is worse than one recorded with none**,
+because it answers the question a reader would ask. Corrected rather than
+closed.
+
+### What remains, and why
+
+| Gap | State |
+|---|---|
+| No case declares its own family | Open, and now the last one. Section 11.5.1 |
+| T5 against `rtm_model.csv` | Open, and it is the same gap: T5 needs the per-case mapping that declaration would be |
+| `--tag` | Open with the corrected reason, expires 2026-11-30 |
+| `grok` unrostered | A decision, not a gap: no credential is held |
+
+**The family declaration needs a decision this log cannot make.** Four corpora
+map unambiguously to a registered family and three do not:
+`instruction_following`, `grounding` and `ambiguity` are `EVAL` cases whose
+family is not derivable from the corpus file, which is the whole reason section
+8.6 separates the two. Assigning one would be inventing taxonomy.
+
+### State
+
+Harness 683 passing, pylint 10.00/10 exit 0. Consumer 78 preconditions passing,
+pylint 10.00/10 exit 0; the 2 graded failures are the known gemini replay
+findings, which now publish their reproduction.
+
+## 2026-10-04: A document register, because a reading order was serving as an inventory
+
+Added at the project owner's instruction, after `test_taxonomy.md` was found to
+have fallen behind the changes made around it.
+
+### The map named it the whole time
+
+**`DESIGN.md` section 3 already listed `test_taxonomy.md`**, so the omission was
+not that the map lacked it. The map answers **what to read first**; a review
+needs **what exists**, and one table was being asked to serve both.
+
+Counted on inspection: **two tracked documents were in no list at all**,
+`README.md` and `docs/running_jobs.md`, and **seven governance files were
+covered only by the directory they sit in**, section 3.4 naming
+`.claude/rules/` rather than the files inside it. A reviewer working from
+section 3 would have reached none of the nine.
+
+| | `DESIGN.md` section 3 | `docs/document_register.md` |
+|---|---|---|
+| Answers | What to read, in what order | What exists |
+| Complete | No, and it does not need to be | **Yes, and checked** |
+
+### Checked in both directions, from two different sources
+
+| Direction | Catches | Source |
+|---|---|---|
+| Tracked and unnamed | A document a review never reaches | `git ls-files` |
+| Named and absent | A citation that will not resolve | The filesystem |
+
+**The two sources are not interchangeable and each is the right one.** A
+filesystem walk finds a generated `.pytest_cache/README.md` and whatever the
+next tool leaves behind, so it would need a denylist that grows every time one
+is added; git is the authority on what is tracked. Existence is the filesystem's
+to answer, because the register deliberately names `.claude/logs/PROMPT_LOG.md`,
+which is untracked and present, and names the case repository's documents, which
+resolve elsewhere.
+
+**Git failing is not an empty answer.** A register check finding no tracked
+documents would pass for having compared nothing, so it raises instead.
+
+Injected both ways: a tracked decoy document is reported, and a register row
+naming an absent design is reported.
+
+### A review date was considered and rejected
+
+It would make staleness visible, which is exactly the failure being recorded.
+**Nothing would update it but intention**, so it becomes the always-empty column
+`testing-standards.md` warns teaches a reader to ignore a column. The project
+already has a convention for work deliberately not done, which is a dated gap
+with its reason.
+
+What the register is for is that a review has a list it can work through and
+know it is complete. **The completeness is the mechanism**, and it is the half
+that is checkable.
+
+### The rules load it
+
+`CLAUDE.md` in both repositories names the register among the documents read
+before work begins, and `DESIGN.md` section 3 now says which question it answers
+and defers completeness to the register. **A complete list nobody opens prevents
+nothing**, which is the other half and the half no check can supply.
+
+### State
+
+Harness 684 passing, pylint 10.00/10 exit 0. Consumer 79 preconditions passing,
+pylint 10.00/10 exit 0; the 2 graded failures are the known gemini replay
+findings.
+
+## 2026-10-04: Two more families, and the check that had never run finds ten more rows
+
+The project owner settled the three corpora that no family described, choosing
+two new families over folding them into an existing row. Registering them closed
+three gaps that turned out to be one gap seen from three places.
+
+### Where each corpus landed
+
+| Corpus | Rules | Family | Why |
+|---|---|---|---|
+| `instruction_following` | 9 | **`output_shape`**, existing | Bullet ceilings, word ceilings, a JSON schema, a prohibited character. Parsers and counters applied to the response |
+| `grounding` | 6 | **`source_fidelity`**, new | Ground truth is the provided source. The task differs from `requirement_match`: answer from a source, rather than compute a match decision |
+| `ambiguity` | 3 | **`ambiguity_discrimination`**, new | Ground truth is the designed answerability of an ablation pair, which no existing row supplies |
+
+**`instruction_following` needed no new row**, which is the step 1 outcome the
+procedure most wants: a corpus whose task is already registered is a fixture
+set, not a family. Treating all three alike would have added two unnecessary
+rows, and the review that found them had assumed all three were the same
+problem.
+
+**The decision was the owner's and the evidence contradicted the brief.** The
+recollection was that grounding and ambiguity used resume material with skill
+matches; the shipped corpora use a quarterly report and a glossary, and change
+requests with config thresholds. Only `requirement_match` carries resumes. The
+anchor for the recollection is real: `AMB_003` uses `QC_LLM_MATCH_MISCOMPUTED`,
+the gate-semantics code, against config thresholds rather than a posting.
+
+### What registering them closed
+
+| Was open | Closed by |
+|---|---|
+| Section 11.5.1: no case declares its own family | `GoldenRuleSet.families` on all 69 shipped rule sets, validated against the registry |
+| Section 11.4.2: T5 has never run on `rtm_model.csv` | The declaration **is** the per-case mapping T5 takes |
+| Section 5.4.1: an `EVAL` case publishes no family | The hook reads the declaration rather than deriving from the layer |
+
+**Deriving from the layer was always a stopgap.** It worked for `SEC` and
+`TOOL` because each maps to one family, and `EVAL` spans four, so the layer
+could never have answered for them. Read off a real run after the change: the
+failing `EVAL` case `134205` now publishes `families='source_fidelity'`.
+
+### T5's first run found ten more mislabelled rows
+
+**19 of 93 matrix rows were wrong, and the layer could only ever have found 9.**
+
+| Rows | Stated | Their cases actually grade |
+|---|---|---|
+| `INS_0004`, `INS_0005` | `requirement_match` | `output_shape` |
+| `GND_0001`, `0002`, `0004` | `code_comprehension;requirement_match` | `code_comprehension;source_fidelity` |
+| `GND_0003`, `GND_0005` | `requirement_match` | `source_fidelity` |
+| `AMB_0001` to `0003` | `requirement_match` | `ambiguity_discrimination` |
+| 5 `CAS_COR_*` rows | A family | **Nothing**: they name preconditions, which belong to none |
+
+The column is now generated from the declaration rather than authored, which is
+what `cmn/traceability.py` has said since it was written.
+
+**The reason it took this long is worth stating plainly.** T5 is written
+`if derived and ...`, so an absent mapping means nothing to check rather than
+nothing to check **with**. It abstained silently, was exercised only by two
+cases with synthetic rows, and nothing called `check_matrix_integrity` on the
+matrix that has the column. A check needing an independent source, handed none,
+passes.
+
+### Verification
+
+`MQC_CAS_UNI_115414` holds the corpus to declaring a registered family on every
+rule, and asserts that **all seven families are in use**, which makes the
+registry a description of this corpus rather than a list of possibilities.
+`115415` runs every matrix check against the real matrix with the real mapping.
+`MQC_ING_UNI_111331` covers the schema validation, including that the **second**
+value is checked and not only the first.
+
+Injected: stripping a family from one rule fails `115414`; relabelling one
+matrix row fails `115415` naming the row and both families.
+
+### State
+
+Harness 685 passing, pylint 10.00/10 exit 0. Consumer 81 preconditions passing,
+pylint 10.00/10 exit 0.
+
+**The gate failures are the project working.** Per-engine replay: gemini 2,
+openai 8, claude 10, every one a `QC_LLM_*` finding about a third party rather
+than a `QC_HARNESS_*` defect of ours. Those 20 are to be tracked and filed, and
+the tracker is the next unit; nothing is filed until implementation is
+complete, so that a vendor fix landing in between is detectable rather than
+invisible.
+
+## 2026-10-04: How to download a run and read it, and a rootdir trap worth knowing
+
+Written at the project owner's instruction, before anything is filed with a
+vendor: a reader has to be able to get the results and open them.
+
+### What was missing
+
+`running_jobs.md` said an artifact holds "JUnit XML and Allure results" and
+stopped there. **The Allure command line is a separate tool from the pytest
+plugin that writes the results**, so a reader following the document had the
+files and no way to look at them.
+
+Section 5 now carries the artifact names per workflow with their retention, the
+`gh run download` line, the install and the two viewing commands, and what this
+repository's artifacts do **not** contain: these are preconditions, so there is
+no engine, no model and no reproduction to publish, and no severity label
+because a precondition carries no priority.
+
+**Verified rather than written from memory.** Allure 2.41.0, `allure generate`
+against results from a real run, and the JUnit one-liner run as documented.
+
+### A finding about pytest that cost an hour and is worth recording
+
+**An absolute `--alluredir` outside the repository moves the rootdir, and the
+run then collects nothing.** pytest includes existing paths among its arguments
+when it computes rootdir, so a scratch directory under the user's home pulls
+rootdir above the repository: `pytest.ini` is never found, `testpaths` is never
+applied, no conftest loads, and pytest exits 5 having collected zero cases.
+
+**What made it look intermittent** is that the first run into a fresh path
+works. The directory does not exist yet, so it is not a rootdir candidate;
+once created, every later run into it collects nothing.
+
+| Symptom | Cause |
+|---|---|
+| `rootdir: C:\Users\vorns` instead of the repository | An existing `--alluredir` path among the arguments |
+| `collected 0 items`, exit 5 | No `pytest.ini`, so no `testpaths` and no markers |
+| Works once, then never | The path becomes a rootdir candidate after the first run creates it |
+
+The remedy is `-c pytest.ini --rootdir .` on any invocation writing results
+outside the tree. CI is unaffected because its paths are relative
+(`--alluredir=reports/allure-results`), which is now worth knowing rather than
+luck.
+
+### State
+
+Harness 685 passing, pylint 10.00/10 exit 0.
+
+## 2026-10-04: Closing --tag found that --family had been over-selecting
+
+`--tag` was the last recorded gap. Closing it needed a per-case index, and the
+same index fixed a defect in `--family` that had shipped three days earlier.
+
+### The defect I shipped and claimed precision for
+
+**A matrix row is keyed by requirement and names every case covering it**, so
+resolving a family through the matrix returns the whole row. Where a requirement
+is formulated across two corpora, that pulls in cases grading the other family.
+
+| Selector | Selected | Actually grade it |
+|---|---|---|
+| `--family code_comprehension` | 15 | 12 |
+| `--family source_fidelity` | **15** | **6** |
+
+Two and a half times the right set. Section 7.7.2 claimed it selects "every
+case addressing that family", which was true and insufficient: it also selects
+cases addressing something else.
+
+**It passed review because it fails in the cheap direction.** A regression set
+that is too large still contains what it should, and section 7.7.2 argues
+inclusion is the cheap error. That argument does not stretch to 2.5x, and it was
+found by probing the claim rather than by any check.
+
+### The index, and what one file closed
+
+`--case-index` names a CSV the consumer generates from its corpus: one row per
+case, with its families and its task's tags.
+
+| Was blocked on | Resolved by |
+|---|---|
+| `--family` over-selects | The index is per case |
+| `--tag`: tags are task data the harness must not read | The consumer generates it; the harness reads a declared schema at a supplied path, as it already does with the matrix |
+| `--tag`: no column at the right grain | The index **is** the grain |
+| `--tag`: free text with nothing to refuse a typo | **The index is the vocabulary**, so a tag no case carries is refused by name |
+
+**The recorded reason for `--tag` was wrong and worth correcting.** It said there
+was no vocabulary; there were **79 tags and every task carried one**. What was
+missing was anything that could refuse a tag not among them.
+
+### Falling back, and saying so
+
+Without an index, `--family` resolves at row grain and **logs that it did**,
+because a selection quietly returning more than it was asked for is exactly the
+imprecision that survived review here. `--tag` has no fallback and refuses: a
+tag lives on a task and there is nowhere else for it to resolve.
+
+### Two things found while building it
+
+**The SPDX header broke the reader.** Every tracked file carries one, and
+`csv.DictReader` takes the first line as the header row, so the reader skips
+comment lines. A generated file still has to obey the file rules.
+
+**A behaviour name was 64 characters.** The inventory check reported it against
+the 60-character limit, which is the kind of thing that would otherwise have
+reached pylint in CI.
+
+### State
+
+Harness 687 passing, pylint 10.00/10 exit 0. Measured through the index:
+`--family source_fidelity` selects 6, `code_comprehension` 12, `--tag injection`
+21, `--tag control` 2, and a misspelled tag is refused naming it.

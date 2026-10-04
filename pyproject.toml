@@ -44,6 +44,12 @@ dependencies = [
 dev = [
     "pytest>=9.1,<10.0",
     "allure-pytest>=2.13,<3.0",
+    # THE `allure` MODULE ITSELF, which `allure-pytest` depends on and does
+    # not provide: `cmn/emission.py` imports it directly to publish a
+    # parameter, a label and an attachment, so it is a direct dependency
+    # rather than a transitive one. MQC_CMN_UNI_112223 reported the
+    # undeclared import.
+    "allure-python-commons>=2.13,<3.0",
     "pylint>=3.3,<4.0",
     # READS THE PINS ABOVE, so it cannot be one of the things drifting. pylint
     # and pytest both pull it in transitively, and MQC_CMN_UNI_112231 imports it

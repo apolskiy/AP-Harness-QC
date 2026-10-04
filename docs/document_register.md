@@ -1,0 +1,98 @@
+<!--
+SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+SPDX-License-Identifier: Apache-2.0
+-->
+
+# Document Register
+
+**Every tracked document in this repository, and what it holds.** Added
+2026-10-04 at the project owner's instruction, after `test_taxonomy.md` was
+found to have fallen behind the changes made around it.
+
+**This is the list a documentation review works through.** `DESIGN.md` section 3
+says what to read **first** and what each design covers; this says what
+**exists**. They answer different questions, and the second is the one a review
+needs: a document absent from the list a reviewer holds is a document nobody
+reviews.
+
+**It is checked in both directions.** `MQC_CMN_UNI_112255` reports a tracked
+document this register does not name, and a path this register names that is not
+there. A register maintained by intention goes stale the first time a document is
+added in a hurry, which is the pattern this project has corrected often enough
+to stop writing new instances of.
+
+**`CLAUDE.md` requires reading this before any work**, which is the other half:
+a complete list nobody opens prevents nothing.
+
+## Specifications
+
+| Document | Holds |
+|---|---|
+| `DESIGN.md` | The referential index. Architecture, the reading order, and the decisions shaping everything downstream |
+| `docs/design/phase0_project_ambiguities.md` | Every project-level decision, with what was rejected and why. Cited as A1 to A13 and B1 to B10. A dated record, never rewritten |
+| `docs/design/test_taxonomy.md` | The single registry of identifiers, priorities, failure codes, the outcome model, verdict rules, required result metadata and the evaluation family registry |
+| `docs/design/extensibility_standard.md` | How the system absorbs a new provider, layer or test type. Tier contracts, adapter interface, conformance suites, schema versioning |
+| `docs/design/tier1_ingestion.md` | Schemas, loaders, validation policy, referential integrity, ingest-time screening, calibration |
+| `docs/design/tier2_execution.md` | Adapter interface, response and tool-call shapes, model version resolution, replay integrity, rate limiting |
+| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation, aggregation, calibration |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, both CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, subset selection |
+| `docs/design/ci_pipeline.md` | The workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming |
+
+## Test planning
+
+| Document | Holds |
+|---|---|
+| `docs/testing/harness_test_plan.md` | Every harness requirement, traced to the precondition cases in the module designs |
+| `docs/testing/rtm_harness.csv` | Harness requirements mapped to precondition cases, verified both ways |
+| `docs/testing/identifier_map.csv` | Old to new identifier, from the move to six digits, so stored history stays readable |
+
+## Operations and decisions
+
+| Document | Holds |
+|---|---|
+| `docs/document_register.md` | **This file.** Every tracked document and what it holds, checked against the repository both ways |
+| `README.md` | **The latest state only.** What the project is, how to run it, the current figures. Never a history |
+| `docs/running_jobs.md` | How to run each workflow and what each one spends |
+| `docs/OPEN_QUESTIONS.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog** |
+| `CHANGELOG.md` | **How the project arrived at its current shape.** The history a reader needs to understand why something is the way it is |
+| `CLAUDE_LOG.md` | Decisions and their reasoning in date order, written for an external reader. What was found, what it broke, what the injection showed |
+
+**`README.md`, `CHANGELOG.md` and `CLAUDE_LOG.md` divide by time, not by topic.**
+The README says what is true now, the changelog says how it became true, and the
+log says what was learned on the way. A reader wanting the current figures should
+not have to read history to find them, and a reader wanting the reasoning should
+not have to infer it from a figure.
+
+## Governance
+
+Each of these is normative and each is loaded before work begins, per
+`CLAUDE.md`.
+
+| Document | Holds |
+|---|---|
+| `CLAUDE.md` | The directive router: what to read, the core directives, the boundaries |
+| `.claude/rules/code-style.md` | Naming, annotations, docstrings, imports, layout, cross-platform rules, the pylint gate |
+| `.claude/rules/framework-rules.md` | Module separation, the CI quality gates, test case types, the failure taxonomy families |
+| `.claude/rules/testing-standards.md` | Test naming, the inventory principle, authoring order, change-scoped selection, the artifact contract |
+| `.claude/skills/skill-rules.md` | The phased execution pipeline, git safety, logging rules |
+| `.claude/skills/test-generator.md` | Scaffold for a new `MQC_*` pytest module |
+| `.claude/skills/validator-generator.md` | Scaffold for a `@dataclass` schema validator |
+| `.claude/worktrees/worktree-rules.md` | Worktree isolation, branch boundaries, environment safety |
+
+## Not tracked
+
+| Document | Why |
+|---|---|
+| `.claude/logs/PROMPT_LOG.md` | Verbatim prompts and working notes. **Never tracked and nothing is copied from it into `CLAUDE_LOG.md`**, which records decisions rather than phrasing |
+
+## Documents in the case repository
+
+Named here because this repository's designs cite them constantly and a reader
+following a citation needs to know where it points. **They are never copied into
+this repository**, per `CLAUDE.md`.
+
+| Document | Holds |
+|---|---|
+| `model_evaluation_test_plan.md` | The evaluation requirements and the graded case inventory |
+| `rtm_model.csv` | Evaluation requirements mapped to graded cases, with their evaluation families |
+| `consumer_ci.md` | The case repository's own CI topology and harness pinning |

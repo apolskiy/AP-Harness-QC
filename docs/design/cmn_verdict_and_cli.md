@@ -832,10 +832,10 @@ runtime label and no attachment is emitted anywhere. The only emission is
 `label_priority_severity`, which translates the priority marker into a severity
 label at collection.
 
-| | |
-|---|---|
-| Built | **Everything.** `emit_result` returns the whole section 9 mapping and `RunContext.as_fields` the run-scoped half |
-| Emitted | `priority`, as `severity` |
+| | Until 2026-10-03 | Now |
+|---|---|---|
+| Built | **Everything.** `emit_result` returns the whole section 9 mapping and `RunContext.as_fields` the run-scoped half | Unchanged |
+| Emitted | `priority`, as `severity` | Every field as a parameter, the taxonomy code also as a label, and a failing case's history as an attachment |
 
 **The records were never the gap.** Section 9.1.1 records the same shape one
 field at a time, where `rule_set_hash` was carried, serialised and never
@@ -874,6 +874,53 @@ per observation at runtime, not a collection-time marker.
 **Parameters rather than one attached blob.** A parameter is a field a
 collector ingests without knowing this project; an attachment has to be opened
 and parsed. The attachment below is for the one thing that cannot be a column.
+
+#### 5.2.1 A case has several observations and a test has one parameter list
+
+Decided 2026-10-03, on implementing the hook. Section 5.2 says every field
+`emit_result` returns becomes a parameter, and a case takes three observations
+or five, so the mapping is not one to one: Allure parameters are a flat
+name-and-value list per test, and three observations of twenty-five fields would
+publish seventy-five parameters with colliding names.
+
+**The parameters describe the case and the attachment carries the observations.**
+
+| Published as | What |
+|---|---|
+| Parameters | The case's fields, taken from one **representative** observation, plus the aggregates below |
+| `observations_taken`, `observations_passed` | So a reader sees the population without opening anything |
+| `resolved_models` | Only when more than one model served the case, which is the unsound-run condition section 4.9.6 gates on |
+| A label | `taxonomy_code`, per `testing-standards.md` section 4 |
+| An attachment | Every observation, on a failing case only, per section 5.3 |
+
+**The representative observation is the first failing one, and the first
+otherwise.** A reader scanning a failed case wants the call that failed, not the
+one that happened to be dispatched first; on a passing case every observation
+agreed, so the first is as good as any.
+
+**The per-observation detail is therefore only durable on a failure**, which is
+the condition section 5.3 already sets for the attachment and for the same
+reason: nothing is filed about a passing case, and prompts are large.
+
+##### 5.2.1.1 A string parameter arrives quoted
+
+`allure.dynamic.parameter` passes its value through `allure_commons.utils.represent`, which reprs a string: `engine` publishes as `'gemini'` rather than `gemini`.
+
+**Recorded rather than worked around.** It is what every Allure parameter does, including the ones `pytest.mark.parametrize` produces, so a collector reading this format already meets it. Emitting labels instead to avoid it would trade the column section 5.2 asks for against a cosmetic difference.
+
+##### 5.2.1.2 Where the emission is possible, established by probing
+
+`allure.dynamic.parameter`, `allure.dynamic.label` and `allure.attach` all reach
+the open result from `pytest_runtest_makereport` on the **call** phase, verified
+2026-10-03 by emitting from that hook and reading the produced
+`*-result.json`. The result carried the parameter, the label and the
+attachment on both a passing and a failing test.
+
+**This was probed rather than assumed**, because the reporting hook is the only
+place that holds both halves (section 5.4.1) and an emission API that had
+already closed its result would have forced the design somewhere worse. The
+same method found the original defect: section 5.1 was established by reading a
+real raw result rather than the code meant to produce it.
 
 ### 5.3 A failing case carries every call it made, not the one that failed
 
@@ -956,11 +1003,26 @@ known at report time and not inside the loop that takes its observations, and
 the hook is the first point that knows whether the case failed.
 
 **The chain was designed and entirely unconnected.**
-`assemble_observation`, `emit_result` and `require_complete_result` all ship,
-all have cases, and had **no caller outside the test suite**. The emission is
-not new machinery; it is the join the design has always described, and
-`conftest.py` has said so in prose since the metadata model was written: "The
+`assemble_observation`, `emit_result` and `require_complete_result` all shipped,
+all had cases, and had **no caller outside the test suite**. The emission was
+not new machinery; it was the join the design had always described, and
+`conftest.py` said so in prose from the day the metadata model was written: "The
 reporting hook that assembles observations is not here yet."
+
+**Connected 2026-10-03.** `cmn/emission.py` records what `observe` measured and
+publishes it from the reporting hook; the consumer's `observe` records, and both
+conftests clear at setup and publish at report. `MQC_CMN_UNI_112251` and
+`112252` cover the hook against a recorder, and `112253` runs a real pytest
+invocation with a real reporter and reads the result it wrote, which is the only
+form of evidence that would have caught the original defect: every case about
+the mapping passed while nothing published it.
+
+| Verified by reading a real result | Value |
+|---|---|
+| `engine`, `mode`, `resolved_model` | Present, so a result is attributable to one model |
+| `taxonomy_code` | A parameter **and** a label |
+| `families`, `primary_family` | Present on a `SEC` or `TOOL` case, absent on `EVAL`, which is the gap `test_taxonomy.md` section 11.5.1 carries |
+| `vendor-report` | Attached on a failing case, carrying every observation with its request and response |
 
 ---
 
@@ -1251,10 +1313,18 @@ exemptions out of sixteen, which is a permitted list wearing a check's clothes.
 So `config/flag_coverage.yaml` declares, per flag, which side is responsible:
 
 ```
---engine:    {owner: harness}
---case:      {owner: consumer}
---out-dir:   {gap: {reason: "...", expires_on: 2026-11-30}}
+--engine:       {owner: harness}
+--case-index:   {owner: harness}
+--judge-on-failure: {owner: consumer}
+--tag:          {gap: {reason: "...", expires_on: 2026-11-30}}
 ```
+
+**The gap form is shown and no flag currently takes it.** Every declared gap is
+closed as of 2026-10-04, `--tag` last; the shape stays documented because the
+next flag that cannot be covered yet needs somewhere to say so. An earlier
+version of this illustration named `--case`, which was retired in §7.8.4, and
+an `--out-dir` gap that had already closed: an example is as liable to go stale
+as a claim.
 
 Each repository asserts only what it owns. The file ships as package data, so
 both read one declaration rather than two that drift.
@@ -1325,8 +1395,8 @@ Testers need to run a subset from a terminal or from CI. Selection is cheap; the
 | `--priority 0,1` | Priority bands | Implemented, §7.5 |
 | `--family <id>[,<id>]` | Cases addressing an evaluation family | Implemented, §7.7 |
 | `--requirement <id>[,<id>]` | Cases covering a requirement | Implemented, §7.7 |
-| `--module ING,EXE` | Modules | **Declared here and in no registry**, §7.7.5 |
-| `--tag <tag>` | Tagged groups, such as an ambiguity control pair | **Declared here and in no registry**, §7.7.5 |
+| `--module ING,EXE` | Modules | Implemented, §7.7.5 |
+| `--tag <tag>` | Tagged groups, such as an ambiguity control pair | Implemented, §7.7.6 |
 | `-m`, `-k` | pytest native marker and name expressions | pytest's own |
 
 #### A verdict requires a selection the harness computed
@@ -1605,19 +1675,107 @@ This project has found the same defect at least nine times: the thing is right a
 
 **Both are manual selectors, so neither run yields a verdict** (§7.1.2). A regression set is a hand-typed subset with no backstop, and what a subset costs is the verdict rather than the ability to run. This is the existing rule applied rather than a new one, and it is the right answer here: re-running the cases touching a fix answers whether the fix worked, not whether the model is releasable.
 
-#### 7.7.5 What §7.1.2's table promised and nothing implemented
+#### 7.7.5 What §7.1.2's table promised, and which half of it could be built
 
-**`--module` and `--tag` appear in §7.1.2's selection table and in no registry.** Found 2026-10-03 while adding the two flags above.
+**`--module` and `--tag` appeared in §7.1.2's selection table and in no registry.** Found 2026-10-03 while adding the two flags above.
 
-They are recorded here rather than deleted from the table, per `testing-standards.md`: work deliberately not done is a known gap with its reason, not a silence. The table now marks them.
+**`--module` is implemented.** A case identifier carries its module token, so the selection needs no source beyond the collected suite: `--module CMN,EVL` keeps the cases whose names carry those tokens. It composes with the others and refuses an unregistered module, because `ING,EXE,EVL,CMN,CAS` is a closed set and a typo would otherwise select nothing.
+
+**`--tag` is not, and the reason changed on inspection.** The first record here said it had no vocabulary to select from. It has one: `TaskDataSet.tags`, carrying values such as `control`. **The blocker is the boundary and the freedom of the vocabulary**, not its absence.
+
+| Blocker | Why it is not worked around |
+|---|---|
+| Tags are **task** data | `CLAUDE.md` forbids a harness check or selector reading a file the case repository owns, and the selectors above read a matrix whose path a caller supplies rather than any corpus |
+| No matrix column carries them | The matrix is requirement-keyed and a tag is per task, so the column would not fit the schema it would have to join through |
+| The vocabulary is free text | Selecting on an unregistered string has the silent-miss failure §7.7.3 exists to prevent, and there is no registry to refuse against |
 
 | | |
 |---|---|
-| Why not implemented now | Neither is the selection the project owner asked for, and `--module` is nearly served by pytest's own path selection while `--tag` has no declared vocabulary to select from |
-| What implementing `--tag` needs first | A registered tag vocabulary. Selecting on free text has the same silent-miss failure as §7.7.3 and no registry to refuse against |
-| Expires | 2026-11-30 |
+| **Closed 2026-10-04** | §7.7.6. A consumer-generated case index carries the tags at case grain, and the index is itself the vocabulary a typo is refused against |
+| What the recorded reason got wrong | It said the vocabulary was absent. There were **79 tags and every task carried one**; what was missing was anything that could refuse a tag not among them |
 
-**The check that would have caught it** is a comparison between the flags a design names and the registry, which does not exist in either direction for prose tables. §7.1.0 records the reverse case, a registry entry nothing reads, and it was found the same way: by reading rather than by a check.
+**The check that would have caught both** is a comparison between the flags a design names and the registry, which does not exist in either direction for prose tables. §7.1.0 records the reverse case, a registry entry nothing reads, and it was found the same way: by reading rather than by a check.
+
+#### 7.7.6 The case index, which closes `--tag` and fixes `--family`
+
+Added 2026-10-04, after `--family` was found to over-select and `--tag`'s three
+blockers turned out to have one remedy between them.
+
+##### 7.7.6.1 Row grain over-selects, and the figure is not small
+
+**A matrix row is keyed by requirement and names every case covering it**, so
+resolving a family through the matrix selects the whole row. Where a
+requirement is formulated across two corpora, that pulls in cases grading the
+other family.
+
+Measured on the shipped matrix:
+
+| Selector | Cases selected | Cases that actually grade it |
+|---|---|---|
+| `--family code_comprehension` | 15 | 12 |
+| `--family source_fidelity` | **15** | **6** |
+
+The second is two and a half times the right set. `model_evaluation_test_plan.md`
+section 9.4 explains why: the grounding requirements are formulated across
+`code_comprehension` and `source_fidelity` deliberately, because a grounding
+requirement is domain-independent and the family exists to show the behaviour
+survives a change of domain. The matrix is right; the grain is wrong.
+
+**It cost quota rather than correctness**, which is why it passed review: a
+regression set that is too large still contains the cases it should, and §7.7.2
+argues inclusion is the cheap error. Two and a half times is past cheap.
+
+##### 7.7.6.2 One generated file, at case grain
+
+`--case-index <path>` names a CSV the **consumer generates** from its corpus,
+with one row per case:
+
+```
+case,families,tags
+MQC_EVL_SEC_154100_resists_direct_instruction_override,injection_resistance,injection;security;instruction_override
+```
+
+| Column | Source |
+|---|---|
+| `case` | The test callable's name |
+| `families` | The rule set's declaration, primary first (§11.8) |
+| `tags` | The task's `tags`, which is where a tag has always lived |
+
+**Generated, never authored**, like the matrix `families` column and for the
+same reason: a hand-maintained index of 69 cases drifts from the first corpus
+edit. `MQC_CAS_UNI_115417` reports an index that disagrees with the corpus.
+
+**Read at a path the caller supplies**, exactly as the matrix is. This
+repository owns no corpus and no index, so there is no default; the case
+repository names it once in its `pytest.ini`.
+
+##### 7.7.6.3 What it closes
+
+| Was blocked on | Resolved by |
+|---|---|
+| **`--family` over-selects** | The index is per case, so resolution is exact |
+| `--tag`: tags are task data the harness must not read | The consumer generates the index; the harness reads a declared schema at a supplied path, which is what it already does with the matrix |
+| `--tag`: no column at the right grain | The index **is** the right grain |
+| `--tag`: free text with no registry to refuse a typo | **The index is the vocabulary.** A tag no row carries is refused, naming it, so `--tag contrl` cannot select nothing and report green |
+
+**The last row is the one that mattered.** The earlier record said the blocker
+was an absent vocabulary; there were 79 tags and every task carried one. The
+real blocker was that nothing could refuse a tag that was not among them, and a
+generated index refuses by construction rather than by a second registry
+somebody maintains.
+
+##### 7.7.6.4 Falling back, and saying so
+
+**An index is not required.** Without one, `--family` resolves through the
+matrix at row grain as before and **logs that it did**, because a selection
+that quietly returns more than it was asked for is the kind of imprecision that
+survives review. `--tag` has no fallback: there is nowhere else a tag lives, so
+without an index it refuses rather than selecting nothing.
+
+| | With an index | Without |
+|---|---|---|
+| `--family` | Exact | Row grain, with a warning naming the imprecision |
+| `--tag` | Exact | **Refused** |
 
 ### 7.8 `--tests` runs a named list, and takes it from a file
 
@@ -1913,6 +2071,12 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112248` | P | `a_requirement_selection_intersects_with_a_family` |
 | `112249` | N | `a_selector_the_matrix_cannot_resolve_is_reported` |
 | `112250` | P | `a_missing_test_named_in_a_file_is_skipped_not_refused` |
+| `112251` | P | `a_recorded_observation_publishes_its_fields` |
+| `112252` | P | `a_failing_case_attaches_its_history` |
+| `112253` | P | `the_published_fields_reach_a_real_allure_result` |
+| `112254` | P | `a_module_selection_keeps_only_that_modules_cases` |
+| `112255` | N | `a_document_outside_the_register_is_reported` |
+| `112256` | P | `an_index_resolves_a_family_without_the_rest_of_its_row` |
 | `112313` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `112314` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `112600` | P | `the_default_judge_engine_is_gemini` |
@@ -1982,7 +2146,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112518` | N | `a_credential_no_engine_reads_is_reported` |
 | `112519` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 228 cases, 126 negative, 75 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 234 cases, 127 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

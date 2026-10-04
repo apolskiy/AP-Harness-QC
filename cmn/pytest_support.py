@@ -333,6 +333,23 @@ _UNMET: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
 _IDENTIFIER = re.compile(r"MQC_[A-Z]+_[A-Z]{3,5}_(\d{5,6})_")
 
 
+def case_module(name: str) -> Optional[str]:
+    """Return the module token a test name carries.
+
+    Args:
+        name (str): The test callable's name, such as
+            ``MQC_CMN_UNI_112254_a_module_selection_keeps_only_...``.
+
+    Returns:
+        Optional[str]: The module, or ``None`` for a name that carries none.
+        **Read from the name rather than from the path**, because the path
+        gives the directory and a case's module is a property of its
+        identifier, which `testing-standards.md` makes normative.
+    """
+    parts = name.split("_")
+    return parts[1] if len(parts) > 2 and parts[0] == "MQC" else None
+
+
 def case_identifier(name: str) -> Optional[str]:
     """Return the five-digit identifier a test name carries.
 

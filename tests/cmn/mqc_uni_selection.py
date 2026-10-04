@@ -22,7 +22,8 @@ from typing import Any
 
 import pytest
 
-from cmn.selection import select_named_tests, select_traced_cases
+from cmn.selection import select_modules, select_named_tests, select_traced_cases
+from cmn.traceability import cases_for_index_values, load_case_index
 from tests.cmn.selection_support import FakeConfig, FakeItem
 
 pytestmark = pytest.mark.unit
@@ -423,3 +424,158 @@ class TestMQCTracedSelection:
                 FakeConfig({"--family": "injection_resistance", "--rtm": str(matrix)}),
                 [_graded("154999")],
             )
+
+
+class TestMQCModuleSelection:
+    """The one selector needing no source but the collected suite."""
+
+    def MQC_CMN_UNI_112254_a_module_selection_keeps_only_that_modules_cases(
+        self,
+    ) -> None:
+        """A case identifier carries its module, so nothing is resolved.
+
+        **The module comes from the name and not from the path.** A case's
+        module is a property of its identifier, which `testing-standards.md`
+        makes normative; the directory is where the file happens to sit.
+
+        **An unregistered module refuses.** `ING,EXE,EVL,CMN,CAS` is a closed
+        set, so `--module CNM` is a typo rather than a selection, and letting
+        it through would run nothing and report green.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.7.5.
+
+        Returns:
+            None
+        """
+        common = FakeItem("MQC_CMN_UNI_112254_a_module_case")
+        evaluation = FakeItem("MQC_EVL_UNI_114000_an_evaluation_case")
+        graded = FakeItem("MQC_EVL_SEC_154100_a_graded_case", priority=1)
+        items = [common, evaluation, graded]
+
+        select_modules(FakeConfig({"--module": "CMN"}), items)
+
+        assert items == [common], (
+            "a module selection kept a case from another module, so a run "
+            "measures more than the caller named"
+        )
+
+        # SEVERAL MODULES UNITE, and the spelling is not case sensitive: a
+        # caller typing lowercase named a module rather than a typo.
+        several = [common, evaluation, graded]
+        select_modules(FakeConfig({"--module": "cmn,evl"}), several)
+
+        assert several == [common, evaluation, graded]
+
+        # AN UNREGISTERED MODULE REFUSES, naming what is registered.
+        with pytest.raises(ValueError, match="not a registered module"):
+            select_modules(FakeConfig({"--module": "CNM"}), [common])
+
+        # AND A MODULE NO COLLECTED CASE BELONGS TO REFUSES, because the
+        # alternative is a green run that measured nothing.
+        with pytest.raises(ValueError, match="no collected case belongs"):
+            select_modules(FakeConfig({"--module": "ING"}), [common])
+
+
+class TestMQCCaseIndexSelection:
+    """Per-case resolution, which is the grain a selector needs."""
+
+    def MQC_CMN_UNI_112256_an_index_resolves_a_family_without_the_rest_of_its_row(
+        self, tmp_path: Path
+    ) -> None:
+        """The index resolves exactly; the matrix resolves a whole row.
+
+        **A matrix row is keyed by requirement**, so a requirement formulated
+        across two corpora names cases of both families, and resolving through
+        it returns all of them. Measured on the shipped matrix before this
+        existed: ``--family source_fidelity`` selected 15 cases of which 6
+        graded it.
+
+        **A tag has no row-grain fallback at all.** It lives on a task, the
+        matrix carries no tag column and none would fit a requirement-keyed
+        schema, so a tag selection without an index refuses.
+
+        **The index is also the vocabulary.** A tag no case carries is refused
+        by name, which is what lets a typo fail instead of selecting nothing
+        and reporting green.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.7.6.
+
+        Returns:
+            None
+        """
+        index = tmp_path / "case_index.csv"
+        index.write_text(
+            "\n".join([
+                "# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy",
+                "case,families,tags",
+                "MQC_EVL_EVAL_134200_a,source_fidelity,grounding;exactness",
+                "MQC_EVL_EVAL_134100_b,code_comprehension,syntactic",
+                "MQC_EVL_EVAL_134101_c,code_comprehension,logical;control",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        # THE MATRIX NAMES ALL THREE ON ONE ROW, which is the shape that
+        # over-selected: one requirement formulated across two corpora.
+        matrix = tmp_path / "rtm.csv"
+        matrix.write_text(
+            "requirement_id,requirement_text,source,category,families,test_ids,notes\n"
+            "MQC_REQ_MDL_GND_0001,text,self-authored,cat,"
+            "code_comprehension;source_fidelity,"
+            "MQC_EVL_EVAL_134200_a;MQC_EVL_EVAL_134100_b;MQC_EVL_EVAL_134101_c,\n",
+            encoding="utf-8",
+        )
+
+        loaded = load_case_index(index)
+        assert len(loaded) == 3
+        assert loaded["MQC_EVL_EVAL_134200_a"].families == ("source_fidelity",)
+        assert loaded["MQC_EVL_EVAL_134101_c"].tags == ("logical", "control")
+
+        exact = cases_for_index_values(loaded, ["source_fidelity"], attribute="families")
+        assert exact["source_fidelity"] == {"MQC_EVL_EVAL_134200_a"}, (
+            "the index returned more than the cases grading that family, so it "
+            "resolves at row grain like the matrix it exists to improve on"
+        )
+
+        # THE SELECTOR PREFERS IT. Through the matrix this row would give three.
+        items = [
+            FakeItem("MQC_EVL_EVAL_134200_a", priority=2),
+            FakeItem("MQC_EVL_EVAL_134100_b", priority=2),
+            FakeItem("MQC_EVL_EVAL_134101_c", priority=2),
+        ]
+        select_traced_cases(
+            FakeConfig({
+                "--family": "source_fidelity",
+                "--rtm": str(matrix),
+                "--case-index": str(index),
+            }),
+            items,
+        )
+        assert [item.name for item in items] == ["MQC_EVL_EVAL_134200_a"]
+
+        # A TAG RESOLVES ONLY THROUGH THE INDEX.
+        tagged = [FakeItem("MQC_EVL_EVAL_134101_c", priority=2),
+                  FakeItem("MQC_EVL_EVAL_134100_b", priority=2)]
+        select_traced_cases(
+            FakeConfig({"--tag": "control", "--case-index": str(index)}), tagged
+        )
+        assert [item.name for item in tagged] == ["MQC_EVL_EVAL_134101_c"]
+
+        with pytest.raises(ValueError, match="nowhere else for it to resolve"):
+            select_traced_cases(
+                FakeConfig({"--tag": "control", "--rtm": str(matrix)}),
+                [FakeItem("MQC_EVL_EVAL_134101_c", priority=2)],
+            )
+
+        # AND A TAG NO CASE CARRIES IS REFUSED BY NAME.
+        with pytest.raises(ValueError, match="no case carries the tag contrl"):
+            select_traced_cases(
+                FakeConfig({"--tag": "contrl", "--case-index": str(index)}),
+                [FakeItem("MQC_EVL_EVAL_134101_c", priority=2)],
+            )
+
+        # AN INDEX MISSING ITS COLUMNS IS REFUSED, rather than resolving to
+        # nothing and reading as an engine with no such cases.
+        broken = tmp_path / "broken.csv"
+        broken.write_text("case,notes\nMQC_EVL_EVAL_134200_a,x\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="carries no families, tags column"):
+            load_case_index(broken)

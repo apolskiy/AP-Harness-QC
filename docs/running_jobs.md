@@ -200,7 +200,7 @@ result irrelevant. That reasoning does not carry here.
 
 ---
 
-## 5. Watching And Collecting
+## 5. Watching, Collecting, And Reading What Came Back
 
 ```
 gh run list --workflow debug-failures-on-demand.yml --limit 5
@@ -217,10 +217,78 @@ DIAGNOSTIC (no verdict) on extend-judge-replay-09-24-2026
 Full regression on a1b2c3d
 ```
 
-Artifacts from these runs are excluded from the durable record. **A debug or
-diagnostic run yields no verdict**, because a hand-typed selection is arbitrary
-and has no backstop. What a subset costs is the verdict, never the ability to
-run.
+### 5.1 Which artifact a run leaves
+
+| Artifact | Left by | Kept |
+|---|---|---|
+| `mqc-reports-unit-none-replay-<os>` | Gate 2, per platform | 90 days |
+| `mqc-reports-system-none-replay-<os>` | Gate 3, per platform | 90 days |
+| `mqc-reports-regress-<engine>-replay-<os>` | `regress-harness-on-branch` | 90 days |
+| `mqc-reports-consumer-<name>-none-replay` | The consumer fan-out | 90 days |
+| `scratch-debug-<run id>`, `scratch-diagnose-<run id>` | The on-demand workflows | 14 days |
+
+**`mqc-reports-` is the durable prefix and `scratch-` is not.** Artifacts from a
+debug or diagnostic run are excluded from the record, and **those runs yield no
+verdict**, because a hand-typed selection is arbitrary and has no backstop. What
+a subset costs is the verdict, never the ability to run.
+
+### 5.2 Viewing it with Allure
+
+Allure's command line is a separate tool from the pytest plugin that writes the
+results, so the plugin alone cannot show you anything.
+
+```
+scoop install allure            # Windows
+brew install allure             # macOS
+npm install -g allure-commandline   # either, if you have node
+```
+
+From an unpacked artifact:
+
+```
+allure serve mqc-reports-unit-none-replay-ubuntu-24.04/allure-results
+```
+
+For a report you intend to keep:
+
+```
+allure generate <results dir> -o allure-report --clean
+allure open allure-report
+```
+
+**Verified 2026-10-04 against Allure 2.41.0.**
+
+### 5.3 What this repository's artifacts carry, and what they do not
+
+**These are precondition results.** Every case here tests the harness, so a
+failure is our defect rather than a finding about a model, and there is no
+engine, no model and no reproduction to publish: a precondition performs no task
+and records no observation.
+
+| In a report from this repository | In one from the case repository |
+|---|---|
+| The case, its layer, its outcome and its duration | All of that, plus `engine`, `mode`, `resolved_model`, `taxonomy_code`, `families` and the observation population |
+| No severity label, because a precondition carries no priority | A severity label from the priority marker |
+| No attachment | A `vendor-report` attachment on a failing case, holding every call it made |
+
+**A precondition carrying no severity is deliberate** and not a gap. Marking one
+would make preconditions sortable by a severity nobody assigned, and they sit
+above the scale rather than inside it: a precondition failure means the graded
+layers never execute and nothing is measured, which is a stronger consequence
+than any level within the scale can express.
+
+`AP-Model-QC` `docs/running_jobs.md` section 4 covers reading a graded report,
+including the reproduction attachment a provider ticket is written from.
+
+### 5.4 When you only want to know what failed
+
+Skip Allure. The JUnit XML answers that, and every CI tool and IDE reads it:
+
+```
+python -c "import xml.etree.ElementTree as ET; [print(c.get('classname'), c.get('name')) for c in ET.parse('reports/junit_mqc_unit.xml').getroot().iter('testcase') if c.find('failure') is not None]"
+```
+
+**Use Allure when the question is why**, and JUnit when the question is which.
 
 ---
 
