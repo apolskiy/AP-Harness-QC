@@ -34,7 +34,11 @@ from cmn.layers import (
     skip_blocks,
     skip_counts_toward_rate,
 )
-from cmn.quarantine import QUARANTINE_WINDOW_DAYS, QuarantineEntry
+from cmn.quarantine import (
+    QUARANTINE_WINDOW_DAYS,
+    QuarantineEntry,
+    excluded_bands,
+)
 from cmn.observations import Observation
 
 logger = logging.getLogger(__name__)
@@ -174,6 +178,12 @@ class Verdict:
             because a range needs two points (design section 4.9.4).
         distribution (Optional[DistributionReport]): What the check found.
         quarantined (list): Case identifiers excluded from the pass rate.
+        excluded_bands (dict): Each quarantined case that ran, and the
+            priority band it sits in. **A pass over an excluded P0 or P1
+            is a pass over an accepted release blocker**, which is the
+            one thing a silent green did not say (section 4.6.11). A
+            case with no observations is absent rather than banded,
+            because nothing ran it.
         unconfirmed_quarantine (list): Case identifiers whose entry
             carries no date or no observed model, so its expiry could not
             be evaluated. **Not a breach**: carried beside them because
@@ -190,6 +200,7 @@ class Verdict:
     score_spread: dict[str, float] = field(default_factory=dict)
     distribution: Optional[DistributionReport] = None
     quarantined: list[str] = field(default_factory=list)
+    excluded_bands: dict[str, int] = field(default_factory=dict)
     unconfirmed_quarantine: list[str] = field(default_factory=list)
     thresholds: Thresholds = field(default_factory=Thresholds)
 
@@ -290,6 +301,7 @@ def verdict(
         score_spread=score_spread(observations),
         distribution=distribution,
         quarantined=sorted(settings.quarantined_ids()),
+        excluded_bands=excluded_bands(population.graded, settings.quarantined_ids()),
         unconfirmed_quarantine=sorted(
             entry.case_id for entry in settings.quarantine if not entry.confirmed
         ),
@@ -643,6 +655,7 @@ def _build_population(
         ],
         resolved_model=reported.pop() if len(reported) == 1 else "",
     )
+
 
 
 def _rate(numerator: list[Observation], denominator: list[Observation]) -> Optional[float]:

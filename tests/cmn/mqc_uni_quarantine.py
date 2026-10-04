@@ -17,6 +17,7 @@ A failure here is our defect, so the module carries no priority marker, per
 
 import json
 from datetime import date, timedelta
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +28,7 @@ from cmn.observations import Observation, RunContext
 from cmn.prerequisites import quarantine_digest
 from cmn.quarantine import DROPPED, STAMPED, UNDECIDED, reconcile
 from cmn.verdict import QuarantineEntry, VerdictConfig, verdict
-from cmn.verdict_tool import EXIT_GREEN, EXIT_RED, main
+from cmn.verdict_tool import EXIT_GREEN, EXIT_RED, main, report_exclusions
 from tests.cmn.verdict_support import (
     QUARANTINED_CASE,
     TODAY,
@@ -489,3 +490,147 @@ class TestMQCQuarantineReconciliation:
             entries[:1], {"MQC_TASK_fixed::MQC_RULE_r": [False]}, TODAY, "gemini-4.0-pro"
         )[0][0]
         assert stamped_ticket.ticket == "MQC-7"
+
+
+class TestMQCExclusionReporting:
+    """What a pass says about the cases it left out of the denominator."""
+
+    def MQC_CMN_UNI_112147_a_pass_reports_the_bands_it_excluded(
+        self, caplog: pytest.LogCaptureFixture, tmp_path: Path
+    ) -> None:
+        """A passing verdict carries every exclusion and the band of each.
+
+        Quarantine removes a case from the pass rate, so a green is green over
+        what was measured. A run that said nothing about its exclusions read
+        exactly like one that excluded nothing.
+
+        **Quarantine never exempts V1**, which this also pins: a failing P0 is
+        red whatever the quarantine file says, so a blocking band surviving
+        into a pass means the case passed and the entry is stale, or it
+        skipped.
+
+        **A case with no observations reports no band**, because nothing ran it.
+
+        Design: ``cmn_verdict_and_cli.md`` sections 4.6.11 to 4.6.11.2.
+
+        Args:
+            caplog (pytest.LogCaptureFixture): Captures what the run reports.
+            tmp_path (Path): For the artifact and the injected configuration.
+
+        Returns:
+            None
+        """
+        stale = QuarantineEntry(
+            "MQC_TASK_stale::MQC_RULE_r", "no longer reproduces", TODAY,
+            observed_model="gemini-3.8-flash",
+        )
+        minor = QuarantineEntry(
+            "MQC_TASK_minor::MQC_RULE_r", "cosmetic, open with the vendor", TODAY,
+            observed_model="gemini-3.8-flash",
+        )
+        absent = QuarantineEntry(
+            "MQC_TASK_absent::MQC_RULE_r", "not in this selection", TODAY,
+            observed_model="gemini-3.8-flash",
+        )
+
+        suite = passing_suite() + [
+            graded("MQC_TASK_stale::MQC_RULE_r", priority=0),
+            graded("MQC_TASK_minor::MQC_RULE_r", "fail", priority=3),
+        ]
+        result = verdict(
+            suite, VerdictConfig(quarantine=[stale, minor, absent]), TODAY
+        )
+
+        assert result.green is True, (
+            "the suite was built to pass, so this case cannot tell a reported "
+            "exclusion from a reported breach"
+        )
+
+        # THE BANDS COME FROM THE OBSERVATIONS, and a case nobody ran has none.
+        assert result.excluded_bands == {
+            "MQC_TASK_stale::MQC_RULE_r": 0,
+            "MQC_TASK_minor::MQC_RULE_r": 3,
+        }
+        assert "MQC_TASK_absent::MQC_RULE_r" in result.quarantined
+
+        with caplog.at_level(logging.INFO, logger="cmn.verdict_tool"):
+            report_exclusions(result)
+
+        blocking = [
+            entry for entry in caplog.records if entry.levelno == logging.WARNING
+        ]
+        assert len(blocking) == 1, (
+            "a release-blocking band left the denominator and nothing warned, "
+            "so a green reads as green over everything"
+        )
+        assert "MQC_TASK_stale::MQC_RULE_r (P0)" in blocking[0].getMessage()
+
+        reported = " | ".join(
+            entry.getMessage() for entry in caplog.records
+            if entry.levelno == logging.INFO
+        )
+        assert "MQC_TASK_minor::MQC_RULE_r (P3)" in reported
+        assert "MQC_TASK_absent::MQC_RULE_r (not run)" in reported
+
+        # A RUN THAT EXCLUDED NOTHING SAYS NOTHING, so the report is a signal
+        # rather than a line every run carries.
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger="cmn.verdict_tool"):
+            report_exclusions(verdict(passing_suite(), VerdictConfig(), TODAY))
+        assert not caplog.records
+
+        # AND QUARANTINE NEVER EXEMPTS V1. A failing P0 is red whatever the
+        # file says, which is why a blocking band in a pass means something
+        # else entirely.
+        blocked = verdict(
+            passing_suite() + [graded("MQC_TASK_stale::MQC_RULE_r", "fail", priority=0)],
+            VerdictConfig(quarantine=[stale]),
+            TODAY,
+        )
+
+        assert blocked.green is False
+        assert "V1" in blocked.breached_rules, (
+            "a quarantined P0 failure did not fail the run, so an accepted "
+            "release blocker can be turned into a green"
+        )
+
+        # AND `main` HAS TO CALL IT. Asserting the reporter alone left this
+        # case passing with the call removed from the tool, which is a check
+        # covering one of two halves.
+        config = tmp_path / "config"
+        (config / "quarantine").mkdir(parents=True)
+        (config / "quarantine" / "gemini.yaml").write_text(
+            "quarantine:\n"
+            "  - case_id: MQC_TASK_a::MQC_RULE_r\n"
+            "    reason: no longer reproduces\n"
+            "    quarantined_on: 2026-10-01\n"
+            "    observed_model: gemini-3.8-flash\n",
+            encoding="utf-8",
+        )
+        artifact = gated_artifact(results=[
+            {"case_id": "MQC_TASK_pre::MQC_RULE_pre", "layer": "UNI",
+             "outcome": "pass"},
+            {"case_id": "MQC_TASK_a::MQC_RULE_r", "layer": "EVAL",
+             "outcome": "pass", "priority": 0, "engine": "gemini",
+             "resolved_model": "gemini-3.8-flash"},
+            {"case_id": "MQC_TASK_b::MQC_RULE_r", "layer": "EVAL",
+             "outcome": "pass", "priority": 2, "engine": "gemini",
+             "resolved_model": "gemini-3.8-flash"},
+        ])
+        path = tmp_path / "results.json"
+        path.write_text(json.dumps(artifact), encoding="utf-8")
+
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger="cmn.verdict_tool"):
+            assert main(
+                ["--as-of", "2026-10-02", str(path)], config_dir=config
+            ) == EXIT_GREEN
+
+        warned = [
+            entry.getMessage() for entry in caplog.records
+            if entry.levelno == logging.WARNING
+        ]
+        assert any("MQC_TASK_a::MQC_RULE_r (P0)" in note for note in warned), (
+            "the tool passed and never reported the blocking band it excluded, "
+            "so a green over a filtered denominator reads as a clean green"
+        )

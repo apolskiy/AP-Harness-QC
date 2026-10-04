@@ -376,6 +376,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0108` | A failing case attaches every call it made in observation order, each with its request, response, outcome and served model, credential redacted, so a finding is filed with the provider from the artifact rather than from a run somebody watched | cmn_verdict_and_cli.md section 5.3 |
 | `MQC_REQ_HAR_CMN_0109` | Every registered provider adapter is either named on the engine roster or carries a dated, reasoned absence, so an adapter cannot ship unselectable without a word | extensibility_standard.md section 3.4 |
 | `MQC_REQ_HAR_CMN_0110` | Every collected case identifier carries six digits whose layer and module positions agree with its tokens, so a module cannot occupy another's block without being reported | test_taxonomy.md section 3.2.1.4 |
+| `MQC_REQ_HAR_CMN_0111` | A run that passes reports every case its quarantine excluded and the priority band of each, with a blocking band raised as a warning, so a green cannot read as green over everything when a release blocker is open and accepted | cmn_verdict_and_cli.md section 4.6.11 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---

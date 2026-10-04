@@ -372,6 +372,78 @@ a majority vote would discard the disagreement the repeats exist to produce.
 observations, a date and a model, so it is testable without running a case or
 writing a file; the consumer's tool does both.
 
+#### 4.6.11 A pass states what it excluded, and a blocking band loudly
+
+Added 2026-10-03 at the project owner's instruction. **A green run reported
+nothing about its quarantine**: `verdict_tool` logged breaches on a red and
+nothing at all on a pass, so a run that excluded a release blocker and passed
+was indistinguishable from a run that excluded nothing.
+
+**Quarantine removes a case from the pass-rate denominator**, which is V2. That
+makes a green "green over what was measured" rather than "green over
+everything", and a result that does not say which is which invites the second
+reading.
+
+#### 4.6.11.1 Quarantine exempts V2 and never V1, which is a stronger answer
+
+**Corrected 2026-10-03, by probing rather than by reading the code.** This
+section first said a green could hide an accepted release blocker. It cannot:
+`_rule_v1` reads `population.graded`, and `_build_population` filters
+quarantined cases only out of `executions`. So **"any P0 or P1 observation not
+passing fails the run" is unconditional**, and a failing blocker cannot be
+quarantined into a pass.
+
+| Rule | Reads | A quarantined failing case |
+|---|---|---|
+| V1, the priority gate | `graded`, every graded observation | **Still fails the run** |
+| V2, the pass floor | `executions`, quarantine filtered out | Leaves the denominator |
+
+**That is the right scope and worth stating as a decision.** Quarantine accepts
+a finding; it does not accept a release blocker. If it exempted V1, an accepted
+P0 would produce a green, which is "where failures go to be forgotten" at the
+one severity where it matters most.
+
+**It also bounds what the triage can do.** A gate reporting a failing P0 or P1
+cannot be made green by quarantining it. That is a structural consequence
+rather than a threshold to adjust, and a run carrying such a finding is red
+until the finding is fixed, the case is corrected, or the band is reconsidered
+on the record.
+
+#### 4.6.11.2 So what a blocking band in a *passing* run means
+
+Given V1, a quarantined P0 or P1 appearing in a green run cannot be a failing
+blocker. It is one of two things, and both are worth saying:
+
+| | What it means | What to do |
+|---|---|---|
+| The case **passed** this run | The entry is stale: the finding no longer reproduces | `reconcile` drops it (section 4.6.10) |
+| The case **skipped** | The exclusion is doing nothing, and a skip is already counted elsewhere | Read the skip reason, not the entry |
+
+**So the warning is still earned**, with a different reason than this section
+first gave: a blocking-band entry in a green run is either stale or masking a
+skip, and neither is visible otherwise.
+
+**This is the qualification principle the project already applies elsewhere.** A
+manual selection yields **no verdict** rather than a misleading green, and
+`gated: false` marks a run whose result is not durable. Both exist because a
+green that needs a caveat has to carry it. An excluded blocker is that kind of
+caveat.
+
+**The priority comes from the observations, not from the entry.** A quarantine
+entry names a case; the case's priority is a property of the case, and
+`_build_population` keeps quarantined cases in `graded` while filtering them
+only out of `executions`. So the band is already recoverable and the quarantine
+file needs no new field.
+
+**A quarantined case with no observations reports no band**, because nothing ran
+it: that is the "not asked" state section 4.6.10 keeps separate from "fixed",
+and inventing a band for it would assert something the run did not measure.
+
+**It does not change the verdict.** Quarantine exists to accept a finding, so
+reporting is the remedy and gating would be a second mechanism contradicting
+the first. What changes is that the acceptance is visible in the result rather
+than only in the file.
+
 #### 4.6.8 Three extractions the rework forced, and one duplication it exposed
 
 Reworking the model took three modules past the thousand-line ceiling, which
@@ -1638,6 +1710,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112240` | P | `a_failing_case_reports_every_call_it_made` |
 | `112145` | N | `a_registered_adapter_off_the_roster_is_reported` |
 | `112146` | N | `an_identifier_outside_its_module_block_is_reported` |
+| `112147` | P | `a_pass_reports_the_bands_it_excluded` |
 | `112313` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `112314` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `112600` | P | `the_default_judge_engine_is_gemini` |
@@ -1707,7 +1780,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112518` | N | `a_credential_no_engine_reads_is_reported` |
 | `112519` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 218 cases, 123 negative, 68 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 219 cases, 123 negative, 69 positive, 27 boundary.** The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

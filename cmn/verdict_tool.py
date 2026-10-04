@@ -267,6 +267,64 @@ def compute(
     return computed, None
 
 
+# THE BANDS A RELEASE IS BLOCKED ON. An excluded one is an accepted blocker,
+# which is the single most important thing a green run has to say.
+_BLOCKING_BANDS: Final[frozenset[int]] = frozenset({0, 1})
+
+
+def report_exclusions(computed: Verdict) -> None:
+    """Say what the run excluded, and raise a blocking band as a warning.
+
+    **A pass said nothing about its quarantine**, so a green over a filtered
+    denominator read exactly like a green over everything. Quarantine removes a
+    case from the pass rate (V2), which is what this distinguishes.
+
+    **A blocking band is warned about for a precise reason.** Quarantine never
+    exempts V1, so a failing P0 or P1 fails the run whatever the file says; a
+    blocking-band entry surviving into a pass therefore means the case passed
+    and the entry is stale, or the case skipped and the exclusion is doing
+    nothing. Both want a reader.
+
+    Design: ``cmn_verdict_and_cli.md`` sections 4.6.11 to 4.6.11.2.
+
+    Args:
+        computed (Verdict): The verdict to describe.
+
+    Returns:
+        None
+    """
+    if not computed.quarantined:
+        return
+
+    blocking = sorted(
+        case_id for case_id, band in computed.excluded_bands.items()
+        if band in _BLOCKING_BANDS
+    )
+    if blocking:
+        logger.warning(
+            "%d quarantined case(s) sit in a release-blocking band. V1 is "
+            "never exempted, so each either passed and its entry is stale, or "
+            "skipped and its exclusion is doing nothing: %s",
+            len(blocking),
+            ", ".join(
+                f"{case_id} (P{computed.excluded_bands[case_id]})"
+                for case_id in blocking
+            ),
+        )
+
+    remaining = sorted(set(computed.quarantined) - set(blocking))
+    if remaining:
+        logger.info(
+            "%d further quarantined case(s) left the pass-rate denominator: %s",
+            len(remaining),
+            ", ".join(
+                f"{case_id} (P{computed.excluded_bands[case_id]})"
+                if case_id in computed.excluded_bands
+                else f"{case_id} (not run)"
+                for case_id in remaining
+            ),
+        )
+
 def main(
     argv: Optional[list[str]] = None, config_dir: Optional[Path] = None
 ) -> int:
@@ -297,4 +355,8 @@ def main(
         return refusal.exit_code
     for breach in computed.breaches:
         logger.error("%s: %s", breach.rule, breach.reason)
+
+    # ON EVERY OUTCOME, INCLUDING A PASS. A green that excluded a release
+    # blocker and said nothing is the case this exists for.
+    report_exclusions(computed)
     return computed.exit_code

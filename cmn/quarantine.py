@@ -13,7 +13,7 @@ registry is what makes a rule a rule.
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date
-from typing import Final, Optional
+from typing import Any, Final, Optional
 
 # HOW LONG A QUARANTINE ENTRY STAYS VALID when the model has not changed.
 # Three weeks: the scheduled cadence is weekly, so this is three runs of
@@ -150,3 +150,32 @@ def reconcile(
         )
 
     return remaining, actions
+
+
+def excluded_bands(
+    observations: Sequence[Any], quarantined: frozenset[str]
+) -> dict[str, int]:
+    """Return each quarantined case that ran, and the band it sits in.
+
+    **Read from the observations rather than from the entry.** An entry names a
+    case; the band is a property of the case, and a quarantined case stays in
+    the graded set and leaves only the pass-rate denominator, so nothing new
+    has to be recorded to answer this.
+
+    Design: ``cmn_verdict_and_cli.md`` section 4.6.11.
+
+    Args:
+        observations (Sequence): Every graded observation.
+        quarantined (frozenset[str]): The quarantined case identifiers.
+
+    Returns:
+        dict: Case identifier to its priority. **A quarantined case with no
+        graded observation is absent**, because nothing ran it and inventing a
+        band would assert what the run did not measure.
+    """
+    banded: dict[str, int] = {}
+    for entry in observations:
+        priority = getattr(entry, "priority", None)
+        if getattr(entry, "case_id", "") in quarantined and priority is not None:
+            banded[str(entry.case_id)] = int(priority)
+    return banded
