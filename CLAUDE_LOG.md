@@ -8401,3 +8401,82 @@ reached pylint in CI.
 Harness 687 passing, pylint 10.00/10 exit 0. Measured through the index:
 `--family source_fidelity` selects 6, `code_comprehension` 12, `--tag injection`
 21, `--tag control` 2, and a misspelled tag is refused naming it.
+
+## 2026-10-04: Keys reached Actions, which made an unenforced ceiling matter
+
+The account owner added the grok key locally and asked for the live-run
+credentials to go into Actions where a third party cannot reach them.
+
+### The environment the design relied on did not exist
+
+`ci_pipeline.md` section 8 says secrets are held in a GitHub Environment named
+`live`, and **six workflows across the two repositories declare
+`environment: live`**. Checked 2026-10-04: neither repository had any
+environment, and neither had a single secret. Every live and judged leg would
+have failed to find a key.
+
+**Nothing was broken by it** because no live run had ever been fired in CI, and
+the gates reference no provider secret. But the design's structural guarantee
+rested on configuration nobody had made, which no test could have caught: it is
+account state, not code.
+
+### What was created
+
+| | |
+|---|---|
+| Environments | `live` in both repositories |
+| Protection | **A required reviewer**, the account owner, on every run that names it |
+| Branch policy | None. A `workflow_dispatch` cannot be fired from a fork or by a pull request, and the approval covers the rest |
+| Harness secrets | `GEMINI_API_KEY` alone, the only secret any harness workflow names |
+| Consumer secrets | `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, which its live and judged legs name |
+| `XAI_API_KEY` | **Held locally and not in Actions**, because nothing references it until grok is rostered |
+
+**Only what a workflow references was set**, which keeps the surface the size of
+the need rather than the size of the keyring.
+
+### The ceiling was implemented, covered, and passed by nothing
+
+**`--max-spend` reaches the dispatch session, accumulates toward refusal and
+fails closed on an unpriced model.** `MQC_CAS_UNI_115208` and `115409` establish
+that. **No workflow set a value**, so every live leg ran unbounded.
+
+**It was harmless until it was not**, and that is the general shape worth
+recording: a control that is unreachable costs nothing until the thing it
+controls becomes reachable. Before today no CI run could spend. Now three can.
+
+| | |
+|---|---|
+| Ceiling | **$2.00 per run**, a workflow input so a dispatcher can lower it |
+| Measured cost | Six cents for the `SEC` family, 2026-09-28 |
+| The account's limit | $20 per provider per month, recorded in `OPEN_QUESTIONS.md` section 1.1 |
+| What it is for | Stopping a loop, a mispriced model or an escalation storm. A run that approaches it has gone wrong rather than done more work |
+
+Wired into every spending leg in both repositories: three in the harness weekly,
+the diagnostic, the debug run, and the consumer's calibration, judged-replay and
+live legs.
+
+### The check, and the over-reporting it started with
+
+`MQC_CMN_UNI_112257` and `MQC_CAS_UNI_115418` report a step that can dispatch
+live and names no ceiling. `--judge-mode live` counts, because the judge is
+never replayed; so does `--mode ${{ matrix.mode }}`, which may be live on one
+leg.
+
+**The first version read lines and reported a step that carried both flags**,
+because a CI pytest call spans several lines with trailing backslashes and
+`--mode live` and `--max-spend` sat on different ones. It now joins
+continuations first. **A check that over-reports is one a reader learns to
+skip**, which is worse than the gap it was written for.
+
+### The account list was stale on three of four rows
+
+`OPEN_QUESTIONS.md` section 1 is the list of things blocked on an account
+action. It still said claude needed a key and a price entry, openai was "being
+recorded", and grok had no credential. All three had moved. Updated, with the
+caps and the credential locations recorded as sections 1.1 and 1.2.
+
+### State
+
+Harness 688 passing, pylint 10.00/10 exit 0. Consumer 84 preconditions passing,
+pylint 10.00/10 exit 0. Grok remains the one unrostered engine: the key exists,
+and a price row and a recording run do not.

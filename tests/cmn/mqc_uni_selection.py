@@ -23,6 +23,7 @@ from typing import Any
 import pytest
 
 from cmn.selection import select_modules, select_named_tests, select_traced_cases
+from cmn.code_standards import uncapped_spending_steps
 from cmn.traceability import cases_for_index_values, load_case_index
 from tests.cmn.selection_support import FakeConfig, FakeItem
 
@@ -579,3 +580,78 @@ class TestMQCCaseIndexSelection:
         broken.write_text("case,notes\nMQC_EVL_EVAL_134200_a,x\n", encoding="utf-8")
         with pytest.raises(ValueError, match="carries no families, tags column"):
             load_case_index(broken)
+
+
+class TestMQCSpendCeiling:
+    """A step that can reach a provider carries a bound on what it spends."""
+
+    def MQC_CMN_UNI_112257_a_live_step_without_a_spend_ceiling_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """Every workflow step that can dispatch live names a ceiling.
+
+        **The flag was implemented and nothing passed it.** `--max-spend`
+        reaches the dispatch session and fails closed on an unpriced model, and
+        until 2026-10-04 no workflow set a value, so a live leg ran unbounded.
+        That was harmless only because no credential existed in Actions.
+
+        **A judged replay spends too.** The judge is never replayed, so
+        `--judge-mode live` is a live call whatever the candidate mode.
+
+        **Whole invocations, not lines.** A CI pytest call spans several lines
+        with trailing backslashes, and a line-based reader reports a step that
+        carries both flags on different lines. A check that over-reports is one
+        a reader learns to skip.
+
+        Design: ``ci_pipeline.md`` section 8.2.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+
+        assert not uncapped_spending_steps(root), (
+            "a workflow step can dispatch live with no ceiling: "
+            + "; ".join(uncapped_spending_steps(root))
+        )
+
+        # IT REPORTS ONE, which a live repository passing says nothing about.
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        (workflows / "spends.yml").write_text(
+            "\n".join([
+                "name: spends",
+                "jobs:",
+                "  live:",
+                "    steps:",
+                "      - run: |",
+                "          pytest -m sec \\",
+                "            --mode live \\",
+                "            --junitxml=reports/junit.xml",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        reported = uncapped_spending_steps(tmp_path)
+        assert len(reported) == 1, f"expected one finding, got {reported}"
+        assert "spends.yml" in reported[0]
+
+        # AND THE SAME STEP WITH A CEILING IS NOT REPORTED, with the flag on a
+        # continuation line, which is where it actually sits in CI.
+        (workflows / "spends.yml").write_text(
+            "\n".join([
+                "name: spends",
+                "jobs:",
+                "  live:",
+                "    steps:",
+                "      - run: |",
+                "          pytest -m sec \\",
+                "            --mode live \\",
+                '            --max-spend "2.00" \\',
+                "            --junitxml=reports/junit.xml",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        assert not uncapped_spending_steps(tmp_path), (
+            "a step carrying a ceiling on a continuation line was reported, "
+            "which is the over-reporting that trains a check away"
+        )

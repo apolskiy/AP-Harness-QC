@@ -24,6 +24,11 @@ name: diagnose-on-demand
 on:
   workflow_dispatch:
     inputs:
+      max_spend:
+        description: "USD ceiling for this run. The monthly cap is $20 per provider"
+        required: false
+        default: "2.00"
+        type: string
       code_ref:
         description: "Harness and test code. Defaults to the dispatching branch"
         required: false
@@ -133,6 +138,7 @@ jobs:
             marker="unit or system or evaluator or tool or sec"
           fi
           pytest -m "${marker}" \
+            --max-spend "${{ inputs.max_spend }}" \
             --engine "${{ inputs.engine }}" \
             --mode "${{ inputs.mode }}" \
             --out-dir diagnostic-artifacts/ \

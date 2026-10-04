@@ -878,3 +878,93 @@ def tracked_documents(root: Path) -> set[str]:
         ) from error
 
     return {line.strip() for line in listed.splitlines() if line.strip()}
+
+
+# A STEP THAT CAN REACH A PROVIDER. `--mode live` dispatches to the candidate
+# and `--judge-mode live` dispatches to the judge, which is never replayed: a
+# bound judge is a live call whatever the candidate mode. Either spends.
+# Design `ci_pipeline.md` section 8.2.
+_SPENDING_FLAGS: Final[tuple[str, ...]] = ("--mode live", "--judge-mode live")
+
+# AND THE ONE THAT BOUNDS IT. `--max-spend` aborts before a request would take
+# the run past a figure, and fails closed on an unpriced model.
+_CEILING_FLAG: Final[str] = "--max-spend"
+
+
+def uncapped_spending_steps(root: Path) -> list[str]:
+    """Report every workflow step that can spend and names no ceiling.
+
+    **The flag existed and nothing passed it**, which is this project's
+    recurring shape: `--max-spend` is implemented and covered, and until
+    2026-10-04 no workflow set a value, so a live run had no ceiling at all.
+    That mattered the moment a credential reached Actions.
+
+    **Keyed on the mode flags rather than on a job's environment.** A job can
+    name ``environment: live`` and run only replay legs, and a step can spend
+    from a workflow whose other jobs do not; what decides is whether the
+    invocation dispatches live.
+
+    **A matrix-valued mode counts as spending.** A step whose mode comes from
+    ``matrix.mode`` may be live on one leg, so it is reported unless it carries
+    a ceiling, on the same reasoning that makes the artifact check key on the
+    flags rather than on the word pytest.
+
+    Design: ``ci_pipeline.md`` section 8.2.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per step, naming the workflow and the line. Empty
+        when every step that can reach a provider carries a ceiling.
+    """
+    problems: list[str] = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        for number, invocation in _shell_invocations(workflow):
+            spends = any(flag in invocation for flag in _SPENDING_FLAGS)
+            matrix_mode = "--mode ${{ matrix.mode }}" in invocation
+            if not spends and not matrix_mode:
+                continue
+            if _CEILING_FLAG in invocation:
+                continue
+            problems.append(
+                f"{workflow.name}:{number} can dispatch live and names no "
+                f"{_CEILING_FLAG}, so the run has no ceiling"
+            )
+    return problems
+
+
+def _shell_invocations(workflow: Path) -> list[tuple[int, str]]:
+    """Return each shell command in a workflow as one logical line.
+
+    **Continuations are joined first.** A pytest invocation in CI is written
+    across several lines with trailing backslashes, so a line-based reader sees
+    ``--mode live`` and ``--max-spend`` as different lines and reports a step
+    that carries both. A check that over-reports is one a reader learns to
+    skip, which is worse than the gap it was written for.
+
+    Args:
+        workflow (Path): The workflow file.
+
+    Returns:
+        list[tuple[int, str]]: The line the command starts on, and the command
+        with its continuations joined.
+    """
+    joined: list[tuple[int, str]] = []
+    pending: list[str] = []
+    start = 0
+    for number, line in enumerate(
+        workflow.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        stripped = line.strip()
+        if not pending:
+            start = number
+        if stripped.endswith("\\"):
+            pending.append(stripped[:-1].strip())
+            continue
+        pending.append(stripped)
+        joined.append((start, " ".join(pending)))
+        pending = []
+    if pending:
+        joined.append((start, " ".join(pending)))
+    return joined

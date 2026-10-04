@@ -18,6 +18,12 @@ on:
   # main is stable, and this stanza returns then.
   workflow_dispatch:
     inputs:
+      max_spend:
+        description: "USD ceiling for this run. The monthly cap is $20 per provider"
+        required: false
+        default: "2.00"
+        type: string
+    inputs:
       engine:
         description: "Single engine to evaluate, empty for all"
         required: false
@@ -104,19 +110,19 @@ jobs:
         if: steps.selection.outputs.run_leg == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
+        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --max-spend "${{ inputs.max_spend || '2.00' }}" --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
 
       - name: Gate 5, tool-use compliance
         if: always() && steps.selection.outputs.run_leg == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: pytest -m tool --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
+        run: pytest -m tool --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --max-spend "${{ inputs.max_spend || '2.00' }}" --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
 
       - name: Gate 6, model security
         if: always() && steps.selection.outputs.run_leg == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: pytest -m sec --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
+        run: pytest -m sec --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --max-spend "${{ inputs.max_spend || '2.00' }}" --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
 
       - uses: actions/upload-artifact@v6
         if: always() && steps.selection.outputs.run_leg == 'true'

@@ -19,6 +19,11 @@ name: debug-failures-on-demand
 on:
   workflow_dispatch:
     inputs:
+      max_spend:
+        description: "USD ceiling for this run. The monthly cap is $20 per provider"
+        required: false
+        default: "2.00"
+        type: string
       tests:
         description: "Test identifiers or nodeids, one per line or comma separated"
         required: true
@@ -129,6 +134,7 @@ jobs:
           for attempt in $(seq 1 "${attempts}"); do
             echo "::group::attempt ${attempt} of ${attempts}"
             if pytest -k "${{ steps.resolve.outputs.expression }}" \
+              --max-spend "${{ inputs.max_spend }}" \
                  --engine "${{ inputs.engine }}" \
                  --mode "${{ inputs.mode }}" \
                  --out-dir debug-artifacts/ \

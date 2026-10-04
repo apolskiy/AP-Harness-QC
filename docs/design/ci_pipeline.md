@@ -1038,6 +1038,54 @@ The section 2 table's `Optional` is correct as written and is now explained here
 
 **The two absent keys are not a gap.** Their legs run in replay, which needs no credential, and the orthogonal flag design means adding a key later changes configuration only.
 
+
+### 8.2 A credential in Actions made an unenforced ceiling matter
+
+Added 2026-10-04, the day the first provider keys reached Actions.
+
+**`--max-spend` was implemented, covered and passed by nothing.** The flag
+reaches the dispatch session, accumulates toward refusal and fails closed on an
+unpriced model; `MQC_CAS_UNI_115208` and `115409` establish that. **No workflow
+set a value**, so every live leg ran with no ceiling.
+
+**It was harmless until it was not.** Before 2026-10-04 no key existed in either
+repository's Actions, so no CI run could spend whatever it asked for. Creating
+the `live` environments turned a dormant gap into a live one, which is the
+general shape worth recording: a control that is unreachable costs nothing until
+the thing it controls becomes reachable.
+
+#### 8.2.1 The ceiling, and the arithmetic behind it
+
+**Two dollars per run**, as a workflow input so a dispatcher can lower it.
+
+| | |
+|---|---|
+| Measured cost of a recording run | **Six cents** for the `SEC` family, 2026-09-28 |
+| A full graded run for one engine | Cents, including the judge |
+| The account's monthly limit | **$20 per provider**, recorded in `OPEN_QUESTIONS.md` section 1.1 |
+| The ceiling | $2.00, which is roughly thirty times the measured cost and a tenth of the monthly limit |
+
+**The figure is a backstop, not a budget.** It exists to stop a loop, a
+mispriced model or an escalation storm, not to ration ordinary runs: a run that
+approaches it has gone wrong rather than done more work.
+
+#### 8.2.2 What counts as a step that can spend
+
+| Flag | Why it spends |
+|---|---|
+| `--mode live` | Dispatches to the candidate |
+| `--judge-mode live` | Dispatches to the judge, **which is never replayed**: a bound judge is a live call whatever the candidate mode |
+| `--mode ${{ matrix.mode }}` | May be live on one leg of the matrix, so it is treated as spending |
+
+`MQC_CMN_UNI_112257` and `MQC_CAS_UNI_115418` report a step that can dispatch
+live and names no ceiling, one implementation called with each root.
+
+**The check reads whole invocations, not lines.** A CI pytest call is written
+across several lines with trailing backslashes, and the first version of this
+check reported a step that carried both flags because they sat on different
+lines. **A check that over-reports is one a reader learns to skip**, which is
+worse than the gap it was written for.
+
 ---
 
 ## 9. Exit Codes To Job Status

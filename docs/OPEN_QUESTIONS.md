@@ -27,12 +27,65 @@ Recording is no longer the blocker it was. The corpus is recorded in full
 against one engine and the comparison the project exists to make needs more
 than one.
 
+**Updated 2026-10-04.** Three of the four rows below had gone stale: every key
+now exists, `claude-opus-5-5` is priced, and the comparison the project exists
+to make is recorded against three engines.
+
 | Engine | State | What clears it |
 |---|---|---|
-| `gemini` | **Recorded in full.** 195 candidate responses, 108 judgements, 2 findings | Nothing |
-| `openai` | **Funded and being recorded** against `gpt-4.1` | Nothing |
-| `claude` | Key needed, **and a price entry** | `ANTHROPIC_API_KEY`, plus a `claude-opus-5-5` row in `config/pricing.yaml`: the model is deliberately unpriced, the spend ceiling fails closed on an unpriced model, and a run carrying `--max-spend` therefore refuses |
-| `grok` | No credential | A key, then `XAI_API_KEY` |
+| `gemini` | **Recorded and reported.** 2 findings in `config/findings/gemini.yaml` | Nothing |
+| `openai` | **Recorded and reported** against `gpt-4.1-2025-04-14`. 8 findings | Nothing |
+| `claude` | **Recorded and reported** against `claude-opus-5-5`, which is now priced. 10 findings | Nothing |
+| `grok` | **Key held**, in the local `.env` and not in Actions. Still unrostered | A price entry for its models, recorded fixtures, and the `XAI_API_KEY` secret. The key alone does not roster it |
+
+**Grok is the one engine still short, and the key was the smaller half.** The
+adapter and its conformance cases ship and it is enrolled in the battery
+automatically, verified 2026-10-04. What is missing is a price row and a
+recording run; the spend ceiling fails closed on an unpriced model, so a run
+carrying `--max-spend` against grok refuses by design.
+
+### 1.1 What the account caps are, and what the project does about them
+
+Recorded 2026-10-04 from the account owner.
+
+| Provider | Total credit | Monthly limit |
+|---|---|---|
+| Gemini | $60 | **$20** |
+| OpenAI | $60 | **$20** |
+| Anthropic | $20 | $20 |
+| xAI | $20 | $20 |
+
+**The measured cost makes this comfortable rather than tight.** The `SEC` family
+recorded on 2026-09-28 for **six cents**, so a full graded recording run for one
+engine is cents rather than dollars, against a monthly limit of $20.
+
+**What is not yet true is that anything enforces it.** `--max-spend` is
+implemented, covered by `MQC_CAS_UNI_115208` and `MQC_CAS_UNI_115409`, and
+**no workflow passes it**, so a live run currently has no ceiling at all. That
+is the next thing to close and it is tracked below rather than left to this
+paragraph.
+
+| | |
+|---|---|
+| Implemented | `--max-spend`, which aborts before a request would take total spend past a figure, and fails closed on an unpriced model |
+| Not wired | No workflow passes it. The flag reaches the dispatch session and nothing sets a value |
+| Why it matters now | Before 2026-10-04 no key was in Actions, so a CI run could not spend. Now three are |
+
+### 1.2 Where the credentials live
+
+| | |
+|---|---|
+| Locally | `.env` at each repository root, gitignored and untracked, holding all four keys |
+| In Actions | A GitHub **Environment** named `live` in each repository, created 2026-10-04 |
+| Protection | **A required reviewer**, the account owner, on every run that names the environment |
+| Branch policy | None. A `workflow_dispatch` cannot be fired from a fork or by a pull request, and the approval covers the rest |
+| What the gates hold | **Nothing.** `gate-target.yml` names no environment and references no provider secret, so a fork pull request has no path to a key |
+
+**Only what a workflow references is set.** The harness `live` environment holds
+`GEMINI_API_KEY` alone, because that is the only secret any harness workflow
+names; the consumer's holds the three its live and judged legs name.
+`XAI_API_KEY` is held locally and **not** in Actions, because nothing references
+it until grok is rostered.
 
 **The unpriced-model refusal is the design working, not an obstacle.** A ceiling
 that cannot see a price cannot enforce itself, and the alternative reading, that
@@ -114,8 +167,9 @@ none is the kind of call I would want made only once.
 
 | | |
 |---|---|
-| Harness | 616 unit, 23 system, pylint 10.00/10 |
-| Cases | 58 unit, 69 graded, pylint 10.00/10 |
+| Harness | 687 passing, pylint 10.00/10 |
+| Cases | 83 preconditions, 69 graded, pylint 10.00/10 |
+| Findings | 20 open: gemini 2, openai 8, claude 10, all `QC_LLM_*` or `QC_SEC_*` |
 | Graded result | 2 findings about `gemini-3.8-flash`, one P1 and one P2, reproducing on both platforms |
 | Consumer gate | 11 jobs: resolve, lint, preconditions and three priority bands, each per platform |
 | Graded inventory | 69 inventoried, 69 collected |

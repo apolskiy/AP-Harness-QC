@@ -389,6 +389,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0121` | Every tracked document is named in the document register and every path the register names resolves, so a documentation review reaches every document and a citation cannot dangle | test_taxonomy.md section 12 |
 | `MQC_REQ_HAR_ING_0122` | A rule set declares the evaluation families it grades, ordered with the primary first, every value registered and none repeated, so a graded result is attributable to a task and the primary is unambiguous | test_taxonomy.md section 11.8 |
 | `MQC_REQ_HAR_CMN_0123` | A family or a tag selection resolves through the per-case index, so it returns the cases carrying that value and not the whole requirement row, and a value no case carries is refused by name | cmn_verdict_and_cli.md section 7.7.6 |
+| `MQC_REQ_HAR_CMN_0124` | Every workflow step that can dispatch to a provider names a spend ceiling, so a live run cannot spend without a bound against an account with a monthly limit | ci_pipeline.md section 8.2 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---
