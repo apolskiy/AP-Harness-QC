@@ -62,12 +62,12 @@ flags:
   # `tier3_evaluation.md` section 5A.3.
   "--judge-engine": {owner: consumer}
   "--extra-columns": {owner: harness}
-  "--as-of":
-    gap:
-      reason: >-
-        Read by the verdict tool as parsed.as_of, so it is acted upon; no case
-        passes it on a command line.
-      expires_on: 2026-11-30
+  # CLOSED 2026-10-03 by MQC_CMN_UNI_112042. The gap said nothing passed it on
+  # a command line, which was accurate and could not be fixed while the shipped
+  # quarantine was empty and `main` took no config_dir: there was nothing for
+  # the date to decide. Both are now in place, and the case drives `main` either
+  # side of a window boundary. Design `cmn_verdict_and_cli.md` section 4.6.2.
+  "--as-of": {owner: harness}
   # IMPLEMENTED 2026-10-02, AND THE 2026-10-01 READING ABOVE WAS WRONG.
   # It concluded no defect sat behind the flag because the workflows passed
   # pytest's own `--junitxml` and `--alluredir`. Measured against

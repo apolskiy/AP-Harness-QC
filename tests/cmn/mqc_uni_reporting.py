@@ -15,28 +15,38 @@ A failure here is our defect, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Final, Optional
 
 import pytest
 
+from cmn.code_standards import required_result_fields
+from cmn.metadata import emit_result
 from cmn.observations import Observation, RunContext
 from cmn.reporting import observation_parameters, vendor_report
 
 pytestmark = pytest.mark.unit
 
-# Every field section 9 of `test_taxonomy.md` requires of a graded result,
-# named here so the case compares against the standard rather than against
-# whatever the builder happens to return.
-_REQUIRED_RESULT_FIELDS = (
-    "case_id", "layer", "observation_index", "engine", "mode",
-    "requested_model", "resolved_model", "outcome", "taxonomy_code",
-    "priority", "priority_conditions", "duration", "duration_kind",
-    "output_tokens",
-)
+# FIELDS THE CODE DERIVES RATHER THAN THE TABLE DECLARING THEM. `gated` is
+# computed from three others and 9.1 says so in its own row; the token counts
+# are the nested `tokens` record flattened for the wire, which 9.1 covers as
+# `output_tokens` and the emitter spells out. Design section 9.5.
+_DERIVED_FIELDS: Final[frozenset[str]] = frozenset({
+    "input_tokens", "thinking_tokens", "cached_input_tokens",
+    "judge_input_tokens", "judge_output_tokens", "judge_thinking_tokens",
+    "demoted", "self_preference", "provider_refusal", "tokens",
+})
 
-_REQUIRED_RUN_FIELDS = (
-    "run_context", "selection_mode", "gated", "rule_set_hash", "os",
-)
+# FIELDS LEGITIMATELY ABSENT FROM A PARAMETER SET. An absent value is omitted
+# rather than published empty, because an empty parameter reads as
+# measured-and-empty; so a field the observation under test does not carry
+# cannot be required of its parameters. Design `cmn_verdict_and_cli.md`
+# section 5.2.
+_ABSENT_WHEN_UNSET: Final[frozenset[str]] = frozenset({
+    "family", "requirement_ids", "skip_reason", "score", "scale_id",
+    "rubric_result", "quarantine_hash", "rule_set_hash", "timeout_ms",
+    "cli_flags", "effective_thresholds",
+})
 
 
 class _FakeResponse:
@@ -140,9 +150,16 @@ class TestMQCResultEmission:
 
         parameters = observation_parameters(observation, run)
 
+        # READ FROM THE STANDARD'S OWN TABLE, not from a copy of it. A case
+        # asserting against its own list cannot report that the list moved,
+        # which is how section 9 came to sit behind the code (section 9.5).
+        required = required_result_fields(
+            Path(__file__).resolve().parents[2]
+            / "docs" / "design" / "test_taxonomy.md"
+        )
         missing = [
-            name for name in _REQUIRED_RESULT_FIELDS + _REQUIRED_RUN_FIELDS
-            if name not in parameters
+            name for name in sorted(required)
+            if name not in parameters and name not in _ABSENT_WHEN_UNSET
         ]
         assert not missing, (
             "fields the standard requires reach no parameter, so a collector "
@@ -228,3 +245,67 @@ class TestMQCVendorReport:
         assert passed["request"]["api_key"] == "[REDACTED]"
         assert passed["request"]["prompt"] == "Summarise"
         assert "sk-live-secret" not in str(report)
+
+
+class TestMQCNormativeFieldList:
+    """The standard's own list, against what the code emits."""
+
+    def MQC_CMN_UNI_112148_a_required_field_the_code_does_not_emit_is_reported(
+        self,
+    ) -> None:
+        """Section 9.1's table and the emitted fields agree both ways.
+
+        The list existed in three copies and nothing compared any pair, so
+        adding a field to ``RunContext`` touched the code and neither list.
+
+        **Both directions matter.** A field the standard requires and nothing
+        emits is a promise to a reader that nothing keeps; a field the code
+        emits and the standard never declared reached a durable record
+        undocumented, which is how ``quarantine_hash`` arrived.
+
+        **The scope column is load-bearing.** A run-scoped field is checked
+        against ``RunContext.as_fields`` and a result-scoped one against
+        ``emit_result``; comparing against the union would pass for the wrong
+        reason.
+
+        Design: ``test_taxonomy.md`` section 9.5.
+
+        Returns:
+            None
+        """
+        taxonomy = (
+            Path(__file__).resolve().parents[2]
+            / "docs" / "design" / "test_taxonomy.md"
+        )
+        declared = required_result_fields(taxonomy)
+
+        observation = Observation(
+            case_id="MQC_TASK_a::MQC_RULE_r", layer="EVAL", outcome="pass",
+            priority=2, engine="gemini", mode="replay",
+        )
+        run = RunContext(
+            run_context="ci", selection_mode="full", preconditions_executed=True,
+        )
+        emitted_result = set(emit_result(observation, run))
+        emitted_run = set(run.as_fields())
+
+        missing: list[str] = []
+        for field, scope in sorted(declared.items()):
+            against = emitted_run if scope == "Run" else emitted_result
+            if field not in against:
+                missing.append(f"{field} ({scope.lower()}-scoped)")
+        assert not missing, (
+            "section 9.1 requires fields the code does not emit, so the "
+            "standard promises a reader what nothing delivers: "
+            + ", ".join(missing)
+        )
+
+        # THE OTHER DIRECTION. `emit_result` folds the run-scoped half in, so a
+        # field it carries is undeclared only when neither table scope has it.
+        undeclared = sorted(
+            (emitted_result | emitted_run) - set(declared) - _DERIVED_FIELDS
+        )
+        assert not undeclared, (
+            "the code emits fields section 9.1 never declared, so they reach a "
+            "durable record undocumented: " + ", ".join(undeclared)
+        )

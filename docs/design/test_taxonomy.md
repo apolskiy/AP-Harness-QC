@@ -307,7 +307,7 @@ Registered 2026-09-23 with the split. `CAS` covers preconditions owned by the **
 
 This is also why the registry is not duplicated. `framework-rules.md` section 4.1 forbids a second one, and the case repository references this document rather than vendoring it.
 
-**The full identifier already disambiguates**, since `MQC_CMN_UNI_10201` and `MQC_EXE_UNI_113100` differ in the module token. The partition exists for a different reason: the governance checks in `cmn_verdict_and_cli.md` section 10.2 match an inventory row by its five-digit number, pooled across the design documents. With disjoint blocks that is sound. With an overlap, **a case matches the wrong module's row and the check passes for the wrong reason**, which is worse than failing.
+**The full identifier already disambiguates**, since `MQC_CMN_UNI_112100` and `MQC_EXE_UNI_113100` differ in the module token. The partition exists for a different reason: the governance checks in `cmn_verdict_and_cli.md` section 10.2 match an inventory row by its number alone, pooled across the design documents. With disjoint blocks that is sound. With an overlap, **a case matches the wrong module's row and the check passes for the wrong reason**, which is worse than failing.
 
 `CMN` exhausted its first block at 107 cases and overflowed into the `EXE` block. The seven cases concerned had been written the same day and never published, so reassigning them was legitimate under the never-reuse rule, which protects identifiers that have reached a durable record.
 
@@ -913,6 +913,8 @@ The two are **independent cases sharing a tag** (`ambiguity_pair_<nnn>`), not a 
 
 Emitted as Allure parameters and labels, and through JUnit XML, so both reach a downstream collector without changes on its side.
 
+**Corrected 2026-10-03: for most of this project nothing emitted any of it.** A published Allure result carried empty parameters and a severity label, and no `allure.dynamic` call existed in either repository. The mapping was never the gap: `emit_result` returns this whole list and had no caller outside the test suite. `cmn_verdict_and_cli.md` sections 5.1 to 5.4.1 carry what that cost and where the emission belongs, and this sentence describes the contract rather than the state until the hook lands.
+
 ### 9.1 Fields
 
 | Group | Field | Scope | Why |
@@ -942,6 +944,7 @@ Emitted as Allure parameters and labels, and through JUnit XML, so both reach a 
 | | `duration_kind` | Result | `measured` or `truncated`. See 9.3 |
 | | `output_tokens` | Result | Latency is dominated by verbosity (A7.2) |
 | Provenance | `rule_set_hash` | **Run** | Which rules produced this |
+| | `quarantine_hash` | **Run** | Which quarantine entries this run consulted. Quarantine changes the pass-rate denominator, so a stored pass rate cannot be read without it (`cmn_verdict_and_cli.md` section 4.6.6) |
 | | `effective_thresholds` | **Run** | The standard the run was judged against |
 | | `timeout_ms` | **Run** | Changing it changes results |
 | | `cli_flags` | **Run** | `judge_on_failure`, `extra_columns`, `observations` |
@@ -1011,6 +1014,48 @@ On a timeout, `duration` records how long the harness waited before giving up, n
 Both skip and both count toward the skip budget, since in neither case was a measurement obtained. The codes stay distinct because repeated judge timeouts mean the evaluation path is unreliable while repeated candidate timeouts mean something about the model or its provider.
 
 **Precedence:** an assertion failure dominates a judge timeout. If assertions failed the case has already failed; a judge timeout only produces a skip when the assertions passed and the measurement was therefore incomplete rather than negative.
+
+
+### 9.5 The normative list had three copies and nothing reconciled them
+
+Added 2026-10-03, after the project owner noticed this document had fallen
+behind the changes made around it.
+
+**Section 9 calls itself the single normative list and its own preamble names
+the hazard**: "two hand-maintained lists drift and these two already had." By
+2026-10-03 the list existed in three places:
+
+| Copy | Where |
+|---|---|
+| The table in 9.1 | This document, normative |
+| `_REQUIRED_RESULT_FIELDS` | A hand-typed tuple in `mqc_uni_reporting.py` |
+| The keys `emit_result` returns | `cmn/metadata.py`, what actually reaches a reader |
+
+**Nothing compared any pair of them.** So adding `quarantine_hash` to
+`RunContext` and to `as_fields` touched the code and neither list, and the
+normative table went stale in the one place a reader would check first. The
+emission claim in the preamble had gone stale the same way, asserting an
+emission that no code performed.
+
+**The remedy is the one this project already uses for a stated figure.**
+`112314` and `112323` compare a stated case count against the designs rather
+than trusting it; `112226` compares an inventory against itself. This compares
+the **table** against the **code**: the fields 9.1 declares against the keys
+`emit_result` and `RunContext.as_fields` produce, in both directions.
+
+| Direction | What it catches |
+|---|---|
+| Table to code | A field the standard requires and nothing emits |
+| **Code to table** | A field the code emits that the standard never declared, which is how `quarantine_hash` reached a reader undocumented |
+
+**The hand-typed tuple goes.** A case asserting against its own copy of the
+list cannot report that the list moved, which is the self-consistency problem
+`112312` records one level down: the subject supplied the evidence.
+
+**Scope is read from the table**, so a run-scoped field is checked against
+`RunContext.as_fields` and a result-scoped one against `emit_result`. That
+column is load-bearing rather than decorative, and mixing the two would make
+the check pass for the wrong reason.
 
 ## 10. Extension Rules
 

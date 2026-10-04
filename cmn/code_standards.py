@@ -688,3 +688,53 @@ def identifier_block_problems(root: Path) -> list[str]:
                     f"{expected_module}, and carries {digits[2]}"
                 )
     return problems
+
+
+# SECTION 9.1'S TABLE, as that document writes it: a group, a backticked field
+# and a scope. Parsed rather than copied, because a second list drifts and this
+# one did. Design `test_taxonomy.md` section 9.5.
+_FIELD_ROW: Final[re.Pattern] = re.compile(
+    r"^\|[^|]*\|\s*`([a-z_]+)`\s*\|\s*(\*\*)?(Result|Run)(\*\*)?\s*\|"
+)
+
+
+def required_result_fields(taxonomy: Path) -> dict[str, str]:
+    """Return every field section 9.1 declares, and the scope of each.
+
+    **Read from the table rather than restated.** Section 9 calls itself the
+    single normative list and its preamble names the hazard: two
+    hand-maintained lists drift, and by 2026-10-03 there were three.
+
+    Design: ``test_taxonomy.md`` section 9.5.
+
+    Args:
+        taxonomy (Path): The taxonomy document.
+
+    Returns:
+        dict: Field name to ``"Result"`` or ``"Run"``.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the table yields
+            nothing, because a reader finding no rows would report no problems
+            and pass for having read nothing.
+    """
+    declared: dict[str, str] = {}
+    inside = False
+    for line in taxonomy.read_text(encoding="utf-8").splitlines():
+        if line.startswith("### 9.1"):
+            inside = True
+            continue
+        if inside and line.startswith("### "):
+            break
+        if not inside:
+            continue
+        matched = _FIELD_ROW.match(line)
+        if matched is not None:
+            declared[matched.group(1)] = matched.group(3)
+
+    if not declared:
+        raise ValueError(
+            "QC_HARNESS_PARSER_ERROR: section 9.1 yielded no fields, so this "
+            "reader would report no problems by having read nothing"
+        )
+    return declared
