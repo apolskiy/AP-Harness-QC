@@ -1,0 +1,94 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Case modules still holding their own support code.
+#
+# THE RULE IS IN `test_taxonomy.md` SECTION 13: a collected test module
+# holds cases, their fixtures and their constants, and the functions and
+# classes supporting them live in a sibling module collection never reaches.
+#
+# A GAP IS A DECLARED ABSENCE, NOT AN EXEMPTION, exactly as
+# `flag_coverage.yaml` and `not_rostered` are: each entry carries a reason
+# and an expiry, because a list with no expiry is where unconverted modules
+# go to be forgotten and the check stops meaning anything once everything
+# inconvenient has left its denominator. An expired entry fails the run.
+#
+# THE LIST SHRINKS AND NEVER GROWS. A new module is born compliant, because
+# `MQC_CMN_UNI_112328` and `MQC_CAS_UNI_115711` fail for any collected module
+# that holds support and is not named here. Removing the last entry deletes
+# the file, which is the finished state.
+not_yet_extracted:
+  tests/cmn/mqc_sys_whole_chain.py:
+    reason: "Predates the rule of 2026-10-05. 3 definition(s) to extract: function _rules, function _run_chain, function _passing_precondition"
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_emission.py:
+    reason: "Predates the rule of 2026-10-05. 7 definition(s) to extract: class _Recorder, class _Report, class _Item, ..."
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_families.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _graded"
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_file_standards.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _own_checkout_path"
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_governance.py:
+    reason: "Predates the rule of 2026-10-05. 9 definition(s) to extract: function _defined_callables, function _inventoried_identifiers, function _inventory_rows, ..."
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_model_coherence.py:
+    reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: function _graded, function _passing_suite"
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_reporting.py:
+    reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: class _FakeResponse, class _FakeOutcome"
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_selection.py:
+    reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: function _matrix, function _graded"
+    expires_on: 2026-12-31
+  tests/cmn/mqc_uni_traceability.py:
+    reason: "Predates the rule of 2026-10-05. 5 definition(s) to extract: function _row, function _shipped_requirements, function _shipped_cases, ..."
+    expires_on: 2026-12-31
+  tests/evaluation/mqc_uni_aggregation.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _scores"
+    expires_on: 2026-12-31
+  tests/evaluation/mqc_uni_assertions.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _assertion"
+    expires_on: 2026-12-31
+  tests/evaluation/mqc_uni_isolation.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _material"
+    expires_on: 2026-12-31
+  tests/evaluation/mqc_uni_judge.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _reply"
+    expires_on: 2026-12-31
+  tests/evaluation/mqc_uni_pipeline.py:
+    reason: "Predates the rule of 2026-10-05. 3 definition(s) to extract: function _context, class _RecordingJudge, function _rule_set_with_rubric"
+    expires_on: 2026-12-31
+  tests/evaluation/mqc_uni_tool_compliance.py:
+    reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: function _call, function _tool"
+    expires_on: 2026-12-31
+  tests/execution/mqc_sys_dispatch.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _record_for"
+    expires_on: 2026-12-31
+  tests/execution/mqc_uni_adapters.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _rubric_with"
+    expires_on: 2026-12-31
+  tests/execution/mqc_uni_conformance.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _double"
+    expires_on: 2026-12-31
+  tests/execution/mqc_uni_dispatch.py:
+    reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: class _FakeClock, function _plan"
+    expires_on: 2026-12-31
+  tests/execution/mqc_uni_judgement_replay.py:
+    reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: function _recorded, class _JudgeRequestDouble"
+    expires_on: 2026-12-31
+  tests/execution/mqc_uni_normalize.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _response"
+    expires_on: 2026-12-31
+  tests/execution/mqc_uni_spending.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _plan"
+    expires_on: 2026-12-31
+  tests/ingestion/mqc_sys_pipeline.py:
+    reason: "Predates the rule of 2026-10-05. 4 definition(s) to extract: function _rubric, function _assertion, function _task, ..."
+    expires_on: 2026-12-31
+  tests/ingestion/mqc_uni_invariants.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _task_carrying"
+    expires_on: 2026-12-31
+  tests/ingestion/mqc_uni_loaders.py:
+    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _corpus_with_both_formats"
+    expires_on: 2026-12-31

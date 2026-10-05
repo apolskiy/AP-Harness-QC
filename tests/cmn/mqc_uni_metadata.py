@@ -27,7 +27,7 @@ import sys
 import tomllib
 from importlib import metadata
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 from packaging.specifiers import SpecifierSet
@@ -56,6 +56,8 @@ from cmn.registries import (
     registered_evaluation_families,
 )
 from tools.generate_requirements import generate, read_declaration
+
+from tests.cmn.metadata_support import graded_observation, requirement_name
 
 
 pytestmark = pytest.mark.unit
@@ -115,39 +117,6 @@ def fixture_gated_run() -> RunContext:
         platform="linux",
     )
 
-
-def _graded(**overrides: Any) -> Observation:
-    """Build a graded observation over a valid base.
-
-    Args:
-        **overrides: Fields to replace.
-
-    Returns:
-        Observation: The built record.
-    """
-    payload = {
-        "case_id": "MQC_TASK_a::MQC_RULE_r", "layer": "EVAL", "outcome": "pass",
-        "priority": 2, "engine": "gemini", "mode": "replay",
-        "requested_model": "gemini-flash-latest", "resolved_model": "gemini-flash-002",
-        "duration": 310, "duration_kind": "measured",
-    }
-    payload.update(overrides)
-    return Observation(**payload)
-
-
-def _requirement_name(entry: str) -> Optional[str]:
-    """Return the distribution name a requirement string begins with.
-
-    Args:
-        entry (str): A requirement such as ``pylint>=3.3,<4.0``.
-
-    Returns:
-        Optional[str]: The name, or ``None`` where the entry carries no name
-        this simply, such as a URL requirement. **None rather than a guess**,
-        because a wrong name would silently report a tool as unpinned.
-    """
-    found = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", entry.strip())
-    return found.group(1) if found is not None else None
 
 class TestMQCTaxonomyRegistryConsistency:
     """Every emitted code registered, and every registered code accounted for."""
@@ -247,7 +216,7 @@ class TestMQCResultEmission:
         Returns:
             None
         """
-        emitted = emit_result(_graded(), gated_run)
+        emitted = emit_result(graded_observation(), gated_run)
 
         assert emitted["effective_thresholds"] == {"pass_floor": 0.9}
         assert emitted["rule_set_hash"] == "sha256:abc"
@@ -265,14 +234,14 @@ class TestMQCResultEmission:
         Returns:
             None
         """
-        emitted = emit_result(_graded(), gated_run)
+        emitted = emit_result(graded_observation(), gated_run)
         assert emitted["run_context"] == "ci"
         assert emitted["gated"] is True
 
         debug = RunContext(
             run_context="ci_debug", selection_mode="full", preconditions_executed=True
         )
-        assert emit_result(_graded(), debug)["gated"] is False
+        assert emit_result(graded_observation(), debug)["gated"] is False
 
     def MQC_CMN_UNI_112208_result_missing_a_required_metadata_field_is_rejected(self) -> None:
         """A result that reaches the record incomplete is uninterpretable later.
@@ -301,7 +270,7 @@ class TestMQCResultEmission:
         Returns:
             None
         """
-        assert emit_result(_graded(), gated_run)["selection_mode"] == "full"
+        assert emit_result(graded_observation(), gated_run)["selection_mode"] == "full"
 
     def MQC_CMN_UNI_112218_result_records_the_platform_it_ran_on(
         self,
@@ -318,7 +287,7 @@ class TestMQCResultEmission:
         Returns:
             None
         """
-        assert emit_result(_graded(), gated_run)["os"] == "linux"
+        assert emit_result(graded_observation(), gated_run)["os"] == "linux"
         assert current_platform() in {"windows", "linux", "darwin"}
 
     def MQC_CMN_UNI_112215_graded_result_records_its_evaluation_family(
@@ -337,7 +306,7 @@ class TestMQCResultEmission:
         Returns:
             None
         """
-        emitted = emit_result(_graded(families=("code_comprehension",)), gated_run)
+        emitted = emit_result(graded_observation(families=("code_comprehension",)), gated_run)
         assert emitted["families"] == ["code_comprehension"]
         assert emitted["primary_family"] == "code_comprehension"
         assert "code_comprehension" in registered_evaluation_families()
@@ -374,7 +343,7 @@ class TestMQCResultEmission:
         """
         assert "invented_family" not in registered_evaluation_families()
         with pytest.raises(ValueError, match="are not registered"):
-            _graded(families=("invented_family",))
+            graded_observation(families=("invented_family",))
 
 
 class TestMQCLatencyStatistics:
@@ -391,8 +360,8 @@ class TestMQCLatencyStatistics:
             None
         """
         observations = [
-            _graded(duration=100), _graded(duration=200),
-            _graded(duration=60000, duration_kind="truncated"),
+            graded_observation(duration=100), graded_observation(duration=200),
+            graded_observation(duration=60000, duration_kind="truncated"),
         ]
         statistics = latency_statistics(observations)
 
@@ -407,7 +376,7 @@ class TestMQCLatencyStatistics:
             None
         """
         statistics = latency_statistics(
-            [_graded(duration=60000, duration_kind="truncated")]
+            [graded_observation(duration=60000, duration_kind="truncated")]
         )
         assert statistics["mean_duration"] is None
         assert statistics["sample_count"] == 0
@@ -651,7 +620,7 @@ class TestMQCDependencyDeclaration:
         pinned = {
             name.lower(): spec
             for name, spec in (
-                (_requirement_name(entry), entry) for entry in development
+                (requirement_name(entry), entry) for entry in development
             )
             if name is not None
         }

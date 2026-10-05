@@ -21,12 +21,10 @@ A failure here is our defect, so the module carries no priority marker, per
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 
-import conftest
 from cmn.config import Consumer, load_consumers, unreachable_consumer_code
 from cmn.observations import RunContext
 from cmn.registries import is_registered_harness_code
@@ -56,136 +54,9 @@ from cmn.verdict_tool import (
     thresholds_from,
 )
 
+from tests.cmn.cli_doubles import FakeConfig, plugin_registrations
 from tests.cmn.verdict_support import TODAY, gated_artifact
 pytestmark = pytest.mark.unit
-
-
-class _RecordingParser:
-    """A stand-in for pytest's parser that records what a hook registered.
-
-    **In process, and deliberately not a subprocess.** Invoking pytest to read
-    its help text fails on Windows under pytest with an invalid handle, which is
-    the same platform quirk the excerpt cases hit. The harness is verified on
-    both platforms, so a case that only runs on one is not a case.
-
-    It records what **our hook** did, which is the thing that can drift. How
-    pytest then parses those registrations is pytest's business and not ours to
-    assert.
-
-    Attributes:
-        registered (list): Every flag the hook added, in order.
-        choices (dict): The choices declared per flag.
-    """
-
-    def __init__(self) -> None:
-        """Start with nothing recorded.
-
-        Returns:
-            None
-        """
-        self.registered: list[str] = []
-        self.choices: dict[str, Any] = {}
-
-    def getgroup(self, name: str, description: str = "") -> "_RecordingParser":
-        """Return this recorder as the requested option group.
-
-        Args:
-            name (str): The group name.
-            description (str): Ignored.
-
-        Returns:
-            _RecordingParser: This recorder.
-        """
-        del name, description
-        return self
-
-    def addoption(self, flag: str, **settings: Any) -> None:
-        """Record one registered flag.
-
-        Args:
-            flag (str): The flag as it appears on a command line.
-            **settings (Any): What the hook declared for it.
-
-        Returns:
-            None
-        """
-        self.registered.append(flag)
-        self.choices[flag] = settings.get("choices")
-
-
-def _plugin_registrations() -> _RecordingParser:
-    """Run the pytest hook against a recording parser.
-
-    Returns:
-        _RecordingParser: What the hook registered.
-    """
-    recorder = _RecordingParser()
-    conftest.pytest_addoption(recorder)
-    return recorder
-class _FakeInvocationParams:
-    """The raw arguments pytest records for a run.
-
-    Attributes:
-        args (list): Exactly what the caller wrote.
-    """
-
-    def __init__(self, args: list[str]) -> None:
-        """Hold the arguments.
-
-        Args:
-            args (list[str]): The raw command line.
-
-        Returns:
-            None
-        """
-        self.args = args
-
-
-class _FakeConfig:
-    """Enough of pytest's config to exercise the invocation record.
-
-    **Built here rather than through a pytest run** because the question is what
-    `configure_invocation` concludes from a given command line, and spinning up a
-    session to ask it would make the case slower and less specific.
-    """
-
-    def __init__(
-        self,
-        args: list[str],
-        values: dict[str, Any],
-        option_values: Optional[dict[str, Any]] = None,
-    ) -> None:
-        """Hold the command line, the parsed values and the option namespace.
-
-        ``option_values`` becomes ``config.option``, holding only the keys
-        given, so a plugin that is not loaded is modelled by leaving its
-        destination out rather than by setting it to ``None``.
-
-        Args:
-            args (list[str]): The raw command line.
-            values (dict[str, Any]): What pytest would have parsed from it.
-            option_values (Optional[dict]): The attributes ``config.option``
-                carries.
-
-        Returns:
-            None
-        """
-        self.invocation_params = _FakeInvocationParams(args)
-        self._values = values
-        self.option = SimpleNamespace(**(option_values or {}))
-        self.mqc_invocation: Any = None
-
-    def getoption(self, name: str, default: Any = None) -> Any:
-        """Return a parsed value, as pytest would.
-
-        Args:
-            name (str): The option's destination name.
-            default (Any): What to return when it is unset.
-
-        Returns:
-            Any: The value.
-        """
-        return self._values.get(name, default)
 
 
 class TestMQCOptionRegistry:
@@ -232,7 +103,7 @@ class TestMQCOptionRegistry:
         assert "def pytest_addoption" in conftest_source
         assert "add_mqc_options" in conftest_source
 
-        plugin = _plugin_registrations()
+        plugin = plugin_registrations()
         for declared in registered_options():
             assert declared.cli_flag in plugin.registered, (
                 f"{declared.cli_flag} reaches the verdict tool and not pytest"
@@ -349,7 +220,7 @@ class TestMQCOptionRegistry:
             ["-m", "sec", "--engine", "gemini"],
             ["-m", "sec", "--engine=gemini"],
         ):
-            config = _FakeConfig(arguments, {"engine": "gemini", "mode": "replay"})
+            config = FakeConfig(arguments, {"engine": "gemini", "mode": "replay"})
             configure_invocation(config)
             assert not config.mqc_invocation.warnings, (
                 f"naming the default engine as {arguments[-1]!r} still reported "
@@ -358,7 +229,7 @@ class TestMQCOptionRegistry:
 
         # AND THE WARNING STILL FIRES WHERE IT SHOULD, which is the half the
         # original case did cover and this must not break.
-        unchosen = _FakeConfig(["-m", "sec"], {"engine": "gemini", "mode": "replay"})
+        unchosen = FakeConfig(["-m", "sec"], {"engine": "gemini", "mode": "replay"})
         configure_invocation(unchosen)
         assert len(unchosen.mqc_invocation.warnings) == 1
         assert "QC_DATA_ENGINE_DEFAULTED" in unchosen.mqc_invocation.warnings[0]
@@ -432,7 +303,6 @@ class TestMQCSelectionMode:
         invocation = build_invocation({"observations": 1})
         assert invocation.as_metadata()["observations"] == 1
         assert invocation.yields_verdict is False
-
 
 
 # `112114` AND `112115` WERE RETIRED 2026-10-03 with `--case`. Both are
@@ -693,7 +563,7 @@ class TestMQCDiagnosticRuns:
         named = tmp_path / "diagnostic"
         both = {"xmlpath": None, "allure_report_dir": None}
 
-        config = _FakeConfig([], {"out_dir": str(named)}, dict(both))
+        config = FakeConfig([], {"out_dir": str(named)}, dict(both))
         adopt_artifact_destinations(config)
 
         assert config.option.xmlpath == str(named / "junit.xml")
@@ -702,7 +572,7 @@ class TestMQCDiagnosticRuns:
         # EXPLICIT REDIRECTS ONE AND SUPPRESSES NEITHER. The consumer-regression
         # steps are why: they give each JUnit file a distinct name so four
         # matrix legs do not overwrite one file, and must still emit Allure.
-        config = _FakeConfig(
+        config = FakeConfig(
             [], {"out_dir": str(named)},
             {"xmlpath": "elsewhere/mine.xml", "allure_report_dir": None},
         )
@@ -711,7 +581,7 @@ class TestMQCDiagnosticRuns:
         assert config.option.xmlpath == "elsewhere/mine.xml"
         assert config.option.allure_report_dir == str(named / "allure-results")
 
-        config = _FakeConfig(
+        config = FakeConfig(
             [], {"out_dir": str(named)},
             {"xmlpath": None, "allure_report_dir": "elsewhere/allure"},
         )
@@ -721,14 +591,14 @@ class TestMQCDiagnosticRuns:
         assert config.option.allure_report_dir == "elsewhere/allure"
 
         # NO FLAG DERIVES NOTHING, so an ordinary run is unaffected.
-        config = _FakeConfig([], {}, dict(both))
+        config = FakeConfig([], {}, dict(both))
         assert not adopt_artifact_destinations(config)
         assert config.option.xmlpath is None
         assert config.option.allure_report_dir is None
 
         # AN ABSENT PLUGIN IS SKIPPED, NOT FAILED: allure-pytest is a `[dev]`
         # dependency and the consumer installs the harness `--no-deps`.
-        config = _FakeConfig([], {"out_dir": str(named)}, {"xmlpath": None})
+        config = FakeConfig([], {"out_dir": str(named)}, {"xmlpath": None})
         adopt_artifact_destinations(config)
 
         assert config.option.xmlpath == str(named / "junit.xml")
@@ -808,7 +678,7 @@ class TestMQCConsumerRegistry:
             None
         """
         adopt_corpus_selection(
-            _FakeConfig([], {"--golden-rules": "/elsewhere/data",
+            FakeConfig([], {"--golden-rules": "/elsewhere/data",
                              "--extra-columns": "drop"})
         )
         root, policy = corpus_selection()
@@ -817,7 +687,7 @@ class TestMQCConsumerRegistry:
         assert policy == "drop"
 
         # UNNAMED IS NONE, NOT A DEFAULT. The consumer substitutes its own.
-        adopt_corpus_selection(_FakeConfig([], {}))
+        adopt_corpus_selection(FakeConfig([], {}))
         root, policy = corpus_selection()
 
         assert root is None, (

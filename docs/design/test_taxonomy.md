@@ -1559,3 +1559,113 @@ work through and know it is complete. The completeness is the mechanism.
 before any work begins. **A complete list nobody opens prevents nothing**, which
 is the same reason the governance files are listed there rather than merely
 existing.
+
+## 13. A Test Module Holds Cases, And A Support Module Holds Everything Else
+
+**Decided 2026-10-05 by the project owner**, after a case module failed the
+lint gate for carrying a tenth bespoke computation. The observation was that a
+test module had become a library with claims at the bottom of it, and that
+functions and classes are the job of an interface rather than of a case file.
+
+### 13.1 The rule, and the boundary that already enforced half of it
+
+**A collected test module holds test classes, their fixtures and their
+constants. Nothing else.** The functions and classes supporting them live in a
+sibling module that collection never reaches.
+
+`pytest.ini` already draws that line and nothing had been written down about
+it:
+
+```ini
+python_files = mqc_*.py
+```
+
+**So a module outside that glob is support by construction**, which is why
+`graded_support.py`, `provider_doubles.py`, `verdict_support.py`,
+`selection_support.py` and `judge_doubles.py` already worked. The convention
+existed and was followed only when a ceiling forced it.
+
+| | |
+|---|---|
+| Collected | `mqc_<module>_<layer>.py` — cases, fixtures, constants |
+| Not collected | `<subject>_support.py`, `<subject>_doubles.py` — functions, classes, the constants they read |
+
+**Fixtures stay with their cases.** A `@pytest.fixture` is wiring for one
+module's cases, bound to them by name, and pytest's own idiom puts it beside
+them or in a conftest. Moving fixtures into a support module would make the
+cases harder to read in exchange for a tidier line count, which is the wrong
+trade. The rule is about apparatus, not about every `def`.
+
+### 13.2 What the absence of the rule had already cost
+
+**`repository_root` existed four times**, byte-identical, once in
+`graded_support.py` as a public function and once privately in each of three
+case modules:
+
+| Where | As |
+|---|---|
+| `graded_support.py` | `repository_root` |
+| `mqc_uni_harness_pin.py` | `_root` |
+| `mqc_uni_corpus.py` | `_repository_root` |
+| `mqc_uni_instrument.py` | `_repository_root` |
+
+**A helper nobody owned was cheaper to rewrite than to find.** That is the
+whole cost of the convention being unwritten: not the line counts, but that
+each case module became a private namespace nothing else could draw on, so
+every module re-derived what it needed.
+
+**Two modules were also one edit from blocking unrelated work**, at 998 and 995
+lines against the thousand-line ceiling. A ceiling that fires on a prose edit
+is a ceiling nobody can plan around.
+
+### 13.3 Fixed-size modules, and adding one rather than growing one
+
+**A support module is expected to fill up and be joined by another**, exactly
+as `cmn/` already works: `code_standards.py` is the source a reader writes,
+`workflow_standards.py` the pipeline definitions, `case_module_standards.py`
+where test support lives. Each is bounded; a new subject is a new module.
+
+**This is transparent to the cases.** A case module imports names, not
+locations, so splitting a support module is an import edit and never a change
+to a claim. The thousand-line ceiling stops being a thing to fear and becomes
+what it was meant to be: a prompt to name the subject that has outgrown its
+home.
+
+### 13.4 The rule is enforced, and the backlog is declared
+
+`MQC_CMN_UNI_112328` here and `MQC_CAS_UNI_115711` in the case repository
+report any collected module defining module-level support. Both read
+`cmn.case_module_standards`, which is one implementation called with each root.
+
+**36 modules predate the rule**, 25 here and 11 there, and each is declared in
+`config/support_extraction.yaml` with a reason and an expiry. **A gap is a
+declared absence, not an exemption**, the same idiom as `flag_coverage.yaml`
+and `not_rostered`: a list with no expiry is where unconverted modules go to be
+forgotten, and an expired entry fails the run.
+
+Three directions are checked, because each catches a different failure:
+
+| Direction | Catches |
+|---|---|
+| Support in a module nothing declares | The rule broken by a new module or a new helper |
+| A declared entry past its expiry | A conversion that stopped |
+| A declared entry whose module is now clean | **A closed gap still listed**, which this project has found in three other registries |
+
+**The list shrinks and never grows.** A new module is born compliant, because
+the check fails for anything undeclared. Removing the last entry deletes the
+file, which is the finished state rather than an empty registry nobody reads.
+
+### 13.5 Five modules converted when the rule was written
+
+| Module | Before | After |
+|---|---|---|
+| `mqc_uni_metadata.py` | 998 | 967 |
+| `mqc_uni_cli.py` | 965 | 835 |
+| `mqc_uni_harness_pin.py` | 995 | **733** |
+| `mqc_uni_corpus.py` | 969 | 785 |
+| `mqc_uni_instrument.py` | 939 | 707 |
+
+**Public names, deliberately.** Everything moved lost its leading underscore: a
+support module is an interface, and `_graded` imported by another module says
+the opposite of what is true. The rename is what makes the extraction an
+interface rather than a file move.
