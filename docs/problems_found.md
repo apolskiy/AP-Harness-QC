@@ -181,10 +181,19 @@ code being tested.**
 | `pylint` over four of six path sets, depending which copy of the command you followed | The broadest set | A 154-character line in `conftest.py`, which three of the four copies do not lint |
 | `yaml.safe_load` on an edited workflow | GitHub's workflow schema | A duplicate `inputs:` key, which YAML resolves last-wins and a schema rejects |
 | A check run against a working tree holding untracked files | A fresh checkout | A register check requiring every named document to **exist**, where one was deliberately untracked: present where written, absent in every clone |
+| `pylint ... | tail -3`, reading `rated at 10.00/10` | The **exit code** | A refactor message costs no score: pylint reported `R0914`, rated the code 10.00/10 and exited **8**, its bit for "refactor message issued". A pipe discards the left-hand status, so `echo $?` reported `tail` succeeding |
 
 **The third is the second instance of its exact shape**, the first being
 recorded on 2026-10-02. A check that reads something only one machine has can
 only pass there, and the lesson had already been written down.
+
+**The fourth was authored by the verification rather than found by it**, which
+is worth stating plainly in a document about this class. Every lint check in
+that session read the rating line and reported an exit code it had not looked
+at, and the gate reads the exit code. **A score and a status are two different
+questions**, and `fail-under=10.0` is the weaker of them: a message that costs
+no score still fails the build, which is the stricter behaviour and the correct
+one.
 
 **The pylint command stood in four places with four path lists.** One omitted
 `cmn/`, two omitted `conftest.py`, the gate omitted `tools/`, and only the
