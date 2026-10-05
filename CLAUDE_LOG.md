@@ -8757,3 +8757,66 @@ checked, and not the thing that mattered.
 
 Harness 691 passing, pylint 10.00/10 exit 0 **on the canonical command**, which
 is now the one every copy states.
+
+## 2026-10-05: A check that could only pass on one machine, for the second time
+
+The lint fix went green and the unit gate failed behind it, on both platforms,
+on a case written the day before.
+
+### What failed
+
+`MQC_CMN_UNI_112255`, the document register check, required **every path the
+register names to exist on disk**. The register named the author's working
+notes, which are deliberately untracked: present where they are written and
+absent in every clone.
+
+| | |
+|---|---|
+| Locally | The file is there, so the check passed |
+| In CI | A fresh checkout has no untracked files, so it failed |
+| Reported | "is named by this register and is not present, so a citation to it will not resolve" |
+
+**The message was accurate and the rule was wrong.** The citation resolves
+exactly where it is supposed to and nowhere else, which is the point of the
+file.
+
+**Second instance of this shape.** 2026-10-02 records the first, and the lesson
+had been stated: a check that reads something only one machine has can only pass
+there. This one read the working tree for a file no clone has.
+
+### The fix, and why it is not an exemption
+
+The check now requires a named path to be **tracked**, not present. That is
+clone-independent, and it is the stronger claim: a citation resolves for a
+reader only if the document is in the repository.
+
+**An exemption list was written first and then removed.** The register gained a
+not-tracked section and the reader learned to skip it, which worked and was the
+wrong shape: it made a private artefact part of the inventory and taught the
+check to make allowances.
+
+**The register now names no untracked file at all.** Working material is not a
+project document. A register of what a reviewer works through should name what a
+reviewer can be given, and the governance files already state where prompts go
+and that they are never committed. The inventory and the rule answer different
+questions, and only the rule needs a path.
+
+### What was verified rather than assumed
+
+The author's concern is that the prompts themselves stay private. Checked, both
+repositories:
+
+| | |
+|---|---|
+| The file in git history | **Never.** No object by that name in any commit |
+| Prompt text in any tracked file | **None** |
+| How the author's instructions appear in this log | As attributed **decisions**, which is what the logging rule permits and what it has always said: summarise intent, never paste the prompt |
+
+**That is the guarantee, and it does not rest on obscurity.** The path is named
+in the governance files because the rule needs one to be operative, and the
+content is protected by not being committed, which is a mechanical fact rather
+than a convention.
+
+### State
+
+Harness 691 passing, pylint 10.00/10 exit 0 on the canonical command.

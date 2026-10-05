@@ -375,14 +375,15 @@ class TestMQCDocumentRegister:
 
         **Both directions, for two different failures.** A tracked document the
         register does not name is one a review never reaches; a path the
-        register names and nothing provides is a citation that will not
-        resolve.
+        register names and the repository does not track is a citation that
+        will not resolve for the reader following it.
 
-        **Trackedness comes from git and existence from the filesystem**, each
-        being the right source: a walk would find a generated
-        `.pytest_cache/README.md` and need a denylist that grows, while the
-        register deliberately names an untracked working log and the paired
-        repository's documents.
+        **Both directions read git rather than the filesystem.** A walk would
+        find a generated `.pytest_cache/README.md` and need a denylist that
+        grows, and asking whether a named path merely exists asks a question
+        only the authoring machine can answer: it passes there and fails in
+        every clone, which is how this case first went red in CI. A bare
+        filename is a paired-repository citation and resolves elsewhere.
 
         Design: ``test_taxonomy.md`` section 12.
 

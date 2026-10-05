@@ -72,8 +72,13 @@ of the twenty visible at all.
 ## 2. The dominant defect in our own work: right, and unreachable
 
 **The thing is built, it is correct, and nothing establishes it is reached.**
-Eleven instances, and it is the single most common defect this project found in
-itself.
+Fourteen instances, and it is the single most common defect this project found
+in itself.
+
+**The count in this paragraph was itself wrong twice**, reading eleven while the
+table carried thirteen rows and the closing summary said twelve. A hand-kept
+figure beside the list it counts is the same defect one level down, which is
+worth stating in a document about this shape rather than quietly correcting.
 
 | What was built | What was missing |
 |---|---|
@@ -89,6 +94,7 @@ itself.
 | The consumer regression gate | Had never run |
 | `--family` | Resolved at requirement-row grain, selecting 15 cases where 6 graded the family |
 | `--engine` | Enumerated three engines in the option registry, so rostering a fourth made the flag refuse one the roster named. The argument against enumerating was written one flag away and nobody applied it |
+| The per-target workflow check | **The list of targets was a tuple, and its comment claimed it was the roster.** So "every rostered engine has a gate and a weekly workflow" could only fail for an engine somebody had already added by hand. grok was rostered, priced and recorded, and the consumer stayed green gating three of four targets |
 | The roster gate | **Nothing checked the roster.** An engine with an adapter and no roster entry dispatched against the adapter's own default, which for grok was `grok-4`: a model the provider does not serve, so a 404 on every case reading as a broken harness |
 
 ### 2.1 Why it is the dominant shape
@@ -169,6 +175,11 @@ code being tested.**
 |---|---|---|
 | `pylint` over four of six path sets, depending which copy of the command you followed | The broadest set | A 154-character line in `conftest.py`, which three of the four copies do not lint |
 | `yaml.safe_load` on an edited workflow | GitHub's workflow schema | A duplicate `inputs:` key, which YAML resolves last-wins and a schema rejects |
+| A check run against a working tree holding untracked files | A fresh checkout | A register check requiring every named document to **exist**, where one was deliberately untracked: present where written, absent in every clone |
+
+**The third is the second instance of its exact shape**, the first being
+recorded on 2026-10-02. A check that reads something only one machine has can
+only pass there, and the lesson had already been written down.
 
 **The pylint command stood in four places with four path lists.** One omitted
 `cmn/`, two omitted `conftest.py`, the gate omitted `tools/`, and only the
@@ -211,7 +222,7 @@ named by the provider's own 404.
 | Measured cost of a full recording run | **Six cents** for one family, cents for a full engine |
 
 **The ratio is the point.** A project that found 24 findings about four
-commercial models also found twelve instances of its own machinery being
+commercial models also found fourteen instances of its own machinery being
 unreachable, two checks that fed themselves, 19 mislabelled matrix rows, a
 credential boundary that existed only on paper and a pinned model the provider
 does not serve. **The second list is longer than the first**, and every item on

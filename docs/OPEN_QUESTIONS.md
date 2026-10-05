@@ -97,9 +97,19 @@ paragraph.
 
 **Only what a workflow references is set.** The harness `live` environment holds
 `GEMINI_API_KEY` alone, because that is the only secret any harness workflow
-names; the consumer's holds the three its live and judged legs name.
-`XAI_API_KEY` is held locally and **not** in Actions, because nothing references
-it until grok is rostered.
+names; the consumer's holds the keys its live and judged legs name.
+
+**`XAI_API_KEY` is now referenced and is the one action outstanding.** It was
+held locally and deliberately absent from Actions while nothing named it. grok
+was rostered on 2026-10-04 and `evaluate-engine.yml` names the variable as of
+2026-10-05, so the consumer's `live` environment needs the secret added before
+a grok ladder can be dispatched.
+
+| | |
+|---|---|
+| Until it is added | A dispatched grok ladder refuses at preflight with an absent credential, which `consumer_ci.md` section 4.17.2 reports as our configuration rather than as a finding |
+| What is unaffected | Every gate. `gate-grok.yml` is replay-only and names no secret, so the fourth target gates on a push exactly as the other three do |
+| What asserts the wiring | `MQC_CAS_UNI_115710`, which requires a line per rostered engine and would have caught the omission at the time grok was rostered |
 
 **The unpriced-model refusal is the design working, not an obstacle.** A ceiling
 that cannot see a price cannot enforce itself, and the alternative reading, that

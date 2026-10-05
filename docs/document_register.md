@@ -80,11 +80,19 @@ Each of these is normative and each is loaded before work begins, per
 | `.claude/skills/validator-generator.md` | Scaffold for a `@dataclass` schema validator |
 | `.claude/worktrees/worktree-rules.md` | Worktree isolation, branch boundaries, environment safety |
 
-## Not tracked
+## What this register does not list
 
-| Document | Why |
-|---|---|
-| `.claude/logs/PROMPT_LOG.md` | Verbatim prompts and working notes. **Never tracked and nothing is copied from it into `CLAUDE_LOG.md`**, which records decisions rather than phrasing |
+**Working material is not a project document.** The author's own notes are not
+deliverables, are not tracked, and are deliberately absent from this list: a
+register of what a reviewer works through should name what a reviewer can be
+given. The governance files state where prompts go and that they are never
+committed, which is the rule; this list is the inventory, and the two answer
+different questions.
+
+**Nothing is copied from working notes into `CLAUDE_LOG.md`**, which records
+decisions and outcomes rather than phrasing. Verified 2026-10-05: no tracked
+file in either repository quotes a prompt, and every reference to the author's
+instructions attributes a decision rather than reproducing its wording.
 
 ## Documents in the case repository
 

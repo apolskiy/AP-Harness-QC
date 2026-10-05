@@ -830,16 +830,24 @@ def document_register_problems(root: Path, register: Path) -> list[str]:
             f"documentation review would not reach it"
         )
 
-    # EXISTENCE, NOT TRACKEDNESS, in this direction. A register names a
-    # document deliberately left untracked, and it names the paired
-    # repository's documents so a reader following a citation knows where it
-    # points; the first is present and the second resolves elsewhere.
+    # TRACKEDNESS, NOT EXISTENCE, in this direction too. **Corrected
+    # 2026-10-05 after this check failed in CI and passed on one machine.** It
+    # required every named path to be present on disk, and the register named
+    # one deliberately untracked file: present where it was written and absent
+    # in every clone. A check that reads the working tree for a file no clone
+    # has can only pass where it was authored, which is the second instance of
+    # that shape in this project.
+    #
+    # **A named path must now be tracked**, and the register names no untracked
+    # file at all: working material is not a project document. A bare filename
+    # is a paired-repository citation that resolves elsewhere.
+    tracked = tracked_documents(root)
     for path in sorted(named):
-        if (root / path).exists() or "/" not in path:
+        if "/" not in path or path in tracked:
             continue
         problems.append(
-            f"{path} is named by this register and is not present, so a "
-            f"citation to it will not resolve"
+            f"{path} is named by this register and is not tracked, so a "
+            f"citation to it will not resolve in a fresh checkout"
         )
     return problems
 
