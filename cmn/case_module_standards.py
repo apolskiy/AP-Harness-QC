@@ -44,6 +44,22 @@ COLLECTED_GLOB: Final[str] = "mqc_*.py"
 # read in exchange for a tidier line count, which is the wrong trade.
 _FIXTURE_MARKER: Final[str] = "fixture"
 
+# THE CALLS THAT CAN BLOCK FOREVER. Spelled as the source spells them, because
+# the AST is unparsed back to text for comparison.
+_BOUNDED_CALLS: Final[frozenset[str]] = frozenset({
+    "subprocess.run",
+    "subprocess.Popen",
+    "subprocess.check_output",
+    "subprocess.check_call",
+    "subprocess.call",
+})
+
+# TREES THAT ARE NOT OURS. A virtual environment and a build directory carry
+# third-party source whose subprocess calls are not this project's to bound.
+_SKIPPED: Final[frozenset[str]] = frozenset({
+    ".venv", "build", "__pycache__", ".git", "node_modules",
+})
+
 
 def inline_support(module: Path) -> list[str]:
     """Return the module-level support definitions a test module carries.
@@ -202,4 +218,52 @@ def _lapsed(
             f"{relative} has been a declared extraction gap since its expiry "
             f"on {expires.isoformat()}: {record.get('reason', '')!s}".strip()
         )
+    return problems
+
+
+def unbounded_subprocess_calls(root: Path) -> list[str]:
+    """Report every subprocess invocation that passes no timeout.
+
+    **An unbounded wait is the worst failure shape available.** A crash names
+    itself; a hang names nothing, arrives after the longest possible delay, and
+    presents as an environmental fault on whichever platform happened to stall.
+    One cancelled a Windows job 22 minutes into a run that reported `failure`
+    with no failing job and no log.
+
+    **Read from the AST, so a call spelled across several lines is still seen**,
+    and so a mention inside a string literal is not.
+
+    **The keyword is checked, never the value.** Whether a particular bound is
+    right is a judgement; whether a bound exists is not, and only the second is
+    mechanical.
+
+    Design: ``test_taxonomy.md`` section 14.
+
+    Args:
+        root (Path): The repository root to scan.
+
+    Returns:
+        list[str]: One entry per unbounded call, naming the file and line.
+    """
+    problems: list[str] = []
+    for source in sorted(root.rglob("*.py")):
+        if any(part in _SKIPPED for part in source.parts):
+            continue
+        try:
+            tree = ast.parse(source.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            called = ast.unparse(node.func)
+            if called not in _BOUNDED_CALLS:
+                continue
+            if any(keyword.arg == "timeout" for keyword in node.keywords):
+                continue
+            problems.append(
+                f"{source.relative_to(root).as_posix()}:{node.lineno}: "
+                f"{called} passes no timeout, so a child that stalls blocks "
+                f"forever and the job is cancelled rather than failed"
+            )
     return problems

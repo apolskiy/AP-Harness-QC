@@ -20,7 +20,6 @@ A failure here is our defect, so the module carries no priority marker, per
 """
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -29,6 +28,8 @@ import pytest
 
 from cmn import emission
 from cmn.observations import Observation, RunContext
+
+from tests.cmn.subprocess_support import run_bounded
 
 pytestmark = pytest.mark.unit
 
@@ -431,14 +432,13 @@ class TestMQCPublishedToARealReporter:
         )
 
         results = tmp_path / "allure"
-        completed = subprocess.run(
+        completed = run_bounded(
             [
                 sys.executable, "-m", "pytest", "-q", "-p", "no:randomly",
                 "-p", "allure_pytest",
                 "--alluredir", str(results), str(tmp_path / "test_emits.py"),
             ],
-            capture_output=True, text=True, check=False, shell=False,
-            cwd=str(root), stdin=subprocess.DEVNULL,
+            cwd=root,
             env={**_environment(), "PYTHONPATH": str(root)},
         )
         assert "1 failed" in completed.stdout + completed.stderr, (

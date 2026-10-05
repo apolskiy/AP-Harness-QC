@@ -15,7 +15,6 @@ A failure here is our defect, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,6 +25,8 @@ from cmn.selection import select_modules, select_named_tests, select_traced_case
 from cmn.workflow_standards import uncapped_spending_steps
 from cmn.traceability import cases_for_index_values, load_case_index
 from tests.cmn.selection_support import FakeConfig, FakeItem
+
+from tests.cmn.subprocess_support import run_bounded
 
 pytestmark = pytest.mark.unit
 
@@ -265,17 +266,16 @@ class TestMQCNamedTestSelection:
             encoding="utf-8",
         )
 
-        completed = subprocess.run(
+        # `run_bounded` closes stdin and carries the budget. EXPLICIT ON
+        # WINDOWS, because pytest has replaced the standard handles and
+        # inheriting them raises WinError 6 before the child starts.
+        completed = run_bounded(
             [
                 sys.executable, "-m", "pytest", "-rs", "-p", "no:randomly",
                 "--tests-file", str(listing),
                 str(root / "tests" / "cmn" / "mqc_uni_families.py"),
             ],
-            capture_output=True, text=True, check=False, shell=False,
-            cwd=str(root),
-            # EXPLICIT ON WINDOWS. pytest has replaced the standard handles,
-            # and inheriting them raises WinError 6 before the child starts.
-            stdin=subprocess.DEVNULL,
+            cwd=root,
         )
         output = completed.stdout + completed.stderr
 

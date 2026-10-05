@@ -1669,3 +1669,67 @@ file, which is the finished state rather than an empty registry nobody reads.
 support module is an interface, and `_graded` imported by another module says
 the opposite of what is true. The rename is what makes the extraction an
 interface rather than a file move.
+
+## 14. Every Subprocess A Case Spawns Carries A Timeout
+
+Added 2026-10-05, after a harness gate reported `failure` with no failing job.
+
+### 14.1 What happened, and why no local run could have found it
+
+`unit (windows-latest)` was **cancelled** after the run had been alive 22
+minutes. Lint passed on both platforms, `unit (ubuntu-24.04)` passed, and the
+cancelled job produced no failure log, because a cancelled job has none.
+
+**Six `subprocess.run` calls existed and not one passed a `timeout`.** Five
+spawn a nested pytest to prove something the parent process cannot observe
+about itself — a dependency skip, a reordering, a published artifact, a
+`--tests-file` miss — and one asks git for its tracked files.
+
+| | |
+|---|---|
+| Locally | 0.6s to 3.4s each, whole suite 17.55s |
+| With no `timeout` | `subprocess.run` blocks **indefinitely** |
+| A nested pytest that stalls | Hangs the case, hangs the job, and the runner cancels it |
+| What a reader sees | A red run, no failing job, no log, and 22 minutes gone |
+
+**No amount of running the suite locally would have surfaced this**, which is
+what makes it worth a rule rather than a fix. The defect is not that something
+hung; it is that nothing bounded how long it could.
+
+### 14.2 A hang is the worst failure shape available
+
+**A crash names itself and a hang names nothing.** Every other failure in this
+project arrives as an assertion with a reason: a taxonomy code, a diff, a
+count. A hang arrives as an absence, after the longest possible delay, and the
+information it carries is zero.
+
+**It also reads as the wrong defect.** A cancelled Windows job on a green
+Ubuntu job invites "flaky CI" or "a Windows problem", and both readings send
+the reader to the runner rather than to the missing argument. That is a harness
+defect presenting as an environmental one, which `framework-rules.md` section
+8.6 is specifically about keeping apart.
+
+### 14.3 The rule, and what a breach reports
+
+**Every `subprocess.run` and `Popen` carries a `timeout`.** On expiry the case
+fails with `QC_HARNESS_SUBPROCESS_TIMEOUT`, naming the command and the bound,
+because this is our defect and never a finding about a model.
+
+| Call | Bound | Why |
+|---|---|---|
+| A nested pytest | **300s** | Two orders of magnitude above the 3.4s worst case, and two below the hang |
+| `git ls-files` | **60s** | A local index read; a minute is already pathological |
+
+**The bound is generous on purpose.** A timeout tuned close to the observed
+duration converts a slow runner into a red, which is the flakiness this rule
+exists to remove rather than relocate. It exists to turn an unbounded wait into
+a bounded one, not to police performance.
+
+### 14.4 The rule is enforced
+
+`MQC_CMN_UNI_112329` reports any `subprocess` invocation in either repository
+that passes no `timeout`, read from the AST rather than by matching text, so a
+call spelled across several lines is still seen.
+
+**It reads the keyword, not the value.** Whether 300s is the right number is a
+judgement; whether a bound exists is not, and only the second is mechanical.

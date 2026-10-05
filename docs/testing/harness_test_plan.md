@@ -396,6 +396,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0128` | A tracked YAML file carrying a duplicated mapping key is reported, because a parse resolves it last-wins and discards the first silently while a schema validator rejects the file outright | ci_pipeline.md section 8.3.2 |
 | `MQC_REQ_HAR_CMN_0129` | No case defined in this repository belongs to a graded layer, the graded layers being read from the layer registry rather than named, so the suite here cannot come to hold a claim about a model and a green run here is a statement about the instrument alone | cmn_verdict_and_cli.md section 4.9.8 |
 | `MQC_REQ_HAR_CMN_0130` | A collected test module defines no module-level function or non-test class, the supporting code living in a sibling module collection does not reach, so a case file reads as a list of claims and a helper is owned by an interface rather than privately re-derived per module | test_taxonomy.md section 13 |
+| `MQC_REQ_HAR_CMN_0131` | Every subprocess invocation carries a timeout, so a child that stalls fails the case with a named harness code rather than blocking until a runner cancels the job and reports a failure with no failing step | test_taxonomy.md section 14 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---

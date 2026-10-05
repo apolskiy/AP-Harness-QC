@@ -877,8 +877,12 @@ def tracked_documents(root: Path) -> set[str]:
             ["git", "ls-files", "*.md", "*.csv"],
             capture_output=True, text=True, check=True, shell=False,
             cwd=str(root), stdin=subprocess.DEVNULL,
+            # BOUNDED, per `test_taxonomy.md` section 14. A local index read in
+            # a minute is already pathological, and an unbounded one turns a
+            # stalled git into a cancelled job rather than a failed check.
+            timeout=60.0,
         ).stdout
-    except (OSError, subprocess.CalledProcessError) as error:
+    except (OSError, subprocess.SubprocessError) as error:
         raise ValueError(
             f"QC_HARNESS_PARSER_ERROR: git could not list the tracked "
             f"documents in {root}, so the register cannot be checked against "

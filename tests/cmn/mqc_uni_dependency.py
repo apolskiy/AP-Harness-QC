@@ -18,7 +18,6 @@ A failure here is our defect, so the module carries no priority marker.
 """
 
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -53,6 +52,8 @@ from cmn.pytest_support import (
     unknown_dependencies,
 )
 from tests.cmn.selection_support import FakeConfig, FakeItem
+
+from tests.cmn.subprocess_support import run_bounded
 
 pytestmark = pytest.mark.unit
 
@@ -234,15 +235,11 @@ class TestMQCDependencyCascade:
         (tmp_path / "conftest.py").write_text(_CONFTEST, encoding="utf-8")
         (tmp_path / "pytest.ini").write_text(_INI, encoding="utf-8")
 
-        completed = subprocess.run(
+        completed = run_bounded(
             # -rs so the skip REASON is printed: the cascade attaches the taxonomy
             # code, and a run that does not show it cannot assert it carries one.
             [sys.executable, "-m", "pytest", "-p", "no:randomly", "-v", "-rs"],
-            cwd=str(tmp_path),
-            capture_output=True,
-            text=True,
-            check=False,
-            stdin=subprocess.DEVNULL,
+            cwd=tmp_path,
             env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
         )
         output = completed.stdout + completed.stderr
@@ -281,13 +278,9 @@ class TestMQCDependencyCascade:
         (tmp_path / "conftest.py").write_text(_CONFTEST, encoding="utf-8")
         (tmp_path / "pytest.ini").write_text(_INI, encoding="utf-8")
 
-        completed = subprocess.run(
+        completed = run_bounded(
             [sys.executable, "-m", "pytest", "-p", "no:randomly", "-v", "-rs"],
-            cwd=str(tmp_path),
-            capture_output=True,
-            text=True,
-            check=False,
-            stdin=subprocess.DEVNULL,
+            cwd=tmp_path,
             env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
         )
         output = completed.stdout + completed.stderr
@@ -426,13 +419,9 @@ class TestMQCDependencyCascade:
         (tmp_path / "conftest.py").write_text(_REVERSING_CONFTEST, encoding="utf-8")
         (tmp_path / "pytest.ini").write_text(_INI, encoding="utf-8")
 
-        completed = subprocess.run(
+        completed = run_bounded(
             [sys.executable, "-m", "pytest", "-p", "no:randomly", "-v", "-rs"],
-            cwd=str(tmp_path),
-            capture_output=True,
-            text=True,
-            check=False,
-            stdin=subprocess.DEVNULL,
+            cwd=tmp_path,
             env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
         )
         output = completed.stdout + completed.stderr
