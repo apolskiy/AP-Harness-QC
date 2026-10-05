@@ -390,6 +390,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_ING_0122` | A rule set declares the evaluation families it grades, ordered with the primary first, every value registered and none repeated, so a graded result is attributable to a task and the primary is unambiguous | test_taxonomy.md section 11.8 |
 | `MQC_REQ_HAR_CMN_0123` | A family or a tag selection resolves through the per-case index, so it returns the cases carrying that value and not the whole requirement row, and a value no case carries is refused by name | cmn_verdict_and_cli.md section 7.7.6 |
 | `MQC_REQ_HAR_CMN_0124` | Every workflow step that can dispatch to a provider names a spend ceiling, so a live run cannot spend without a bound against an account with a monthly limit | ci_pipeline.md section 8.2 |
+| `MQC_REQ_HAR_EXE_0125` | An engine the adapter registry does not know is refused, naming what is registered, so the engine vocabulary is the roster rather than a list in the option registry | tier2_execution.md section 3.5 |
+| `MQC_REQ_HAR_EXE_0126` | An engine that is not on the roster is refused when the run is configured, naming the rostered engines and both remedies, so a run cannot dispatch against an adapter default nobody configured | tier2_execution.md section 3.5.1 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---

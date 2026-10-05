@@ -46,6 +46,18 @@ engines:
     spacing_sec: 1.0
     observations: 3
     timeout_ms: 60000
+  grok:
+    # ROSTERED 2026-10-04 for its recording run. `grok-4` was the adapter
+    # default and the provider does not serve it: a models call with the funded
+    # key returns 14 models and that is not among them.
+    model: grok-4.7
+    # 1.0s, THE SAME UNVALIDATED STARTING POINT openai and claude use. No rate
+    # has been measured for this provider, and the gemini comment above records
+    # what happens when pacing is assumed to be the remedy for a 429 that is
+    # actually a plan quota.
+    spacing_sec: 1.0
+    observations: 3
+    timeout_ms: 60000
 
 # WHICH ENGINE GRADES. A3 decided this on 2026-09-19 and no file named it until
 # 2026-09-23, so the decision lived in prose while JudgeBinding defaulted to
@@ -77,6 +89,8 @@ judge:
 # ADAPTERS THAT SHIP AND ARE DELIBERATELY NOT SELECTABLE. A registered adapter
 # absent from the roster above cannot be selected, and before this existed
 # nothing said so: `grok` registered, declared XAI_API_KEY, and `--engine grok`
+# (Amended 2026-10-04: the adapter default was `grok-4`, which the
+#  provider does not serve at all. It is `grok-4.7` now.)
 # was refused as absent from a roster it was never added to.
 #
 # A SIBLING OF `engines:`, NOT AN ENTRY IN IT. `load_engines` refuses an entry
@@ -85,11 +99,9 @@ judge:
 # AN ENTRY CARRIES A REASON AND AN EXPIRY, exactly as `flag_coverage.yaml` does,
 # because a list with no expiry is where unproven things go to be forgotten.
 # `extensibility_standard.md` section 3.4.
-not_rostered:
-  grok:
-    reason: >-
-      The adapter and its conformance cases ship. No fixtures are recorded, no
-      credential is held and the model is unpriced, so a roster entry would
-      turn a declared gap into a run that refuses at preflight and reads as a
-      broken harness rather than as work not done.
-    expires_on: 2026-11-30
+# not_rostered: EMPTY SINCE 2026-10-04. grok was the only entry and it is
+# rostered above: the key is funded, `grok-4.7` is priced, and the
+# recording run is what the entry was waiting for. The key stays in the
+# schema and `unrostered_adapters` still reports a registered adapter that
+# is neither rostered nor declared absent, which is the check the entry
+# existed to satisfy rather than to avoid.

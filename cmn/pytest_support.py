@@ -55,6 +55,7 @@ from typing import Any, Final, Optional
 
 import pytest
 
+from cmn.config import load_engines, packaged_roster_path
 from cmn.options import Option, build_invocation, registered_options
 from cmn.prerequisites import Provenance, read_outcomes, write_outcomes
 
@@ -261,8 +262,62 @@ def configure_invocation(config: Any) -> None:
     config.mqc_invocation = invocation
     adopt_corpus_selection(config)
     adopt_artifact_destinations(config)
+    # THE ROSTER GATES THE RUN, not the adapter registry and not a list in the
+    # option registry. An engine with an adapter and no roster entry dispatched
+    # against the adapter's default model, which for grok was one the provider
+    # does not serve. Design `tier2_execution.md` section 3.5.
+    require_rostered_engine(
+        str(config.getoption("--engine", "") or ""),
+        load_engines(packaged_roster_path()),
+    )
     for warning in invocation.warnings:
         logger.warning("%s", warning)
+
+
+def require_rostered_engine(engine: str, roster: dict[str, Any]) -> None:
+    """Refuse an engine the roster does not configure.
+
+    **The roster is the list, and it is the expandable one.** Adding a provider
+    is an entry in ``config/engines.yaml``, and until it has one the engine does
+    not run. On the list it works, off the list it refuses, and the remedy is
+    named in the message.
+
+    **Two lists exist and only one of them can gate a run.** The adapter
+    registry says code exists for a provider; the roster says a model, an
+    observation count and a request spacing are configured for it. An engine
+    with an adapter and no roster entry resolved its model to ``None`` and
+    dispatched against the **adapter's own default**, which is how
+    ``--engine grok`` would have run against ``grok-4``: a model the provider
+    does not serve, failing per case rather than refusing once.
+
+    **Refusing once is the point.** A 404 on every case reads as a broken
+    harness or an unavailable provider; one refusal naming the roster reads as
+    configuration not yet done, which is what it is.
+
+    Design: ``tier2_execution.md`` section 3.5.
+
+    Args:
+        engine (str): The engine a run named.
+        roster (dict): The loaded engine roster.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PREFLIGHT_FAILURE`` when the engine has no
+            roster entry, naming every engine that does. **A preflight code
+            rather than a parser one**: the flag's value is well formed and the
+            configuration for it is absent, which is an environment fact.
+    """
+    if not engine or engine in roster:
+        return
+    raise ValueError(
+        f"QC_HARNESS_PREFLIGHT_FAILURE: engine {engine!r} is not on the roster, "
+        f"so no model, observation count or request spacing is configured for "
+        f"it and a run would dispatch against the adapter's own default. "
+        f"Rostered engines are {sorted(roster)}. Add an entry to "
+        f"config/engines.yaml, or declare its absence under not_rostered"
+    )
 
 
 def registered_priority_levels() -> frozenset[int]:

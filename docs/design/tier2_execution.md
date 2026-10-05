@@ -163,6 +163,60 @@ credential**, which is what keeps `grok` from spending an OpenAI key, and it
 holds without any configuration file learning a secret.
 
 
+#### 3.5.1 The roster is the list, and it gates the run
+
+Added 2026-10-04, after rostering a fourth engine found two defects one after
+the other.
+
+**Adding a provider is an entry in `config/engines.yaml`.** On the list it runs;
+off the list it refuses, naming what is on it. That is the whole of the rule and
+it is what makes the engine set expandable without touching code.
+
+##### 3.5.1.1 Two lists, and the weaker one was doing the gating
+
+| List | Says | Lives in |
+|---|---|---|
+| The adapter registry | Code exists for this provider | `execution/adapters/registry.py` |
+| **The roster** | A model, an observation count and a request spacing are configured | `config/engines.yaml` |
+
+**An engine with an adapter and no roster entry ran.** `dispatch_plan` resolves
+`model=roster[engine].model if engine in roster else None`, and a plan carrying
+no model dispatches against the **adapter's own default**. For grok that default
+was `grok-4`, which the provider does not serve, so `--engine grok` before
+rostering would have produced a 404 on every case.
+
+| | |
+|---|---|
+| What it looked like | A broken harness, or a provider outage: a 404 per case, 69 times |
+| What it was | Configuration not yet done |
+| What it cost to tell apart | Reading `dispatch_plan`, because nothing said so |
+
+**Refusing once is the whole difference.** `require_rostered_engine` raises
+`QC_HARNESS_PREFLIGHT_FAILURE` when the run is configured, before anything is
+collected, and names every rostered engine plus both remedies: add an entry, or
+declare the absence under `not_rostered`.
+
+**A preflight code rather than a parser one**, deliberately. The flag's value is
+well formed; what is missing is configuration for it, which is an environment
+fact rather than a typo.
+
+##### 3.5.1.2 The flag stopped enumerating, which is what exposed this
+
+`--engine` carried `choices=("gemini", "openai", "claude")` until the same day,
+so rostering a fourth engine made the flag refuse one the roster named:
+`invalid choice: 'grok'` against a configuration that listed it.
+
+**The argument against enumerating was already written one flag away.**
+`--judge-engine` carries it: "NO choices TUPLE, deliberately. An enumerated list
+here would have to be edited whenever an adapter is added, which is the coupling
+the capability gate exists to avoid." Nobody had applied it to `--engine`.
+
+**Removing the tuple revealed the real gap rather than creating it.** With the
+enumeration gone, an engine off the roster reached `dispatch_plan` for the first
+time, and `dispatch_plan` had always been willing to run it. The enumeration had
+been hiding a missing gate by refusing three engines' worth of values for the
+wrong reason.
+
 ### 3.6 A role is derived, never listed
 
 Added 2026-09-25, alongside section 3.3.

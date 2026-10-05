@@ -8480,3 +8480,201 @@ caps and the credential locations recorded as sections 1.1 and 1.2.
 Harness 688 passing, pylint 10.00/10 exit 0. Consumer 84 preconditions passing,
 pylint 10.00/10 exit 0. Grok remains the one unrostered engine: the key exists,
 and a price row and a recording run do not.
+
+## 2026-10-04: Grok priced, and the model it defaulted to does not exist
+
+The account owner funded the xAI key and asked for grok to be priced.
+
+### Asking the provider found a 404 nobody had reached
+
+The adapter defaulted to `grok-4`. **A models call with the funded key returns
+14 models and `grok-4` is not among them.** Every `--engine grok` run would have
+failed on a model name, and nothing had caught it because no run had been fired:
+the engine sat in `not_rostered` precisely so that an unfunded engine could not
+be mistaken for a broken harness.
+
+**This is the second pinned model settled by asking the provider rather than by
+reading a document**, the first being `gemini-3.8-flash` under A3.1, where the
+provider's own 404 named the replacement. A documented model list and a served
+model list are different objects.
+
+`grok-4.7` is pinned instead, chosen by the account owner as the latest.
+
+### The price, and the tier this schema cannot hold
+
+| | |
+|---|---|
+| Input | $2.00 per million |
+| Output | $6.00 per million |
+| Cached input | $0.50 per million |
+| Source | `https://docs.x.ai/docs/models`, read 2026-10-04 |
+
+**The provider prices by context length and the schema does not.** xAI charges
+double above 200k tokens of context, $4.00 and $12.00, and this file's windows
+are keyed by date alone.
+
+**Recorded rather than solved, and the reasoning is the cost report.** The
+largest input this corpus has measured is in the hundreds of tokens, three
+orders of magnitude below the threshold, so the under-200k rate is the one that
+applies. Pricing at the higher tier to be safe would double every reported grok
+cost to guard against a prompt this corpus cannot produce, and the per-family
+figure exists to say which family is expensive. Should a corpus ever approach
+200k, the schema needs a context dimension and a run is under-counted until it
+has one.
+
+### What grok still needs, which is one thing
+
+**A recording run.** The adapter ships, it is enrolled in the conformance
+battery automatically, the key is funded, the price is read. With no fixtures a
+roster entry would make all 69 graded cases live calls on every observation, so
+`not_rostered` holds until a recording exists. Its declared reason is narrowed
+accordingly: two of its three grounds are gone.
+
+---
+
+## 2026-10-04: The heredoc rule was right and its stated reason was wrong
+
+`code-style.md` section 8.1 has prohibited writing escaped content through a
+shell heredoc since 2026-09-23, after four failures in one session. The
+prohibition held. **The explanation attached to it did not, and it was corrected
+by measuring rather than by reasoning.**
+
+### What the section claimed, and what is true
+
+It said the shell, the heredoc, Python's string literal parsing and the target
+format each interpret escapes and a value has to survive all four.
+
+**The shell and the heredoc are innocent.** A quoted delimiter is required by
+POSIX to pass its body through byte for byte. Probed by writing a known body and
+reading the file back with `od -c`:
+
+| Written | Landed |
+|---|---|
+| One backslash and `n` | Unchanged |
+| **Two backslashes and `n`** | **One backslash and `n`** |
+| **Four backslashes and `n`** | **Two backslashes and `n`** |
+| `$HOME` | Unexpanded, verbatim |
+| A backtick pair | Verbatim |
+
+**Variables and backticks survive and backslashes are halved.** That rules out
+shell expansion and rules out a general unquoting: one level of backslash
+unescaping happens before the shell is reached, in the layer carrying the
+command. Reported to the tool's vendor with the probe.
+
+### Why correcting a reason is worth a log entry
+
+**A rule with a wrong reason invites working around the reason.** A reader told
+the shell is at fault reaches for `printf %q`, a quoted delimiter, or another
+layer of escaping, and all three fail, because none of them touches the layer
+that strips. The remedy is to stop routing escaped content through a heredoc at
+all, and that only follows from the true cause.
+
+This is the same shape as the `--tag` gap recorded earlier today, whose
+documented blocker was an absent tag vocabulary when 79 tags existed and the
+real blocker was that nothing could refuse one. **In both cases the record was
+honest about there being a problem and wrong about what it was**, and in both the
+wrong reason pointed at a remedy that would not have worked. A reason is not
+decoration; it is what the next person acts on.
+
+### What the workarounds cost
+
+**The failure is cheap to hit and expensive to work around.** Four instances in
+this session alone, each following the same pattern: a generated script fails on
+a mangled escape, the failure is diagnosed, and the script is rewritten through
+a tool that does not strip. Conservatively three round trips each.
+
+| Attempt | Outcome |
+|---|---|
+| A design fragment through a heredoc | Shell reported an unterminated quote |
+| A test case body | `SyntaxError: unterminated string literal` |
+| A message trimmer carrying frame markers | `SyntaxError`, a newline where an escape was written |
+| A splice repair, itself fixing an earlier instance | The search string no longer matched |
+
+**The fourth is the instructive one.** A heredoc was used to repair a script that
+a heredoc had broken, and the repair was mangled the same way. A defect whose
+workaround is subject to the defect consumes attempts until somebody stops using
+the mechanism entirely, which is what the rule says to do and what it took four
+rounds to actually do.
+
+**It cost four distinct failures to find**, one of which was silent: a regex that
+lost an escape passed, reported nothing, and left a check that looked like
+coverage. That is the one that matters, and it is why the rule survived the
+correction unchanged.
+
+### State
+
+Harness 688 passing, pylint 10.00/10 exit 0.
+
+## 2026-10-04: The fourth engine recorded, and the list that was not gating
+
+Grok is recorded. **Four engines, one corpus, one judge**, which is what A3
+wanted: several candidate families against one judge so that the judge's
+treatment of output from its own provider can be compared with its treatment of
+the others.
+
+| Engine | Model | Findings |
+|---|---|---|
+| gemini | `gemini-3.8-flash` | 2 |
+| grok | `grok-4.7` | **4** |
+| openai | `gpt-4.1-2025-04-14` | 8 |
+| claude | `claude-opus-5-5` | 10 |
+
+**One case fails on every engine.** `134205`, which asks whether a model
+overstates a sourced figure, failed on all four. That is a finding about the
+task rather than about any provider, and it is only visible with more than one
+engine recorded.
+
+### The run
+
+25 minutes live, 64 task directories and 102 judgements written, and it
+**replays in 2 seconds** reproducing the same four failures exactly. Cost well
+under the $2.00 ceiling it carried: grok reports a large cached input fraction,
+1152 of 1327 tokens on the probe case, billed at a quarter of the uncached rate.
+
+**The instrument was verified on one case before the set.** One live case, three
+observations, `resolved_model=grok-4.7`, then the full run. A 25-minute run that
+fails on case 60 for a configuration reason is 25 minutes nobody gets back.
+
+### Two defects, one after the other, both about which list decides
+
+**`--engine` enumerated three engines** in the option registry, so rostering a
+fourth made the flag refuse an engine `config/engines.yaml` named: `invalid
+choice: 'grok'` against a configuration that listed it.
+
+**The argument against enumerating was already written one flag away.**
+`--judge-engine` carries it verbatim: "NO choices TUPLE, deliberately. An
+enumerated list here would have to be edited whenever an adapter is added,
+which is the coupling the capability gate exists to avoid." Nobody had applied
+it to `--engine`.
+
+**Removing the tuple revealed the real gap rather than creating it.** With the
+enumeration gone, an engine off the roster reached `dispatch_plan` for the first
+time, and `dispatch_plan` had always been willing to run it:
+`model=roster[engine].model if engine in roster else None`. A plan with no model
+dispatches against the **adapter's own default**, which for grok was `grok-4`.
+
+| | |
+|---|---|
+| What `--engine grok` would have done before rostering | Dispatched against `grok-4`, which the provider does not serve: a 404 on every case |
+| What that reads as | A broken harness, or a provider outage |
+| What it was | Configuration not yet done |
+| What it does now | Refuses once at configure time, naming the rostered engines and both remedies |
+
+**The enumeration had been hiding a missing gate** by refusing three engines'
+worth of values for the wrong reason. That is the pattern worth naming: a
+guard in the wrong place can mask the absence of the right one, and removing it
+is what surfaces the gap.
+
+**Two lists exist and only one can gate a run.** The adapter registry says code
+exists for a provider; the roster says a model, an observation count and a
+request spacing are configured. The roster is the list, and adding a provider is
+an entry in it.
+
+`MQC_CMN_UNI_112149` covers the registry refusal and `112150` the roster gate,
+both in a new module because the two pushed `mqc_uni_cli.py` past the
+thousand-line ceiling. Injected: disabling the gate fails `112150`.
+
+### State
+
+Harness 689 passing, pylint 10.00/10 exit 0. Consumer 84 preconditions passing,
+pylint 10.00/10 exit 0. 24 findings across four engines, none filed.

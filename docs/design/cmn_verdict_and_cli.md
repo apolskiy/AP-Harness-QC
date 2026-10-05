@@ -2061,6 +2061,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112146` | N | `an_identifier_outside_its_module_block_is_reported` |
 | `112147` | P | `a_pass_reports_the_bands_it_excluded` |
 | `112148` | N | `a_required_field_the_code_does_not_emit_is_reported` |
+| `112149` | N | `an_engine_absent_from_the_registry_is_refused` |
+| `112150` | N | `an_engine_off_the_roster_is_refused_before_it_runs` |
 | `112241` | P | `a_case_in_two_families_publishes_both` |
 | `112242` | P | `a_shared_case_counts_toward_every_family_it_addresses` |
 | `112243` | N | `a_repeated_family_value_is_reported` |
@@ -2147,7 +2149,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112518` | N | `a_credential_no_engine_reads_is_reported` |
 | `112519` | P | `the_engines_declare_the_names_the_check_reads` |
 
-**Inventory: 235 cases, 128 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 237 cases, 130 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

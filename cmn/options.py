@@ -76,11 +76,19 @@ class Option:
 
 
 _OPTIONS: Final[tuple[Option, ...]] = (
+    # NO choices TUPLE, FOR THE REASON `--judge-engine` ALREADY GIVES BELOW.
+    # It carried one until 2026-10-04, enumerating gemini, openai and claude,
+    # so rostering `grok` left the flag refusing an engine the roster named:
+    # "invalid choice: 'grok'" against a `config/engines.yaml` that listed it.
+    #
+    # THE ARGUMENT WAS ALREADY WRITTEN DOWN, one flag away, and nobody applied
+    # it here: an enumerated list has to be edited whenever an adapter is
+    # added, which is the coupling the capability gate exists to avoid. The
+    # roster is the registry and preflight refuses an engine absent from it.
     Option(
         name="engine",
         default="gemini",
-        choices=("gemini", "openai", "claude"),
-        help_text="Which provider to dispatch against",
+        help_text="Which provider to dispatch against, from the engine roster",
         warns_when_defaulted=True,
     ),
     Option(

@@ -56,6 +56,7 @@ a complete list nobody opens prevents nothing.
 | `docs/OPEN_QUESTIONS.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog** |
 | `CHANGELOG.md` | **How the project arrived at its current shape.** The history a reader needs to understand why something is the way it is |
 | `CLAUDE_LOG.md` | Decisions and their reasoning in date order, written for an external reader. What was found, what it broke, what the injection showed |
+| `docs/problems_found.md` | **The index over the log**, grouping what this project found by the shape of the defect: model findings, machinery that was right and unreachable, checks that fed themselves, records wrong about their own reason, and tooling defects |
 
 **`README.md`, `CHANGELOG.md` and `CLAUDE_LOG.md` divide by time, not by topic.**
 The README says what is true now, the changelog says how it became true, and the

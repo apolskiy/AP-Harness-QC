@@ -215,9 +215,38 @@ The harness is verified on Ubuntu and Windows (A18). These are not style prefere
 Added 2026-09-23 after four failures in one working session.
 
 **A shell heredoc is a single point of failure for any content carrying a
-backslash.** The shell, the heredoc, Python's string literal parsing and the
-target format each interpret escapes, and a value has to survive all four
-unchanged. It usually does not.
+backslash.** The rule below has held since it was written; **the reason given
+for it was wrong, and was corrected on 2026-10-04 by isolating it.**
+
+The original explanation was that the shell, the heredoc, Python's string
+literal parsing and the target format each interpret escapes and a value has to
+survive all four. **The shell and the heredoc are innocent.** A quoted
+delimiter is required by POSIX to pass its body through byte for byte, and it
+does: `$HOME` and a backtick both survive verbatim.
+
+**What is eaten is backslashes, specifically, and before the shell sees them.**
+Probed by writing a known body through a quoted heredoc and reading the file
+back with `od -c`:
+
+| Written | Landed |
+|---|---|
+| `\n` | `\n` |
+| `\\n` | **`\n`** |
+| `\\\\n` | **`\\n`** |
+| `$HOME` | `$HOME`, unexpanded |
+| A backtick pair | Verbatim |
+
+One level of backslash unescaping happens in the tool layer that carries the
+command, not in bash. So no amount of shell quoting fixes it, which is exactly
+why the remedy below is to stop routing escaped content through a heredoc at
+all rather than to quote it more carefully.
+
+**Why the correction matters rather than being pedantry.** A rule with a wrong
+reason invites somebody to work around the reason: a reader told the shell is at
+fault will reach for `printf %q`, a quoted delimiter or an extra layer of
+escaping, and all three fail because none of them touches the layer that is
+actually stripping. This is the same failure mode section 7.7.5 records about a
+gap whose recorded reason was wrong: the reason is what a reader acts on.
 
 | What was written | What landed | Caught by |
 |---|---|---|
@@ -232,9 +261,10 @@ dollar sign is written with the Write or Edit tool, or by a script file invoked
 by path. It is never passed through a `<<'EOF'` block.
 
 **Why a script file and not a quoted heredoc.** A quoted delimiter stops the
-shell expanding variables and does not stop the heredoc from being one more
-layer that has to be got right. A file on disk is read by exactly one parser,
-the one that will run it.
+shell expanding variables and does not stop a backslash being halved before
+bash is reached, because that happens upstream of the shell entirely. A file
+written with the Write tool is read by exactly one parser, the one that will run
+it, and no transport sits between.
 
 **Selecting an edit target by searching for a substring is the same class of
 error.** A repair in this session searched for a line containing `pattern:` and

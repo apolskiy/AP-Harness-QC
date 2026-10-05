@@ -106,6 +106,26 @@ models:
     # provider's own usage figures at run time.
     tokenizer_inflates_estimates_by: 0.30
 
+  # GROK-4.7, PRICED 2026-10-04 when the key was funded. The provider does not
+  # serve `grok-4` at all: a models call with the funded key returns 14 models
+  # and that is not among them, so the adapter default was a 404 waiting to
+  # happen. This is the same way `gemini-3.8-flash` came to be pinned (A3.1).
+  grok-4.7:
+    source: https://docs.x.ai/docs/models
+    tiers:
+      - priced_on: 2026-10-04
+        effective_from: 2026-01-01
+        # THE UNDER-200K RATES, which are the ones this corpus bills at. The
+        # provider prices by context length as well as by date, and the window
+        # list in this schema is date-keyed only, so the second tier cannot be
+        # expressed here. See the note below the table.
+        input: 2.00
+        output: 6.00
+        cached_input: 0.50
+    # NO SEPARATE REASONING CHARGE is published for this model, so thinking is
+    # billed as output like every other model in this file.
+    thinking_billed_as: output
+
 # THE LIST OF MODELS NOT PRICED IS NOW EMPTY, and the heading stays so the rule
 # it states stays visible. No credential is provisioned for an engine whose
 # models are absent from this file, and such an engine runs in replay, which
@@ -121,5 +141,25 @@ models:
 # becomes priceable the moment somebody can spend against it, and the funding is
 # what makes it so.
 #
-# XAI_API_KEY REMAINS UNFUNDED, so grok's models are the live example of the
-# rule rather than a gap in it.
+# XAI_API_KEY WAS FUNDED ON 2026-10-04 and `grok-4.7` is priced above, so the
+# list is empty again and the rule has no live example at present. That is the
+# healthy state: a model is priced when somebody can spend against it, and
+# every engine with a funded key now has a price.
+#
+# TWO THINGS GROK STILL NEEDS BEFORE IT IS ROSTERED, and neither is a price:
+# recorded fixtures, and an entry under `engines:` in `config/engines.yaml`.
+# `not_rostered` carries its declared absence until then.
+#
+# THE PROVIDER PRICES BY CONTEXT LENGTH AND THIS SCHEMA DOES NOT. xAI charges
+# double above 200k tokens of context: $4.00 and $12.00 against the $2.00 and
+# $6.00 recorded above. The window list here is keyed by date, so the second
+# tier cannot be expressed, and the figures above are the under-200k rates.
+#
+# WHY THAT IS RECORDED RATHER THAN SOLVED. The largest input this corpus has
+# measured is in the hundreds of tokens, three orders of magnitude below the
+# threshold, so the rate above is the one that actually applies and the gap is
+# theoretical. Pricing at the higher tier instead would double every reported
+# grok cost to guard against a prompt this corpus cannot produce, and the cost
+# report exists to say which family is expensive. Should a corpus ever approach
+# 200k, this schema needs a context dimension and a run would be under-counted
+# until it has one.

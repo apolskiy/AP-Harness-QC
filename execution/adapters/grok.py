@@ -26,7 +26,11 @@ logger = logging.getLogger(__name__)
 _ENGINE_NAME: Final[str] = "grok"
 
 # Supplied at execution time per B8. The fallback when configuration names none.
-_DEFAULT_MODEL: Final[str] = "grok-4"
+# CHANGED 2026-10-04, FROM `grok-4`, WHICH THE PROVIDER DOES NOT SERVE. A
+# models call with the funded key returns 14 models and `grok-4` is not one
+# of them, so the previous default was a 404 nobody had reached yet. This is
+# the same discovery A3.1 records for `gemini-3.8-flash`.
+_DEFAULT_MODEL: Final[str] = "grok-4.7"
 
 # xAI's Chat Completions endpoint. THE ONLY FIELD THAT ROUTES A REQUEST: an
 # engine that omits it reaches OpenAI with an xAI key, which fails as an

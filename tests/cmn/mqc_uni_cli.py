@@ -242,8 +242,15 @@ class TestMQCOptionRegistry:
             expected = list(declared.choices) if declared.choices else None
             assert plugin.choices[declared.cli_flag] == expected
 
+    # `engine` LEFT THIS LIST ON 2026-10-04 when its choices tuple was removed.
+    # An enumerated list had to be edited whenever an adapter was added, which
+    # is the coupling `--judge-engine` had already been written to avoid, and
+    # rostering grok left the flag refusing an engine the roster named. An
+    # unknown engine is now refused by the adapter registry instead, which
+    # `112149` covers: later than parse time, and against the registry rather
+    # than against a copy of it.
     @pytest.mark.parametrize(
-        "name,value", [("engine", "gemeni"), ("mode", "cached"), ("extra-columns", "keep")]
+        "name,value", [("mode", "cached"), ("extra-columns", "keep")]
     )
     def MQC_CMN_UNI_112111_invalid_enumerated_flag_value_is_rejected_at_parse_time(
         self, name: str, value: Any
@@ -275,8 +282,15 @@ class TestMQCOptionRegistry:
         """
         parser = build_parser()
         with pytest.raises(SystemExit) as caught:
-            parser.parse_args(["results.json", "--engine", "gemeni"])
+            parser.parse_args(["results.json", "--mode", "cached"])
         assert caught.value.code == EXIT_ARGUMENT_ERROR
+
+        # AND AN UNENUMERATED FLAG IS NOT REJECTED HERE, which is the half that
+        # changed: `--engine` takes whatever the roster names, so argparse must
+        # accept a value it cannot know about and the registry refuses later.
+        assert parser.parse_args(
+            ["results.json", "--engine", "an-engine-added-tomorrow"]
+        ).engine == "an-engine-added-tomorrow"
 
     def MQC_CMN_UNI_112102_cli_defaults_are_recorded_in_metadata(self) -> None:
         """A run that took a default and one that named it produced one result.

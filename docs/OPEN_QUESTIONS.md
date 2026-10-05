@@ -36,13 +36,27 @@ to make is recorded against three engines.
 | `gemini` | **Recorded and reported.** 2 findings in `config/findings/gemini.yaml` | Nothing |
 | `openai` | **Recorded and reported** against `gpt-4.1-2025-04-14`. 8 findings | Nothing |
 | `claude` | **Recorded and reported** against `claude-opus-5-5`, which is now priced. 10 findings | Nothing |
-| `grok` | **Key held**, in the local `.env` and not in Actions. Still unrostered | A price entry for its models, recorded fixtures, and the `XAI_API_KEY` secret. The key alone does not roster it |
+| `grok` | **Recorded and reported** against `grok-4.7`, 2026-10-04. 4 findings | Nothing |
 
-**Grok is the one engine still short, and the key was the smaller half.** The
-adapter and its conformance cases ship and it is enrolled in the battery
-automatically, verified 2026-10-04. What is missing is a price row and a
-recording run; the spend ceiling fails closed on an unpriced model, so a run
-carrying `--max-spend` against grok refuses by design.
+**All four engines are now recorded**, which is what A3 wanted: several
+candidate families against one judge, so that the judge's treatment of output
+from its own provider is comparable with its treatment of the others.
+
+**The grok recording took 25 minutes live and replays in 2 seconds.** 64 task
+directories and 102 judgements written; 4 findings, the fewest of the four. The
+run cost well under the $2.00 ceiling it carried.
+
+**The model it defaulted to does not exist.** A models call with the funded key
+returns 14 models and `grok-4` is not among them, so the adapter default was a
+404 nobody had reached. `grok-4.7` is pinned instead, chosen by the account
+owner as the latest. This is the second time a pinned model was settled by
+asking the provider rather than by reading a document, the first being
+`gemini-3.8-flash` under A3.1.
+
+**Recording it costs about what the others did.** At $2.00 and $6.00 per million
+against a measured six cents for the `SEC` family, a full recording run for grok
+is cents, and the $2.00 per-run ceiling now wired into every spending leg bounds
+it.
 
 ### 1.1 What the account caps are, and what the project does about them
 
@@ -169,7 +183,7 @@ none is the kind of call I would want made only once.
 |---|---|
 | Harness | 687 passing, pylint 10.00/10 |
 | Cases | 83 preconditions, 69 graded, pylint 10.00/10 |
-| Findings | 20 open: gemini 2, openai 8, claude 10, all `QC_LLM_*` or `QC_SEC_*` |
+| Findings | 24 open: gemini 2, grok 4, openai 8, claude 10, all `QC_LLM_*` or `QC_SEC_*` |
 | Graded result | 2 findings about `gemini-3.8-flash`, one P1 and one P2, reproducing on both platforms |
 | Consumer gate | 11 jobs: resolve, lint, preconditions and three priority bands, each per platform |
 | Graded inventory | 69 inventoried, 69 collected |
