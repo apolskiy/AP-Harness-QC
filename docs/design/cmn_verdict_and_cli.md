@@ -803,6 +803,44 @@ shape of the project cannot do that without them.
 the design inventories and the requirement count is the matrix's own row count, so
 there is no new number to maintain — which is what made the first two drift.
 
+#### 4.9.8 This repository holds no graded case, and the README has to say so
+
+Added 2026-10-05 at the project owner's request, because the front page invited
+an inference it does not support.
+
+**The Status table read `Precondition suite (UNI, SYS) | 549 cases, all
+passing`.** A reader who has been told this is a foundation-model QC project
+reads 549 passing cases as a result about models. It is not one. Every case in
+this repository measures the instrument: `UNI` exercises our modules in
+isolation, `SYS` drives the harness end to end over recorded transcripts, and
+**neither sends anything to a provider**.
+
+| Layer | `graded` | Defined in | A failure is |
+|---|---|---|---|
+| `UNI`, `SYS` | False | here | **our defect** |
+| `EVAL`, `TOOL`, `SEC` | True | `AP-Model-QC` | **a finding about a model** |
+
+`cmn/layers.py` already carries this distinction as the `graded` flag, and its
+docstring already states the consequence — "tests our harness, so a failure is
+our defect". The separation was in the registry and not on the front page.
+
+**So the claim is now checked rather than asserted.** `112327` reports any case
+defined in this repository whose layer is graded. It reads the flag from the
+layer registry rather than naming `EVAL`, `TOOL` and `SEC`, so a graded layer
+added tomorrow is covered the day it is registered.
+
+**What it deliberately does not forbid is the string.** Harness cases construct
+synthetic observations carrying `layer="EVAL"` in order to exercise the
+machinery that handles graded results, and that is the correct way to test it:
+the plumbing is tested with fabricated data and never with a model. The check
+looks at the layer token in a case's own identifier, which is the thing that
+would make this repository a place where models are measured.
+
+**The pairing rule this depends on already exists.** A case's identifier encodes
+its layer positionally (`1 L M C NN`), and `112307` already enforces that the
+token in the name agrees with the digit. Without that, reading the layer from
+the name would be reading a label rather than a fact.
+
 ---
 
 ## 5. Result Metadata Emission
@@ -2150,8 +2188,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112521` | N | `a_generated_file_in_a_skipped_tree_is_not_read` |
 | `112518` | N | `a_credential_no_engine_reads_is_reported` |
 | `112519` | P | `the_engines_declare_the_names_the_check_reads` |
+| `112327` | N | `a_graded_case_defined_here_is_reported` |
 
-**Inventory: 239 cases, 132 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 240 cases, 133 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

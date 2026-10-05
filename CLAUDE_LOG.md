@@ -8820,3 +8820,68 @@ than a convention.
 ### State
 
 Harness 691 passing, pylint 10.00/10 exit 0 on the canonical command.
+
+## 2026-10-05: 550 passing cases say nothing about a model, and the front page implied otherwise
+
+At the project owner's request, because the Status table invited an inference it
+does not support.
+
+### What it said
+
+```
+| Precondition suite (UNI, SYS) | **549 cases, all passing** |
+```
+
+A reader who has been told this is a foundation-model QC project reads 549
+passing cases as a result about models. **It is not one.** `UNI` exercises our
+modules in isolation, `SYS` drives the harness end to end over recorded
+transcripts, and neither reaches a provider.
+
+| Layer | `graded` | Defined in | A failure is |
+|---|---|---|---|
+| `UNI`, `SYS` | False | here | **our defect** |
+| `EVAL`, `TOOL`, `SEC` | True | the case repository | **a finding about a model** |
+
+**The distinction already existed in the registry and not on the front page.**
+`cmn/layers.py` carries `graded` as a flag, and its docstring already says the
+consequence: "tests our harness, so a failure is our defect". The README was
+the only place a reader meets the project first, and it was the one place that
+did not say this.
+
+### The claim is checked, not asserted
+
+`MQC_CMN_UNI_112327` reports any case defined here whose layer is graded. It
+reads which layers are graded **from the registry rather than naming them**, so
+a graded layer registered later is covered the day it is added.
+
+**It deliberately does not forbid the string `EVAL`.** Cases here construct
+synthetic observations in graded layers on purpose, to exercise the machinery
+that handles graded results; that plumbing is tested with fabricated data and
+never with a provider. What is checked is the layer token in a case's own
+identifier, and `112307` separately establishes that the token agrees with the
+positional digit — without which this would read a label rather than a fact.
+
+**Two vacuity guards.** The check refuses to pass if the registry reports no
+graded layer, and if the scan finds fewer than 400 case definitions. Both are
+the failure this project has found fourteen times: a mechanism that passes by
+having nothing to look at.
+
+### The bookkeeping this forced, which is the point of it
+
+Adding one case moved four figures, and every one of them is checked:
+
+| | |
+|---|---|
+| `cmn_verdict_and_cli.md` inventory | 239 → 240 cases |
+| `DESIGN.md` index | 239 → 240 |
+| README case count | 549 → **550** |
+| README requirement count | 241 → **242** |
+
+**Three separate checks reported the three I would have missed.** `112203`
+compares a design's total to its own rows, `112314` compares the index to the
+design, and `112323` compares the README to both. The order held: design
+inventory, then the matrix, then the plan, then the implementation.
+
+### State
+
+692 passing, pylint 10.00/10 exit 0.

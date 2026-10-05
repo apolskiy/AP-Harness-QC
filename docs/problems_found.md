@@ -64,8 +64,13 @@ only visible with more than one engine recorded.
 **The inconsistency findings are the ones that needed a method.** A single
 sample cannot produce them: the project takes three observations per case and
 escalates to five on a single disagreement, and a case that passes twice and
-fails once is a finding rather than a pass. That decision is what makes eleven
-of the twenty visible at all.
+fails once is a finding rather than a pass. That decision is what makes
+**fourteen of the twenty-four** visible at all.
+
+**This figure was itself stale**, reading eleven of twenty from when three
+engines were recorded; grok's four findings arrived on 2026-10-04 and the
+sentence did not move. It is now recomputed from the registers by the case
+repository's README check.
 
 ---
 

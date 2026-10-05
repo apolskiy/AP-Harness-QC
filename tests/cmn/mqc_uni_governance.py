@@ -22,6 +22,7 @@ from typing import Final, Optional
 import pytest
 
 from cmn.config import forbidden_keys
+from cmn.layers import layer_properties, registered_layers
 from cmn.traceability import MatrixRow, untraced_tests
 
 pytestmark = pytest.mark.unit
@@ -568,6 +569,68 @@ class TestMQCIndexAgainstDesigns:
         assert not disagreements, (
             f"{len(disagreements)} README figure(s) disagree with what they "
             f"describe: {'; '.join(disagreements)}"
+        )
+
+    def MQC_CMN_UNI_112327_a_graded_case_defined_here_is_reported(self) -> None:
+        """No case defined in this repository belongs to a graded layer.
+
+        **A green suite here is a statement about the instrument, not about any
+        model.** `UNI` exercises our modules in isolation and `SYS` drives the
+        harness end to end over recorded transcripts; neither reaches a
+        provider. The graded layers live in `AP-Model-QC`, where a failure is a
+        finding about a vendor's product rather than our defect.
+
+        **The README invited the other reading**, stating 549 passing cases on
+        the front page of a project described as foundation-model QC, which is
+        why this was added on 2026-10-05.
+
+        **Graded is read from the layer registry, never named here.** A graded
+        layer registered tomorrow is covered the day it is added, which is the
+        arrangement `cmn/layers.py` exists to make possible.
+
+        **It does not forbid the string `EVAL`.** Cases here construct synthetic
+        observations in graded layers deliberately, to exercise the machinery
+        that handles graded results: that plumbing is tested with fabricated
+        data and never with a model. What is checked is the layer token in a
+        case's own identifier, and `112307` separately establishes that the
+        token agrees with the positional digit, without which this would be
+        reading a label rather than a fact.
+
+        Design: ``cmn_verdict_and_cli.md`` section 4.9.8.
+
+        Returns:
+            None
+        """
+        graded = {
+            layer for layer in registered_layers()
+            if layer_properties(layer).graded
+        }
+        assert graded, (
+            "the layer registry reports no graded layer, so this check would "
+            "pass by having nothing to look for"
+        )
+
+        offenders: list[str] = []
+        scanned = 0
+        for source in sorted((_REPOSITORY_ROOT / "tests").rglob("*.py")):
+            for _module, layer, number, behaviour in _defined_callables(source):
+                scanned += 1
+                if layer in graded:
+                    offenders.append(
+                        f"{source.relative_to(_REPOSITORY_ROOT)}: {number} "
+                        f"{behaviour} is in graded layer {layer}"
+                    )
+
+        # THE SCAN FOUND CASES, which a check passing by reading nothing would
+        # not. The same guard `112325` relies on.
+        assert scanned > 400, (
+            f"only {scanned} case definitions were found, so the scanner no "
+            f"longer reads this suite and nothing here is being checked"
+        )
+        assert not offenders, (
+            f"{len(offenders)} case(s) defined in the harness repository "
+            f"belong to a graded layer, so a green run here would carry a "
+            f"claim about a model: {offenders}"
         )
 
     def MQC_CMN_UNI_112325_an_inventory_row_without_an_implementation_is_reported(

@@ -23,16 +23,44 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Precondition suite (`UNI`, `SYS`) | **549 cases, all passing** |
+| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **550 cases, all passing**. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 241, none uncovered, none untraced |
+| Requirements traced | 242, none uncovered, none untraced |
 | Specified and not yet built | Recorded as deferrals, not as silence |
 
 Every case is inventoried in a design document before it is implemented, traced
 in `docs/testing/rtm_harness.csv`, and checked in both directions by
 `MQC_CMN_UNI_112303`, `112305`, `112306`, `112226` and `112313`. That order is
 enforced mechanically rather than by intention.
+
+## What A Green Suite Here Means, And What It Does Not
+
+**Every test in this repository is a test of the instrument.** A green run says
+the harness dispatches, judges, records and reports correctly. **It says nothing
+whatsoever about any model.**
+
+| Layer | Defined in | Subject | A failure is |
+|---|---|---|---|
+| `UNI` | here | our own modules, in isolation | **our defect** |
+| `SYS` | here | this harness end to end, over recorded transcripts | **our defect** |
+| `EVAL`, `TOOL`, `SEC` | [AP-Model-QC](https://github.com/apolskiy/AP-Model-QC) | a vendor's model against graded cases | **a finding about that model** |
+
+**This repository defines no graded case, and `MQC_CMN_UNI_112327` enforces
+that.** It reads which layers are graded from the layer registry rather than
+naming them, so the rule covers a graded layer added later. Where a case here
+carries `layer="EVAL"`, it is a fabricated observation exercising the machinery
+that handles graded results — the plumbing is tested with synthetic data and
+never with a provider.
+
+**That separation is the reason there are two repositories.** A finding about a
+model is only worth filing if the instrument that produced it is known-good, and
+establishing that is this repository's entire job. It is a precondition for the
+findings, not a result alongside them.
+
+**The model results live in the other repository**, where four gates are
+expected to be red because they found something. Its README states how many
+cases run against each model and what each red means.
 
 ## Running It
 
