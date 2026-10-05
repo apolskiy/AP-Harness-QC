@@ -1086,6 +1086,61 @@ check reported a step that carried both flags because they sat on different
 lines. **A check that over-reports is one a reader learns to skip**, which is
 worse than the gap it was written for.
 
+
+### 8.3 One lint invocation, and a YAML parse that is not a schema check
+
+Added 2026-10-04 after a push turned the harness gate red on a commit that had
+been green locally, twice over, for two unrelated reasons.
+
+#### 8.3.1 Four pylint invocations, four path lists
+
+| Where | Omitted |
+|---|---|
+| `testing-standards.md` | `cmn/`, `tools/`, `conftest.py` |
+| `docs/running_jobs.md` | `tools/`, `conftest.py` |
+| `gate-on-change.yml` | `tools/` |
+| `regress-harness-on-branch.yml` | Nothing |
+
+**The path list is part of the command.** A file in an omitted directory passes
+one gate and fails another, which arrives as a red on a commit already reported
+green, and a contributor following either document lints less than CI does.
+
+**That is how this one surfaced.** A `conftest.py` line went to 154 characters.
+Local linting followed neither document and omitted `conftest.py`, so it passed;
+the gate lints it and failed on both platforms. **The defect was in the file and
+the reason it escaped was in the command.**
+
+All four now carry the broadest list, and
+`MQC_CMN_UNI_112151` compares every invocation in the repository against the
+others, reading the workflows and the tracked prose alike: a documented command
+a reader copies is as load-bearing as the one CI runs.
+
+#### 8.3.2 A workflow that parses is not a workflow that validates
+
+The same push produced a second failed run whose **name was a filename** and
+whose job count was zero. GitHub had rejected the workflow schema.
+
+**The cause was a duplicate `inputs:` key** under `workflow_dispatch`, from
+adding a spend-ceiling input to a stanza that already had one. YAML permits a
+duplicate mapping key and resolves it last-wins, so:
+
+| | |
+|---|---|
+| `yaml.safe_load` | **Accepted it**, and the earlier of the two blocks was silently discarded |
+| What that discarded | The `max_spend` input, so the flag would have been unavailable |
+| GitHub's validator | Rejected the file, reporting a failed run with no jobs |
+| What a reader sees | A run named `.github/workflows/evaluate-live-weekly.yml` with nothing in it |
+
+**A parse check answers a weaker question than a schema check**, and this
+project had been treating them as the same: every workflow edit in the preceding
+days was verified with `yaml.safe_load` and nothing else. `actionlint` runs in
+CI and would have caught it, which is the right tool; the gap was in the local
+step before the push, not in the pipeline.
+
+**The remedy is to run the linter rather than the parser.** `actionlint` is
+already a step in two workflows, so the fix is to use it locally and not to add
+a second checker.
+
 ---
 
 ## 9. Exit Codes To Job Status

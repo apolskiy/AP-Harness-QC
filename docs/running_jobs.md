@@ -446,7 +446,7 @@ that.
 pytest -m unit
 pytest -m system --mode replay
 pytest -k 11141
-pylint ingestion/ execution/ evaluation/ cmn/ tests/ --rcfile=.pylintrc
+pylint ingestion/ execution/ evaluation/ cmn/ tests/ tools/ conftest.py --rcfile=.pylintrc
 ```
 
 Preconditions need no credentials and no network, so they run anywhere. **Gate

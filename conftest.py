@@ -15,7 +15,9 @@ leaves it unset rather than inventing a default, because a default would make
 preconditions sortable by a severity nobody assigned. See
 ``framework-rules.md`` section 3.3.
 
-**The reporting hook that assembles observations publishes them from `pytest_runtest_makereport`, per `cmn_verdict_and_cli.md` section 5.4.1.** It belongs
+**The reporting hook that assembles observations publishes them from
+`pytest_runtest_makereport`**, per `cmn_verdict_and_cli.md` section 5.4.1.
+It belongs
 with the metadata emission it feeds, in ``cmn/metadata.py``, and adding a stub
 that nothing reads would be code shipped ahead of its design.
 """

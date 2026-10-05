@@ -8678,3 +8678,82 @@ thousand-line ceiling. Injected: disabling the gate fails `112150`.
 
 Harness 689 passing, pylint 10.00/10 exit 0. Consumer 84 preconditions passing,
 pylint 10.00/10 exit 0. 24 findings across four engines, none filed.
+
+## 2026-10-04: Two CI reds on one push, and both were about checking less than CI does
+
+A push turned the harness red twice over. Neither defect was in the thing being
+tested; both were in what was verified before pushing.
+
+### Red one: four pylint invocations, four path lists
+
+| Where | Omitted |
+|---|---|
+| `testing-standards.md` | `cmn/`, `tools/`, `conftest.py` |
+| `docs/running_jobs.md` | `tools/`, `conftest.py` |
+| `gate-on-change.yml` | `tools/` |
+| `regress-harness-on-branch.yml` | Nothing |
+
+**The failing file was `conftest.py`**, where a prose edit took a line to 154
+characters. Local linting followed neither document and omitted `conftest.py`,
+so it passed; the gate lints it and failed on both platforms.
+
+**The defect was in the file and the reason it escaped was in the command.** A
+file in a directory one copy omits passes that gate and fails another, which
+arrives as a red on a commit already reported green, and a contributor following
+either document checks less than CI does.
+
+All four now carry the broadest list, and `MQC_CMN_UNI_112151` compares every
+invocation in the repository against the others, reading the workflows and the
+tracked prose alike: a documented command somebody copies is as load-bearing as
+the one CI runs.
+
+### Red two: a workflow that parsed and would not validate
+
+The second failed run had **a filename for a name and zero jobs**. GitHub had
+rejected the workflow schema.
+
+**A duplicate `inputs:` key**, from adding a spend-ceiling input to a
+`workflow_dispatch` stanza that already had one.
+
+| | |
+|---|---|
+| `yaml.safe_load` | **Accepted it.** YAML resolves a duplicate key last-wins |
+| What that discarded | The earlier block, silently, which held `max_spend` |
+| GitHub | Rejected the file outright |
+| What had verified it | A parse, and nothing else, for every workflow edit that week |
+
+**A parse answers a weaker question than a schema check**, and this project had
+been treating them as equivalent. `actionlint` runs in CI and would catch it,
+but Gate 1 blocks before it, and the schema rejection arrived from GitHub itself
+rather than from the linter.
+
+`MQC_CMN_UNI_112152` reports a duplicated mapping key in any tracked YAML file,
+naming the key and the line. **It is not a schema checker and does not pretend
+to be one**: it covers the single class a parse accepts, which is the class that
+actually escaped. Composed with `yaml.compose` rather than loaded, because a
+loader that constructs the mapping has already resolved the duplicate away.
+
+### The split that followed
+
+Both checks plus the spend-ceiling reader took `code_standards.py` past the
+thousand-line ceiling, so the CI-facing readers are now
+`cmn/workflow_standards.py`: that module is about the source a reader writes,
+this one about the pipeline definitions and the commands written beside them.
+
+The duplicate-key check also tripped the ancestor limit as a `SafeLoader`
+subclass, which is why it composes the node tree instead. **The ceiling and the
+ancestor limit each asked a design question and the answers were better than
+what they interrupted.**
+
+### What these two have in common
+
+**Both were verification gaps, not implementation gaps.** The lint paths and the
+YAML parse were each a local check that answered an easier question than the
+gate asks, and in both cases the local check passed. That is the same shape as
+the eleven unreachable-machinery findings one level up: something was being
+checked, and not the thing that mattered.
+
+### State
+
+Harness 691 passing, pylint 10.00/10 exit 0 **on the canonical command**, which
+is now the one every copy states.

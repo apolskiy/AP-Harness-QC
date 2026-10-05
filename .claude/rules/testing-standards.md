@@ -297,7 +297,13 @@ rather than a permitted list.
 ### CI Verification Sequence
 ```bash
 # Gate 1: Pylint Static Analysis (must achieve 10.00/10; naming rules enforced by .pylintrc)
-pylint ingestion/ execution/ evaluation/ tests/ --rcfile=.pylintrc
+# THE PATH LIST IS PART OF THE COMMAND. It stood in four places with four
+# different lists until 2026-10-04: this one omitted cmn/ and conftest.py,
+# the operator runbook omitted conftest.py, the gate omitted tools/, and
+# only the branch regression linted everything. A file in an omitted
+# directory passes the gate and fails the regression, which is a red on a
+# commit that was already green. MQC_CMN_UNI_112151 compares them.
+pylint ingestion/ execution/ evaluation/ cmn/ tests/ tools/ conftest.py --rcfile=.pylintrc
 
 # Gate 2: Unit Precondition - 100% pass, zero skips. Blocks everything below.
 pytest -m unit --junitxml=reports/junit_mqc_unit.xml --alluredir=reports/allure-results

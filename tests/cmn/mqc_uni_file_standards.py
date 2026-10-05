@@ -28,6 +28,11 @@ import pytest
 import yaml
 
 from tools.consumer_regression import harness_faults
+from cmn.workflow_standards import (
+    disagreeing_pylint_invocations,
+    duplicate_yaml_keys,
+    pylint_invocations,
+)
 from cmn.code_standards import (
     document_register_problems,
     registered_documents,
@@ -569,3 +574,132 @@ class TestMQCEncodingDeclared:
         # AND NEITHER CORRECT CALL. A binary open carries no encoding and must
         # not claim one; a declared read is simply right.
         assert not any("binary" in entry or "declared" in entry for entry in reported)
+
+
+class TestMQCLintParity:
+    """One command, wherever it is written."""
+
+    def MQC_CMN_UNI_112151_a_pylint_invocation_differing_from_the_rest_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """Every pylint invocation in the repository runs over the same paths.
+
+        **The path list is part of the command.** Four copies stood with four
+        different lists: one omitted `cmn/`, two omitted `conftest.py`, and the
+        gate omitted `tools/`. A file in an omitted directory passes one gate
+        and fails another, arriving as a red on a commit already reported
+        green.
+
+        **That is how this case came to exist.** A `conftest.py` line reached
+        154 characters, local linting omitted `conftest.py`, and the gate failed
+        on both platforms. The defect was in the file; the reason it escaped was
+        in the command.
+
+        **The prose counts as much as the workflow.** A documented command a
+        contributor copies decides what they check before pushing.
+
+        Design: ``ci_pipeline.md`` section 8.3.1.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+
+        found = pylint_invocations(root)
+        assert len(found) >= 4, (
+            f"only {len(found)} file(s) name a pylint invocation, so the reader "
+            f"no longer matches the places the command is written"
+        )
+        assert not disagreeing_pylint_invocations(root), (
+            "pylint is run over different paths in different places: "
+            + "; ".join(disagreeing_pylint_invocations(root))
+        )
+
+        # IT REPORTS A DISAGREEMENT, which a repository already in agreement
+        # says nothing about.
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        (workflows / "wide.yml").write_text(
+            "run: python -m pylint a/ b/ --rcfile=.pylintrc\n", encoding="utf-8"
+        )
+        (workflows / "also-wide.yml").write_text(
+            "run: python -m pylint a/ b/ --rcfile=.pylintrc\n", encoding="utf-8"
+        )
+        (workflows / "narrow.yml").write_text(
+            "run: python -m pylint a/ --rcfile=.pylintrc\n", encoding="utf-8"
+        )
+        reported = disagreeing_pylint_invocations(tmp_path)
+        assert len(reported) == 1, f"expected one finding, got {reported}"
+        assert "narrow.yml" in reported[0]
+
+        # AND A TREE WITH NO INVOCATION AT ALL IS REPORTED, rather than passing
+        # for having compared nothing.
+        assert disagreeing_pylint_invocations(tmp_path / "empty")
+
+    def MQC_CMN_UNI_112152_a_duplicated_yaml_key_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A key appearing twice is reported rather than resolved last-wins.
+
+        **This is the class a parse accepts and a schema rejects.** A workflow
+        was given a second ``inputs:`` block; ``yaml.safe_load`` accepted it,
+        discarded the first block silently along with the input it declared,
+        and GitHub rejected the file outright with a failed run carrying no
+        jobs and a filename for a name.
+
+        **It is not a schema check and does not pretend to be one.**
+        ``actionlint`` validates the workflow schema and runs in CI. What it
+        cannot do is run before a push on a machine without it, and the only
+        local verification in use was a parse.
+
+        Design: ``ci_pipeline.md`` section 8.3.2.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+
+        assert not duplicate_yaml_keys(root), (
+            "a tracked YAML file carries a duplicated key, so a parse would "
+            "discard one of them silently: " + "; ".join(duplicate_yaml_keys(root))
+        )
+
+        # IT REPORTS ONE, naming the key and the line, which is what makes it
+        # correctable without bisecting the file.
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        (workflows / "twice.yml").write_text(
+            "\n".join([
+                "on:",
+                "  workflow_dispatch:",
+                "    inputs:",
+                "      first:",
+                "        type: string",
+                "    inputs:",
+                "      second:",
+                "        type: string",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        reported = duplicate_yaml_keys(tmp_path)
+        assert len(reported) == 1, f"expected one finding, got {reported}"
+        assert "inputs" in reported[0]
+        assert "twice.yml" in reported[0]
+        assert "line 6" in reported[0], (
+            f"the line number is what makes it correctable: {reported[0]}"
+        )
+
+        # AND THE SAME FILE WITH ONE BLOCK IS NOT REPORTED.
+        (workflows / "twice.yml").write_text(
+            "\n".join([
+                "on:",
+                "  workflow_dispatch:",
+                "    inputs:",
+                "      first:",
+                "        type: string",
+                "      second:",
+                "        type: string",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        assert not duplicate_yaml_keys(tmp_path)

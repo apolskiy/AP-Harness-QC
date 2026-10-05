@@ -23,7 +23,6 @@ on:
         required: false
         default: "2.00"
         type: string
-    inputs:
       engine:
         description: "Single engine to evaluate, empty for all"
         required: false

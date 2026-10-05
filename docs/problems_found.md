@@ -159,6 +159,31 @@ would meet it.
 
 ---
 
+
+## 5A. Local checks that asked an easier question than CI asks
+
+**Both of these turned a green commit red on push, and neither defect was in the
+code being tested.**
+
+| What was verified locally | What CI verified | The gap |
+|---|---|---|
+| `pylint` over four of six path sets, depending which copy of the command you followed | The broadest set | A 154-character line in `conftest.py`, which three of the four copies do not lint |
+| `yaml.safe_load` on an edited workflow | GitHub's workflow schema | A duplicate `inputs:` key, which YAML resolves last-wins and a schema rejects |
+
+**The pylint command stood in four places with four path lists.** One omitted
+`cmn/`, two omitted `conftest.py`, the gate omitted `tools/`, and only the
+branch regression linted everything. A file in an omitted directory passes one
+gate and fails another.
+
+**A parse is not a schema check.** The duplicate key was accepted by
+`yaml.safe_load`, which silently discarded the earlier block along with the
+input it declared, and rejected by GitHub with a failed run carrying no jobs and
+a filename for a name.
+
+**These are verification gaps rather than implementation gaps**, and that makes
+them the same shape as section 2: something was being checked, and not the thing
+that mattered.
+
 ## 6. Configuration that the design depended on and nobody had made
 
 | | |

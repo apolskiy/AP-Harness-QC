@@ -23,7 +23,7 @@ from typing import Any
 import pytest
 
 from cmn.selection import select_modules, select_named_tests, select_traced_cases
-from cmn.code_standards import uncapped_spending_steps
+from cmn.workflow_standards import uncapped_spending_steps
 from cmn.traceability import cases_for_index_values, load_case_index
 from tests.cmn.selection_support import FakeConfig, FakeItem
 
