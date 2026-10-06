@@ -99,11 +99,12 @@ paragraph.
 `GEMINI_API_KEY` alone, because that is the only secret any harness workflow
 names; the consumer's holds the keys its live and judged legs name.
 
-**`XAI_API_KEY` is now referenced and is the one action outstanding.** It was
-held locally and deliberately absent from Actions while nothing named it. grok
-was rostered on 2026-10-04 and `evaluate-engine.yml` names the variable as of
-2026-10-05, so the consumer's `live` environment needs the secret added before
-a grok ladder can be dispatched.
+**`XAI_API_KEY` is in Actions as of 2026-10-05, and nothing is outstanding.**
+It was held locally and deliberately absent while nothing named it; grok was
+rostered on 2026-10-04, `evaluate-engine.yml` names the variable, and the
+project owner added it to the case repository's `live` environment the same
+day. **All four providers' keys are now wired**, so a live ladder is
+dispatchable for every rostered engine.
 
 | | |
 |---|---|

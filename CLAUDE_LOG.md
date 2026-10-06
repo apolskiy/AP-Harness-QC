@@ -9058,3 +9058,97 @@ claude 10, grok 4. Nothing unregistered, nothing ours.
 ### State
 
 694 passing, pylint exit 0.
+
+## 2026-10-05: A backtick produced a false finding, and the assertion read formatting
+
+The project owner read a ticket page, checked the arithmetic, and said the model
+had it right.
+
+### The case, and who was wrong
+
+A code-comprehension excerpt charges the discount instead of the remainder:
+
+```python
+amount_owed = total_amount * discount / 100 - coupon_sum
+```
+
+Two production calls settle to -10 and 0 where **50 and 60** are owed, which is
+what the rule states and what the owner's formula gives:
+`total_amount * (1 - discount / 100) - coupon_sum`. **Our expected values were
+right.** grok said so:
+
+> The first call returns `-10`; the second returns `0`.
+
+`A_COD_OUTCOME_FREE_GOODS` required a settling verb followed by the figure:
+
+| Text | Matched |
+|---|---|
+| `the second returns 0.` | **Yes** |
+| ``the second returns `0`.`` | No |
+| `the second returns **0**.` | No |
+
+**The assertion read the formatting rather than the answer.**
+
+### One pattern was already compensating by hand
+
+`grounding.yaml` carries `\**` sprinkled between its tokens to tolerate bold
+markers. **The sensitivity was already known and patched locally instead of
+solved**, which is how a class of defect survives: each instance looks like a
+pattern needing one more alternation.
+
+### The sweep, and what it did not find
+
+**184 engine-case pairs with regex assertions, all four engines, presence and
+absence assertions alike**, re-run against normalised text.
+
+| | |
+|---|---|
+| Pairs whose outcome changed | **One**, grok `134107` |
+| Passes that became failures | **None** |
+
+**Nothing was passing on formatting luck**, which was the other thing worth
+establishing: a normalisation that flipped passes into failures would mean the
+suite had been crediting answers for their markup.
+
+### `cmn/markup.py`, at the owner's instruction
+
+Normalisation is a text concern; **which assertion kinds read normalised text is
+an assertion concern.** Keeping the function in `evaluation/assertions.py` meant
+a caller had to import the assertion runner to get a string utility, so
+`normalise_markup` is in `cmn` and `_MARKUP_SENSITIVE` stays with the
+assertions.
+
+**Default on for the kinds that read prose, with `literal_markup: true` to opt
+out.** Opt-in was considered and declined on evidence: no assertion deliberately
+requires markup, normalising text without markup is a no-op, and an assertion
+that needs it and lacks it files a false finding against a vendor.
+
+| Kind | Reads | Why |
+|---|---|---|
+| `regex`, `contains`, `not_contains` | Normalised | The defect above |
+| `length` | **Raw** | It counts the text as written; removing markup shortens it |
+| `json_schema` | **Raw** | It parses the body |
+
+### Underscores are deliberately not stripped
+
+They are Markdown emphasis and they are in every identifier a code excerpt
+names. Stripping them would turn `amount_owed` into `amountowed` and break the
+patterns that legitimately match code. **A normalisation that corrupts the
+subject is worse than the sensitivity it removes.**
+
+### The second case was vacuous, and injection said so
+
+`114112` guards `length` being excluded. The first version counted bullets, on
+the reasoning that stripping markers would lose them. **Single asterisks survive
+normalisation deliberately**, so the count was identical either way: adding
+`length` to the normalised set changed nothing and the case passed regardless.
+
+**The reason given in the design was wrong too**, and both are corrected:
+characters are the unit that moves, and the general reason is that a bound
+stated against a model's output must be measured against that output.
+`114111` was verified the same way: three of its four spellings fail with
+normalisation removed.
+
+### State
+
+699 passing, pylint exit 0.

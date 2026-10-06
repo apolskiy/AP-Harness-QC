@@ -18,7 +18,10 @@ A failure here is our defect, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
+from types import SimpleNamespace
 from typing import Any
+
+import allure
 import pytest
 
 from evaluation.assertions import (
@@ -249,3 +252,97 @@ class TestMQCAssertionResults:
         assert result.passed is True
         assert result.taxonomy_code is None
         assert result.fatal is False
+
+
+@allure.epic("AP-Harness-QC")
+@allure.feature("Evaluation")
+class TestMQCMarkupNormalisation:
+    """Whether a pattern reads what was said or how it was formatted."""
+
+    @allure.story("A figure in backticks is still the figure")
+    @pytest.mark.parametrize(
+        "formatted",
+        [
+            "the second returns `0`.",
+            "the second returns **0**.",
+            "the second returns ```0```.",
+            "the second returns 0.",
+        ],
+    )
+    def MQC_EVL_UNI_114111_a_pattern_reads_through_inline_markup(
+        self, formatted: str
+    ) -> None:
+        """A regex matches a figure whether or not the model formatted it.
+
+        **The defect this guards was a false finding against a vendor.** grok
+        answered a code-comprehension case correctly, writing "the second
+        returns `0`", and `A_COD_OUTCOME_FREE_GOODS` required a settling verb
+        followed by the figure. The backtick sat between them, two of five
+        observations failed, and the case reported `QC_LLM_INCONSISTENT` on a
+        page about to be filed. It is five of five normalised.
+
+        **All four spellings must match**, which is what makes this more than a
+        no-op: the unformatted form passed before and the three formatted ones
+        did not.
+
+        Design: ``tier3_evaluation.md`` section 5.1.
+
+        Args:
+            formatted (str): One spelling of the same answer.
+
+        Returns:
+            None
+        """
+        assertion = SimpleNamespace(
+            assertion_id="A_PROBE_FIGURE",
+            kind="regex",
+            parameters={
+                "pattern": r"(?i)\breturns?\s+(0|zero)\b",
+                "present": True,
+            },
+            severity="violation",
+            taxonomy_code="QC_LLM_DEFECT_MISSED",
+        )
+        result = run_assertion(assertion, formatted)
+        assert result.passed, (
+            f"the pattern read the formatting rather than the answer: "
+            f"{formatted!r} carries the figure and {result.detail}"
+        )
+
+    @allure.story("A counting assertion keeps the raw text")
+    def MQC_EVL_UNI_114112_a_length_assertion_reads_unnormalised_text(
+        self,
+    ) -> None:
+        """A character bound is measured on the text the model produced.
+
+        **`length` is excluded from normalisation because it counts the text as
+        written.** A bound stated against a model's output has to be measured
+        against that output: removing markup shortens it, so a reply inside the
+        limit would measure shorter than it is and one over the limit could
+        measure under.
+
+        **The first version of this case was vacuous and injection said so.**
+        It counted bullets, on the reasoning that stripping markers would lose
+        them; single asterisks survive normalisation deliberately, so the count
+        was identical either way and adding ``length`` to the normalised set
+        changed nothing. Characters are the unit that moves.
+
+        Design: ``tier3_evaluation.md`` section 5.1.
+
+        Returns:
+            None
+        """
+        # 24 characters as written, 18 with the backticks and bold removed.
+        formatted = "the call returns `0` **now**"
+        assertion = SimpleNamespace(
+            assertion_id="A_PROBE_LENGTH",
+            kind="length",
+            parameters={"unit": "characters", "minimum": len(formatted)},
+            severity="violation",
+            taxonomy_code="QC_LLM_FORMAT_VIOLATION",
+        )
+        result = run_assertion(assertion, formatted)
+        assert result.passed, (
+            f"the character count was taken from normalised text, which is "
+            f"shorter than what the model produced: {result.detail}"
+        )

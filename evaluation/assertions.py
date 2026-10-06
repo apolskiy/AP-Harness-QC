@@ -25,6 +25,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional
 
+from cmn.markup import normalise_markup
+
 logger = logging.getLogger(__name__)
 
 # A fatal failure is never judged, flag or not: there is nothing coherent to
@@ -220,6 +222,19 @@ _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, st
     "not_contains": _check_not_contains,
 }
 
+# WHICH KINDS READ NORMALISED TEXT, per design section 5.1. The two excluded
+# kinds are excluded for a reason each, not by omission: `length` counts the
+# text as written, and removing markup shortens it, so a bound stated against
+# a model's output would be measured against something shorter; `json_schema`
+# parses the body, so altering the text before parsing changes what is
+# validated.
+_MARKUP_SENSITIVE: Final[frozenset[str]] = frozenset(
+    {"regex", "contains", "not_contains"}
+)
+
+
+# `normalise_markup` lives in `cmn.markup`: removing markup is a text
+# concern, and which kinds read it is this module's. Section 5.1.
 
 def registered_assertion_kinds() -> frozenset[str]:
     """Return every registered assertion kind.
@@ -264,7 +279,14 @@ def run_assertion(assertion: Any, text: str) -> AssertionResult:
             f"{sorted(_ASSERTION_KINDS)}"
         )
 
-    passed, detail = checker(text, dict(assertion.parameters))
+    # NORMALISED FOR THE KINDS THAT READ PROSE, unless this assertion declares
+    # that markup is part of what it checks. Per design section 5.1.
+    parameters = dict(assertion.parameters)
+    literal = bool(parameters.pop("literal_markup", False))
+    normalise = assertion.kind in _MARKUP_SENSITIVE and not literal
+    passed, detail = checker(
+        normalise_markup(text) if normalise else text, parameters
+    )
     if not passed:
         logger.info(
             "%s %s failed: %s", assertion.taxonomy_code, assertion.assertion_id, detail

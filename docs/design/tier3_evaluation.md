@@ -779,6 +779,94 @@ maximum marks* — which a narrowing aimed only at `score this` would have lost.
 `MQC_EVL_UNI_114618` holds both directions, because a narrowing that is not
 pinned against the attacks it must still catch is a hole rather than a fix.
 
+### 5.1 Inline markup is stripped before a pattern is matched
+
+Added 2026-10-05, found by the project owner while reading a ticket page.
+
+**The defect was ours and the model was right.** A code-comprehension case
+plants a settlement function that charges the discount instead of the
+remainder, and the correct reading is that two production calls settle to -10
+and 0 where 50 and 60 are owed. grok said so:
+
+> The first call returns `-10`; the second returns `0`.
+
+`A_COD_OUTCOME_FREE_GOODS` required a settling verb followed by the figure, and
+a backtick sits between them:
+
+| Text | Matched |
+|---|---|
+| `the second returns 0.` | **Yes** |
+| ``the second returns `0`.`` | No |
+| `the second returns **0**.` | No |
+
+**So the assertion was sensitive to formatting rather than to content**, which
+is the same class as `MQC_CAS_UNI_115401` about trailing whitespace, one level
+over: a model that answers correctly and formats a figure as code fails a check
+about what it said.
+
+**The cost was a false finding against a vendor.** grok's `134107` read as
+`QC_LLM_INCONSISTENT: 3 of 5 passed` and is 5 of 5 once markup is stripped. It
+was on a page about to be filed.
+
+#### What is normalised, and for which kinds
+
+**Backticks and `**` are removed before matching. Nothing else.**
+
+| Kind | Sees | Why |
+|---|---|---|
+| `regex` | **Normalised** | The defect above |
+| `contains`, `not_contains` | **Normalised** | A substring is as formatting-sensitive as a pattern |
+| `length` | **Raw** | It counts the text as written. Removing markup shortens it, so a reply inside a character bound would measure shorter than it is |
+| `json_schema` | **Raw** | It parses the body; altering the text before parsing changes what is being validated |
+
+**Underscores are deliberately left alone.** They are emphasis markers in
+Markdown and they are also in every identifier a code excerpt names, so
+stripping them would turn `amount_owed` into `amountowed` and break the
+patterns that legitimately match code. **A normalisation that corrupts the
+subject is worse than the sensitivity it removes.**
+
+**Single asterisks are left alone too.** `**` is bold and unambiguous; a lone
+`*` is a bullet, a multiplication sign or italic emphasis, and only the third
+should go.
+
+**The first reason given for excluding `length` was wrong, and injection found
+it.** It said bullet counting would break because markers would be stripped.
+Single asterisks are deliberately preserved, so a bullet count is identical
+either way, and the case resting on that reasoning passed with `length`
+normalised and unnormalised alike: it proved nothing.
+
+**Characters are the unit that moves**, and the correct reason is the general
+one: a bound stated against a model's output must be measured against that
+output. `MQC_EVL_UNI_114112` now counts characters and fails when the count is
+taken from normalised text.
+
+#### The recorded text is never altered
+
+Normalisation happens at match time. The artifact, the ticket page and the
+replay fixture all carry what the model actually said, because the record is
+evidence and the normalisation is a reading of it.
+
+#### What the sweep found, and what it did not
+
+**184 engine-case pairs with regex assertions were re-run against normalised
+text**, across all four engines, presence and absence assertions alike.
+
+| | |
+|---|---|
+| Pairs whose outcome changed | **One**: grok `134107`, 3 of 5 to 5 of 5 |
+| Findings invalidated | **One**, grok's `134107` |
+| Passes that became failures | **None** |
+
+**Nothing was passing on formatting luck**, which was the other thing worth
+knowing: a normalisation that flipped passes into failures would mean the suite
+had been crediting answers for their markup.
+
+**gemini and openai still fail `134107` after normalisation**, and that was
+checked rather than assumed: gemini's failing observations discuss a missing
+floor at zero, which is the negative-settlement outcome and its remedy, while
+this assertion is about the silent zero where 60 is owed. The rule separates
+those two deliberately, and the separation is holding.
+
 ## 6. Judge Invocation
 
 ### 6.1 Structured output is mandatory
@@ -953,6 +1041,8 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114108` | P | `every_assertion_runs_rather_than_stopping_at_the_first` |
 | `114109` | P | `fatal_severity_is_distinguished_from_violation` |
 | `114110` | B | `a_passing_assertion_carries_no_taxonomy_code` |
+| `114111` | N | `a_pattern_reads_through_inline_markup` |
+| `114112` | B | `a_length_assertion_reads_unnormalised_text` |
 | `114005` | P | `a_strategy_is_deterministic_for_identical_input` |
 | `114006` | P | `every_declared_strategy_has_an_implementation` |
 | `114007` | N | `an_unregistered_strategy_is_rejected_by_name` |
@@ -997,7 +1087,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 102 cases, 44 negative, 43 positive, 15 boundary.**
+**Inventory: 104 cases, 45 negative, 43 positive, 16 boundary.**
 
 ### 11.3 The five cases added with A19
 
