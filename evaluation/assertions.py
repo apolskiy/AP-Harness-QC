@@ -87,6 +87,90 @@ def _check_regex(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
     return found == expected, f"pattern {'found' if found else 'absent'}"
 
 
+# WHAT ENDS A SENTENCE. A claim is scoped to one, because that is the unit
+# negation and hedging operate over. The pattern keeps the terminator out of
+# the split so an abbreviation inside a sentence does not end it: a following
+# space or line break is required. Design section 5.3.
+_SENTENCE_BREAK: Final[re.Pattern[str]] = re.compile(r"(?<=[.!?;])\s+|\n{2,}")
+
+
+def _check_claim(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
+    """Check whether any sentence asserts a pattern.
+
+    A sentence asserts the pattern when the pattern matches within it and no
+    ``unless`` marker appears in that same sentence. With ``present`` false the
+    check holds when no sentence asserts it.
+
+    Args:
+        text (str): The candidate output.
+        parameters (dict): ``pattern``, optional ``present`` defaulting to
+            true, and ``unless``, a list of case-insensitive substrings whose
+            presence in a sentence means that sentence does not assert the
+            claim. ``unless`` is required when ``present`` is false.
+
+    Returns:
+        tuple: Whether the check held, and which sentence carried the claim.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when ``present`` is false
+            and no ``unless`` is declared, or when ``present`` is true and one
+            is. Either way the assertion means something other than what it
+            says, and a configuration error is ours rather than the model's.
+    """
+    pattern = re.compile(str(parameters["pattern"]), re.MULTILINE)
+    expected = bool(parameters.get("present", True))
+    markers = [str(marker).lower() for marker in parameters.get("unless") or ()]
+
+    if not expected and not markers:
+        raise ValueError(
+            "QC_HARNESS_PARSER_ERROR: a claim with present false and no "
+            "'unless' is a regex with present false, and the same rule "
+            "written two ways drifts. Declare the hedges this case has seen, "
+            "or use kind 'regex'"
+        )
+    if expected and markers:
+        raise ValueError(
+            "QC_HARNESS_PARSER_ERROR: a claim with present true declares "
+            "'unless', and what that would mean has never been decided. Use "
+            "kind 'regex' to ask whether a pattern appears at all"
+        )
+
+    asserted = None
+    for sentence in _SENTENCE_BREAK.split(text):
+        if not pattern.search(sentence):
+            continue
+        lowered = sentence.lower()
+        if any(marker in lowered for marker in markers):
+            continue
+        asserted = sentence.strip()
+        break
+
+    found = asserted is not None
+    if found:
+        # THE SENTENCE, NOT ONLY THAT ONE EXISTED. A reader deciding whether to
+        # file this has to see what was actually asserted.
+        detail = f"asserted in {_excerpt(asserted)}"
+    else:
+        detail = "not asserted in any sentence"
+    return found == expected, detail
+
+
+def _excerpt(sentence: str, limit: int = 160) -> str:
+    """Return a sentence short enough to read in a failure message.
+
+    Args:
+        sentence (str): The sentence to quote.
+        limit (int): How many characters to keep.
+
+    Returns:
+        str: The quoted sentence, elided when long.
+    """
+    collapsed = " ".join(sentence.split())
+    if len(collapsed) <= limit:
+        return repr(collapsed)
+    return repr(f"{collapsed[:limit]}...")
+
+
 def _check_json_schema(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
     """Check that the output parses and carries the required keys.
 
@@ -220,6 +304,7 @@ _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, st
     "length": _check_length,
     "contains": _check_contains,
     "not_contains": _check_not_contains,
+    "claim": _check_claim,
 }
 
 # WHICH KINDS READ NORMALISED TEXT, per design section 5.1. The two excluded
@@ -229,7 +314,7 @@ _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, st
 # parses the body, so altering the text before parsing changes what is
 # validated.
 _MARKUP_SENSITIVE: Final[frozenset[str]] = frozenset(
-    {"regex", "contains", "not_contains"}
+    {"regex", "contains", "not_contains", "claim"}
 )
 
 

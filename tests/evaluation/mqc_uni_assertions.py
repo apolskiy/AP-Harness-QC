@@ -346,3 +346,125 @@ class TestMQCMarkupNormalisation:
             f"the character count was taken from normalised text, which is "
             f"shorter than what the model produced: {result.detail}"
         )
+
+
+@allure.epic("AP-Harness-QC")
+@allure.feature("Programmatic assertions")
+class TestMQCClaimScope:
+    """Whether a sentence asserted something, rather than mentioned it."""
+
+    @allure.story("A hedged mention is not a claim")
+    def MQC_EVL_UNI_114113_a_hedged_mention_of_a_forbidden_claim_is_not_a_claim(
+        self,
+    ) -> None:
+        """A sentence that rules out the wrong answer has not given it.
+
+        **This is the sentence that withdrew nine findings.** A `regex` with
+        ``present`` false asks whether a string appears anywhere, so a model
+        that named the wrong answer in order to reject it was recorded as
+        having given it. The text below is the recorded response that cost
+        ``134101``.
+
+        Design: ``tier3_evaluation.md`` section 5.3.
+
+        Returns:
+            None
+        """
+        claim = _assertion(
+            "claim",
+            {
+                "pattern": r"(?i)\b(returns?|result\w*)\b[^.]{0,40}\b90\b[^.]{0,25}\b50\b",
+                "present": False,
+                "unless": ["looks like", "appears", "intended", "should", "but"],
+            },
+            assertion_id="A_HEDGED",
+            taxonomy_code="QC_LLM_HALLUCINATION",
+        )
+
+        # WHAT THE MODEL ACTUALLY WROTE, and it is the correct answer.
+        hedged = (
+            "The sort runs and then has no effect. The function looks like it "
+            "should return the rows scoring 90 and 50, but it doesn't. The "
+            "output is correct only by coincidence."
+        )
+        result = run_assertion(claim, hedged)
+        assert result.passed, (
+            f"a sentence ruling out the wrong answer was read as giving it, "
+            f"which is the defect this kind exists to end: {result.detail}"
+        )
+
+        # AND THE BARE CLAIM STILL FAILS, or the fix would have cost the test.
+        asserted = "It returns the rows scoring 90 and 50, in that order."
+        result = run_assertion(claim, asserted)
+        assert not result.passed, (
+            "an unhedged claim passed, so the assertion now catches nothing"
+        )
+        assert "90" in result.detail, (
+            f"the detail does not quote the sentence that carried the claim, so "
+            f"a reader cannot see what was asserted: {result.detail}"
+        )
+        assert result.taxonomy_code == "QC_LLM_HALLUCINATION", (
+            "a failing claim carries no code, so nothing can classify it"
+        )
+
+        # THE HEDGE IS SCOPED TO ITS OWN SENTENCE. A hedge elsewhere says
+        # nothing about this claim, and treating the response as one unit is
+        # how the window in the old pattern went wrong.
+        elsewhere = (
+            "It returns the rows scoring 90 and 50. Separately, the variable "
+            "name looks like it should mean something else."
+        )
+        result = run_assertion(claim, elsewhere)
+        assert not result.passed, (
+            "a hedge in a different sentence excused the claim, so scope is "
+            "the response again rather than the sentence"
+        )
+
+    @allure.story("A forbidding claim states its exclusions")
+    def MQC_EVL_UNI_114114_a_forbidding_claim_without_exclusions_is_refused(
+        self,
+    ) -> None:
+        """A claim with nothing excluded is a pattern match by another name.
+
+        **Two ways of writing one rule drift.** A forbidding claim that
+        declared no hedges would behave exactly as the `regex` it replaced,
+        and the next reader would have no way to tell which was meant.
+
+        **Refusal is a harness error, not a model finding**: the assertion is
+        misconfigured, and reporting it against the model would put our own
+        defect in a vendor's inbox.
+
+        Design: ``tier3_evaluation.md`` section 5.3.
+
+        Returns:
+            None
+        """
+        bare = _assertion(
+            "claim",
+            {"pattern": "anything", "present": False},
+            assertion_id="A_BARE",
+            taxonomy_code="QC_LLM_HALLUCINATION",
+        )
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR") as raised:
+            run_assertion(bare, "anything at all")
+        assert "regex" in str(raised.value), (
+            f"the refusal does not name the kind to use instead, so a reader "
+            f"is told no and not what to do: {raised.value}"
+        )
+
+        # AND THE OTHER DIRECTION, which has no agreed meaning either.
+        narrowed = _assertion(
+            "claim",
+            {"pattern": "anything", "present": True, "unless": ["maybe"]},
+            assertion_id="A_NARROWED",
+            taxonomy_code="QC_LLM_HALLUCINATION",
+        )
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            run_assertion(narrowed, "anything at all")
+
+        # A CLAIM IS STILL A REGISTERED KIND, so the refusals above are about
+        # the parameters rather than about the kind being unknown.
+        assert "claim" in registered_assertion_kinds(), (
+            "the claim kind is not registered, so every case using it reports "
+            "a harness error instead of a result"
+        )

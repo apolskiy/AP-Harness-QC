@@ -9494,3 +9494,111 @@ is exactly the averaging the band split exists to prevent.
 
 Harness 713 passing, pylint exit 0. `112333` holds the one arrangement worth
 guarding against: a healthy total printed beside a silent P0 failure.
+
+## 2026-10-06: A substring cannot see the sentence it sits in, so `claim` reads one
+
+### Why
+
+Nine of the eleven findings withdrawn yesterday were one defect, and it was
+ours. A `regex` with `present: false` asks whether a string appears anywhere,
+and "the model must not say X" is a question about what the model *asserted*.
+
+**The clearest instance: all four engines located a syntax error on line 2,
+and only the one that went on to explain that CPython before 3.10 reports it
+at line 3 was marked wrong.** The pattern punished the better answer.
+
+### What changed
+
+`claim`, a fifth assertion kind. It splits the text into sentences and tests
+each on its own: a sentence asserts the pattern when the pattern matches and
+no declared `unless` marker appears in that same sentence.
+
+**Scope is the sentence because that is the unit negation operates over.** A
+hedge two paragraphs away says nothing about this claim, and the old patterns
+were already reaching for sentence scope with `[^.]{0,40}` windows without
+being able to express it.
+
+**`unless` is required when `present` is false and refused when it is true.** A
+forbidding claim with no exclusions is a `regex`, and the same rule written two
+ways drifts; an asserting claim narrowed by exclusions is a question nobody has
+asked, so admitting it would mean guessing.
+
+**The failure message quotes the sentence it read**, which is what makes a
+finding checkable rather than assertable.
+
+### What repairing an assertion exposed
+
+**Assertions gate judging**, so a case whose assertion failed never reached the
+judge and no judgement was recorded for it. Repair the assertion and the
+observation arrives at a replay store that has nothing for it.
+
+`framework-rules.md` section 4 already says a `QC_HARNESS_*` event is a skip
+and never a failure, and `tier2_execution.md` section 7.6 records the candidate
+side learning it: both store exceptions inherit from `Exception` alone, so a
+handler written for `ValueError` never fired. **The judge side had the same gap
+and it stayed invisible until an assertion was repaired.** It now returns
+`judge_skipped_reason="judgement_unavailable"` with the store's own code, and
+the assertion results travel with the skip.
+
+### The runway rule earned its keep twice
+
+`mqc_uni_pipeline.py` stood at 895 lines and the new case took it to 1017, past
+the 1000-line ceiling. Split by subject into `mqc_uni_judgement_gaps.py`, and
+the double moved to `judge_doubles.py` where the sibling-module rule puts it.
+
+### State
+
+716 passing, pylint exit 0. `114113` holds the hedged mention, `114114` the
+refusal of a claim with nothing excluded, `114115` the judgement gap.
+
+## 2026-10-06: Two harness bugs a live run found, and neither announced itself
+
+### A dated snapshot made a priced model unpriced
+
+`--max-spend 1.00 --engine openai` skipped every case before dispatching one,
+reporting `QC_HARNESS_BUDGET_EXHAUSTED` against an untouched budget.
+
+**The roster asks for `gpt-4.1` and the provider answers
+`gpt-4.1-2025-04-14`.** Spend is priced against what was served, which is right
+because a bill is for the model that answered, and the table keys the base. So
+the model read as unpriced, and section 12.4 did exactly what it says: a ceiling
+against an unpriced model cannot be honoured, so the run stops rather than
+spending without one.
+
+**Only one provider pins a dated snapshot, so only one engine was affected, and
+it was affected totally.** Three engines re-recorded a changed task and the
+fourth silently did not. `price_for` now falls back to the base name when the
+served one is absent, and **only to a key the table carries**: `gpt-4.1-mini`
+stays unpriced, so the ceiling still fails closed and this narrows which models
+are unpriced rather than weakening what being unpriced means.
+
+### A screen vector read ordinary English as tool coercion
+
+`MQC_CAS_UNI_115713`, the precondition written after the last screen false
+positive, caught two freshly recorded responses:
+
+> "Both discounts and coupon codes **should be used** together"
+> "the figure as reported, 28.7 million, **should be used**"
+
+**A screen hit aborts the observation**, so each would have reported a model for
+our own pattern, on cases that have nothing to do with tools. The clause asked
+for a modal and a verb and nothing else, and **"used" is the word that does the
+damage**: *called* and *invoked* are what one does to a function, while *used* is
+what one does to anything at all.
+
+So `used` now needs a tool-shaped subject, a snake_case identifier or one of
+`tool`, `function`, `api`, `endpoint`. All three payloads in `114613` still
+match, including the one the clause exists for.
+
+### What found them
+
+**Neither was reachable by replay.** The first needs a live run with a ceiling,
+and the second needs responses nobody had recorded yet. Both surfaced within
+minutes of the first live pass this project has made across four engines, which
+is the argument for making one.
+
+### State
+
+717 passing, pylint exit 0. `112334` holds the snapshot fallback at its
+boundary, and `114613` holds the narrowed vector against the payloads it must
+still catch.

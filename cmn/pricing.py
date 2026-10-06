@@ -18,6 +18,7 @@ tokens cost.
 """
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
@@ -69,7 +70,9 @@ class PriceTable:
         """Return the rates in force for a model on a date.
 
         Args:
-            model (str): The model as the provider reported it.
+            model (str): The model as the provider reported it. **A trailing
+                ISO date is stripped when the exact name is absent**, so a
+                dated snapshot prices at its base's rates (section 12.5).
             as_of (date): The date to price against, injected rather than read
                 from a clock so that two readings of one corpus agree.
 
@@ -79,13 +82,49 @@ class PriceTable:
             the nearest window**, because extrapolating across a published price
             change is inventing a figure.
         """
-        windows = self.tiers.get(model)
+        windows = self.tiers.get(model) or self.tiers.get(_base_model(model))
         if not windows:
             return None
         for window in windows:
             if window.effective_until is None or as_of <= window.effective_until:
                 return window
         return None
+
+
+# A PROVIDER'S PINNED SNAPSHOT, which prices as the model it names. openai
+# answers a request for `gpt-4.1` with `gpt-4.1-2025-04-14`, and spend is
+# priced against what was served rather than what was asked for, so the table
+# missed and the model read as unpriced. A ceiling against an unpriced model
+# cannot be honoured (section 12.4), so every live openai run with
+# `--max-spend` stopped before dispatching anything.
+#
+# ONLY AN ISO DATE IS STRIPPED. `gpt-4.1-mini` is a different model and must
+# never price as `gpt-4.1`, so the suffix has to be a date and nothing else.
+_SNAPSHOT_SUFFIX: Final[re.Pattern[str]] = re.compile(
+    r"-(\d{4})-(\d{2})-(\d{2})$"
+)
+
+
+def _base_model(model: str) -> str:
+    """Return the base a dated snapshot names, or the name unchanged.
+
+    Args:
+        model (str): The model as the provider reported it.
+
+    Returns:
+        str: The name with a trailing ``-YYYY-MM-DD`` removed, or the original
+        when it carries none. **The caller still has to find the result in the
+        table**, so an unknown base stays unpriced and the ceiling keeps
+        failing closed.
+    """
+    stripped = _SNAPSHOT_SUFFIX.sub("", model)
+    if stripped != model:
+        logger.info(
+            "pricing %s at the rates for %s, its base: the provider pinned a "
+            "dated snapshot and the table carries the base",
+            model, stripped,
+        )
+    return stripped
 
 
 def load_price_table(path: Path) -> PriceTable:

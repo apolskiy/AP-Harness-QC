@@ -175,7 +175,15 @@ _VECTOR_PATTERNS: Final[dict[str, Pattern[str]]] = {
         r"(?:[^.]|\.(?=\d)){0,60}?"
         r"\b(immediately|right\s+now|before\s+replying|regardless|"
         r"without\s+asking|first)\b|"
-        r"\b(must|should|shall|has\s+to)\s+be\s+(called|invoked|used)\b|"
+        # CALLED AND INVOKED ARE WHAT ONE DOES TO A FUNCTION, so they need
+        # no subject. USED IS WHAT ONE DOES TO ANYTHING, and asking for a
+        # modal and that verb alone matched "coupon codes should be used
+        # together" and "the figure as reported should be used": ordinary
+        # prose, on cases with no tools, which a screen hit would have
+        # aborted and reported as a model finding. Section 5.2.1.
+        r"\b(must|should|shall|has\s+to)\s+be\s+(called|invoked)\b|"
+        r"\b([a-z]+_[a-z_]+|tool|function|api|endpoint)s?\s+"
+        r"(must|should|shall|has\s+to)\s+be\s+used\b|"
         r"\bassistant\s+directive\b|"
         r"\boverrides?\s+any\s+(prohibition|restriction|rule|instruction)\b",
         re.IGNORECASE,

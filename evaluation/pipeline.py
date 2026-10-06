@@ -30,6 +30,13 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Final, Optional
 
+# THE REPLAY STORE'S OWN EXCEPTIONS, not a vendor type. Tier 3's boundary
+# rule is that provider-specific types stop at the adapter, and these are
+# the harness's own; this module already calls the binding that raises
+# them. Reading them off a message instead would make the handler stop
+# working silently the day the message is reworded. Section 6.5.
+from execution.replay import FixtureMissing, FixtureStale
+
 from evaluation.aggregation import AggregateScore, aggregate
 from evaluation.assertions import (
     AssertionResult,
@@ -458,6 +465,36 @@ def _judge_and_aggregate(
         # Blocking, and deliberately not caught here. A hijacked judge is a
         # security finding about the run, not a quality finding about the case.
         raise
+    except (FixtureMissing, FixtureStale) as error:
+        # A HARNESS EVENT IS A SKIP, NEVER A FAILURE (`framework-rules.md`
+        # section 4). The candidate path already did this and
+        # `tier2_execution.md` section 7.6 records why it had to be taught:
+        # both exceptions inherit from `Exception` alone, so the handler
+        # written for `ValueError` below never fired and the case reported a
+        # harness error where it meant to report nothing.
+        #
+        # **THIS IS NOT THE FALL-BACK SECTION 7.9.1 FORBIDS.** That rule is
+        # about a replay run quietly calling a live judge. A skip calls
+        # nothing and scores nothing, and the assertion results below travel
+        # with it, so an observation that failed an assertion still reports
+        # that failure with its own model code.
+        code = (
+            "QC_HARNESS_FIXTURE_STALE"
+            if isinstance(error, FixtureStale)
+            else "QC_HARNESS_FIXTURE_MISSING"
+        )
+        logger.warning(
+            "%s observation %d judgement unavailable: %s",
+            context.case_id, context.observation_index, code,
+        )
+        return EvaluationResult(
+            case_id=context.case_id, screen=progress.screen,
+            assertion_results=progress.results,
+            judge_skipped_reason="judgement_unavailable",
+            judge_on_failure=judge_on_failure,
+            taxonomy_codes=progress.codes + [code],
+            checks_ran=declared, rubric_authored=rubric_authored,
+        )
     except ValueError as error:
         logger.warning("%s judgement unusable: %s", context.case_id, error)
         return EvaluationResult(

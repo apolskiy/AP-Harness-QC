@@ -165,6 +165,64 @@ class TestMQCPriceTable:
         assert _ABSENT_MODEL not in table.tiers
 
 
+    def MQC_CMN_UNI_112334_a_dated_model_snapshot_prices_as_its_base(
+        self, table: PriceTable
+    ) -> None:
+        """A provider pins a date onto the name; the bill is the same bill.
+
+        **A boundary, and the boundary is the suffix.** openai answers a
+        request for ``gpt-4.1`` with ``gpt-4.1-2025-04-14``, and spend is
+        priced against what was served rather than what was asked for. The
+        table keys the base, so the served name missed and the model read as
+        unpriced.
+
+        **An unpriced model closes the ceiling** (section 12.4), so every live
+        openai run carrying ``--max-spend`` stopped before dispatching
+        anything and reported ``QC_HARNESS_BUDGET_EXHAUSTED`` against a budget
+        it had not touched. Three engines re-recorded a changed task on
+        2026-10-06 and the fourth silently did not.
+
+        Design: ``cmn_verdict_and_cli.md`` section 12.5.
+
+        Args:
+            table (PriceTable): The shipped table.
+
+        Returns:
+            None
+        """
+        served = "gpt-4.1-2025-04-14"
+        snapshot = table.price_for(served, _BEFORE_THE_RISE)
+        assert snapshot is not None, (
+            f"{served} is unpriced, so a ceiling against it cannot be honoured "
+            f"and every live run naming it stops before spending anything"
+        )
+        assert snapshot == table.price_for("gpt-4.1", _BEFORE_THE_RISE), (
+            "the snapshot prices at different rates from the base it names, so "
+            "two names for one model would report two bills"
+        )
+
+        # ONLY A DATE IS STRIPPED. A sibling model sharing the prefix is a
+        # different model, and pricing it as this one would invent a figure,
+        # which is the one thing an absent price exists to prevent.
+        for sibling in ("gpt-4.1-mini", "gpt-4.1-mini-2025-01-01"):
+            assert table.price_for(sibling, _BEFORE_THE_RISE) is None, (
+                f"{sibling} priced as gpt-4.1, so a prefix is being read as a "
+                f"family and a cheaper model now reports the dearer bill"
+            )
+
+        # AND THE CEILING STILL FAILS CLOSED for a model the table never had,
+        # so this narrows which models are unpriced rather than weakening what
+        # being unpriced means.
+        assert table.price_for(_ABSENT_MODEL, _BEFORE_THE_RISE) is None, (
+            "an unknown model became priced, so the guarantee section 12.4 "
+            "rests on is gone"
+        )
+        assert table.price_for(f"{_ABSENT_MODEL}-2026-01-01", _BEFORE_THE_RISE) is None, (
+            "an unknown model with a date became priced, so the fallback "
+            "reaches past the table instead of into it"
+        )
+
+
 class TestMQCCostArithmetic:
     """What the four token categories cost, and which rate each takes."""
 

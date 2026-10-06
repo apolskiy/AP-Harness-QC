@@ -2317,8 +2317,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112331` | N | `a_module_at_the_runway_ceiling_is_reported` |
 | `112332` | P | `a_band_summary_states_its_own_denominator` |
 | `112333` | N | `a_band_table_total_overriding_a_blocking_band_is_reported` |
+| `112334` | B | `a_dated_model_snapshot_prices_as_its_base` |
 
-**Inventory: 246 cases, 138 negative, 81 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 247 cases, 138 negative, 81 positive, 28 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -2705,6 +2706,50 @@ whose thinking cannot be disabled.
 
 So an unpriced model with a ceiling set **stops the run**, and the two conditions
 are separate cases.
+
+### 12.5 A dated snapshot prices as its base, because the provider pins one and the table does not
+
+Found on 2026-10-06, by a live run that spent nothing and said nothing useful
+about why.
+
+**`--max-spend 1.00` on `--engine openai` skipped every case before dispatching
+one**, reporting `QC_HARNESS_BUDGET_EXHAUSTED`. The budget was untouched. The
+cause is section 12.4 working exactly as written: a ceiling against an unpriced
+model cannot be honoured, so the run stops rather than spending without one.
+
+**What made the model unpriced was a name.** The roster asks for `gpt-4.1`, the
+provider answers `gpt-4.1-2025-04-14`, and the spend is priced against what was
+*served* rather than what was asked for — which is right, because a bill is
+for the model that answered. The table keys `gpt-4.1`, so the lookup missed.
+
+| Engine | Asked for | Served | Priced |
+|---|---|---|---|
+| openai | `gpt-4.1` | `gpt-4.1-2025-04-14` | **no** |
+| claude | `claude-opus-5-5` | `claude-opus-5-5` | yes |
+| grok | `grok-4.7` | `grok-4.7` | yes |
+| gemini | `gemini-3.8-flash` | `gemini-3.8-flash` | yes |
+
+**Only one provider pinned a dated snapshot, so only one engine was affected**,
+and it was affected totally: no live openai run with a ceiling could begin.
+Three engines re-recorded a changed task and the fourth silently did not.
+
+#### The fallback, and what it refuses to do
+
+`price_for` now tries the served name, then the same name with a trailing
+`-YYYY-MM-DD` removed, and prices the snapshot at its base's rates.
+
+**It falls back only to a key the table actually carries.** An unknown base
+stays unpriced, so the ceiling still fails closed and section 12.4 keeps its
+guarantee; this narrows which models are unpriced rather than weakening what
+being unpriced means.
+
+**It strips only an ISO date.** `gpt-4.1-mini` is not `gpt-4.1` and must never
+price as it, so the suffix has to be a date and nothing else.
+
+**The fallback is recorded, not silent.** The resolved name reaches the report
+as the provider gave it, and the fallback is logged, because a snapshot
+genuinely priced differently from its base is a thing that can happen and the
+remedy is a key in the table. A silent fallback would hide exactly that.
 
 ## 13. Traceability
 

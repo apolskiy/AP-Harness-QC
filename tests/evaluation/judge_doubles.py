@@ -69,3 +69,37 @@ def scoring_judge(
         ),
         seen,
     )
+
+
+def refusing_judge(error: Exception) -> JudgeBinding:
+    """Return a binding whose invoke raises instead of judging.
+
+    **The replay store is not reached in a unit test**, so what it would have
+    raised is injected at the boundary the pipeline actually calls. Used by
+    `MQC_EVL_UNI_114115` to pin that a judgement gap is a skip.
+
+    Args:
+        error (Exception): What ``invoke`` raises, normally
+            ``FixtureMissing`` or ``FixtureStale``.
+
+    Returns:
+        JudgeBinding: A binding that raises on invocation.
+    """
+
+    def _raise(request: Any) -> Any:
+        """Raise the held exception.
+
+        Args:
+            request (Any): The composed judge request, unused.
+
+        Returns:
+            Any: Never returns.
+
+        Raises:
+            Exception: Whatever this double was built with.
+        """
+        raise error
+
+    return JudgeBinding(
+        invoke=_raise, judge_engine="gemini", candidate_engine="claude",
+    )
