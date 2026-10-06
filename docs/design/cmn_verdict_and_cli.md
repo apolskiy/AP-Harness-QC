@@ -2003,6 +2003,40 @@ question is unanswerable, and that is never a hundred per cent. **An empty
 selection prints nothing at all**, because a row of zeroes reads as a clean
 result.
 
+#### 7.11.1 The overall report is a table of bands, and the total decides nothing
+
+Added 2026-10-06 at the project owner's instruction: **for a release decision
+the band results matter, and a total tells a reader nothing of substance.**
+
+```
+| Band           | Selected | Executed | Passed | Failed | Skipped | Execution pass | Total pass |
+|----------------|----------|----------|--------|--------|---------|----------------|------------|
+| Band P0        | 15       | 12       | 9      | 3      | 3       | 75.0%          | 60.0%      |
+| Band P1        | 10       | 6        | 5      | 1      | 4       | 83.3%          | 50.0%      |
+| Bands P2,P3,P4 | 35       | 34       | 29     | 5      | 1       | 85.3%          | 82.9%      |
+| Total          | 60       | 52       | 43     | 9      | 8       | 82.7%          | 71.7%      |
+```
+
+**A run at 95% overall with one P0 failure does not ship.** The total is the
+figure most likely to be quoted and the least able to answer the question
+anybody is asking, so the table states it last and says so in the same breath:
+
+> **Release blocking: 4 failure(s) in P0 or P1.**
+> **The total decides nothing.**
+
+**P0 and P1 block, and a lower band is a bug to open and quarantine while
+review sets the date** (`testing-standards.md` section 2). That is the whole
+reason the bands are separate jobs, and a summary that averaged over them would
+undo the separation the job split exists to create.
+
+**The table is produced after every band, by a job of its own**, which needs
+all three and runs `if: always()`: a band that failed still established what it
+established, and a report that appeared only on green is a report nobody needs.
+
+**The arithmetic is the same arithmetic.** `band_table` and `band_lines` share
+their denominators, so a band's own line and its row in the table cannot
+disagree.
+
 #### This does not change the verdict
 
 The verdict keeps its own denominators and its own floor. **This is a report
@@ -2282,8 +2316,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112330` | N | `a_registered_code_without_a_rank_is_reported` |
 | `112331` | N | `a_module_at_the_runway_ceiling_is_reported` |
 | `112332` | P | `a_band_summary_states_its_own_denominator` |
+| `112333` | N | `a_band_table_total_overriding_a_blocking_band_is_reported` |
 
-**Inventory: 245 cases, 137 negative, 81 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 246 cases, 138 negative, 81 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

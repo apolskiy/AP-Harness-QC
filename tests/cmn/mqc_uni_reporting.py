@@ -26,7 +26,7 @@ from cmn.metadata import emit_result
 from cmn.observations import Observation, RunContext
 from cmn.reporting import observation_parameters, vendor_report
 
-from cmn.band_summary import band_label, band_lines, pass_rate
+from cmn.band_summary import band_label, band_lines, band_table, pass_rate
 
 pytestmark = pytest.mark.unit
 
@@ -394,3 +394,48 @@ class TestMQCBandSummary:
         # AND THE LABEL FOLLOWS THE FILTER, so a reader knows what was asked.
         assert band_label("") == "Whole selection"
         assert band_label("2,3,4") == "Bands P2,P3,P4"
+
+    @allure.story("A healthy total never hides a blocking failure")
+    def MQC_CMN_UNI_112333_a_band_table_total_overriding_a_blocking_band_is_reported(
+        self,
+    ) -> None:
+        """The table names a blocking failure whatever the total says.
+
+        **The total is the figure most likely to be quoted and the least able
+        to answer the question.** A run can sit at 95% overall and carry a P0
+        failure, and that run does not ship: P0 and P1 block, where a lower
+        band is a bug to open and quarantine while review sets the date.
+
+        **So the table states the blocking verdict separately**, and this case
+        pins the one arrangement that would be worth nothing: a high total
+        beside a silent blocking failure.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.11.1.
+
+        Returns:
+            None
+        """
+        # ONE P0 FAILURE AMONG TWENTY-THREE PASSES. The total reads well and the
+        # run does not ship.
+        rendered = "\n".join(band_table([
+            ("0", 4, 1, []),
+            ("2,3,4", 19, 0, []),
+        ]))
+        assert "95.8%" in rendered, (
+            f"the total is not stated, so a reader cannot see what the table "
+            f"is warning them against reading: {rendered}"
+        )
+        assert "Release blocking: 1 failure(s) in P0 or P1." in rendered, (
+            f"a P0 failure is not named beside a healthy total, which is the "
+            f"one arrangement this table exists to prevent: {rendered}"
+        )
+        assert "The total decides nothing." in rendered, (
+            "the table does not say what its own last row is worth"
+        )
+
+        # AND A CLEAN BLOCKING SET SAYS SO, rather than saying nothing.
+        clean = "\n".join(band_table([("0", 5, 0, []), ("2,3,4", 1, 9, [])]))
+        assert "No release blocking failure." in clean, (
+            f"a clean P0 and P1 is not stated, so a reader cannot tell it from "
+            f"a table that forgot to check: {clean}"
+        )

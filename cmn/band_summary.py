@@ -175,3 +175,93 @@ def skip_reasons_from(reports: list[object]) -> list[str]:
         else:
             reasons.append(str(longrepr or ""))
     return reasons
+
+
+# WHICH BANDS BLOCK A RELEASE. P0 and P1 are release blocking and a lower band
+# is a bug to open and quarantine while review sets the date, per
+# `testing-standards.md` section 2. The distinction is what makes a per-band
+# table worth more than a total: a run at 95% overall with one P0 failure does
+# not ship.
+BLOCKING_BANDS: Final[frozenset[str]] = frozenset({"0", "1"})
+
+
+def band_table(measured: list[tuple[str, int, int, list[str]]]) -> list[str]:
+    """Return a per-band table with totals, as Markdown.
+
+    **The total is last and decides nothing.** A release question is answered
+    by the blocking bands: a run at 95% overall with one P0 failure does not
+    ship, and a table whose only honest row was the last one would say the
+    opposite.
+
+    Args:
+        measured (list): One entry per band, as priority, passed, failed and
+            the reason of each skip.
+
+    Returns:
+        list[str]: Markdown lines, empty when nothing was measured at all.
+    """
+    rows: list[str] = []
+    totals = [0, 0, 0, 0]
+    blocking_failures = 0
+
+    for priority, passed, failed, reasons in measured:
+        skipped = len(reasons)
+        selected = passed + failed + skipped
+        if not selected:
+            continue
+        executed = passed + failed
+        totals = [
+            totals[0] + selected, totals[1] + executed,
+            totals[2] + passed, totals[3] + failed,
+        ]
+        if failed and any(part.strip() in BLOCKING_BANDS
+                          for part in str(priority).split(",")):
+            blocking_failures += failed
+        rows.append(
+            f"| {band_label(priority)} | {selected} | {executed} | {passed} "
+            f"| {failed} | {skipped} | {_percentage(passed, executed)} "
+            f"| {_percentage(passed, selected)} |"
+        )
+
+    if not rows:
+        return []
+
+    skipped_total = totals[0] - totals[1]
+    rows.append(
+        f"| **Total** | **{totals[0]}** | **{totals[1]}** | **{totals[2]}** "
+        f"| **{totals[3]}** | **{skipped_total}** "
+        f"| **{_percentage(totals[2], totals[1])}** "
+        f"| **{_percentage(totals[2], totals[0])}** |"
+    )
+
+    verdict = (
+        f"**Release blocking: {blocking_failures} failure(s) in P0 or P1.**"
+        if blocking_failures
+        else "**No release blocking failure.** P0 and P1 are clean."
+    )
+    return [
+        "| Band | Selected | Executed | Passed | Failed | Skipped "
+        "| Execution pass | Total pass |",
+        "|---|---|---|---|---|---|---|---|",
+        *rows,
+        "",
+        verdict,
+        "",
+        "**The total decides nothing.** A release question is answered by the "
+        "blocking bands: P0 and P1 block, and a lower band is a bug to open "
+        "and quarantine while review sets the date.",
+    ]
+
+
+def _percentage(passed: int, denominator: int) -> str:
+    """Return a percentage for a table cell, or a dash where there is none.
+
+    Args:
+        passed (int): The numerator.
+        denominator (int): What it is over.
+
+    Returns:
+        str: Such as ``"75.0%"``, or ``"n/a"`` when nothing was measured.
+    """
+    rate = pass_rate(passed, denominator)
+    return "n/a" if rate is None else f"{rate:.1f}%"

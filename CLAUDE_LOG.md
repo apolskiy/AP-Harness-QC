@@ -9454,3 +9454,43 @@ per cent.
 ### State
 
 Harness 712 passing, cases 157 passing, pylint exit 0 in both.
+
+## 2026-10-06: The overall report is a table of bands, and the total decides nothing
+
+### Why
+
+The gate had three band jobs, each honest about itself, and no place that put
+them side by side. **A release decision is made from the bands**, and the only
+figure a run-wide summary could have offered was the one least able to answer
+the question: a run at 95% overall with one P0 failure does not ship.
+
+The project owner put it directly: for release decisions, band results matter
+rather than a total that tells you nothing of substance.
+
+### What changed
+
+`band_table` in `cmn/band_summary.py` renders one row per band, a bold total
+row, and then two lines that are the point of the whole thing:
+
+> **Release blocking: 1 failure(s) in P0 or P1.**
+> **The total decides nothing.**
+
+**The blocking bands are named in code**, as `BLOCKING_BANDS`, because "P0 and
+P1 block, a lower band is a bug to open and quarantine while review sets the
+date" is a rule from `testing-standards.md` section 2 and a table that re-derived
+it from a filename would eventually disagree with the gate.
+
+**The arithmetic is shared with `band_lines`.** Both call `pass_rate`, so a
+band's own summary line and its row in the table cannot drift apart, which is
+the failure this table would otherwise invite: two renderings of one run.
+
+### What it does not do
+
+It judges nothing. Each band still gates on its own status, so this is a
+reader. The temptation here was a floor on the total, and a floor on the total
+is exactly the averaging the band split exists to prevent.
+
+### State
+
+Harness 713 passing, pylint exit 0. `112333` holds the one arrangement worth
+guarding against: a healthy total printed beside a silent P0 failure.
