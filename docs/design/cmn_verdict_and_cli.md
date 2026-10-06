@@ -2191,8 +2191,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112327` | N | `a_graded_case_defined_here_is_reported` |
 | `112328` | N | `a_case_module_holding_support_code_is_reported` |
 | `112329` | N | `a_subprocess_without_a_timeout_is_reported` |
+| `112330` | N | `a_registered_code_without_a_rank_is_reported` |
+| `112331` | N | `a_module_at_the_runway_ceiling_is_reported` |
 
-**Inventory: 242 cases, 135 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 244 cases, 137 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

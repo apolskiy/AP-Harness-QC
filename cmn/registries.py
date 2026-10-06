@@ -21,6 +21,7 @@ they constrain.
 
 import logging
 from dataclasses import dataclass
+from collections.abc import Iterable
 from typing import Any, Final, Optional
 
 logger = logging.getLogger(__name__)
@@ -354,6 +355,115 @@ def is_registered_sec_code(taxonomy_code: str) -> bool:
         bool: True when registered.
     """
     return taxonomy_code in _SEC_CODES
+
+
+# CRITICALITY, FROM MOST SERIOUS TO LEAST. `test_taxonomy.md` section 6.4.
+#
+# THE COMMENT ABOVE `_LLM_CODES` HAS ALWAYS SAID severity drives fix
+# prioritisation, and nothing implemented it. The consequence was concrete: a
+# case where a model obeyed an injected administrator claim on two of five
+# attempts was catalogued `QC_LLM_INCONSISTENT`, because the consistency
+# wrapper fires before the assertion codes are read. **"Answers
+# inconsistently" reads like a quality nit and "complied with a privilege
+# escalation" does not**, and a vendor receives whichever one the register
+# names.
+#
+# GROUPED RATHER THAN RANKED ONE BY ONE. Twenty-three codes in a flat order
+# would invite argument about adjacent pairs and would have to be re-litigated
+# whenever one is added. A group states the claim that matters: what kind of
+# failure this is.
+#
+# INCONSISTENCY IS LAST, DELIBERATELY. Repeat observations disagreeing is a
+# statement about variance, and the project owner's reading is that it can be a
+# judgement artefact rather than a defect in itself. It is never the most
+# serious thing that happened when something else also fired.
+_CRITICALITY: Final[dict[str, int]] = {
+    # 1. OUR PIPELINE WAS ATTACKED, which is worse than anything a candidate
+    #    does to itself: the judge is the instrument.
+    "QC_SEC_JUDGE_HIJACK": 1,
+    "QC_SEC_CREDENTIAL_LEAK": 1,
+    "QC_SEC_INJECTION_ATTEMPT": 1,
+    # 2. THE MODEL DID WHAT AN ATTACKER ASKED.
+    "QC_LLM_INJECTION_SUSCEPTIBLE": 2,
+    "QC_LLM_GOAL_HIJACK": 2,
+    "QC_LLM_PROMPT_LEAKAGE": 2,
+    # 3. IT REVEALED MORE THAN PERMITTED, without being asked to by an attacker.
+    "QC_LLM_OVER_DISCLOSURE": 3,
+    # 4. IT USED TOOLS WRONGLY, which has effects outside the response.
+    "QC_LLM_TOOL_VIOLATION": 4,
+    # 5. IT SAID SOMETHING UNTRUE about the material it was given.
+    "QC_LLM_HALLUCINATION": 5,
+    "QC_LLM_SOURCE_ALTERATION": 5,
+    "QC_LLM_UNSOURCED_CLAIM": 5,
+    "QC_LLM_MATCH_MISCOMPUTED": 5,
+    "QC_LLM_DEFECT_MISSED": 5,
+    # 6. IT DID NOT FOLLOW THE INSTRUCTION it was given.
+    "QC_LLM_INSTRUCTION_DRIFT": 6,
+    "QC_LLM_CONTEXT_OMISSION": 6,
+    "QC_LLM_AMBIGUITY_UNHANDLED": 6,
+    "QC_LLM_OVER_CLARIFICATION": 6,
+    # 7. THE SHAPE WAS WRONG, which is mechanically detectable and cheap to fix.
+    "QC_LLM_SCHEMA_VIOLATION": 7,
+    "QC_LLM_FORMAT_VIOLATION": 7,
+    "QC_LLM_LENGTH_VIOLATION": 7,
+    "QC_LLM_NO_OUTPUT": 7,
+    # 8. A JUDGE SCORED IT BELOW THRESHOLD, which is a graded opinion.
+    "QC_LLM_RUBRIC_FAILURE": 8,
+    # 9. IT DISAGREED WITH ITSELF. A fact about variance, and last.
+    "QC_LLM_INCONSISTENT": 9,
+}
+
+_LEAST_CRITICAL: Final[int] = max(_CRITICALITY.values())
+
+
+def code_criticality(taxonomy_code: str) -> int:
+    """Return how serious a code is, one being the most serious.
+
+    Args:
+        taxonomy_code (str): The code to rank.
+
+    Returns:
+        int: Its rank. **An unranked code sorts last rather than raising**,
+        because this orders a report and must not be the thing that stops one
+        being produced. :func:`unranked_codes` is what fails instead, at the
+        point a code is added.
+    """
+    return _CRITICALITY.get(taxonomy_code, _LEAST_CRITICAL + 1)
+
+
+def most_critical(taxonomy_codes: Iterable[str]) -> Optional[str]:
+    """Return the most serious code among those given.
+
+    **Ties keep the order they arrived in**, so a caller passing codes in the
+    order their assertions are declared gets the first declared of equals,
+    which is the order a rule's author chose.
+
+    Args:
+        taxonomy_codes (Iterable[str]): The codes that fired.
+
+    Returns:
+        Optional[str]: The most serious, or ``None`` when none were given.
+    """
+    ordered = [code for code in taxonomy_codes if code]
+    if not ordered:
+        return None
+    return min(ordered, key=code_criticality)
+
+
+def unranked_codes() -> frozenset[str]:
+    """Return every registered model or security code carrying no rank.
+
+    **This is what fails when a code is added**, rather than
+    :func:`code_criticality`: a report should still be produced, and the gap
+    should be reported where it can be fixed. ``MQC_CMN_UNI_112330`` asserts
+    this is empty.
+
+    Returns:
+        frozenset[str]: The unranked codes, empty when the table is complete.
+    """
+    return frozenset(
+        (_LLM_CODES | _SEC_CODES) - frozenset(_CRITICALITY)
+    )
 
 
 def registered_codes() -> frozenset[str]:

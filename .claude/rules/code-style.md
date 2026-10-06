@@ -178,6 +178,55 @@ callable that touches the subject".
 * **Strings**: Double quotes (`"..."`) everywhere. Interpolate using f-strings exclusively.
 * **Keyword-Only Flags**: Boolean options must be keyword-only using `*` (`def parse_data(self, content: str, *, validate_schema: bool = True)`).
 
+### 5.1 A module is split at nine hundred lines, by subject
+
+Added 2026-10-05 at the project owner's instruction, after the thousand-line
+ceiling fired three times in one day on changes that had nothing to do with it.
+
+**The hard ceiling is a thousand lines and `.pylintrc` enforces it.** The
+problem is never the limit, it is when it fires:
+
+| | |
+|---|---|
+| `mqc_uni_metadata.py` | Sat at 998 lines. **A prose edit would have failed the build** |
+| `mqc_uni_harness_pin.py` | Sat at 995, with five lines of headroom |
+| `mqc_uni_metadata.py` again | One new case took it to 1024, mid-change |
+
+**A ceiling nobody can plan around fires at the worst moment.** So nine
+hundred lines is where a module is treated as full: **the next subject added
+belongs in a module of its own, named for that subject.**
+
+#### The margin is for prose, not for more cases
+
+The hundred lines between the runway ceiling and the hard limit are room for
+the comments, docstrings and design pointers an ordinary edit adds. **They are
+not a budget for two more tests.** A case that pushes a module past nine
+hundred moves out with its subject, which is cheap now that a case module
+holds only cases (`test_taxonomy.md` section 13).
+
+#### Split by subject, never by number
+
+`mqc_uni_criticality.py` came out of `mqc_uni_metadata.py` because the code
+ranking is its own subject: that module is about what a result carries, this one
+about which of several codes names a finding.
+
+**A `_2` suffix would destroy the one-subject-per-module property**, which is
+what makes the suite navigable and what section 13 depends on. The question at
+nine hundred lines is "what is the second subject in here", and the answer is
+the new module's name.
+
+#### Enforced, with the backlog declared
+
+`cmn.module_size.runway_problems` reports a module at the ceiling that
+`config/module_runway.yaml` does not declare, an entry past its expiry, and an
+entry whose module is back under the ceiling. `MQC_CMN_UNI_112331` and
+`MQC_CAS_UNI_115715` assert it with each root.
+
+**Six harness modules were already past it**, three of them production code, so
+each is declared with a reason and an expiry rather than split in one sweep.
+**The list shrinks and never grows**: a module crossing the ceiling after this
+was written fails until it is split or declared deliberately.
+
 ## 6. Data Validation & Failure Handling
 * **Dataclass Schemas**: Schemas use `@dataclass` with a `from_dict` classmethod.
 * **Strict Validation**: `from_dict` validates all required keys before instantiation, raising `KeyError` on missing fields.

@@ -27,9 +27,9 @@ import ast
 import logging
 from datetime import date
 from pathlib import Path
-from typing import Any, Final
+from typing import Final
 
-from cmn.config import load_yaml_config
+from cmn.declared_gaps import declared_entries, lapsed_problems
 
 logger = logging.getLogger(__name__)
 
@@ -95,35 +95,6 @@ def inline_support(module: Path) -> list[str]:
     return found
 
 
-def declared_extractions(registry: Path) -> dict[str, dict[str, Any]]:
-    """Return the modules recorded as not yet extracted.
-
-    **A gap is a declared absence, not an exemption**, exactly as
-    ``flag_coverage.yaml`` and ``not_rostered`` are: it carries a reason and an
-    expiry, because a list with no expiry is where unconverted modules go to be
-    forgotten and the check stops meaning anything once everything inconvenient
-    has left its denominator.
-
-    Args:
-        registry (Path): The declaration to read.
-
-    Returns:
-        dict[str, dict]: Repository-relative posix path to its record. Empty
-        when the file is absent, which is the finished state rather than an
-        error.
-    """
-    if not registry.is_file():
-        return {}
-    payload = load_yaml_config(registry)
-    pending = payload.get("not_yet_extracted") or {}
-    if not isinstance(pending, dict):
-        return {}
-    return {
-        str(path): record if isinstance(record, dict) else {}
-        for path, record in pending.items()
-    }
-
-
 def extraction_problems(
     tests: Path, root: Path, registry: Path, as_of: date
 ) -> list[str]:
@@ -148,7 +119,7 @@ def extraction_problems(
     Returns:
         list[str]: One message per problem, empty when the rule holds.
     """
-    declared = declared_extractions(registry)
+    declared = declared_entries(registry, "not_yet_extracted")
     problems: list[str] = []
     seen: set[str] = set()
 
@@ -158,7 +129,18 @@ def extraction_problems(
         record = declared.get(relative)
         if record is not None:
             seen.add(relative)
-            problems.extend(_lapsed(relative, carried, record, as_of))
+            if not carried:
+                problems.append(
+                    f"{relative} is recorded as not yet extracted and "
+                    f"holds no support definitions any more, so the entry "
+                    f"outlived the work. Remove it"
+                )
+                continue
+            problems.extend(
+                lapsed_problems(
+                    relative, record, as_of, "not yet extracted"
+                )
+            )
             continue
         if carried:
             problems.append(
@@ -176,47 +158,6 @@ def extraction_problems(
             f"{relative} is recorded as not yet extracted and is not a "
             f"collected test module in this repository, so the entry asserts "
             f"something about a path that does not exist"
-        )
-    return problems
-
-
-def _lapsed(
-    relative: str, carried: list[str], record: dict[str, Any], as_of: date
-) -> list[str]:
-    """Return what is wrong with one declared entry.
-
-    Args:
-        relative (str): The module's repository-relative path.
-        carried (list): The support definitions it still holds.
-        record (dict): Its registry record.
-        as_of (date): The date expiries are judged against.
-
-    Returns:
-        list[str]: One message per problem with this entry.
-    """
-    if not carried:
-        return [
-            f"{relative} is recorded as not yet extracted and holds no support "
-            f"definitions any more, so the entry outlived the work. Remove it"
-        ]
-
-    problems: list[str] = []
-    if not str(record.get("reason") or "").strip():
-        problems.append(
-            f"{relative} is a declared gap carrying no reason, which makes it "
-            f"an exemption rather than a declared absence"
-        )
-
-    expires = record.get("expires_on")
-    if not isinstance(expires, date):
-        problems.append(
-            f"{relative} is a declared gap with no expiry date, and a list "
-            f"with no expiry is where unconverted modules go to be forgotten"
-        )
-    elif expires < as_of:
-        problems.append(
-            f"{relative} has been a declared extraction gap since its expiry "
-            f"on {expires.isoformat()}: {record.get('reason', '')!s}".strip()
         )
     return problems
 
