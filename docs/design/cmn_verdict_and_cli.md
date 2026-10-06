@@ -1932,6 +1932,94 @@ This is §7.1.0's failure again with an aggravation: **the coverage file asserte
 
 **The check that would have caught it** is a comparison between the registry and what reads each flag. `flag_coverage.yaml` was built to be that check and it takes an **assertion** about each flag rather than deriving one, so an entry claiming an owner is believed. That is the same shape as the hand-typed field list in §9.4 and the self-consistent inventory in §11.2.2: a file that states a fact it could have computed.
 
+### 7.11 A band job reports its band, not what it declined to run
+
+Added 2026-10-06 at the project owner's instruction, after reading a P1 gate
+job whose last line was:
+
+```
+3 failed, 7 passed, 146 deselected
+```
+
+**The largest number on the line is not a result.** The 146 is every
+precondition plus every case in the other bands, and no rate divides into it: a
+reader has to subtract it from a total nothing states to find the denominator.
+**"Executed so many, failed so many, skipped so many, pass rate such and
+such"** is what the job is opened for.
+
+#### A band job is read for its band
+
+The per-band split exists because a workflow run has one conclusion and a band
+is the unit a remedy attaches to: P0 and P1 block a release, a lower band is a
+bug to open and quarantine. **So the summary counts what the band selected and
+nothing else**, and totals across bands belong to the verdict, which has every
+observation and the rules for weighing them.
+
+```
+Band P0: 15 selected, 12 executed, 9 passed, 3 failed, 3 skipped behind a failed foundation, 75.0% pass
+Band P1: 10 selected, 6 executed, 5 passed, 1 failed, 4 skipped behind a failed foundation, 83.3% pass
+Band P2: 35 selected, 34 executed, 29 passed, 5 failed, 1 skipped behind a failed foundation, 85.3% pass
+```
+
+**Selected is a denominator a reader can see.** Passed plus failed plus skipped
+is what the run was asked to do, and every other figure divides into it, so
+nothing has to be inferred.
+
+#### Two rates, because a skip is not a non-event
+
+**Corrected 2026-10-06.** The first version stated one rate, over what
+executed, and excluded skips from it entirely. The project owner's objection:
+**a dependent is skipped to save cost, not to keep it out of the results**, and
+the reason it skipped is a failure upstream, an environment that was not set,
+or a defect in our own scripts. **A single rate dropping skips from its
+denominator flatters the run by exactly the number of cases it declined to
+measure.**
+
+| Rate | Over | Answers |
+|---|---|---|
+| **Execution** | passed plus failed | Of what ran, how much held |
+| **Total** | everything selected | Of what the band set out to establish, how much it established |
+
+```
+Band P1: 10 selected, 6 executed, 5 passed, 1 failed, 4 skipped behind a failed foundation
+Band P1: execution pass 83.3% (5 of 6), total pass 50.0% (5 of 10)
+```
+
+**The gap between them is the cost of the skips**, and it is a figure a reader
+should see rather than infer. That band measured six of ten cases: 83.3% was
+the honest answer to "of what ran, how much held" and the misleading answer to
+"how did P1 do".
+
+**Each rate is printed with its fraction**, so a reader checks the arithmetic
+rather than trusting it, which is why a finding carries its population beside
+its code.
+
+**The skips are still named by kind**, because the remedy differs: one behind a
+failed foundation is cleared by fixing the foundation, and one for another
+reason is usually ours.
+
+**A zero denominator yields no rate**, which is the rule section 1 states: the
+question is unanswerable, and that is never a hundred per cent. **An empty
+selection prints nothing at all**, because a row of zeroes reads as a clean
+result.
+
+#### This does not change the verdict
+
+The verdict keeps its own denominators and its own floor. **This is a report
+and that is a decision**, and the two answer different questions: a reader asks
+what a band established, and the gate asks whether a run may pass.
+
+#### Where it appears
+
+`pytest_terminal_summary` in each repository's conftest, delegating to
+`cmn.band_summary` as every other hook delegates, so the line appears in a
+local run and in the job log identically. The gate also writes it to the step
+summary, which is what a reader sees without opening the log.
+
+`MQC_CMN_UNI_112332` asserts the arithmetic, including that nothing executed
+yields no rate and that a dependency skip stays out of the denominator.
+
+
 ## 8. Configuration
 
 | File | Contents | Why config, not code |
@@ -2193,8 +2281,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112329` | N | `a_subprocess_without_a_timeout_is_reported` |
 | `112330` | N | `a_registered_code_without_a_rank_is_reported` |
 | `112331` | N | `a_module_at_the_runway_ceiling_is_reported` |
+| `112332` | P | `a_band_summary_states_its_own_denominator` |
 
-**Inventory: 244 cases, 137 negative, 80 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 245 cases, 137 negative, 81 positive, 27 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

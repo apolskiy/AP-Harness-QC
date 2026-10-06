@@ -18,12 +18,15 @@ A failure here is our defect, so the module carries no priority marker, per
 from pathlib import Path
 from typing import Any, Final, Optional
 
+import allure
 import pytest
 
 from cmn.code_standards import required_result_fields
 from cmn.metadata import emit_result
 from cmn.observations import Observation, RunContext
 from cmn.reporting import observation_parameters, vendor_report
+
+from cmn.band_summary import band_label, band_lines, pass_rate
 
 pytestmark = pytest.mark.unit
 
@@ -309,3 +312,85 @@ class TestMQCNormativeFieldList:
             "the code emits fields section 9.1 never declared, so they reach a "
             "durable record undocumented: " + ", ".join(undeclared)
         )
+
+
+@allure.epic("AP-Harness-QC")
+@allure.feature("Cross-cutting")
+class TestMQCBandSummary:
+    """What a band job states about its own selection."""
+
+    @allure.story("A band states both of its denominators")
+    def MQC_CMN_UNI_112332_a_band_summary_states_its_own_denominator(
+        self,
+    ) -> None:
+        """The summary states an execution rate and a total rate, with fractions.
+
+        **pytest's own last line reports what it declined to run.** A P1 job
+        ended with 146 deselected, which is every precondition plus the other
+        bands: the largest figure on the line, and nothing a rate divides into.
+
+        **A skip is not a non-event, which is the correction of 2026-10-06.** A
+        dependent is skipped to save cost, not because the case stopped
+        mattering, and the reason is a failure upstream, an environment that
+        was not set, or a defect in our scripts. A single rate dropping skips
+        from its denominator flatters the run by exactly the number of cases it
+        declined to measure.
+
+        | Rate | Over | Answers |
+        |---|---|---|
+        | Execution | passed plus failed | Of what ran, how much held |
+        | Total | everything selected | Of what the band set out to establish, how much it did |
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.11.
+
+        Returns:
+            None
+        """
+        blocked = ["QC_HARNESS_DEPENDENCY_UNMET: foundational case 1 did not hold"]
+        reported = band_lines(
+            passed=9, failed=3, skip_reasons=blocked * 3, priority="0"
+        )
+        assert len(reported) == 2, (
+            f"a band states its counts and its rates, two lines: {reported}"
+        )
+        counts, rates = reported[0], reported[1]
+
+        assert counts.startswith("Band P0: 15 selected, 12 executed"), (
+            f"the denominator is not the band's own selection: {counts}"
+        )
+        assert "3 skipped behind a failed foundation" in counts, (
+            f"a dependency skip is not named, so a reader cannot tell it from "
+            f"an environmental one: {counts}"
+        )
+
+        # BOTH RATES, AND THE GAP BETWEEN THEM IS THE COST OF THE SKIPS.
+        assert "execution pass 75.0% (9 of 12)" in rates, (
+            f"the execution rate is not over what ran: {rates}"
+        )
+        assert "total pass 60.0% (9 of 15)" in rates, (
+            f"the total rate does not count the skips, so three cases the band "
+            f"did not measure are invisible in its result: {rates}"
+        )
+
+        # NOTHING MEASURED YIELDS NO RATE. A zero denominator means the
+        # question is unanswerable, which is never a hundred per cent.
+        only_skips = band_lines(
+            passed=0, failed=0, skip_reasons=blocked, priority="1"
+        )[1]
+        assert "execution pass no rate, nothing measured" in only_skips, (
+            f"an empty execution denominator produced a rate: {only_skips}"
+        )
+        assert "total pass 0.0% (0 of 1)" in only_skips, (
+            f"a band that measured nothing does not read as nothing "
+            f"established: {only_skips}"
+        )
+        assert pass_rate(0, 0) is None, "a zero denominator returned a number"
+
+        # AN EMPTY SELECTION SAYS NOTHING, because zeroes read as a clean run.
+        assert not band_lines(passed=0, failed=0, skip_reasons=[], priority="4"), (
+            "an empty selection printed a row of zeroes"
+        )
+
+        # AND THE LABEL FOLLOWS THE FILTER, so a reader knows what was asked.
+        assert band_label("") == "Whole selection"
+        assert band_label("2,3,4") == "Bands P2,P3,P4"

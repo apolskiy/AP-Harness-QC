@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **559 cases, all passing**. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **560 cases, all passing**. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 249, none uncovered, none untraced |
+| Requirements traced | 250, none uncovered, none untraced |
 | Specified and not yet built | Recorded as deferrals, not as silence |
 
 Every case is inventoried in a design document before it is implemented, traced
