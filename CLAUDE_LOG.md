@@ -9303,3 +9303,51 @@ each had its own copy of reading it and of checking the expiry.
 ### State
 
 711 passing, pylint exit 0.
+
+## 2026-10-05: The open questions stop mapping the credential surface
+
+**At the project owner's instruction**: a closed question leaves this document,
+and no tracked document says where a key is held.
+
+### What was published that should not have been
+
+Section 1.2 carried a table naming where every key lives, which environment
+each repository uses, and which secret each environment holds. **A reader who
+needs that map is the reader who should not have it.**
+
+**The distinction that survived.** The environment name is declared in the
+workflow files and `.env` is named in `.gitignore`, so the boundary's
+architecture is already public and stating it is a strength: a gate names no
+environment and references no provider secret, so a fork pull request has no
+path to a credential. **What was gratuitous was the inventory**, not the
+architecture, and only the inventory was removed.
+
+**The properties are asserted rather than described.** `cmn/config.py` refuses
+a configuration file carrying a credential-shaped key, `112520` requires every
+variable an adapter reads to be settable in `.env.example`, and `115710`
+requires the live workflow to offer one per rostered engine. **A checked
+property is worth more than a described one, and it does not have to name a
+location to hold.**
+
+### Closed questions removed, and one that was lying
+
+| Section | State |
+|---|---|
+| 1, engines blocked on an account action | **Closed.** All four recorded; every row already read "What clears it: Nothing" |
+| 1.1, `--max-spend` "not wired, no workflow passes it" | **Stale and wrong.** It was wired into every dispatching leg on 2026-10-04 |
+| 1.2, the credential map | **Removed**, as above |
+| 4, known-good state | **Removed.** A second copy of figures checked elsewhere, drifted on every one |
+
+**Section 4 is the one worth naming.** It claimed 687 passing against 711, 83
+preconditions against 91, 24 findings against 23, and "9 observations, security
+family only" against 815 across four engines. The README carries all of these
+and `112323` recomputes them. **Keeping a hand-written snapshot beside a checked
+copy, in the document that catalogues this exact defect, is the mistake making
+itself.**
+
+245 lines to 175. Each removed question is a row in section 2A, which names the
+question and points at where the answer lives without restating it.
+
+### State
+
+711 passing, pylint exit 0.
