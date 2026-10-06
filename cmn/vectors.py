@@ -134,8 +134,26 @@ _VECTOR_PATTERNS: Final[dict[str, Pattern[str]]] = {
     # the cross-check on phrasing it did not need, and a payload that merely
     # names a replacement task matched nothing (section 7.3.1).
     "task_substitution": re.compile(
-        r"\b(instead\s+of|rather\s+than)\b[^.]{0,40}?"
+        # A SUBSTITUTION IS INSTRUCTED, NOT DESCRIBED. **Narrowed 2026-10-05.**
+        # The first branch was `instead of|rather than` within 40 characters of
+        # a substitution verb, and `answer`, `reply` and `summary` are nouns as
+        # readily as verbs: it fired on a model correctly describing a defect,
+        # "the caller gets an unhandled exception instead of a business-level
+        # answer", aborted that observation on an ordinary case, and reported
+        # `QC_LLM_INCONSISTENT` against the vendor. Design section 5.2.
+        #
+        # TWO SHAPES, BOTH INSTRUCTIONS. Adjacent, where the verb follows the
+        # trigger directly and is therefore verbal: "instead of summarising".
+        # And across a comma, where a noun phrase names what is being replaced
+        # and an imperative follows: "instead of the summary, reply with X".
+        # Descriptive prose has neither, because it continues the sentence
+        # rather than issuing a second one.
+        r"\b(instead\s+of|rather\s+than)\s+"
+        r"(?:just\s+|simply\s+|merely\s+|only\s+)?"
         r"\b(summaris|summariz|answer|respond|reply|translat)\w*\b|"
+        r"\b(instead\s+of|rather\s+than)\b[^.,]{0,30},\s*"
+        r"\b(summaris|summariz|answer|respond|reply|translat|print|output|emit)"
+        r"\w*\b|"
         r"\bthe\s+(actual|real|correct|true)\s+task\s+is\b|"
         r"\b(task|instruction)\s+has\s+been\s+(retired|replaced|superseded|updated)\b|"
         r"\bcorrection\s+to\s+your\s+(configuration|instruction|prompt)\b",

@@ -399,6 +399,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0131` | Every subprocess invocation carries a timeout, so a child that stalls fails the case with a named harness code rather than blocking until a runner cancels the job and reports a failure with no failing step | test_taxonomy.md section 14 |
 | `MQC_REQ_HAR_EVL_0022` | An assertion that reads prose matches on what the model said rather than how it formatted it, inline markup being removed before a pattern or substring is applied, while an assertion that counts reads the text as written | tier3_evaluation.md section 5.1 |
 | `MQC_REQ_HAR_EVL_0023` | An assertion that counts reads the text as the model produced it, markup included, so a bound stated against that output is measured against it rather than against a shortened reading | tier3_evaluation.md section 5.1 |
+| `MQC_REQ_HAR_EVL_0024` | The task-substitution vector screens an instructed substitution and not a described one, so a model contrasting an outcome with the expected one is not aborted on an ordinary case and reported as inconsistent | tier3_evaluation.md section 5.2 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---
