@@ -15,11 +15,14 @@ outcomes characterise anything.
 A failure here is our defect, so the module carries no priority marker.
 """
 
+import json
 from datetime import date
+from pathlib import Path
 
 import pytest
 
 from cmn.observations import Observation, further_observations
+from cmn.replay_audit import divergent_recordings
 from cmn.verdict import (
     inconsistency_rate,
     inconsistent_cases,
@@ -225,35 +228,134 @@ class TestMQCObservationConsistency:
             "the verdict did not carry the spread, so it is computed and lost"
         )
 
-    def MQC_CMN_UNI_112036_one_disagreement_earns_two_further_observations(
+    def MQC_CMN_UNI_112036_any_failure_earns_two_further_observations(
         self,
     ) -> None:
-        """One failed observation of three earns two more; nothing else earns any.
+        """Three runs to pass; any failure earns two more, and five is the floor.
 
-        The boundary is one failure exactly. Zero, two and three earn none, and
-        a case already at five earns none because the rule escalates once.
-        Fewer than two outcomes earn none, there being nothing to compare.
+        The boundary is between zero failures and one. Agreement earns none
+        because there is nothing to refine and nothing to report; one, two and
+        three failures of three each earn two, and a case already at five earns
+        none because the rule escalates once.
 
-        Counts failures rather than the smaller group, so two failures of three
-        do not escalate as though one had.
+        **Three of three escalates too**, which the earlier rule did not do. It
+        asked what the verdict needs, and the verdict is binary and settled by
+        the first disagreement; what escalation serves is the figure a reader
+        outside this project weighs, where "always, on three attempts" and
+        "five of five" are different claims.
 
         Design: ``cmn_verdict_and_cli.md`` sections 4.9.2.1 and 4.9.2.2.
 
         Returns:
             None
         """
-        # THE BOUNDARY, AT ITS VALUE. One failure of three earns two more.
-        assert further_observations([True, True, False]) == 2
+        # THE BOUNDARY, EITHER SIDE OF IT. Agreement earns nothing; the first
+        # failure earns the escalation.
+        assert further_observations([True, True, True]) == 0, (
+            "three passes earned further observations, which buys a more "
+            "precise zero on a case that produced no finding"
+        )
+        for outcomes in (
+            [True, True, False],
+            [True, False, False],
+            [False, False, False],
+        ):
+            passed = sum(outcomes)
+            assert further_observations(outcomes) == 2, (
+                f"{passed} of 3 passed earned no escalation, so the finding "
+                f"would be filed as a third rather than a fifth"
+            )
 
-        # AND EVERY NEIGHBOUR EARNS NOTHING.
-        assert further_observations([True, True, True]) == 0
-        assert further_observations([True, False, False]) == 0
-        assert further_observations([False, False, False]) == 0
-
-        # ONCE ONLY: a fifth is the legible number the decision asked for.
+        # ONCE ONLY: a fifth is the legible number the decision asked for, and
+        # a tenth is a later decision with its own arithmetic.
         assert further_observations([True, True, True, True, False]) == 0
+        assert further_observations([False, False, False, False, False]) == 0
 
         # A SINGLE SAMPLE CANNOT DISAGREE WITH ITSELF, which is what
         # `consistent` answers for the same reason.
         assert further_observations([True]) == 0
+        assert further_observations([False]) == 0
         assert further_observations([]) == 0
+
+
+    def MQC_CMN_UNI_112335_a_case_whose_recordings_disagree_on_the_request_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """Recordings for one case answer one request, or the store says so.
+
+        **The defect this guards was unread for a day.** Observations four and
+        five of one task carried a request hash from before a prompt changed,
+        and the escalation rule never drew them, so nothing complained.
+        Widening that rule at 4.9.2.1 draws them, and the case would have
+        skipped on ``QC_HARNESS_FIXTURE_STALE`` at the moment it was trying to
+        establish a rate.
+
+        Design: ``cmn_verdict_and_cli.md`` section 12.4.1.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        folder = tmp_path / "claude" / "MQC_TASK_alpha" / "MQC_RULE_alpha"
+        folder.mkdir(parents=True)
+        for index, digest in enumerate(("aaa111", "aaa111", "bbb222")):
+            (folder / f"{index}.json").write_text(
+                json.dumps({"request_hash": digest, "response": {}}),
+                encoding="utf-8",
+            )
+
+        problems = divergent_recordings(tmp_path)
+        assert len(problems) == 1, (
+            f"a half refreshed store was not reported, so the stale half waits "
+            f"for an escalation to find it: {problems}"
+        )
+        assert "MQC_TASK_alpha" in problems[0], (
+            f"the report does not name the case, so nobody can act on it: "
+            f"{problems[0]}"
+        )
+        assert "2" in problems[0], (
+            f"the report does not name which observation diverged: "
+            f"{problems[0]}"
+        )
+
+        # AND A STORE THAT AGREES IS SILENT, or the check reports every case.
+        (folder / "2.json").write_text(
+            json.dumps({"request_hash": "aaa111", "response": {}}),
+            encoding="utf-8",
+        )
+        assert not divergent_recordings(tmp_path), (
+            "a consistent store was reported, so the check cannot tell a "
+            "refreshed case from a stale one"
+        )
+
+        # A JUDGEMENT SCORES ONE RESPONSE, so its request carries that
+        # response and every observation's judgement answers a legitimately
+        # different request. Requiring agreement there reported the whole
+        # store on its first run against real fixtures.
+        judged = (tmp_path / "judgements" / "claude" / "gemini"
+                  / "MQC_TASK_alpha" / "MQC_RULE_alpha")
+        judged.mkdir(parents=True)
+        for index, digest in enumerate(("ddd444", "eee555", "fff666")):
+            (judged / f"{index}.json").write_text(
+                json.dumps({"request_hash": digest, "reply": {}}),
+                encoding="utf-8",
+            )
+        assert not divergent_recordings(tmp_path), (
+            "judgements were required to answer one request, which reports "
+            "every case in the store and hides the candidate recordings that "
+            "genuinely diverged"
+        )
+
+        # ONE RECORDING CANNOT DISAGREE WITH ITSELF, which is the answer
+        # `further_observations` gives a single observation for the same reason.
+        lone = tmp_path / "grok" / "MQC_TASK_beta" / "MQC_RULE_beta"
+        lone.mkdir(parents=True)
+        (lone / "0.json").write_text(
+            json.dumps({"request_hash": "ccc333", "response": {}}),
+            encoding="utf-8",
+        )
+        assert not divergent_recordings(tmp_path), (
+            "a case holding one recording was reported as disagreeing"
+        )

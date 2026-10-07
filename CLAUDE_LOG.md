@@ -9602,3 +9602,49 @@ is the argument for making one.
 717 passing, pylint exit 0. `112334` holds the snapshot fallback at its
 boundary, and `114613` holds the narrowed vector against the payloads it must
 still catch.
+
+## 2026-10-06: Three runs to pass, five on any failure, and the trap that widening it sprang
+
+### The rule disagreed with its own heading
+
+`further_observations` escalated only on **exactly one** disagreement. Section
+4.9.2.1 is titled "The ceiling is 0.20, and **a disagreement** earns two more
+observations", and the narrowing lived in the body beneath it and in the code.
+
+**The narrow rule asked what the verdict needs.** The verdict is binary and
+settled by the first disagreement, so 67 and 100 percent are the same answer as
+33 and two more observations buy nothing. That reasoning is sound and it
+answers a question that is no longer the only one.
+
+**The figure is read by somebody outside this project.** A finding filed with a
+vendor states how often the behaviour appeared, and that number is the evidence
+the reader weighs. Three observations yield 33, 67 or 100 percent; five yield
+fifths. The project owner's correction: **"we want clearer percentages of
+failure, a minimum of 5 runs gives us that."**
+
+So any failure earns two more, including three of three: "always, on three
+attempts" and "five of five" are different claims and the old rule could not
+tell them apart.
+
+### Widening it drew recordings nobody had read
+
+Observations four and five of one task carried a request hash from before a
+prompt changed, on three engines. **Nothing complained, because nothing read
+them**: the narrow rule never escalated that case, so the stale half sat
+unread. Widen the rule and it is drawn, and the case skips on
+`QC_HARNESS_FIXTURE_STALE` at the exact moment it is establishing a rate.
+
+`cmn/replay_audit.py` now reports a case whose candidate recordings do not
+share one request hash. **A store refreshed in part is worse than one wholly
+stale**, because the half that loads looks current.
+
+**The check corrected its own rule on first contact.** Run against the real
+store it reported everything, because a judgement scores one candidate response
+and so carries that response in its request: judgements differ per observation
+by construction. They are excluded, and `112335` asserts the exclusion so
+nobody tightens it back.
+
+### State
+
+718 passing, pylint exit 0. `112036` holds the widened rule at both sides of
+its boundary, `112335` the request agreement.

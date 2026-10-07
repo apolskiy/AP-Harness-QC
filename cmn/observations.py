@@ -408,21 +408,24 @@ _ESCALATION: Final[int] = 2
 def further_observations(outcomes: list[bool]) -> int:
     """Return how many more observations a pattern of outcomes earns.
 
-    **Exactly one disagreement earns two more, and nothing else earns any.**
-    Three observations can only put a case at 0, 33, 67 or 100 percent
-    disagreement. Of those, only the 33 is worth refining: zero has nothing to
-    refine, and 67 or 100 is already established far above any ceiling. Design
-    section 4.9.2.1 carries the decision and the arithmetic.
+    **Any failure earns two more, and agreement earns none.** Three runs to
+    pass; five once one has failed. Design section 4.9.2.1 carries the decision.
 
     **It does not change the verdict.** The case is inconsistent either way, by
     the binary rule in section 4.9.1 which a majority would undo. What the two
-    further observations buy is the **severity**: one in five and three in five
-    are different findings although both fail.
+    further observations buy is the **figure a reader weighs**: three
+    observations yield 33, 67 or 100 percent, and five yield fifths. "2 of 3"
+    invites the answer that three attempts prove nothing.
 
-    **It escalates once.** Five observations showing one disagreement are not
-    taken to ten, because the decision is that a fifth is a legible number and
-    not that a tenth is needed. A second escalation is a later decision with its
-    own arithmetic, so this function is not a loop.
+    **Including a case that failed every time.** Three of three is reported as
+    failing always, and two more either confirm that at five of five or reveal
+    three of five, which is a different finding. The earlier rule escalated
+    only on exactly one disagreement and could not tell those apart.
+
+    **It escalates once.** Five observations are not taken to ten, because the
+    decision is that a fifth is a legible number and not that a tenth is
+    needed. A second escalation is a later decision with its own arithmetic, so
+    this function is not a loop.
 
     Args:
         outcomes (list[bool]): Whether each observation so far passed, in the
@@ -437,11 +440,15 @@ def further_observations(outcomes: list[bool]) -> int:
     if len(outcomes) < 2:
         return 0
     # FAILURES, NOT THE MINORITY. A case is asked to pass every time, so a
-    # disagreement is an observation that failed. Reading the minority instead
-    # made two failures of three escalate, which is already two thirds and
-    # established.
+    # disagreement is an observation that failed, and three failures of three
+    # is a disagreement with the requirement rather than agreement.
+    #
+    # ANY FAILURE, NOT EXACTLY ONE. The narrower rule asked what the verdict
+    # needs, and the verdict is binary and settled by the first disagreement.
+    # The figure is read by somebody outside this project, where thirds are not
+    # a rate anybody can weigh. Widened by the project owner on 2026-10-06.
     failures = len(outcomes) - sum(outcomes)
-    if failures != 1:
+    if not failures:
         return 0
     # ONCE ONLY. Reached five, the rule has said what it has to say.
     if len(outcomes) >= 2 + _ESCALATION + 1:

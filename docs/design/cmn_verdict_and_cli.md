@@ -265,7 +265,7 @@ band legs run in parallel by design, and two legs writing one quarantine file
 is a lost update with a verdict attached to it.
 
 **The tool re-observes under the escalation policy rather than once.** Section
-4.9.2 sets three observations with two more on a single disagreement; removing
+4.9.2 sets three observations with two more on any failure; removing
 an entry on one green observation would un-quarantine a flaky case on its lucky
 run, which is precisely the reading the escalation exists to prevent.
 
@@ -568,17 +568,44 @@ owner's judgement that a suite carrying a fifth of its cases as wobbling has
 still measured something, while one carrying a tenth plainly has. The ceiling is
 a statement about the **run**, not about a case.
 
-**Three observations stay the default, and two more are taken only where one
-disagreed.** This is the owner's correction to a flat five, and it is the better
-design for a reason worth stating: a flat five pays for precision on every case
-in order to get it on the few that need it.
+**Three observations stay the default, and any failure earns two more.**
+Corrected by the project owner on 2026-10-06: three runs to pass, five once one
+has failed.
 
 | After three | Disagreement reads | Escalate? | Why |
 |---|---|---|---|
-| 3 agree | 0 percent | No | Nothing to refine |
-| **1 disagrees** | **33 percent** | **Yes, two more** | 33 is above the ceiling and may not be the real rate |
-| 2 disagree | 67 percent | No | Already established far above any ceiling |
-| 3 disagree | 100 percent | No | As above |
+| 3 agree | 0 percent | No | Nothing to refine, and nothing to report |
+| 1 disagrees | 33 percent | **Yes, two more** | Thirds are not a rate anybody can read |
+| 2 disagree | 67 percent | **Yes, two more** | As above |
+| 3 disagree | 100 percent | **Yes, two more** | "Always" on three attempts is a weaker claim than on five |
+
+##### Why this is wider than the rule it replaces
+
+**The earlier rule escalated only on exactly one disagreement**, on the ground
+that 67 and 100 percent are already established far above any ceiling. That
+reasoning is correct and it answers the wrong question: it asks what the
+**verdict** needs, and the verdict is binary and settled by the first
+disagreement.
+
+**The number is read by somebody outside this project.** A finding filed with a
+vendor states how often the behaviour appeared, and that figure is the evidence
+the reader weighs. Three observations yield 33, 67 or 100 percent; five yield
+fifths. **"2 of 3" invites the answer that three attempts prove nothing**, and
+costs nothing to turn into "3 of 5".
+
+| | Verdict | Report |
+|---|---|---|
+| What it needs | Did any observation disagree | How often, in a figure a reader can weigh |
+| Settled by | The first disagreement | The denominator |
+| Escalation changes it | **No** | **Yes, and that is the whole purpose** |
+
+**Escalating at 100 percent is deliberate and is not redundant.** A case failing
+three of three is reported as failing always, and two more observations either
+confirm that at five of five or reveal that it was three of five, which is a
+different finding. The old rule could not tell those apart.
+
+**It still escalates once.** Five is the floor a percentage needs, not a step
+toward ten, and section 4.9.2.2 keeps that limit unchanged.
 
 **What the escalation buys is the severity, not the verdict.** The case is
 inconsistent either way: the binary rule above does not soften, and the owner's
@@ -596,7 +623,12 @@ a more precise zero.
 | | Dispatches added per engine | Cost across three engines |
 |---|---|---|
 | Flat five, considered | 138 | about 1.82 USD |
-| **Three, escalating on one**, decided | **2 per wobbling case** | **a few cents at present rates** |
+| **Three, escalating on any failure**, decided | **2 per failing case** | **a few cents at present rates** |
+
+**The cost moved with the rule and is still not the binding consideration.** A
+passing case is still three observations, which is where the saving against a
+flat five lives: escalation is paid for only by cases that produced a finding,
+and a finding worth filing is worth a denominator.
 
 **Existing fixtures stay valid.** `FixtureKey` carries the observation index, so
 an escalation adds indices 3 and 4 and invalidates nothing; `--fill-gaps` records
@@ -629,10 +661,10 @@ sampling until some confidence was reached would spend unboundedly on exactly
 the cases that are hardest to characterise, and the quota is the binding
 constraint on every recording run this project does.
 
-**It escalates once.** Five observations with one disagreement are not escalated
-to ten, because the decision at 4.9.2.1 is that a fifth is a legible number and
-not that a tenth is needed. A second escalation is a later decision with its own
-arithmetic, not a loop this function runs.
+**It escalates once.** Five observations are not escalated to ten, because the
+decision at 4.9.2.1 is that a fifth is a legible number and not that a tenth is
+needed. A second escalation is a later decision with its own arithmetic, not a
+loop this function runs.
 
 **Zero for a single observation.** One sample cannot disagree with itself, so
 there is nothing to refine, which is the same answer `consistent` gives for the
@@ -971,7 +1003,7 @@ run by hand is the step that does not survive contact with more than one
 finding.
 
 **The report is per case, over every observation, and that is the part worth
-getting right.** A4.1 sends three observations and a single disagreement earns
+getting right.** A4.1 sends three observations and any failure earns
 two more, so **the failing call is frequently not the first one**: a case can
 fail at observation two of three, or one of five. Two consequences:
 
@@ -2266,7 +2298,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112412` | N | `with_prerequisites_under_a_keyword_filter_is_refused` |
 | `112413` | B | `with_prerequisites_without_any_filter_warns_and_proceeds` |
 | `112325` | N | `an_inventory_row_without_an_implementation_is_reported` |
-| `112036` | B | `one_disagreement_earns_two_further_observations` |
+| `112036` | B | `any_failure_earns_two_further_observations` |
 | `112524` | N | `a_workflow_step_running_an_absent_script_is_reported` |
 | `112144` | P | `the_corpus_selection_is_resolved_at_configure_time` |
 | `112611` | P | `judge_mode_defaults_to_whatever_mode_is` |
@@ -2318,8 +2350,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112332` | P | `a_band_summary_states_its_own_denominator` |
 | `112333` | N | `a_band_table_total_overriding_a_blocking_band_is_reported` |
 | `112334` | B | `a_dated_model_snapshot_prices_as_its_base` |
+| `112335` | N | `a_case_whose_recordings_disagree_on_the_request_is_reported` |
 
-**Inventory: 247 cases, 138 negative, 81 positive, 28 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 248 cases, 139 negative, 81 positive, 28 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -2706,6 +2739,26 @@ whose thinking cannot be disabled.
 
 So an unpriced model with a ceiling set **stops the run**, and the two conditions
 are separate cases.
+
+### 12.4.1 A recording the escalation has never drawn can be stale in silence
+
+Found on 2026-10-06, while widening the escalation rule at 4.9.2.1.
+
+**A case holds one recording per observation, and nothing required them to
+answer the same request.** Three observations of
+`MQC_TASK_cod_settlement_causes` carried one request hash and the fourth and
+fifth carried another, left over from before the prompt changed.
+
+**Nothing complained, because nothing read them.** The rule escalated only on
+exactly one disagreement, the case failed twice of three, and observations four
+and five sat unread. Widening the rule draws them immediately, and the case
+would have skipped on `QC_HARNESS_FIXTURE_STALE` at the exact moment it was
+trying to establish a rate.
+
+**So a case's recordings are now required to agree on the request.** They
+answer one question by construction: a differing hash means some of them answer
+a question the corpus no longer asks, and a store half refreshed is worse than
+one wholly stale, because the half that loads looks current.
 
 ### 12.5 A dated snapshot prices as its base, because the provider pins one and the table does not
 
