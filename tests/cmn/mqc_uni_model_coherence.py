@@ -10,7 +10,7 @@ lines against a 1000-line limit. The split is by subject rather than by size:
 these cases ask whether a run has a single subject at all, which is a question
 about the corpus and prior to any rule that scores it.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

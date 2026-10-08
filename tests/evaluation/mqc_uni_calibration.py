@@ -12,7 +12,7 @@ whether the judge still agrees with the anchor it was given.
 level looks healthy on any single run and obvious across twenty, and only the
 record makes the second view possible.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

@@ -11,7 +11,7 @@ section 4.6.
 mechanism: what expires an entry, what an entry must carry to be evaluated at
 all, and what the run records about the entries it consulted.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

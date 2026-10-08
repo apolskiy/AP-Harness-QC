@@ -10,7 +10,7 @@ configuration and is why it carries cases at all. Its two boundaries are a
 first run with no baseline and a probe that could not reach a version, and
 both would otherwise dispatch a live run for the wrong reason.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
@@ -146,7 +146,7 @@ class TestMQCVersionProbe:
     def MQC_EXE_UNI_113504_probe_failure_records_a_harness_event_and_does_not_dispatch(
         self, tmp_path: Path
     ) -> None:
-        """A broken detector is our defect, not evidence of a model change.
+        """A broken detector is an instrument defect, not a model change.
 
         The unconditional weekly run covers the period regardless, so treating
         a failure as a change would spend quota investigating our own bug.

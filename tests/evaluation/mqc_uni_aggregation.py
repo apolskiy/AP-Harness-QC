@@ -13,7 +13,7 @@ machine-checkable fact rather than a convention someone has to remember.
 **The battery is parametrized over the registry**, so a strategy added to it is
 covered the moment it is registered.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

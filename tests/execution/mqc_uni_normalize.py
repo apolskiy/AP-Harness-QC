@@ -10,7 +10,7 @@ make the judge depend on which provider produced the output it is judging, so
 every case here asserts that the canonical form carries what it must and
 nothing it must not.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

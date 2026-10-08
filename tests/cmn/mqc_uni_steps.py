@@ -11,7 +11,7 @@ step.** Zero of sixty-nine test modules across both repositories called
 `allure.step`, and neither matrix carried a row for section 8, so nothing
 reported the absence: a requirement nobody wrote has no case to trace.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
@@ -110,7 +110,8 @@ class TestMQCStepLedger:
             f"a response that never arrived is not reported at step 2: {halt}"
         )
         assert halt.taxonomy_code == "QC_HARNESS_FIXTURE_STALE", (
-            f"the stop does not name the harness code, so our defect reads as "
+            f"the stop does not name the harness code, so an instrument defect "
+            f"reads as "
             f"a model finding: {halt}"
         )
 

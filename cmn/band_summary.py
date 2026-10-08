@@ -72,13 +72,18 @@ def band_label(priority: str) -> str:
 
 
 def band_lines(
-    passed: int, failed: int, skip_reasons: list[str], priority: str = ""
+    passed: int,
+    failed: int,
+    skip_reasons: list[str],
+    priority: str = "",
+    preconditions_skipped: int = 0,
 ) -> list[str]:
     """Return the two lines a band job is read for.
 
     Reports the band's total, what executed, what passed, what failed and what
-    was skipped, each skip carrying its cause, then both rates with their
-    fractions. ``code-style.md`` section 7.1 holds the vocabulary.
+    was skipped, **all five always and a zero included**, then each skip's cause
+    where there is one, then both rates with their fractions. ``code-style.md``
+    section 7.1 holds the vocabulary.
 
     Args:
         passed (int): Cases that passed.
@@ -87,6 +92,11 @@ def band_lines(
             a failed foundation, one in quarantine and one of ours can each be
             named by the remedy it takes.
         priority (str): The ``--priority`` value, for the label.
+        preconditions_skipped (int): How many of the skips were ungraded
+            preconditions. **Named apart because no reason excuses one**: a
+            precondition measures our harness and a skipped one measured
+            nothing, so the run exits 3 and the line says so rather than
+            offering a reason (`test_taxonomy.md` section 7.5.1).
 
     Returns:
         list[str]: Two lines, or empty when the selection was empty. **An empty
@@ -101,19 +111,32 @@ def band_lines(
     executed = passed + failed
     blocked = sum(1 for reason in skip_reasons if _DEPENDENCY_SKIP in reason)
     parked = sum(1 for reason in skip_reasons if _QUARANTINE_SKIP in reason)
-    other = skipped - blocked - parked
+    # A PRECONDITION IS COUNTED OUT OF THE OTHERS FIRST, because "for a reason
+    # of ours" reads as tolerated and nothing about this is.
+    required = max(0, min(preconditions_skipped, skipped - blocked - parked))
+    other = skipped - blocked - parked - required
 
     # TOTAL, EXECUTED, PASSED, FAILED, SKIPPED, in the project owner's
     # vocabulary (`code-style.md` section 7.1). "Selected" sat next to pytest's
     # "deselected" and invited the reader to subtract one from the other.
+    #
+    # ALL FIVE, ALWAYS, INCLUDING A ZERO. Two band jobs for two engines read
+    # `2 failed, 13 passed` and `3 failed, 9 passed, 3 skipped`, which is
+    # pytest's own line omitting an empty category, and this line omitted the
+    # skip count the same way. A reader comparing two engines was comparing two
+    # shapes, so a difference in the run and a difference in the format looked
+    # alike. The cause breakdown stays conditional, because an absent cause is
+    # a fact and an absent count is a gap.
     counted = [f"{selected} total", f"{executed} executed",
-               f"{passed} passed", f"{failed} failed"]
+               f"{passed} passed", f"{failed} failed", f"{skipped} skipped"]
     if blocked:
-        counted.append(f"{blocked} skipped behind a higher band failure")
+        counted.append(f"{blocked} behind a higher band failure")
     if parked:
-        counted.append(f"{parked} skipped as a known failure in quarantine")
+        counted.append(f"{parked} a known failure in quarantine")
+    if required:
+        counted.append(f"{required} a precondition, so the run exits 3")
     if other:
-        counted.append(f"{other} skipped for a reason of ours")
+        counted.append(f"{other} for a reason of ours")
 
     label = band_label(priority)
     return [

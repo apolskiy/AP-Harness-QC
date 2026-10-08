@@ -9860,3 +9860,100 @@ which is the half that matters: that is what gives the rate a skip to count.
 
 Harness: 704 passing, 24 system, pylint exit 0. Case repository: 97 passing, 70
 graded in replay, pylint exit 0.
+
+## 2026-10-08: Green at 99.44%, and the two reasons that was possible
+
+**A harness unit job passed with four preconditions unmeasured.** The project
+owner read the line and asked the right question: how is this green when every
+unit test must pass.
+
+```
+Unit tests, whole selection: 704 total, 700 executed, 700 passed, 0 failed, 4 skipped for a reason of ours
+```
+
+### The gate half
+
+`framework-rules.md` has required "100% pass and zero skips" of Gate 2 since it
+was written. **Nothing enforced the second half**, because pytest exits 0 when a
+test skips and no hook looked. The rate was computed, printed, and read by
+nobody with the authority to fail the job.
+
+A precondition measures the harness, every one is unconditionally blocking, and
+a skipped one measured nothing, so the rule is zero and there is no proportion
+to tune. `refuse_precondition_skips` raises the exit status to 3, the code that
+already means nothing trustworthy was measured. Probed by writing a skipping
+precondition and reading the status: exit 3.
+
+### The selection half, which is the more interesting one
+
+**A skip is an outcome. "This case could not have run here" is not one.** It is
+a statement about the selection, and recording it as a skip put a non-outcome in
+the result where a reader had to interpret it.
+
+Four cases carried `skipif` on a runner: three assert the local credential
+loader, which is inert on a runner by design, and one reads a sibling checkout
+that CI does not have. **They were selected somewhere they could never run.**
+
+So an environment scope is declared and deselected where absent:
+
+```
+local run:   9 collected, 9 total, 100%
+CI run:      9 collected, 3 deselected, 6 total, 100%
+```
+
+**The figure went up because the denominator got honest.** A deselected case is
+not in this run's total, which `code-style.md` section 7.1 already required of
+every line.
+
+**The scope needing a sibling takes the directory name from the case**, because
+this repository names no consumer. The name stays in the test that already knew
+it and nothing in `cmn/` depends on a consumer existing.
+
+### And a third defect the same reading found
+
+The line said "4 skipped **for a reason of ours**" about a precondition, where
+no reason excuses one. A precondition is now the fourth kind of skip and names
+what followed instead of offering a cause: `4 a precondition, so the run exits
+3`.
+
+### Two band jobs, two shapes, and neither was per-engine
+
+The owner then asked why two engines' band jobs printed differently and whether
+the recording was per-engine. **It is not**: both lines were pytest's own
+summary, which omits an empty category, and our band line is produced by one
+shared helper from one hook. Nothing is per-engine and nothing is in YAML.
+
+**Our line had the same defect though**, which is the part worth fixing: it
+omitted the skip count when there were none, so its shape also varied between
+the two jobs. All five counts are now always stated, a zero included, and the
+cause breakdown stays conditional because an absent cause is a fact and an
+absent count is a gap. The band gate in the case repository now imports the same
+three cause phrases rather than spelling its own.
+
+### "Our defect" named a party, and a result cannot establish one
+
+The owner's correction: the goal is to determine the responsible **code
+segment**, not to assign fault. Checkins and merges determine the party.
+
+So 48 module docstrings and every layer table changed from "a failure here is
+our defect" to "a failure here is **not a model finding**", and the prose
+contrasting the apparatus with the thing measured says **instrument defect**.
+That word was already the project's own: the README calls this the instrument
+suite.
+
+**Both progress records keep the old wording**, which is the point of a progress
+record.
+
+### Found while auditing, and fixed in the same cycle
+
+`test_taxonomy.md` section 11.6 claimed `register_evaluation_family` and
+`unregister_evaluation_family` were used by the extension cases "and leave the
+registry as they found it". **The only call in the suite was a refused one**, so
+the admission criterion was covered and the mechanism it guards was not, and the
+remove half was called by nothing in either repository. `112343` runs the round
+trip; injection confirmed it fails with the removal disabled.
+
+### State
+
+Harness: 707 passing, 24 system, pylint exit 0. Case repository: 97 passing, 70
+graded in replay, pylint exit 0.

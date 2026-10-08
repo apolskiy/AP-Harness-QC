@@ -15,7 +15,7 @@ full run on merge.
 the tool was given; exit 1 says the suite was measured and something failed.
 Collapsing them would let a refused artifact read as a failing suite.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

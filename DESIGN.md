@@ -95,7 +95,7 @@ tools/
 conftest.py                   Fixture injection, priority to severity, option surface
 tests/                        testpaths in pytest.ini. Module from directory,
                               layer from filename; taxonomy section 2.1
-  ingestion/mqc_uni_*.py      Harness preconditions; a failure is our defect
+  ingestion/mqc_uni_*.py      Harness preconditions; a failure is an instrument defect
   ingestion/mqc_sys_*.py
   execution/mqc_uni_*.py
   execution/mqc_sys_*.py
@@ -228,7 +228,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 93 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 256 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 259 cases | **Implemented** |
 | `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 115 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 110 cases | **Implemented** |

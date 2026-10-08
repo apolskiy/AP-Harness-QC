@@ -14,7 +14,7 @@ Each case here registers something and removes it again. A test that left a
 layer registered would change the distribution denominator for every case that
 ran after it, and the failure would land on whichever case happened to run last.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

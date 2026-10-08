@@ -12,7 +12,7 @@ that a reader would assume were covered.
 
 A specified refusal nothing exercises is a refusal that may not happen.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

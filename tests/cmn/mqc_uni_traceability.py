@@ -14,7 +14,7 @@ complete while half the relation goes unchecked.
 second statement of one fact, which is the drift this project has already
 corrected more than once.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

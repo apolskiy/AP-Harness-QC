@@ -261,7 +261,7 @@ allure open allure-report
 ### 5.3 What this repository's artifacts carry, and what they do not
 
 **These are precondition results.** Every case here tests the harness, so a
-failure is our defect rather than a finding about a model, and there is no
+failure is an instrument defect rather than a finding about a model, and there is no
 engine, no model and no reproduction to publish: a precondition performs no task
 and records no observation.
 

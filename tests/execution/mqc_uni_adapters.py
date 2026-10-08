@@ -18,7 +18,7 @@ from their published API documentation rather than from a recorded call. A case
 that merely restated the shared contract would belong in the battery, where it
 would run against all three instead of one.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

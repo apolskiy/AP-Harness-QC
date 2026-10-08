@@ -771,7 +771,7 @@ A changed version writes the new baseline and dispatches `evaluate-live-weekly.y
 | Version changed | Dispatch `evaluate-live-weekly.yml`, that engine | New version recorded with the previous one |
 | Probe fails | Alert, no dispatch | Recorded as a harness event, never a model finding |
 
-**A probe failure is not a test failure.** It means the detector is broken, which is our defect, and the weekly run still covers the period regardless. Treating it as a red suite would be the same category error the `QC_HARNESS_*` family exists to prevent.
+**A probe failure is not a test failure.** It means the detector is broken, which is an instrument defect, and the weekly run still covers the period regardless. Treating it as a red suite would be the same category error the `QC_HARNESS_*` family exists to prevent.
 
 ### 4.3 Why it is worth having
 

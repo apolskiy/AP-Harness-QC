@@ -9,7 +9,7 @@ section 10.2.
 asserts that the harness measures a model correctly; this asserts that the
 harness was built the way the governance says it must be.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
@@ -578,7 +578,7 @@ class TestMQCIndexAgainstDesigns:
         model.** `UNI` exercises our modules in isolation and `SYS` drives the
         harness end to end over recorded transcripts; neither reaches a
         provider. The graded layers live in `AP-Model-QC`, where a failure is a
-        finding about a vendor's product rather than our defect.
+        finding about a vendor's product rather than an instrument defect.
 
         **The README invited the other reading**, stating 549 passing cases on
         the front page of a project described as foundation-model QC, which is

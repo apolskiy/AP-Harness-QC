@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **574 cases, all passing**. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **577 cases, all passing**. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 266, none uncovered, none untraced |
+| Requirements traced | 269, none uncovered, none untraced |
 | Numbered steps | Seven per observation, each an action and a verification, in the JUnit `<failure>` and `<system-out>` and in Allure |
 | Dependents of a failure | **Probed in replay**, skipped live: measured, recorded, counted in no denominator |
 | Quarantine | Skips before the request is formed, so it saves the run's cost and never buys a pass |
@@ -45,8 +45,8 @@ whatsoever about any model.**
 
 | Layer | Defined in | Subject | A failure is |
 |---|---|---|---|
-| `UNI` | here | our own modules, in isolation | **our defect** |
-| `SYS` | here | this harness end to end, over recorded transcripts | **our defect** |
+| `UNI` | here | this harness's own modules, in isolation | **not a model finding** |
+| `SYS` | here | this harness end to end, over recorded transcripts | **not a model finding** |
 | `EVAL`, `TOOL`, `SEC` | [AP-Model-QC](https://github.com/apolskiy/AP-Model-QC) | a vendor's model against graded cases | **a finding about that model** |
 
 **This repository defines no graded case, and `MQC_CMN_UNI_112327` enforces

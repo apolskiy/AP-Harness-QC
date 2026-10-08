@@ -17,7 +17,7 @@ and the rest of that module is about what a result record carries.
 The checkers live in ``cmn.code_standards`` and take a root and a licence, so
 the case repository runs the identical implementation against MIT.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 import re
@@ -636,7 +636,7 @@ class TestMQCEncodingDeclared:
         assert len(faults) == 2, faults
         assert any("FIXTURE_STALE" in entry for entry in faults)
         # AN ERROR COUNTS WHATEVER IT SAYS, because reporting an error rather
-        # than a failure is itself our defect.
+        # than a failure is itself an instrument defect.
         assert any("error rather than a failure" in entry for entry in faults)
 
         # AND A MISSING REPORT REFUSES. A regression that produced none verified

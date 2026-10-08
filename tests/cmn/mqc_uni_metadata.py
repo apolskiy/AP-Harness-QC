@@ -14,9 +14,10 @@ manifest may never reach per-test history.
 **The excerpt guards are preconditions, not graded cases.** An excerpt silently
 corrected by a formatter would leave every graded case built on it asserting
 against an expectation that no longer holds, and the failure would be a
-confident wrong verdict rather than an error. A stale fixture is our defect.
+confident wrong verdict rather than an error. A stale fixture is an
+instrument defect.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

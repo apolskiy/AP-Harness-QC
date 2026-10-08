@@ -513,7 +513,7 @@ def _evaluate_soundness(
 ) -> Optional[Verdict]:
     """Return a verdict when the run itself cannot be trusted.
 
-    **Broken and unfinished are our defects, not the model's**, so neither is
+    **Broken and unfinished are instrument defects, not the model's**, so neither is
     tolerated as a proportion and neither exits 1. Exit 1 says a suite measured
     something and it failed, which is a finding about a third party; these say
     the measurement is not worth reading.

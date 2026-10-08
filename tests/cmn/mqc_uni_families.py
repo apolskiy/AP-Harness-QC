@@ -11,7 +11,7 @@ matrix column had been a semicolon-separated set since it was introduced and
 three rows used it, while the durable record held a single value: a case traced
 to two families could publish only one of them, and nothing said which.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

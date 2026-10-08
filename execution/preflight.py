@@ -54,7 +54,8 @@ class ProbeOutcome:
 
         Returns:
             bool: True only on a real change. **A probe failure dispatches
-            nothing**: it means the detector is broken, which is our defect, and
+            nothing**: it means the detector is broken, which is an
+            instrument defect, and
             the unconditional weekly run covers the period regardless. Treating
             it as a change would spend quota to investigate our own bug.
         """

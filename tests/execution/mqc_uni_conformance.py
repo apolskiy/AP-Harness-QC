@@ -16,7 +16,7 @@ that constructs a `NormalizedResponse` directly proves the record is well
 formed. It passes happily while an adapter that never builds one correctly sits
 registered and untested.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

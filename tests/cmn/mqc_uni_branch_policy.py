@@ -10,7 +10,7 @@ Covers ``MQC_CMN_UNI_112505`` through ``112509``, inventoried in
 pure functions over a name, a base, a date and a set of merge records. Nothing
 reads git and nothing reads a clock.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 from datetime import date, timedelta

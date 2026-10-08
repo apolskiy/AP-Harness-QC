@@ -112,7 +112,7 @@ This also fixes the denominator: the 30-case floor in section 4.2.3 counts **gra
 
 The dividing line is **what a failure tells you**, not where the code lives.
 
-* `MQC_UNI_` and `MQC_SYS_` test **our harness**. A failure is our defect and is actionable by us.
+* `MQC_UNI_` and `MQC_SYS_` test **the harness**. A failure is an instrument defect: it names a code segment to read, and never a finding about a model. **It does not name a party**, which checkin and merge history answers and no assertion can see.
 * `MQC_EVAL_` and `MQC_TOOL_` test **the model**. A failure is a finding about a third party, and the correct response is to record it, not to fix it.
 
 `MQC_TOOL_` is separated from `MQC_EVAL_` because the detection method differs in kind. Tool compliance is **mechanically verifiable**: the tool-call trace either contains the forbidden tool or it does not. Rubric scoring is **judged**, and carries a judge's uncertainty with it. Mixing a deterministic check with a probabilistic one under a single layer would make the layer's results incomparable.
@@ -608,7 +608,7 @@ Every failure carries a code. The code is attached to the assertion message and 
 
 ### 6.1 `QC_LLM_*`: model quality findings
 
-The model under test performed poorly. **Not our defect.**
+The model under test performed poorly. **Not an instrument defect.**
 
 | Code | Meaning |
 |---|---|
@@ -972,7 +972,9 @@ both hold:
 ```
 
 **A run sitting exactly where V3 tolerated it breached V2 automatically**,
-which `MQC_CMN_UNI_112032` demonstrated the moment the accounting changed.
+which `MQC_CMN_UNI_112032` demonstrated the moment the accounting changed, and
+which retired that case: it asserted the ceiling the contradiction removed, so
+`112045` states the replacement and the identifier stays retired.
 
 **The floor is the single statement about what a run must achieve.** A separate
 skip budget is a second rule about the same quantity, and the project removes
@@ -1118,6 +1120,61 @@ replayed is a regression check on us.
 A pair that legitimately cannot run, such as an engine without tool-calling facing an `MQC_TOOL_` case, is **declared in configuration** with a written reason. It is excluded from the gate denominator and surfaced in the report.
 
 Without this, a genuine capability gap consumes skip budget indefinitely and eventually trips the 20% threshold for a reason that is not a defect, with no record of why.
+
+### 7.5.1 A precondition does not skip, and the two halves of that
+
+Added 2026-10-08 after a harness unit job reported **green at 99.44%**: 704
+total, 700 executed, 700 passed, 0 failed, 4 skipped. `framework-rules.md`
+section 1 has required "100% pass and zero skips" of Gate 2 since it was
+written, and **nothing enforced the second half**.
+
+#### Why it was green, and why that is two defects rather than one
+
+| | |
+|---|---|
+| pytest exits 0 when a test skips | So the job passed, and the rate was printed and ignored |
+| The four cases carried `skipif` on a runner | So they were **selected** somewhere they could never run |
+
+**The first is a missing gate.** A precondition measures our harness, every one
+is unconditionally blocking (`framework-rules.md` section 3.3), and a skipped
+one measured nothing. There is no proportion of unmeasured preconditions that
+is acceptable, so the rule is zero and it is now enforced: **any `UNI` or `SYS`
+skip exits 3**, the code that already means nothing trustworthy was measured.
+
+**The second is the more interesting one.** A skip is an outcome. "This case
+could not have run here" is not an outcome, it is a statement about the
+selection, and recording it as a skip put a non-outcome in the result where a
+reader had to interpret it. The project owner's words: unfinished work and a
+harness needing rework are valid reasons, "but then they should not be
+selected", and a reason of ours "is not a passing skip".
+
+#### So an environment scope is declared, and deselected where it is absent
+
+A precondition needing something the environment does not have declares the
+scope it needs. Where the scope is absent the case is **deselected before it
+runs**, which takes it out of the total rather than putting a non-outcome in it:
+
+| Scope | Available when | Cases |
+|---|---|---|
+| `local` | Not under CI | The local credential-file loader, which is inert on a runner by design |
+| `paired` | The case repository is checked out beside this one | The one case reading the consumer's hook |
+
+```
+Before:  704 total, 700 executed, 700 passed, 0 failed, 4 skipped   99.44%, green
+After:   700 total, 700 executed, 700 passed, 0 failed              100%,   green
+```
+
+**The figure went up because the denominator got honest**, not because anything
+was hidden. A deselected case is not in this run's total, which is the rule
+`code-style.md` section 7.1 already states: a line reports only its own subject.
+
+**The scopes are a registry, pinned like every other.** A scope added without
+anybody noticing is a new way for a precondition to leave a run silently, which
+is the thing being prevented rather than a side effect of preventing it.
+
+**A skip for any other reason still fails.** The scope mechanism is not a way to
+make a skip acceptable: it is a way to say a case was never this run's to
+measure. Anything that reaches execution and skips exits 3.
 
 ### 7.6 Harness failure halts execution, conditionally (A11.4)
 
@@ -1666,11 +1723,24 @@ So `Observation.family` has no source for an `EVAL` case, the emission hook in `
 
 | Already built for it | How |
 |---|---|
-| Runtime registration | `register_evaluation_family` adds one and `unregister_evaluation_family` removes it, which the extension cases use and leave as they found it |
+| Runtime registration | `register_evaluation_family` adds one and `unregister_evaluation_family` removes it, which `MQC_CMN_UNI_112343` exercises as a round trip and leaves the registry as it found it |
 | The admission criterion is enforced, not remembered | Registration refuses a family stating no ground-truth mechanism, so §11.2 step 2 holds without an author recalling it |
 | Identifier room | §3's layer blocks and the 6-digit scheme leave a hundred-slot category free per module, so a new family takes the next free block rather than a renumbering |
 | A documented procedure | §11.2's ten steps, with §11.4 as the worked example of applying them to a family that already ships |
 | Derivation by table | The layer-to-family map in `MQC_CAS_UNI_115412` is data, so a new one-to-one family is a row |
+
+**The first row said "which the extension cases use" until 2026-10-08, and
+no case used it.** The only call to `register_evaluation_family` in the suite
+was a **refused** one, asserting that a family stating no ground-truth
+mechanism is rejected. So the admission criterion was covered and the
+mechanism it guards was not: nothing had ever added a family, read it back, or
+removed it, and `unregister_evaluation_family` was called by nothing in either
+repository.
+
+**That is the third kind of hole, and the one this project finds most often**
+(`testing-standards.md`): the design claimed a round trip the suite never
+performed, and a reader of this table would have stopped looking. The row now
+names the case that performs it.
 
 **What a sixth family must still do by hand** is §11.2 steps 1 to 10, and that is the point of the procedure rather than a shortfall in it. The two mechanical gates are that the §11.1 table and `_EVALUATION_FAMILIES` agree, and that every emitted value is registered; both fail loudly on a family added to one place only.
 
@@ -2029,7 +2099,7 @@ defect presenting as an environmental one, which `framework-rules.md` section
 
 **Every `subprocess.run` and `Popen` carries a `timeout`.** On expiry the case
 fails with `QC_HARNESS_SUBPROCESS_TIMEOUT`, naming the command and the bound,
-because this is our defect and never a finding about a model.
+because this is an instrument defect and never a finding about a model.
 
 | Call | Bound | Why |
 |---|---|---|

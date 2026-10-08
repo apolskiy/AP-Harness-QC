@@ -12,7 +12,7 @@ to learn whether a dependent carries its own defect. Both were settled by the
 project owner on 2026-10-07, and both had the same defect before: the cheap
 information was not taken and the expensive measurement was.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

@@ -12,7 +12,7 @@ callable, so a replaying judge is a different callable bound by the caller, and
 tier does not know how the tier below obtained its input extends to the judge
 without amendment.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 from pathlib import Path

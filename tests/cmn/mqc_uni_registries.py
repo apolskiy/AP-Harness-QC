@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What every registry contains, pinned so growth is deliberate.
 
-Covers ``MQC_CMN_UNI_112319``, inventoried in
+Covers ``MQC_CMN_UNI_112319`` and ``112343``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.33.
 
 **Split from the metadata module on 2026-09-25**, when that module crossed the
@@ -14,7 +14,7 @@ carries.
 had public accessors nobody called and contents nobody asserted, which a sweep
 read as dead code. Unasserted is not dead, and the two want opposite repairs.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 import pytest
@@ -23,10 +23,12 @@ from cmn.layers import is_registered_skip_reason, registered_skip_reasons
 from cmn.observations import registered_run_contexts, registered_selection_modes
 from cmn.registries import (
     EvaluationFamily,
+    evaluation_family,
     is_registered_llm_code,
     is_registered_sec_code,
     register_evaluation_family,
     registered_evaluation_families,
+    unregister_evaluation_family,
 )
 
 pytestmark = pytest.mark.unit
@@ -99,3 +101,76 @@ class TestMQCRegistryMembership:
                     ground_truth="",
                 )
             )
+
+
+class TestMQCRuntimeRegistration:
+    """The add and remove pair, which section 11.6 described and nobody ran."""
+
+    def MQC_CMN_UNI_112343_a_registered_family_round_trips_and_leaves_no_trace(
+        self,
+    ) -> None:
+        """A well-founded family is admitted, readable, and removable.
+
+        **The refusal was covered and the mechanism it guards was not.** The
+        only call in the suite rejected a family stating no ground-truth
+        mechanism, so nothing had added one, read it back, or removed it, and
+        the remove half was called by nothing in either repository. A sixth
+        family added at runtime would have exercised an untested path.
+
+        **The registry is left exactly as it was found**, which is the property
+        the extension cases depend on: a case that registers and does not
+        remove leaks a family into every case that runs after it, and the
+        membership pin in ``112319`` would fail for a reason nobody could
+        locate from its message.
+
+        Design: ``test_taxonomy.md`` section 11.6.
+
+        Returns:
+            None
+        """
+        before = registered_evaluation_families()
+        assert "round_trip_probe" not in before
+
+        admitted = register_evaluation_family(
+            EvaluationFamily(
+                identifier="round_trip_probe",
+                input_shape="a synthetic record this case supplies",
+                ground_truth="the identifier the case registered, compared exactly",
+            )
+        )
+        assert admitted.identifier == "round_trip_probe", (
+            "registration returned something other than the family it admitted"
+        )
+
+        # READABLE FROM THE REGISTRY, which is the half that makes the add
+        # worth anything: a family nothing can look up is not registered.
+        during = registered_evaluation_families()
+        assert "round_trip_probe" in during
+        looked_up = evaluation_family("round_trip_probe")
+        assert looked_up is not None, (
+            "the family is in the membership set and cannot be looked up, so "
+            "the two accessors disagree about the same registry"
+        )
+        assert looked_up.ground_truth
+
+        # AND ADDED WITHOUT DISTURBING WHAT WAS THERE.
+        assert set(before) < set(during)
+        assert set(during) - set(before) == {"round_trip_probe"}
+
+        unregister_evaluation_family("round_trip_probe")
+
+        after = registered_evaluation_families()
+        assert "round_trip_probe" not in after, (
+            "the family survived its removal, so a case registering one leaks "
+            "it into every case that runs after it"
+        )
+        assert after == before, (
+            "the registry is not what it was found as, so the round trip is "
+            "not a round trip"
+        )
+
+        # REMOVING WHAT WAS NEVER THERE IS QUIET, because a case cleaning up
+        # after a refused registration must not fail on the cleanup.
+        unregister_evaluation_family("round_trip_probe")
+        unregister_evaluation_family("never_registered")
+        assert registered_evaluation_families() == before

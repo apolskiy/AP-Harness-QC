@@ -15,10 +15,9 @@ green says less than it appears to.
 every environment is an injected mapping, so nothing in this module can print,
 log or assert against a key.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
-import os
 import re
 from pathlib import Path
 from typing import Final
@@ -27,10 +26,12 @@ import pytest
 
 from cmn.config import (
     ENV_FILE,
+    ci_markers,
     load_env_file,
     orphan_credentials,
     warn_orphan_credentials,
 )
+from cmn.environments import mark_environment
 from execution.adapters.registry import (
     adapter_for,
     credential_variables,
@@ -43,19 +44,15 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.unit
 
-# The markers a runner sets. Named once so the skip and the check agree.
-_CI_MARKERS = ("CI", "GITHUB_ACTIONS")
-
-_UNDER_CI = any(marker in os.environ for marker in _CI_MARKERS)
+# The markers a runner sets, read from the registry that owns them rather
+# than copied. This module held a third copy until 2026-10-08.
+_CI_MARKERS = ci_markers()
 
 
 class TestMQCLocalCredentialFile:
     """The loader `.env.example` has always instructed readers to rely on."""
 
-    @pytest.mark.skipif(
-        _UNDER_CI,
-        reason="the local loader is inert on a runner; 11164 asserts that it is",
-    )
+    @mark_environment("local")
     def MQC_CMN_UNI_112512_a_local_env_file_is_loaded_without_overwriting_anything(
         self, tmp_path: Path
     ) -> None:
@@ -101,10 +98,7 @@ class TestMQCLocalCredentialFile:
         assert environ["MQC_PROBE_QUOTED"] == "quoted value"
         assert environ["MQC_PROBE_EXPORTED"] == "prefixed"
 
-    @pytest.mark.skipif(
-        _UNDER_CI,
-        reason="the local loader is inert on a runner; 11164 asserts that it is",
-    )
+    @mark_environment("local")
     def MQC_CMN_UNI_112513_a_line_that_is_not_an_assignment_is_skipped_by_number(
         self, tmp_path: Path
     ) -> None:
@@ -221,10 +215,7 @@ class TestMQCCredentialsNeverReachCI:
 class TestMQCCredentialFileLocation:
     """Where the consumer looks, and in what order."""
 
-    @pytest.mark.skipif(
-        _UNDER_CI,
-        reason="the local loader is inert on a runner; 11164 asserts that it is",
-    )
+    @mark_environment("local")
     def MQC_CMN_UNI_112516_a_credential_file_beside_the_roster_is_found(
         self, tmp_path: Path
     ) -> None:
@@ -278,6 +269,7 @@ class TestMQCCredentialFileLocation:
         # The sibling still supplies what the local file does not name.
         assert contested["MQC_PROBE_BESIDE_ROSTER"] == "from_the_harness"
 
+    @mark_environment("paired", sibling="AP-Model-QC")
     def MQC_CMN_UNI_112517_the_consumer_conftest_searches_both_roots(self) -> None:
         """The functions can be right and the caller can look in one place.
 
@@ -290,8 +282,6 @@ class TestMQCCredentialFileLocation:
             None
         """
         consumer = _REPO_ROOT.parent / "AP-Model-QC"
-        if not consumer.is_dir():
-            pytest.skip("the consumer checkout is not beside this one")
 
         hook = (consumer / "conftest.py").read_text(encoding="utf-8")
         # THE CALLS, not the import, which carries no parenthesis.

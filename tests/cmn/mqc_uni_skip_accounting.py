@@ -11,7 +11,7 @@ carries (`test_taxonomy.md` section 7.4.1). The one thing that can turn a
 counted skip back into an exclusion is a release dispensation product
 management has recorded (section 4.6.13).
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

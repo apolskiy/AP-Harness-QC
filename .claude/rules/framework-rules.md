@@ -8,8 +8,8 @@ SPDX-License-Identifier: Apache-2.0
 
 All pull requests and code additions must pass a multi-stage automated verification gate:
 1. **Gate 1 - Static Analysis & Naming Gate**: Execution of `pylint --rcfile=.pylintrc` across all package modules. The >= 3 character naming rule is enforced mechanically by the `variable-rgx`, `argument-rgx`, `attr-rgx` and `inlinevar-rgx` patterns in `.pylintrc`, so a single-character binding fails the build rather than relying on review. Code must achieve a **10.00/10 score** before unit tests run.
-2. **Gate 2 - Unit Precondition**: Execution of `MQC_<MODULE>_UNI_#####` tests via `pytest -m unit`. Ungraded: **100% pass and zero skips required**. Failure stops the pipeline.
-3. **Gate 3 - System Precondition**: Execution of `MQC_<MODULE>_SYS_#####` tests via `pytest -m system` in **replay mode**. Ungraded: 100% pass required. A precondition that can flake is not a precondition, so it never runs live here; a live SYS smoke runs separately on the schedule.
+2. **Gate 2 - Unit Precondition**: Execution of `MQC_<MODULE>_UNI_#####` tests via `pytest -m unit`. Ungraded: **100% pass and zero skips required**, and the zero is enforced rather than stated: any precondition skip exits 3. A case needing something the environment lacks declares an environment scope and is **deselected** where the scope is absent, so it leaves the total rather than reporting a non-outcome in it (`test_taxonomy.md` section 7.5.1). Failure stops the pipeline.
+3. **Gate 3 - System Precondition**: Execution of `MQC_<MODULE>_SYS_#####` tests via `pytest -m system` in **replay mode**. Ungraded: 100% pass and zero skips required, enforced as in Gate 2. A precondition that can flake is not a precondition, so it never runs live here; a live SYS smoke runs separately on the schedule.
 4. **Gate 4 - Evaluator Agent Run** (graded): Execution of `MQC_<MODULE>_EVAL_#####` rubric and scoring tests via `pytest -m evaluator`. Subject to the priority gate and the 90% pass floor.
 5. **Gate 5 - Tool-Use Compliance**: Execution of `MQC_<MODULE>_TOOL_#####` tests via `pytest -m tool`. Verifies the model invoked the tools it was instructed to use and avoided those it was forbidden. Tier 2 captures tool-call intent without executing it.
 6. **Gate 6 - Model Security Suite** (graded): Execution of `MQC_<MODULE>_SEC_#####` tests via `pytest -m sec`. Injection resistance, prompt leakage and tool coercion. Runs as its own suite and is exempt from the priority distribution ceilings, so security coverage never competes with functional coverage for a budget.
@@ -54,13 +54,41 @@ Four modules. Each exposes a stable interface; crossing a boundary means satisfy
 
 | Layer | Marker | Graded | Requirement |
 |---|---|---|---|
-| `UNI` | `unit` | No, precondition | 100% pass, zero skips. Blocks everything below |
+| `UNI` | `unit` | No, precondition | 100% pass, zero skips, the zero enforced by exit 3. Blocks everything below |
 | `SYS` | `system` | No, precondition | 100% pass, replay mode |
 | `EVAL` | `evaluator` | Yes | Priority gate and the 90% pass floor |
 | `TOOL` | `tool` | Yes | As above |
 | `SEC` | `sec` | Yes | Own suite, exempt from distribution ceilings |
 
-Preconditions test **our harness**; a failure is our defect. Graded layers test **the model**; a failure is a finding about a third party.
+Preconditions test **the harness**; a failure there is **not a model
+finding**. Graded layers test **the model**; a failure there is a finding about
+a third party.
+
+**A layer narrows the code, not the party.** Corrected 2026-10-08 at the
+project owner's instruction: the rule said a precondition failure "is our
+defect", which asserts a party, and **assigning a party is not what a test
+result is for**. What a result establishes is **which code segment is
+implicated**; who is responsible for that segment comes from its checkin and
+merge history, which no assertion can see and no layer needs to.
+
+A red precondition implicates one of three segments, and the failure says which:
+
+| What failed | The code segment implicated |
+|---|---|
+| A harness mechanism | `ingestion/`, `execution/`, `evaluation/` or `cmn/` |
+| The data or configuration the case read | The corpus or config file it names |
+| The case itself, asserting the wrong thing | The test module |
+
+**None of those is a model finding, and that is the whole of what the layer
+guarantees.** It is also the only part knowable from the layer alone: the three
+above are separated by reading the failure, and a rule that pre-assigns the
+answer invites the reader to skip that step.
+
+**Why it matters rather than being wording.** The exit codes rest on this
+distinction: a precondition failure exits 3, meaning nothing trustworthy was
+measured, and a graded failure exits 1, meaning the model underperformed. A
+reader told the first is "ours" has been handed a conclusion about people; a
+reader told it is not a model finding has been handed a place to look.
 
 ### 3.2 Categories
 

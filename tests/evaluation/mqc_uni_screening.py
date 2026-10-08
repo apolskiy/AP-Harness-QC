@@ -13,7 +13,7 @@ defence. A screen that missed something is a lost measurement, not an open door.
 which relocates the problem rather than solving it, and `114607` asserts the
 absence structurally rather than trusting the module docstring.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

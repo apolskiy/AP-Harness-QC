@@ -29,6 +29,51 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A precondition does not skip, and a band line states all five counts, 2026-10-08
+
+**A harness unit job reported green at 99.44%**: 704 total, 700 executed, 700
+passed, 0 failed, 4 skipped. Gate 2 has required "100% pass and zero skips"
+since it was written and **nothing enforced the second half**, because pytest
+exits 0 when a test skips.
+
+**Any ungraded precondition skip now exits 3.** A precondition measures the
+harness, every one is unconditionally blocking, and a skipped one measured
+nothing, so there is no acceptable proportion of it.
+
+**A case needing something the environment lacks declares a scope and is
+deselected, never skipped.** A skip is an outcome and "this case could not have
+run here" is not one. The four cases carrying a conditional skip on a runner
+were selected somewhere they could never run; they now leave the total instead:
+
+```
+Before:  704 total, 700 executed, 700 passed, 0 failed, 4 skipped   99.44%, green
+After:   700 total, 700 executed, 700 passed, 0 failed, 0 skipped   100%,   green
+```
+
+**The band line states all five counts, always, including a zero.** Two band
+jobs for two engines read `2 failed, 13 passed` and `3 failed, 9 passed, 3
+skipped`, so a reader comparing two engines was comparing two shapes and a
+difference in the run looked like a difference in the format. The cause
+breakdown stays conditional, because an absent cause is a fact and an absent
+count is a gap. The band gate and the band line now share both the counts and
+the three cause phrases.
+
+**"Our defect" is retired in favour of "an instrument defect."** A test result
+establishes which code segment is implicated; which party is responsible comes
+from checkin and merge history, which no assertion can see. 48 module
+docstrings and every layer table changed, and the progress records keep their
+original wording.
+
+**Section 11.6 claimed a registration round trip nobody had run.** The only call
+to `register_evaluation_family` in the suite was a refused one, so the admission
+criterion was covered and the mechanism it guards was not, and
+`unregister_evaluation_family` was called by nothing in either repository.
+
+Added: `112343` through `112345` and `MQC_REQ_HAR_CMN_0144` through `0146`, with
+`cmn/environments.py` and the `environment` marker. Designs: `test_taxonomy.md`
+sections 7.5.1 and 11.6, `framework-rules.md` sections 1 and 3.1,
+`testing-standards.md`, `consumer_ci.md` section 3.12.3.
+
 ### A skip is counted by its cause, and the skip ceilings are retired, 2026-10-08
 
 **A case that skipped did not pass, and the pass rate now says so.** A skip

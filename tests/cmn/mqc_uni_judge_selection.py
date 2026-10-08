@@ -15,7 +15,7 @@ resolution lives in ``cmn/config.py``: ``evaluation/`` imports nothing from
 ``execution/``, and resolving a judge needs an engine's declared capabilities,
 which are a Tier 2 record.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 import tomllib

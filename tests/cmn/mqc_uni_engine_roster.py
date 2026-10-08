@@ -16,7 +16,7 @@ roster entry would have dispatched against the adapter's own default.
 exists for a provider. The roster says a model, an observation count and a
 request spacing are configured. The second is the list.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

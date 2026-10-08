@@ -13,7 +13,7 @@ what makes these cases possible without a suite run or a network.
 below 90% is tested *at* 90%, because off-by-one at a boundary is the likeliest
 defect in any gate and the one a percentage invites.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

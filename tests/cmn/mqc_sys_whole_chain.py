@@ -21,7 +21,7 @@ provider, and nothing here writes an artifact: section 5 emits observations as
 Allure and JUnit for a downstream collector, so a file-based verdict is that
 collector's concern and not a stage of this chain.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

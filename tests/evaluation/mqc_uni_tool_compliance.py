@@ -11,7 +11,7 @@ attribute walk, and a double would verify the duck typing against itself. These
 pass the actual ``ToolCall``, ``ToolDefinition`` and ``ToolExpectation``, which
 is what will reach it in a run.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 from typing import Any

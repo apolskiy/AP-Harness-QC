@@ -9,7 +9,7 @@ Covers `MQC_EVL_SYS_124000` through `124003`, inventoried in
 precondition, so nothing here reaches a provider. The judge is a recorded
 double, which is what makes the dual pass assertable without spending quota.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

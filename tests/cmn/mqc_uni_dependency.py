@@ -14,7 +14,7 @@ cascade the design promised did not exist.
 functions directly. **Both levels are needed**: the functions can be correct
 while nothing calls them, which is the defect this module exists because of.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 import os

@@ -12,7 +12,7 @@ thousand-line ceiling. The two subjects are separable: that module decides what
 a verdict is from outcomes it is given, and this one decides whether those
 outcomes characterise anything.
 
-A failure here is our defect, so the module carries no priority marker.
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 import json

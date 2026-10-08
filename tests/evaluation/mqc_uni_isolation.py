@@ -14,7 +14,7 @@ defence absent.
 run the same containment check against every field the harness did not author,
 not against the candidate output alone.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

@@ -13,7 +13,7 @@ not merely that both halves ran.
 judge is worth nothing unless something fails when it is, and every other case
 here would still pass if the judge were invoked and happened to behave.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

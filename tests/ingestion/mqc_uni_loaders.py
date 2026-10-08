@@ -10,7 +10,7 @@ can silently disagree. YAML distinguishes a value, an empty string, an explicit
 null and an absent field; CSV distinguishes text from blank. Every case here
 pins one consequence of closing that gap.
 
-A failure in this module is our defect, so the module carries no priority
+A failure in this module is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
 """
 

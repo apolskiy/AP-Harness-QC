@@ -10,7 +10,7 @@ it findable; verifying it by hash keeps it truthful. Without the hash, changing
 prompt composition would silently replay a recorded answer to a different
 question, which no later check would catch.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

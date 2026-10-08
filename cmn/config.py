@@ -804,6 +804,11 @@ ENV_FILE: Final[str] = ".env"
 
 # Variables a CI runner sets. Their presence means credentials arrive from the
 # GitHub Environment named `live`, and a file must not compete with that.
+#
+# ONE DEFINITION, READ BY THREE THINGS: this loader, the environment scope that
+# deselects a local-only case on a runner, and the case asserting both. Three
+# copies of this tuple existed for a day, which is the drift a single registry
+# exists to prevent (`framework-rules.md` section 4.1).
 _CI_MARKERS: Final[tuple[str, ...]] = ("CI", "GITHUB_ACTIONS")
 
 # WHAT A CREDENTIAL LOOKS LIKE. Matched loosely on purpose: the check
@@ -812,6 +817,17 @@ _CI_MARKERS: Final[tuple[str, ...]] = ("CI", "GITHUB_ACTIONS")
 _CREDENTIAL_SHAPED: Final[re.Pattern] = re.compile(
     r"(KEY|TOKEN|SECRET|CREDENTIAL|PASSWORD)$", re.IGNORECASE
 )
+
+
+def ci_markers() -> tuple[str, ...]:
+    """Return the environment variables whose presence means a CI runner.
+
+    Returns:
+        tuple[str, ...]: The recognised names. Read by the credential loader,
+        by the environment scope that deselects a local-only case, and by the
+        case asserting both, so the three cannot disagree.
+    """
+    return _CI_MARKERS
 
 
 def load_env_file(root: Path, environ: Optional[dict[str, str]] = None) -> list[str]:

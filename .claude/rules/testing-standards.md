@@ -26,7 +26,7 @@ Currently registered layers:
 
 | Layer | Marker | ID Block | Scope |
 |---|---|---|---|
-| `MQC_UNI_` | `unit` | 111000-119999, by module | Parsers, validators, helpers. No network. **Ungraded precondition: 100% pass, zero skips.** |
+| `MQC_UNI_` | `unit` | 111000-119999, by module | Parsers, validators, helpers. No network. **Ungraded precondition: 100% pass, zero skips**, the zero enforced by exit 3 rather than stated. |
 | `MQC_SYS_` | `system` | 121000-129999, by module | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode: 100% pass.** |
 | `MQC_EVAL_` | `evaluator` | 131000-139999, by module | LLM-as-a-Judge rubric scoring and golden-rule enforcement. |
 | `MQC_TOOL_` | `tool` | 141000-149999, by module | Tool-use compliance: required tools invoked, forbidden tools avoided. |
@@ -214,6 +214,33 @@ identifiers. The third was introduced later and retired in favour of `COR`.
 did not write.** `corpus` was established in `ingestion/screening.py` and
 `tier1_ingestion.md` before the repository split, and the newer prefix was added
 without looking.
+
+#### The word for a defect in the measuring apparatus is "instrument defect"
+
+Added 2026-10-08 at the project owner's instruction, which corrected the word
+that was there: **"our defect" asserts a party, and a test result does not
+establish one.**
+
+**What a result establishes is the code segment.** Which party is responsible
+for that segment comes from its checkin and merge history, which no assertion
+can see and no layer needs to. A rule that hands the reader a party has handed
+them a conclusion about people in place of a place to look.
+
+| | |
+|---|---|
+| What a precondition failure is | **An instrument defect**, naming a code segment |
+| What it is never | A finding about a model |
+| What decides the party | Checkins and merges, outside the suite entirely |
+
+**"Instrument" was already the project's word** for the measuring apparatus as
+against the thing measured: the README calls the precondition suite the
+instrument suite, and `mqc_uni_instrument_audit.py` is named for it. So this is
+the vocabulary rule above applied to itself rather than a new coinage, and 48
+module docstrings plus every layer table now use it.
+
+**`CLAUDE_LOG.md` keeps the old wording**, in both repositories. It records what
+was written at the time, and rewriting a progress record to agree with a later
+correction is the one thing it must not do.
 
 **A synonym that collides is worse than the word it replaces.** Two candidates
 were rejected on that ground rather than on taste: `dataset` collides with

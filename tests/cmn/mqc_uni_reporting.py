@@ -11,7 +11,7 @@ build has always been complete and nothing handed it to the artifact: a
 published result carried empty parameters and a severity label, so a collector
 could not say which engine produced it.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
@@ -358,7 +358,7 @@ class TestMQCBandSummary:
         assert counts.startswith("Band P0: 15 total, 12 executed"), (
             f"the denominator is not the band's own selection: {counts}"
         )
-        assert "3 skipped behind a higher band failure" in counts, (
+        assert "3 skipped, 3 behind a higher band failure" in counts, (
             f"a dependency skip is not named, so a reader cannot tell it from "
             f"an environmental one: {counts}"
         )
@@ -421,15 +421,15 @@ class TestMQCBandSummary:
         )[0]
 
         assert "Band P1: 10 total, 6 executed" in counts, counts
-        assert "1 skipped behind a higher band failure" in counts, (
+        assert "4 skipped, 1 behind a higher band failure" in counts, (
             f"a cascaded skip is not named, so a reader cannot tell it from a "
             f"quarantined one: {counts}"
         )
-        assert "2 skipped as a known failure in quarantine" in counts, (
+        assert "2 a known failure in quarantine" in counts, (
             f"a quarantined skip read as our infrastructure wobbling, when it "
             f"is a model finding under repair: {counts}"
         )
-        assert "1 skipped for a reason of ours" in counts, counts
+        assert "1 for a reason of ours" in counts, counts
 
         # NO KIND IS COUNTED TWICE AND NONE IS LOST, which is what a reader
         # subtracting the named kinds from the total depends on.
@@ -441,9 +441,27 @@ class TestMQCBandSummary:
         parked_only = band_lines(
             passed=0, failed=0, skip_reasons=reasons[1:3], priority="0"
         )[0]
-        assert "2 skipped as a known failure in quarantine" in parked_only
+        assert "2 skipped, 2 a known failure in quarantine" in parked_only
         assert "higher band failure" not in parked_only
         assert "reason of ours" not in parked_only
+
+        # A PRECONDITION IS THE FOURTH KIND AND NO REASON EXCUSES IT. "For a
+        # reason of ours" reads as tolerated, and a precondition that did not
+        # run measured nothing: the line says what followed instead
+        # (`test_taxonomy.md` section 7.5.1).
+        required = band_lines(
+            passed=700,
+            failed=0,
+            skip_reasons=["a reason of ours"] * 4,
+            preconditions_skipped=4,
+        )[0]
+        assert "704 total, 700 executed" in required, required
+        assert "4 skipped, 4 a precondition, so the run exits 3" in required, (
+            f"a skipped precondition reads as excused: {required}"
+        )
+        assert "reason of ours" not in required, (
+            f"a precondition skip was offered a reason: {required}"
+        )
 
     @allure.story("A healthy total never hides a blocking failure")
     def MQC_CMN_UNI_112333_a_band_table_total_overriding_a_blocking_band_is_reported(

@@ -11,7 +11,7 @@ to 1024 lines against the thousand-line ceiling. The ranking is its own
 subject: that module is about what a result carries, this one about which of
 several codes names the finding.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

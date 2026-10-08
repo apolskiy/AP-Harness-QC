@@ -14,7 +14,7 @@ the dispatch path, which is not the same as being the same subject.
 **Nothing here spends anything.** Every case prices a scripted double against the
 shipped table on a fixed date, so the arithmetic is exercised without a provider.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

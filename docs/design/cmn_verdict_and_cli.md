@@ -232,7 +232,7 @@ engine has no file does no expiry work and does not consult the evaluation date.
 | Absent means empty | The default costs nothing to express, and an empty list in a file is the same statement with a file to maintain |
 | **The candidate engine, not the judge** | An entry records a finding about the model under test. The judge is not under test (section 6.2 of `test_taxonomy.md`) |
 
-#### 4.6.4 An undated entry is our defect, and is never red
+#### 4.6.4 An undated entry is an instrument defect, and is never red
 
 An entry missing its `quarantined_on` or its `observed_model` **cannot be
 evaluated**: there is nothing to measure the window against and nothing to
@@ -968,7 +968,7 @@ isolation, `SYS` drives the harness end to end over recorded transcripts, and
 
 | Layer | `graded` | Defined in | A failure is |
 |---|---|---|---|
-| `UNI`, `SYS` | False | here | **our defect** |
+| `UNI`, `SYS` | False | here | **not a model finding** |
 | `EVAL`, `TOOL`, `SEC` | True | `AP-Model-QC` | **a finding about a model** |
 
 `cmn/layers.py` already carries this distinction as the `graded` flag, and its
@@ -2289,6 +2289,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112048` | P | `a_dispensed_quarantine_skip_leaves_the_pass_rate` |
 | `112049` | B | `each_kind_of_skip_is_named_by_its_remedy` |
 | `112050` | N | `a_skipped_case_publishes_and_files_nothing` |
+| `112343` | P | `a_registered_family_round_trips_and_leaves_no_trace` |
+| `112344` | N | `a_precondition_that_skipped_fails_the_run` |
+| `112345` | P | `a_case_whose_environment_scope_is_absent_is_deselected` |
 | `112020` | P | `security_layer_excluded_from_distribution_ceiling` |
 | `112021` | N | `precondition_failure_blocks_graded_evaluation` |
 | `112022` | N | `precondition_skip_is_a_failure` |
@@ -2506,7 +2509,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 256 cases, 142 negative, 85 positive, 29 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 259 cases, 143 negative, 87 positive, 29 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

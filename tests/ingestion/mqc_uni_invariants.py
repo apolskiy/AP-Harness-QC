@@ -11,7 +11,7 @@ data type stays a data type only while something fails when it stops being one.
 Convention cannot do that job, because the person adding a method is the person
 who believed it belonged.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

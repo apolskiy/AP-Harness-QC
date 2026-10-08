@@ -37,7 +37,7 @@ class LayerProperties:
         layer (str): The uppercase token, such as ``UNI``.
         marker (str): The pytest marker selecting it.
         graded (bool): Whether the layer measures the model. A precondition
-            tests our harness, so a failure is our defect.
+            tests the harness, so a failure is not a model finding.
         distribution_exempt (bool): Whether its cases are excluded from the
             priority distribution ceilings. **Security coverage does not compete
             with functional coverage for a budget**: a ceiling exists to prevent

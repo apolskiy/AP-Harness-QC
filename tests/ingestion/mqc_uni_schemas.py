@@ -5,7 +5,8 @@
 Covers `MQC_ING_UNI_111300` through `111314` and `111319` through `111325`, as
 inventoried in ``docs/design/tier1_ingestion.md`` section 13.1.
 
-**These are preconditions, not graded tests.** A failure here is our defect
+**These are preconditions, not graded tests.** A failure here is **not a
+model finding**
 rather than a finding about a model, which is why the module carries no
 priority marker: preconditions are equally mandatory and there is no budget to
 allocate. See ``framework-rules.md`` section 3.3.

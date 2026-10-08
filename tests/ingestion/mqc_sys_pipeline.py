@@ -11,7 +11,7 @@ whether its `constraint_ref` resolves until it is paired with a task. Unit
 cases could not reach them without inventing the join, which would test the
 invention rather than the pipeline.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 

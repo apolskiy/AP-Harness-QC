@@ -202,7 +202,8 @@ def load_fixture(root: Path, key: FixtureKey, request_hash: str) -> StoredFixtur
     Raises:
         FixtureMissing: With ``QC_HARNESS_FIXTURE_MISSING``, naming the case.
         FixtureStale: With ``QC_HARNESS_FIXTURE_STALE``, naming the case. The
-            run skips rather than failing, because a stale fixture is our defect
+            run skips rather than failing, because a stale fixture is an
+            instrument defect
             and not a finding about a model.
     """
     path = key.as_path(root)

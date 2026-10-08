@@ -11,7 +11,7 @@ and 7.8.
 saw it, and ``--case`` recorded itself into metadata and made a run
 unverdictable while selecting nothing at all.
 
-A failure here is our defect, so the module carries no priority marker, per
+A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 """
 
