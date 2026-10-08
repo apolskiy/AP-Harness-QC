@@ -10,10 +10,13 @@ one subject; ``V5`` stays with the other verdict rules, because the rule
 registry is what makes a rule a rule.
 """
 
-from collections.abc import Mapping, Sequence
+import logging
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date
 from typing import Any, Final, Optional
+
+logger = logging.getLogger(__name__)
 
 # HOW LONG A QUARANTINE ENTRY STAYS VALID when the model has not changed.
 # Three weeks: the scheduled cadence is weekly, so this is three runs of
@@ -36,6 +39,18 @@ class QuarantineEntry:
             accepted. Absent means the entry is unconfirmed.
         observed_model (str): The model it was observed against. Absent means
             the entry is unconfirmed.
+        release_accepted_in (str): The tracker reference in which product
+            management announced that releasing with this blocker is
+            acceptable. **Empty is the default and the ordinary case**: a
+            quarantine saves the run's cost and buys nothing else, and a
+            failing blocker is not quarantined into a pass.
+
+            **Populated only once the decision is announced**, because a field
+            somebody can set while deciding records an intention rather than a
+            decision, and the reference is what makes the difference
+            auditable. Read by two things and no third, the blocking-band
+            floor and the pass-rate denominator; nothing aggregates it
+            (design section 4.6.13).
         ticket (str): An optional tracker reference or URL. **Nothing reads
             it**, by design: it carries the human context an entry needs,
             pending a tracking system (design section 4.6.7).
@@ -46,6 +61,7 @@ class QuarantineEntry:
     quarantined_on: Optional[date] = None
     observed_model: str = ""
     ticket: str = ""
+    release_accepted_in: str = ""
 
     @property
     def confirmed(self) -> bool:
@@ -94,6 +110,55 @@ class QuarantineEntry:
 DROPPED: Final[str] = "dropped"
 STAMPED: Final[str] = "stamped"
 UNDECIDED: Final[str] = "undecided"
+
+
+def released_by_dispensation(entry: Any) -> str:
+    """Return the reference releasing this blocker, or empty where none does.
+
+    **An unconfirmed entry cannot carry one.** Section 4.6.4 holds that an
+    entry without ``quarantined_on`` or ``observed_model`` is our bookkeeping
+    failing, and a dispensation on top of that would accept a release against a
+    finding whose expiry cannot be evaluated.
+
+    Args:
+        entry (Any): The quarantine entry.
+
+    Returns:
+        str: The tracker reference, or an empty string where the entry carries
+        none or is unconfirmed.
+    """
+    reference = str(getattr(entry, "release_accepted_in", "") or "").strip()
+    if not reference:
+        return ""
+    if not getattr(entry, "confirmed", False):
+        logger.warning(
+            "QC_HARNESS_QUARANTINE_UNCONFIRMED %s carries a release "
+            "dispensation and no observed date or model, so it is not honoured",
+            getattr(entry, "case_id", "?"),
+        )
+        return ""
+    return reference
+
+
+def dispensed_ids(entries: Iterable[Any]) -> frozenset[str]:
+    """Return every case whose entry carries an honoured release dispensation.
+
+    An entry with no reference, or an unconfirmed one, is absent: the pass-rate
+    denominator excuses only a decision that is on the record.
+
+    Design: ``cmn_verdict_and_cli.md`` section 4.6.13.
+
+    Args:
+        entries (Iterable[Any]): The quarantine entries.
+
+    Returns:
+        frozenset[str]: The case identifiers.
+    """
+    return frozenset(
+        str(getattr(entry, "case_id", ""))
+        for entry in entries
+        if released_by_dispensation(entry)
+    )
 
 
 def reconcile(

@@ -136,80 +136,40 @@ class TestMQCRateThresholds:
         assert result.pass_rate == pytest.approx(0.80)
         assert "V2" in result.breached_rules
 
-    def MQC_CMN_UNI_112006_green_at_exactly_twenty_percent_skips(self) -> None:
-        """The skip ceiling holds at 20% and fails above it.
+    # `112006` THROUGH `112009` ARE RETIRED, 2026-10-08 with V3 and V4
+    # (`test_taxonomy.md` section 7.4.1.0). Two asserted that a retired rule
+    # fires; the other two asserted that it does not, which a retired rule
+    # satisfies by doing nothing at all. `112044` replaces all four with the
+    # one statement still worth making, and the identifiers stay retired.
+
+    def MQC_CMN_UNI_112044_the_retired_skip_ceilings_never_fire(self) -> None:
+        """A population that breached both old ceilings breaches neither rule.
+
+        30% of the skippable population skipped and every skip is in a blocking
+        band, which is three times the old total ceiling and ten times the
+        blocking-band one.
 
         Returns:
             None
         """
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(8)]
         observations += [
-            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=3,
-                    skip_reason="environmental")
-            for index in range(2)
+            graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=1) for index in range(7)
         ]
-
-        result = verdict(observations, VerdictConfig(), TODAY)
-        assert result.skip_rate == pytest.approx(0.20)
-        assert "V3" not in result.breached_rules
-
-    def MQC_CMN_UNI_112007_red_just_above_twenty_percent_skips(self) -> None:
-        """One skip the other side of the same boundary.
-
-        Returns:
-            None
-        """
-        observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(7)]
         observations += [
-            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=3,
+            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=1,
                     skip_reason="environmental")
             for index in range(3)
         ]
 
         result = verdict(observations, VerdictConfig(), TODAY)
         assert result.skip_rate == pytest.approx(0.30)
-        assert "V3" in result.breached_rules
-
-    def MQC_CMN_UNI_112008_green_at_exactly_ten_percent_priority_skips(self) -> None:
-        """The P0 and P1 skip ceiling is tighter, and is its own denominator.
-
-        A skip in a blocking band is worse than a skip elsewhere, because the
-        band exists precisely to be measured every run.
-
-        Returns:
-            None
-        """
-        observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [
-            graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=1) for index in range(9)
-        ]
-        observations.append(
-            graded("MQC_TASK_s::MQC_RULE_r", "skip", priority=1,
-                    skip_reason="environmental")
-        )
-
-        result = verdict(observations, VerdictConfig(), TODAY)
+        assert "V3" not in result.breached_rules
         assert "V4" not in result.breached_rules
-
-    def MQC_CMN_UNI_112009_red_just_above_ten_percent_priority_skips(self) -> None:
-        """One priority skip the other side of the same boundary.
-
-        Returns:
-            None
-        """
-        observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [
-            graded(f"MQC_TASK_{index}::MQC_RULE_r", priority=1) for index in range(8)
-        ]
-        observations += [
-            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=1,
-                    skip_reason="environmental")
-            for index in range(2)
-        ]
-
-        assert "V4" in verdict(observations, VerdictConfig(), TODAY).breached_rules
+        # AND THE RUN IS GREEN, which is the point of the retirement rather
+        # than a side effect: an unreachable provider is not the model's
+        # failure, so it leaves the rate the floor is measured over.
+        assert result.green, f"an outage was charged to the model: {result.breaches}"
 
 
 
@@ -245,21 +205,36 @@ class TestMQCNothingMeasured:
         assert "V6" in result.breached_rules
 
     def MQC_CMN_UNI_112015_red_when_every_graded_case_quarantined(self) -> None:
-        """The pass-rate denominator is zero, so the suite verified nothing.
+        """A suite that measured nothing is red, and now says 0% rather than none.
+
+        **The mechanism changed on 2026-10-08, not the behaviour.** Quarantine
+        used to empty the pass-rate denominator, so the run was red by V6 with
+        no rate at all. A quarantined case now skips before dispatch and that
+        skip counts as the failure it is, so the run is red by the floor and
+        reports a rate of zero, which is the stronger statement: nobody has to
+        know what V6 means to read it.
 
         Returns:
             None
         """
-        observations = passing_suite(3)
+        observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
+        observations += [
+            graded(
+                f"MQC_TASK_{index}::MQC_RULE_r",
+                outcome="skip",
+                skip_reason="quarantined",
+            )
+            for index in range(3)
+        ]
         quarantine = [
-            QuarantineEntry(entry.case_id, "parked", date(2026, 12, 1))
+            QuarantineEntry(entry.case_id, "parked", date(2026, 9, 20))
             for entry in observations if entry.graded
         ]
         result = verdict(observations, VerdictConfig(quarantine=quarantine), TODAY)
 
         assert result.green is False
-        assert "V6" in result.breached_rules
-        assert result.pass_rate is None
+        assert "V2" in result.breached_rules
+        assert result.pass_rate == pytest.approx(0.0)
 
     def MQC_CMN_UNI_112016_red_when_every_pair_unsupported(self) -> None:
         """The skip denominator is zero, which is not the same as no skips.
@@ -320,21 +295,12 @@ class TestMQCDenominators:
         assert result.skip_rate == pytest.approx(0.0)
         assert "V3" not in result.breached_rules
 
-    def MQC_CMN_UNI_112019_quarantined_cases_excluded_from_pass_denominator(self) -> None:
-        """Excluded from the denominator, never deleted from the suite.
-
-        Returns:
-            None
-        """
-        observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
-        observations += [graded(f"MQC_TASK_{index}::MQC_RULE_r") for index in range(9)]
-        observations.append(graded("MQC_TASK_q::MQC_RULE_r", "fail", priority=3))
-
-        quarantine = [QuarantineEntry("MQC_TASK_q::MQC_RULE_r", "parked", date(2026, 12, 1))]
-        result = verdict(observations, VerdictConfig(quarantine=quarantine), TODAY)
-
-        assert result.pass_rate == pytest.approx(1.0)
-        assert result.green is True
+    # `112019` IS RETIRED, 2026-10-08. Quarantine no longer leaves the
+    # pass-rate denominator: it saves the cost of asking again about a known
+    # failure and does not stop it being one (design section 4.6.12). The
+    # identifier stays retired, and `112046` and `112048` state what replaced
+    # it: a quarantined skip counts as a failure, and a recorded dispensation
+    # is the one thing that releases it.
 
     def MQC_CMN_UNI_112020_security_layer_excluded_from_distribution_ceiling(self) -> None:
         """Security coverage does not compete with functional coverage.
@@ -407,26 +373,34 @@ class TestMQCVerdictProperties:
         """Short-circuiting would cost a cycle per rediscovered breach.
 
         For a suite whose live runs are scheduled rather than on demand, fixing
-        V1 and meeting V3 on the next run and V4 on the one after is three
-        cycles to reach a state one run could have reported.
+        V1 and meeting V2 on the next run and the distribution on the one after
+        is three cycles to reach a state one run could have reported.
+
+        **The four rules it reads changed on 2026-10-08**, when V3 and V4 were
+        retired: three failing P0 cases out of six breach V1, the pass floor,
+        the P0 share ceiling and the combined share ceiling.
 
         Returns:
             None
         """
+        # THIRTY DEFINITIONS, because the distribution rules report counts
+        # without a verdict below that and a rule reporting no verdict cannot
+        # demonstrate that every breach is reported.
         observations = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
         observations += [
             graded(f"MQC_TASK_f{index}::MQC_RULE_r", "fail", priority=0)
-            for index in range(3)
+            for index in range(4)
         ]
         observations += [
-            graded(f"MQC_TASK_s{index}::MQC_RULE_r", "skip", priority=1,
-                    skip_reason="environmental")
-            for index in range(3)
+            graded(f"MQC_TASK_a{index}::MQC_RULE_r", priority=1) for index in range(7)
+        ]
+        observations += [
+            graded(f"MQC_TASK_b{index}::MQC_RULE_r") for index in range(19)
         ]
 
         breached = verdict(observations, VerdictConfig(), TODAY).breached_rules
-        assert {"V1", "V2", "V3", "V4"} <= set(breached)
-        assert len(breached) >= 4
+        assert {"V1", "V2", "V7", "V8", "V9"} <= set(breached)
+        assert len(breached) >= 5
 
     def MQC_CMN_UNI_112024_verdict_is_pure_for_identical_input(self) -> None:
         """Identical input yields an identical verdict, every time.
@@ -634,50 +608,141 @@ class TestMQCRunSoundness:
         assert result.exit_code == 3
         assert any("unfinished" in breach.reason for breach in result.breaches)
 
-    def MQC_CMN_UNI_112032_an_environmental_skip_is_tolerated_to_its_ceiling(
-        self,
-    ) -> None:
-        """A provider outage is not an unwritten case, and the reason says so.
+    # `112032` IS RETIRED, 2026-10-08. It named a ceiling that no longer
+    # exists and asserted a run over that ceiling was red, which the
+    # reason-dependent treatment makes green: an outage is not the model's
+    # failure at any rate. `112045` states the replacement.
 
-        **Named at the threshold exactly**, on both sides. The skip ceiling is
-        20% of the skippable population, so 20% passes and anything above it
-        does not.
+    def MQC_CMN_UNI_112045_a_skip_we_caused_leaves_the_pass_rate(self) -> None:
+        """An outage is not an unwritten case, and the reason says so.
+
+        **Half the population skipping changes the rate by nothing**, which is
+        the whole of the exclusion: a fixture that would not load and a
+        provider that could not be reached say nothing about a model.
 
         Returns:
             None
         """
-        # 16 passing graded plus 4 environmental skips is exactly 20%.
-        at_ceiling = passing_suite(16)
-        at_ceiling.extend(
+        suite = passing_suite(10)
+        suite.extend(
             graded(
                 f"MQC_TASK_e{index}::MQC_RULE_r",
                 outcome="skip",
                 priority=3,
                 skip_reason="environmental",
+            )
+            for index in range(10)
+        )
+
+        result = verdict(suite, as_of_date=TODAY)
+
+        assert result.pass_rate == pytest.approx(1.0), (
+            "an outage entered the pass-rate denominator and was charged to "
+            "the model"
+        )
+        assert result.green, f"an outage failed the run: {result.breaches}"
+        assert result.exit_code == 0
+
+    @pytest.mark.parametrize("reason", ["quarantined", "dependency", None])
+    def MQC_CMN_UNI_112046_a_skip_the_model_caused_counts_as_a_failure(
+        self, reason: object
+    ) -> None:
+        """Each reason naming a non-pass the model owns enters the denominator.
+
+        ``None`` is included deliberately: a skip nobody attributed is not
+        evidence that the model was blameless, so the default is to count it.
+
+        **`incomplete` is absent because it blocks rather than rates.**
+        Unfinished work makes the run unsound and leaves no pass rate at all to
+        count it in, which `112031` asserts.
+
+        Returns:
+            None
+        """
+        suite = passing_suite(9)
+        suite.append(
+            graded(
+                "MQC_TASK_z::MQC_RULE_r",
+                outcome="skip",
+                priority=3,
+                skip_reason=reason,
+            )
+        )
+
+        result = verdict(suite, as_of_date=TODAY)
+
+        assert result.pass_rate == pytest.approx(0.90), (
+            f"a {reason} skip left the pass-rate denominator"
+        )
+
+    def MQC_CMN_UNI_112047_a_counted_skip_never_reaches_the_numerator(self) -> None:
+        """A skip is a non-pass whatever its reason, which no cause changes.
+
+        Returns:
+            None
+        """
+        for reason in ("quarantined", "dependency", "incomplete", "environmental",
+                       "unsupported"):
+            assert not outcome_properties("skip").is_pass, reason
+
+        # AND A SUITE OF NOTHING BUT COUNTED SKIPS RATES AT ZERO, rather than
+        # at the empty-population rate a filtered denominator would produce.
+        suite = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
+        suite.extend(
+            graded(
+                f"MQC_TASK_q{index}::MQC_RULE_r",
+                outcome="skip",
+                priority=3,
+                skip_reason="quarantined",
             )
             for index in range(4)
         )
-        result = verdict(at_ceiling, as_of_date=TODAY)
-        assert result.green, (
-            f"an outage at exactly the ceiling was refused: {result.breaches}"
-        )
-        assert result.exit_code == 0
 
-        # One more crosses it, and it is a ceiling breach rather than a
-        # soundness failure: exit 1, because the run did measure.
-        over = passing_suite(15)
-        over.extend(
+        assert verdict(suite, as_of_date=TODAY).pass_rate == pytest.approx(0.0)
+
+    def MQC_CMN_UNI_112048_a_dispensed_quarantine_skip_leaves_the_pass_rate(
+        self,
+    ) -> None:
+        """Product management's recorded decision is the one thing that excuses.
+
+        **The entry has to be confirmed as well.** An entry carrying no
+        observed date or model is our bookkeeping failing, and a dispensation
+        on top of that accepts a release against a finding whose expiry cannot
+        be evaluated.
+
+        Returns:
+            None
+        """
+        suite = passing_suite(9)
+        suite.append(
             graded(
-                f"MQC_TASK_e{index}::MQC_RULE_r",
+                "MQC_TASK_z::MQC_RULE_r",
                 outcome="skip",
                 priority=3,
-                skip_reason="environmental",
+                skip_reason="quarantined",
             )
-            for index in range(5)
         )
-        breached = verdict(over, as_of_date=TODAY)
-        assert not breached.green
-        assert breached.exit_code == 1, (
-            "an outage over the ceiling exited 3, which says nothing was "
-            "measured when 15 cases were"
+        entry = QuarantineEntry(
+            case_id="MQC_TASK_z::MQC_RULE_r",
+            reason="a finding under repair",
+            quarantined_on=date(2026, 9, 20),
+            observed_model="gemini-2.5-flash",
+            release_accepted_in="MQC-914",
+        )
+
+        released = verdict(suite, VerdictConfig(quarantine=[entry]), TODAY)
+        assert released.pass_rate == pytest.approx(1.0), (
+            "a recorded dispensation did not release the skip"
+        )
+
+        # UNCONFIRMED, SO NOT HONOURED: the same reference on an entry with no
+        # observed model leaves the skip exactly where it was.
+        unconfirmed = QuarantineEntry(
+            case_id="MQC_TASK_z::MQC_RULE_r",
+            reason="a finding under repair",
+            release_accepted_in="MQC-914",
+        )
+        refused = verdict(suite, VerdictConfig(quarantine=[unconfirmed]), TODAY)
+        assert refused.pass_rate == pytest.approx(0.90), (
+            "an unconfirmed entry released a blocker"
         )

@@ -774,6 +774,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_PARSER_ERROR` | Ingestion failed to parse input files |
 | `QC_HARNESS_AUTH_ERROR` | Credential or authentication failure |
 | `QC_HARNESS_PREFLIGHT_FAILURE` | Preflight check failed; run aborted before execution (A11.4) |
+| `QC_HARNESS_QUARANTINED` | The case is quarantined, so it was skipped before a request was formed. **Never red and never a pass**: quarantine accepts a finding and saves the cost of measuring it again, and the blocking band counts the skip against the band it was selected into (`cmn_verdict_and_cli.md` section 4.6.12) |
 | `QC_HARNESS_QUARANTINE_UNCONFIRMED` | A quarantine entry carries no `quarantined_on` or no `observed_model`, so its expiry cannot be evaluated. **Never red**: the quarantine mechanism failed, not the model, and the entry is still honoured while unconfirmed (`cmn_verdict_and_cli.md` section 4.6.4) |
 | `QC_HARNESS_VERSION_UNAVAILABLE` | Resolved model version could not be obtained (A8) |
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index |
@@ -858,10 +859,10 @@ The verdict is **binary**. A tri-state was proposed and withdrawn: CI exit codes
 |---|---|
 | Any P0 or P1 observation does not pass | **Red** |
 | Overall pass rate below **90%** | **Red** |
-| Total skips exceed 20% of planned observations | **Red** |
-| P0 or P1 skips exceed 10% of their planned observations | **Red** |
+| ~~Total skips exceed 20% of planned observations~~ | **Retired 2026-10-08**: section 7.4.1.0 |
+| ~~P0 or P1 skips exceed 10% of their planned observations~~ | **Retired 2026-10-08**: section 7.4.1.0 |
 
-These are V1 through V4. **Two further rules exist**, an expired quarantine entry and a run with zero graded observations, and both are red. An earlier version of this table ended with an "otherwise green" row, which made an expired quarantine entry green here and red in the document that computes the verdict.
+These are V1 through V4, and **the two skip ceilings are retired**: a skip counts as a failure in the pass rate, so the floor governs it and a second budget for the same quantity contradicted that floor. The rows stay struck through rather than deleted, because stored history carries the rule identifiers and a reader of that history has to resolve them. **Two further rules exist**, an expired quarantine entry and a run with zero graded observations, and both are red. An earlier version of this table ended with an "otherwise green" row, which made an expired quarantine entry green here and red in the document that computes the verdict.
 
 A pass grade requires **100% of P0 and P1 passing** and an **overall pass rate of 90% or better**, with every other registered rule also unfired.
 
@@ -902,6 +903,215 @@ A vendor model update can only move the scheduled run, which gates nothing. No o
 * **Gate denominator:** skipped observations over total planned observations, excluding declared-unsupported pairs.
 * **Fully skipped cases**, all observations of one case skipped, are counted separately, having never been measured at all.
 * **Per-pair diagnostics:** skip rate is reported per (test × engine) pair as well as in aggregate. A case that always skips on one engine and never on another is a defect or a capability gap, not flakiness, and a global percentage buries it.
+
+### 7.4.1 A skip is a non-pass, and its cause decides whether it is a failure
+
+Added 2026-10-08 at the project owner's instruction, and **corrected the same
+day** by the instruction that followed it. The first version counted every skip
+as a failure. The correction names the exception: a skip is a failure "unless it
+is the result of a harness bug or a flaky test, or for some reason inability to
+reach the model".
+
+**A skip is never a pass.** Nothing was measured, so nothing can be reported as
+having passed, whatever the cause. `is_pass` is false for every skip and no
+reason changes it.
+
+**Whether it is a failure is the separate question, and the reason answers it.**
+
+| It skipped because | Whose failure | In the pass rate |
+|---|---|---|
+| It is quarantined | The model's, already found | **Counted as a failure** |
+| Its foundation did not hold | The model's, one layer up | **Counted as a failure** |
+| The work is not finished | Ours, and it blocks outright | **Counted as a failure** |
+| Our fixture, budget or judge failed | Ours | Excluded |
+| The provider could not be reached | The network's | Excluded |
+| The pair is declared unsupported | Nobody's | Excluded |
+
+**The first three did not pass and the rate has to say so.** Excluding them
+stated a rate over whatever happened to run, which is the "selective passing
+rate" the band floor was corrected for on 2026-10-07, applied to the run-level
+number.
+
+**Charging the model for the last three is the misattribution the four
+families exist to prevent.** A fixture that would not load, a budget that ran
+out and a provider that could not be reached say nothing about a model's
+quality, and a pass rate that falls when our own CI wobbles is a number nobody
+can act on. `QC_HARNESS_*` already means "our code or infrastructure broke,
+never a model finding", and the pass rate now agrees with it.
+
+**Each test opens its own connection, which is why the exclusion is narrow.**
+A case that could not reach the provider failed to reach it on its own
+connection, so the cause is local to that case rather than inherited from the
+one before it. Tests sharing a connection would be a different rubric, which
+this project has neither designed nor implemented.
+
+**An unstated reason counts as a failure.** A skip nobody attributed is not
+evidence that the model was blameless, and defaulting the other way would make
+omitting the reason the cheapest way to lift a rate.
+
+| | Before | After |
+|---|---|---|
+| `counts_in_pass_rate` | `False` | **`True`**, then filtered by the reason |
+| `is_pass` | `False` | `False`, whatever the reason |
+
+So a counted skip joins the denominator and never the numerator: **it reads as
+a failure**, which is what it is as far as a pass rate is concerned.
+
+#### 7.4.1.0 So V3 and V4 are retired, because a skip has no ceiling
+
+**A skip has no ceiling**, by the project owner's instruction of 2026-10-08:
+"I don't know where skip ceilings came from for skips. Only floors were
+established for pass rate."
+
+V3 capped the total skip rate at 20%. With a skip counting in the pass-rate
+denominator and never the numerator, that cap and the 90% pass floor cannot
+both hold:
+
+```
+20% skipped  ->  at most 80% passed  ->  below a 90% floor, always
+```
+
+**A run sitting exactly where V3 tolerated it breached V2 automatically**,
+which `MQC_CMN_UNI_112032` demonstrated the moment the accounting changed.
+
+**The floor is the single statement about what a run must achieve.** A separate
+skip budget is a second rule about the same quantity, and the project removes
+that kind of duplication rather than tuning both numbers against each other.
+
+**V4 goes with it, and for the same reason twice over.** V4 capped the P0 and
+P1 skip rate at 10%, which is a second budget for the same quantity at a
+narrower scope. It is also the weaker of the two mechanisms now covering that
+scope: V1 fails a run on **any** P0 or P1 observation that does not pass, and a
+counted skip does not pass, so a single blocking-band skip is already red
+before a rate is computed. A ceiling that can only fire after something
+stricter has already fired decides nothing.
+
+| | What used to catch a blocking-band skip | What catches it now |
+|---|---|---|
+| Needs | A tenth of the band to skip | **One observation** |
+| Rule | V4, a rate | V1, unconditional |
+
+**Neither threshold is deleted from configuration.** `skip_ceiling` and
+`priority_skip_ceiling` stay loadable and are read by nothing, so a stored
+configuration naming them still parses and a stored verdict stays
+recomputable. That is the same reason the window is recorded rather than
+constant (`cmn_verdict_and_cli.md` section 4.6.2).
+
+**The names stay retired rather than reused.** A downstream reader comparing
+two runs must not find V3 or V4 meaning something else, which is the rule
+identifiers already follow.
+
+#### 7.4.1.1 Two exclusions survive, and each is a declaration
+
+**A declared-unsupported pair stays excluded** (section 7.5). A capability gap
+is not a failure of anything and is recorded with a written reason, which is
+the difference between an exclusion and whatever the run skipped.
+
+**A probe is excluded** because it is a measurement and not a verdict (design
+`cmn_verdict_and_cli.md` section 10.28.2.1), and counting it would report one
+behaviour twice.
+
+#### 7.4.1.2 It needs the skip to be recorded, which it was not
+
+**Nothing recorded a skipped case.** `pytest.skip` raises before
+`record_observation`, and `publish_result` returns early with nothing
+recorded, so a skipped case emitted no observation and no metadata row. The
+skip rate had no skips to count and **V4 could not fire**: a band skipping a
+third of its cases breached nothing.
+
+So a skip now records its own observation, carrying its reason, which closes
+the accounting this section has specified since A13 and nothing fed.
+
+**Recorded at the skip, not at the hook, and the reason is which one knows the
+case.** A corpus observation is keyed on `MQC_TASK_x::MQC_RULE_y`, and a pytest
+hook holds a test identifier. Recording from the hook would have meant inventing
+a case identifier for an observation, which binds a record to a case that never
+ran.
+
+| The skip | Recorded by | Reason it carries |
+|---|---|---|
+| Quarantined, before dispatch | `observe`, which resolved the case | `quarantined` |
+| A `QC_HARNESS_*` dispatch event | `observe`, from the outcome | `environmental` |
+| A judgement the store did not hold | `_measured_fields`, from the result | `environmental` |
+| A foundation that did not hold | **Nothing, and it does not need to** | |
+
+**The last row is deliberate and the band floor is why.** A dependent of a
+failure is probed in replay rather than skipped (`cmn_verdict_and_cli.md`
+section 10.28.2.1), so this is now the rare case; where it does skip, it skips
+from `pytest_runtest_setup` and the blocking-band floor counts it against the
+band it was selected into, excusing nothing. A second mechanism counting the
+same case would report one cascade twice.
+
+**A judge that did not answer is the one the owner's instruction singled out.**
+The model produced a response and our judgement of it is missing, so it is
+neither a pass nor a failure of the model: it records `environmental`, which is
+exactly the treatment that leaves the pass rate. It used to record a **fail**,
+charging the model for our own empty replay store.
+
+#### 7.4.1.3 `quarantined` is a reason of its own, and a dispensation is the one release
+
+**A quarantined case skips before dispatch** (`cmn_verdict_and_cli.md` section
+4.6.12), which is the whole point: quarantine saves the cost of measuring a
+failure somebody is already fixing. Until 2026-10-08 that skip carried no reason
+of its own, so it arrived unattributed, and an unattributed skip is treated as a
+failure by the rule above. **That is the right answer for the wrong reason**, and
+a reason nobody wrote down is one nobody can audit.
+
+So `quarantined` is registered alongside `environmental`, `dependency`,
+`unsupported` and `incomplete`. It **counts as a failure**, which is the same
+answer by declaration: quarantine buys the cost of a run and never a pass.
+
+**The dispensation is the one thing that releases it.** Where the quarantine
+entry records `release_accepted_in`, product management has announced that
+releasing with the finding is acceptable, and that case leaves the pass-rate
+denominator.
+
+| `release_accepted_in` | The quarantined skip |
+|---|---|
+| Empty | **Counts as a failure.** The ordinary case |
+| A tracker reference | Leaves the denominator, and the report names it |
+
+**This gives the field a second reader, which section 4.6.13 said it would not
+have.** That section reserved it for the blocking-band floor on the ground that
+a second use would make an exception into a mechanism. The project owner's
+instruction is explicit that the column is what excuses a skip from the rate, so
+the design is corrected rather than read around: **the field now has two
+readers and still no third**. Nothing aggregates it, nothing counts how many are
+outstanding, and it remains the only field in the system that can turn a
+non-pass into an exclusion.
+
+### 7.4.2 Replay on both sides measures no model, and is not a supported configuration
+
+Added 2026-10-08 at the project owner's instruction: **"candidate replayed and
+judge replayed is not a supported configuration for measuring a model, model
+findings do have to come from live agents."**
+
+**The two halves are separately moded, which is what makes the combination
+possible at all.** `FixtureKey` is `(case_id, engine, observation_index)` and
+keys the candidate only, so a bound judge is a live call whatever `--mode` says
+(`testing-standards.md` section 2). Replaying the judge as well needs
+`--judge-on-failure` against a judgement store.
+
+| Candidate | Judge | What a result means |
+|---|---|---|
+| Live | Live | **A model finding.** The only configuration a vendor report comes from |
+| Live | Replayed | A judgement from a recording, against a fresh response |
+| Replayed | Live | **Our code against a frozen response**: the pull-request gate |
+| Replayed | Replayed | **Nothing about any model.** Two recordings agreeing with each other |
+
+**The last row is a harness test wearing a model test's clothes.** Both sides
+are recordings, so the only thing it can establish is that our pipeline still
+reads its own fixtures the same way. That is worth establishing and it is a
+precondition, which is where it belongs: a `SYS` case, in the gate that runs
+replay by design.
+
+**Permitted for harness testing, where it is the point.** The preconditions run
+in replay precisely so they cannot flake, and nothing there claims to measure a
+provider.
+
+**Refused for a model finding**, and this is the rule a reader needs: a finding
+filed against a vendor cites a live candidate. A number produced with both sides
+replayed is a regression check on us.
 
 ### 7.5 Unsupported pairs are declared, not skipped (A13)
 

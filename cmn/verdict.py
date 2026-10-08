@@ -32,11 +32,13 @@ from cmn.layers import (
     layer_properties,
     outcome_properties,
     skip_blocks,
+    skip_counts_as_failure,
     skip_counts_toward_rate,
 )
 from cmn.quarantine import (
     QUARANTINE_WINDOW_DAYS,
     QuarantineEntry,
+    dispensed_ids,
     excluded_bands,
 )
 from cmn.observations import Observation
@@ -65,8 +67,15 @@ class Thresholds:
 
     Attributes:
         pass_floor (float): Minimum overall pass rate (V2).
-        skip_ceiling (float): Maximum total skip rate (V3).
-        priority_skip_ceiling (float): Maximum P0 and P1 skip rate (V4).
+        skip_ceiling (float): **Retired 2026-10-08 and read by nothing.** A
+            skip has no ceiling: it counts as a failure in the pass rate, so
+            the floor governs it and a second budget for the same quantity
+            contradicted that floor. Kept so a configuration naming it still
+            loads.
+        priority_skip_ceiling (float): **Retired 2026-10-08 with V4 and read
+            by nothing.** V1 already fails a run on any blocking-band
+            observation that does not pass, and a counted skip does not pass.
+            Kept so a stored configuration naming it still loads.
         inconsistency_ceiling (float): Maximum share of measured cases whose
             repeat observations disagree, before the run is unsound
             (a `RUN_UNSOUND` condition, not a numbered verdict rule).
@@ -224,8 +233,6 @@ class _Population:
             excluding quarantined cases.
         skippable (list): Graded observations counting toward the skip rate.
         skipped (list): Of those, the ones that skipped.
-        priority_skippable (list): The P0 and P1 subset of ``skippable``.
-        priority_skipped (list): Of those, the ones that skipped.
         resolved_model (str): The one model this run reported, or empty
             when it reported none or several. **Empty leaves the
             quarantine model trigger unevaluated**, because which of two
@@ -237,8 +244,6 @@ class _Population:
     executions: list[Observation]
     skippable: list[Observation]
     skipped: list[Observation]
-    priority_skippable: list[Observation]
-    priority_skipped: list[Observation]
     resolved_model: str = ""
 
 
@@ -623,22 +628,30 @@ def _build_population(
     Returns:
         _Population: The sets, each excluding what its own rule excludes.
     """
-    quarantined = config.quarantined_ids()
+    dispensed = dispensed_ids(config.quarantine)
     graded = [entry for entry in observations if entry.graded]
 
+    # QUARANTINE NO LONGER LEAVES THE PASS RATE. It saves the cost of asking
+    # again about a known failure and does not stop it being one, so a skip
+    # counts by its cause: the model's failure stays, ours and the network's
+    # leave, and a recorded dispensation is the one decision that excuses a
+    # case nothing measured (design sections 4.6.12 and 4.6.13).
     executions = [
         entry for entry in graded
-        if entry.case_id not in quarantined
-        and outcome_properties(entry.outcome).counts_in_pass_rate
+        if outcome_properties(entry.outcome).counts_in_pass_rate
+        and (
+            entry.outcome != "skip"
+            or (
+                skip_counts_as_failure(entry.skip_reason)
+                and entry.case_id not in dispensed
+            )
+        )
     ]
     skippable = [
         entry for entry in graded
         if entry.outcome != "skip" or skip_counts_toward_rate(entry.skip_reason)
     ]
     skipped = [entry for entry in skippable if entry.outcome == "skip"]
-    priority_skippable = [
-        entry for entry in skippable if entry.priority in (0, 1)
-    ]
     # ONE MODEL OR NONE. A mixed corpus leaves this empty rather than
     # picking one: `mixed_model_engines` reports the run as mixed, and
     # expiring quarantine on an arbitrary pick would attach a second
@@ -649,10 +662,6 @@ def _build_population(
         executions=executions,
         skippable=skippable,
         skipped=skipped,
-        priority_skippable=priority_skippable,
-        priority_skipped=[
-            entry for entry in priority_skippable if entry.outcome == "skip"
-        ],
         resolved_model=reported.pop() if len(reported) == 1 else "",
     )
 
@@ -726,47 +735,39 @@ def _rule_v2(
 def _rule_v3(
     population: _Population, config: VerdictConfig, as_of: date
 ) -> tuple[bool, str]:
-    """The total skip rate must stay within its ceiling.
+    """Retired 2026-10-08: the total skip ceiling, which never fires now.
+
+    Design: ``test_taxonomy.md`` section 7.4.1.0.
 
     Args:
-        population (_Population): The split observation sets.
-        config (VerdictConfig): For the threshold.
-        as_of (date): Unused by this rule.
+        population (_Population): Unused.
+        config (VerdictConfig): Unused.
+        as_of (date): Unused.
 
     Returns:
-        tuple: Whether it fired, and what it found.
+        tuple: Never fires.
     """
-    del as_of
-    rate = _rate(population.skipped, population.skippable)
-    if rate is None:
-        return False, ""
-    ceiling = config.thresholds.skip_ceiling
-    if rate <= ceiling:
-        return False, ""
-    return True, f"skip rate {rate:.1%} is above the ceiling of {ceiling:.0%}"
+    del population, config, as_of
+    return False, ""
 
 
 def _rule_v4(
     population: _Population, config: VerdictConfig, as_of: date
 ) -> tuple[bool, str]:
-    """The P0 and P1 skip rate must stay within its own, tighter ceiling.
+    """Retired 2026-10-08: the blocking-band skip ceiling, which never fires.
+
+    Design: ``test_taxonomy.md`` section 7.4.1.0.
 
     Args:
-        population (_Population): The split observation sets.
-        config (VerdictConfig): For the threshold.
-        as_of (date): Unused by this rule.
+        population (_Population): Unused.
+        config (VerdictConfig): Unused.
+        as_of (date): Unused.
 
     Returns:
-        tuple: Whether it fired, and what it found.
+        tuple: Never fires.
     """
-    del as_of
-    rate = _rate(population.priority_skipped, population.priority_skippable)
-    if rate is None:
-        return False, ""
-    ceiling = config.thresholds.priority_skip_ceiling
-    if rate <= ceiling:
-        return False, ""
-    return True, f"P0 and P1 skip rate {rate:.1%} is above the ceiling of {ceiling:.0%}"
+    del population, config, as_of
+    return False, ""
 
 
 def _rule_v5(

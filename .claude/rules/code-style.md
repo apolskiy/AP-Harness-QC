@@ -278,6 +278,12 @@ Band P0: 15 total, 12 executed, 9 passed, 3 failed, 3 skipped behind a higher ba
 **"Not measured" is not a state.** A case that did not run was skipped, and
 naming it anything else leaves a reader with no outcome to act on.
 
+**A skip names its kind, because the kinds take different remedies.** Three
+exist: behind a higher band failure, as a known failure in quarantine, and for
+a reason of ours. Collapsing two of them into one phrase is the same defect as
+"not measured" at a smaller scale: the count stays right and the reader acts on
+the wrong thing.
+
 **A line reports only its own subject.** A band states its own total and never
 how many cases the other bands hold, so pytest's deselected count is suppressed
 rather than printed: it is the size of everything this run was not asked to do.

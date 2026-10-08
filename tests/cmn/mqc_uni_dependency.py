@@ -18,6 +18,7 @@ A failure here is our defect, so the module carries no priority marker.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -37,16 +38,15 @@ from cmn.selection import (
     select_priority_bands,
     selected_bands,
 )
-from cmn.pytest_support import (
+from cmn.pytest_support import case_identifier
+from cmn.dependencies import (
     adopt_carried_outcomes,
     adopt_prerequisites,
-    carried_identifiers,
-    publish_prerequisites,
-
     arrange_dependencies,
-    case_identifier,
+    carried_identifiers,
     declared_dependencies,
     enforce_dependencies,
+    publish_prerequisites,
     record_base_outcome,
     reset_dependency_state,
     unknown_dependencies,
@@ -136,7 +136,7 @@ from typing import Any
 
 import pytest
 
-from cmn.pytest_support import enforce_dependencies, record_from_report
+from cmn.dependencies import enforce_dependencies, record_from_report
 
 
 def pytest_runtest_setup(item: Any) -> None:
@@ -190,8 +190,8 @@ _REVERSING_CONFTEST = _CONFTEST.replace(
 
 def pytest_runtest_setup(item: Any) -> None:""",
 ).replace(
-    "from cmn.pytest_support import enforce_dependencies, record_from_report",
-    "from cmn.pytest_support import (\n"
+    "from cmn.dependencies import enforce_dependencies, record_from_report",
+    "from cmn.dependencies import (\n"
     "    arrange_dependencies,\n"
     "    enforce_dependencies,\n"
     "    record_from_report,\n"
@@ -288,8 +288,18 @@ class TestMQCDependencyCascade:
         # READ FROM THE SUMMARY LINE, not from the whole output: the head's
         # own traceback contains the word "error", and a substring search
         # where a count was meant is the error this project produces most.
-        summary = [line for line in output.splitlines() if " in 0." in line
-                   or " in 1." in line][-1]
+        # MATCHED ON THE DURATION'S SHAPE, not on its leading digit. This
+        # read `" in 0."` or `" in 1."`, so it found nothing the moment the
+        # inner run passed two seconds, which log capture at INFO was enough
+        # to do: a test that depends on how fast the machine is will fail on a
+        # slower one and tell nobody why.
+        timed = re.compile(r" in \d+\.\d+s")
+        candidates = [line for line in output.splitlines() if timed.search(line)]
+        assert candidates, (
+            f"the inner run printed no summary line, so nothing can be read "
+            f"from it: {output[-400:]}"
+        )
+        summary = candidates[-1]
         assert "1 failed" in summary, f"the head did not fail: {summary}"
         assert "2 skipped" in summary, (
             f"the chain did not cascade past its middle, so a link that was "
@@ -425,8 +435,17 @@ class TestMQCDependencyCascade:
             env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[2])},
         )
         output = completed.stdout + completed.stderr
-        summary = [line for line in output.splitlines()
-                   if " in 0." in line or " in 1." in line][-1]
+        # MATCHED ON THE DURATION'S SHAPE, for the reason given at the other
+        # call site: a leading digit makes the parse depend on how fast the
+        # machine is.
+        candidates = [
+            line for line in output.splitlines()
+            if re.search(r" in \d+\.\d+s", line)
+        ]
+        assert candidates, (
+            f"the inner run printed no summary line: {output[-400:]}"
+        )
+        summary = candidates[-1]
 
         # THE ORDER IS THE CLAIM, and counts cannot carry it. A dependent
         # that ran first skips either way, because runtime treats an

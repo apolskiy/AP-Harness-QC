@@ -47,6 +47,11 @@ logger = logging.getLogger(__name__)
 # section 3.4 and `cmn/layers.py`.
 _DEPENDENCY_SKIP: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
 
+# A QUARANTINED SKIP IS A MODEL FINDING UNDER REPAIR, not our infrastructure
+# wobbling, and the line says which because the remedy differs (design section
+# 7.11). Matched on the code the skip message carries.
+_QUARANTINE_SKIP: Final[str] = "QC_HARNESS_QUARANTINED"
+
 
 def band_label(priority: str) -> str:
     """Return how a selection names itself.
@@ -79,7 +84,8 @@ def band_lines(
         passed (int): Cases that passed.
         failed (int): Cases that failed.
         skip_reasons (list[str]): One reason per skipped case, so a skip behind
-            a failed foundation can be told from an environmental one.
+            a failed foundation, one in quarantine and one of ours can each be
+            named by the remedy it takes.
         priority (str): The ``--priority`` value, for the label.
 
     Returns:
@@ -94,7 +100,8 @@ def band_lines(
 
     executed = passed + failed
     blocked = sum(1 for reason in skip_reasons if _DEPENDENCY_SKIP in reason)
-    other = skipped - blocked
+    parked = sum(1 for reason in skip_reasons if _QUARANTINE_SKIP in reason)
+    other = skipped - blocked - parked
 
     # TOTAL, EXECUTED, PASSED, FAILED, SKIPPED, in the project owner's
     # vocabulary (`code-style.md` section 7.1). "Selected" sat next to pytest's
@@ -103,6 +110,8 @@ def band_lines(
                f"{passed} passed", f"{failed} failed"]
     if blocked:
         counted.append(f"{blocked} skipped behind a higher band failure")
+    if parked:
+        counted.append(f"{parked} skipped as a known failure in quarantine")
     if other:
         counted.append(f"{other} skipped for a reason of ours")
 

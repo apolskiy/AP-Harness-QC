@@ -95,18 +95,24 @@ class _Recorder:
 class _Report:
     """The phase report the hook reads."""
 
-    def __init__(self, *, when: str = "call", passed: bool = True) -> None:
+    def __init__(
+        self, *, when: str = "call", passed: bool = True, skipped: bool = False
+    ) -> None:
         """Hold the phase and the outcome.
 
         Args:
             when (str): Which phase this reports.
             passed (bool): Whether the case passed.
+            skipped (bool): Whether it skipped. **A skipped report is not
+                passed either**, which is what made reading ``passed`` alone
+                insufficient once a skip began recording an observation.
 
         Returns:
             None
         """
         self.when = when
         self.passed = passed
+        self.skipped = skipped
 
 
 class _Item:
@@ -276,6 +282,52 @@ class TestMQCPublishedRecord:
         assert emission.publish_result(
             _Item("MQC_EVL_SEC_154100_x"), _Report(when="setup")
         ) == 0
+
+    def MQC_CMN_UNI_112050_a_skipped_case_publishes_and_files_nothing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The observation reaches the artifact and no vendor report is written.
+
+        **A skipped report is not a passing one**, so the attachment condition
+        could not read ``passed`` alone once a skip began recording an
+        observation: every quarantined case would have filed a report about a
+        response nobody received.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.3, and
+        ``test_taxonomy.md`` section 7.4.1.2 for what the skip records.
+
+        Returns:
+            None
+        """
+        recorder = _Recorder()
+        monkeypatch.setattr(emission, "allure", recorder)
+        emission.begin_case(RunContext(
+            run_context="ci", selection_mode="full", preconditions_executed=True,
+        ))
+        emission.record_observation(
+            _observation(
+                0, outcome="skip", taxonomy_code="QC_HARNESS_QUARANTINED"
+            ),
+            None,
+        )
+
+        published = emission.publish_result(
+            _Item("MQC_EVL_SEC_154100_x"), _Report(passed=False, skipped=True)
+        )
+
+        # THE OBSERVATION IS PUBLISHED, which is what gives the pass rate a
+        # skip to count at all.
+        assert published == 1, (
+            "a skipped case published nothing, so the rate has no skip to count"
+        )
+        assert recorder.labels["taxonomy_code"] == "QC_HARNESS_QUARANTINED"
+
+        # AND NOTHING IS FILED. A skip holds no response for a provider to
+        # read, so a vendor report about one is noise in a durable record.
+        assert not recorder.attachments, (
+            f"a skipped case filed a vendor report about a response nobody "
+            f"received: {recorder.attachments}"
+        )
 
     def MQC_CMN_UNI_112252_a_failing_case_attaches_its_history(
         self, monkeypatch: pytest.MonkeyPatch

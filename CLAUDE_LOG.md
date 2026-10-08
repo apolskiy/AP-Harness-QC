@@ -9648,3 +9648,215 @@ nobody tightens it back.
 
 718 passing, pylint exit 0. `112036` holds the widened rule at both sides of
 its boundary, `112335` the request agreement.
+
+## 2026-10-07: What a run pays for, and what it learns for free
+
+### The numbered steps, specified from the start and emitted nowhere
+
+`test_taxonomy.md` section 8 has required numbered steps since the project
+began: each one a verifiable action and a verification, logged apart because a
+step can fail in either phase and the two are different diagnoses. **Zero of
+sixty-nine modules across both repositories emitted one**, and neither matrix
+carried a row for section 8, so nothing reported the absence.
+
+`cmn/steps.py` computes a ledger of fourteen phases from the dispatch outcome
+and the evaluation result, **storing nothing**: every fact it reports was
+already recorded and what was missing was a reading of them in order.
+
+**Section 8.1 asked for more than a ledger**, which the project owner pointed
+out: "failure can occur between the action and its verification, so the harness
+records the phase it reached". A ledger computed from a result cannot do that,
+because a timeout returns no result. `entering()` logs before each phase and on
+the way out however it leaves, so a crash leaves its location behind.
+
+**A rubricless rule reports its judge steps as not applicable**, not as a stop.
+Twenty-one security rules and eight tool rules declare themselves decided by
+their assertions, and reading their unjudged steps as an early halt would have
+reported every one of them as stopping short.
+
+### Quarantine saved no cost, and nothing said so
+
+The project owner stated its purpose: stop unnecessary execution and save on
+run cost, for a test known to fail and being fixed.
+
+**Quarantine was read at verdict time only.** `selection.py` and the pytest
+hooks had no knowledge of it, so every run dispatched every quarantined case,
+spent the quota, and then removed the result from one statistic. The acceptance
+was free and the measurement was not.
+
+**What it already did correctly, and I reported wrongly.** Section 4.6.11.1
+says quarantine exempts V2 and never V1, verified by probing in October: a
+failing blocker cannot be quarantined into a pass. I read the section's summary
+bullet as the whole rule and claimed an inversion that was not there. The
+owner's correction stands: only the cost half was missing.
+
+**The skip moves the guarantee to the band**, because a skipped case produces
+no observation and V1 reads observations. The blocking-band floor is stricter
+than V1 was: V1 needed the case to run and fail, and the floor needs only that
+it did not pass.
+
+### A dependent of a failure is probed in replay
+
+Section 10.28.1 skipped dependents so one behaviour was not counted twice,
+which is right where the dependent fails for the foundation's reason. **The
+project owner named the case it does not cover**: the dependent may carry its
+own defect, fixing the foundation would not fix it, and we learn one round trip
+later.
+
+Nothing can tell those apart without running the dependent, so replay runs it:
+**measured, recorded, and counted in no denominator.** Replay spends nothing
+and the CI bands run replay; a live run would spend quota on what the next
+replay gives away.
+
+**It fits the outcome registry rather than extending the machinery.** The
+registry refuses an outcome that omits any of the four denominators, so `probe`
+declares false in all of them and no denominator learns a special case.
+
+### Two splits and one brittleness
+
+`cmn/pytest_support.py` reached 919 lines, so the **dependency cascade** moved
+to `cmn/dependencies.py`: ordering, enforcement, probing and the carry file are
+one subject, and name parsing and marker reading stayed behind.
+
+**A case parsed pytest's summary line for `" in 0."` or `" in 1."`**, so it
+found nothing the moment the inner run passed two seconds, which log capture at
+INFO was enough to do. It now matches the duration's shape. A test that depends
+on how fast the machine is fails on a slower one and tells nobody why.
+
+### State
+
+723 passing, pylint exit 0.
+
+## 2026-10-08: A skip is not one thing, so the pass rate stopped treating it as one
+
+**A skip entered no denominator at all**, so a run reported a rate over whatever
+happened to execute. The first correction counted every skip as a non-pass,
+which was half right and produced two contradictions in one afternoon.
+
+### The contradiction a blanket rule produced
+
+With a skip in the denominator and never the numerator, a 20% skip ceiling and a
+90% pass floor cannot both hold:
+
+```
+20% skipped  ->  at most 80% passed  ->  below a 90% floor, always
+```
+
+`112032` demonstrated it the moment the accounting changed: a run sitting exactly
+where V3 tolerated it breached V2 automatically. **A pair of thresholds that
+cannot both be satisfied is not a pair of thresholds**, it is one rule and a
+dead one.
+
+The project owner's instruction decided which to keep: only floors were ever
+established for the pass rate, and **a skip has no ceiling**. So V3 is retired.
+V4 went with it for a second reason as well as the first: it capped the
+blocking-band skip rate at 10%, and V1 already fails a run on **one**
+blocking-band observation that does not pass. A ceiling that can only fire after
+something stricter has fired decides nothing.
+
+### The other half of the instruction, which the blanket rule got wrong
+
+> unless skip is evaluated as a result of a harness bug or a flaky test, or for
+> some reason inability to reach the model. It's a fail.
+
+Each of those three is ours or the network's. Counting them charged the model for
+a fixture that would not load, which is precisely the misattribution the four
+taxonomy families exist to prevent: `QC_HARNESS_*` already means "our code or
+infrastructure broke, never a model finding", and the pass rate had stopped
+agreeing with it.
+
+| Reason | Whose failure | In the pass rate |
+|---|---|---|
+| `quarantined` | The model's, already found | Counted |
+| `dependency` | The model's, one layer up | Counted |
+| `incomplete` | Ours, and it blocks outright | Counted |
+| `environmental` | Ours or the network's | **Excluded** |
+| `unsupported` | Nobody's, and declared | **Excluded** |
+| Unstated | Unknown, so not excused | Counted |
+
+**An unstated reason counts.** Defaulting the other way would make forgetting to
+set a reason the cheapest way to lift a rate.
+
+### `quarantined` had no reason of its own, which made the answer right by accident
+
+A quarantined case now skips before dispatch to save the run's cost, and it was
+arriving unattributed. Unattributed counts, so the number was correct and
+**nothing in the system said why**. A reason nobody wrote down is one nobody can
+audit, so it is registered.
+
+### The dispensation gained a second reader, and section 4.6.13 was corrected
+
+That section reserved `release_accepted_in` for the blocking-band floor, on the
+ground that a second use widens an exception into a mechanism. The owner's
+instruction put the skip accounting under the same column, so the field now has
+**two readers and no third**. What keeps it an exception is the write side,
+untouched: it may be populated only once the decision is announced in the
+tracker, and an unconfirmed entry cannot carry one at all.
+
+### Nothing recorded a skipped case, so none of this had anything to count
+
+`pytest.skip` raises before `record_observation` and `publish_result` returns
+early, so the accounting specified since A13 had been fed nothing. Verified by
+injection rather than by reading: a quarantine entry was written for one corpus
+case, the band was run in replay, and the probe printed what the case left
+behind.
+
+```
+PROBE outcome=skip reason=quarantined code=QC_HARNESS_QUARANTINED priority=1 graded=True passed=False
+```
+
+**The same run exposed a second defect the probe was not looking for.** Its band
+line read `1 skipped for a reason of ours` about a quarantined case, which is a
+model finding under repair rather than our infrastructure wobbling. The count was
+right and the phrase was wrong, which is the worse of the two: a reader acts on
+the phrase. There are three kinds of skip and the line now names each by the
+remedy it takes.
+
+### Where the skips are recorded, and the one that is deliberately not
+
+Recorded at the skip site, not at the reporting hook, because **only the site
+knows which corpus case it is**. An observation is keyed on
+`MQC_TASK_x::MQC_RULE_y` and a pytest hook holds a test identifier; recording
+from the hook would have meant inventing a case identifier, which binds a record
+to a case that never ran.
+
+A foundation that did not hold records nothing, and does not need to: a dependent
+is probed in replay rather than skipped, and where it does skip the
+blocking-band floor already counts it against the band it was selected into. A
+second mechanism counting the same case would report one cascade twice.
+
+**A judgement the replay store did not hold used to record a model failure.** The
+model answered and our judgement of it is missing, which is neither a pass nor a
+failure of the model. It records `environmental` now, which is the treatment that
+leaves the rate.
+
+### Retirements, and why they are retirements rather than rewrites
+
+Six identifiers retired: `112006` through `112009` named boundaries of rules that
+no longer exist, `112019` asserted that quarantine leaves the pass denominator,
+and `112032` asserted a run over a ceiling was red. **Two of the four ceiling
+cases were asserting that a retired rule does not fire**, which a retired rule
+satisfies by doing nothing at all: a vacuous case is worse than an absent one,
+because it reads as coverage. `112044` replaces all four with the one statement
+still worth making, over a population that would have breached both.
+
+`112015` kept its identifier, because its behaviour did not change: a run where
+every graded case is quarantined is still red. It is red by the floor now at 0%
+rather than by V6 with no rate at all, which is the stronger statement, since
+nobody has to know what V6 means to read it.
+
+### And recording a skip exposed what the artifact was doing with one
+
+**A skipped report is not a passing one.** The attachment condition read
+`passed` alone, which was correct for exactly as long as a skipped case recorded
+nothing. The first run with a quarantine entry filed a vendor report about a
+response nobody received.
+
+Verified by injection: `112050` fails with the condition restored to its old
+form and reports the attachment it found. **The observation is still published**,
+which is the half that matters: that is what gives the rate a skip to count.
+
+### State
+
+Harness: 704 passing, 24 system, pylint exit 0. Case repository: 97 passing, 70
+graded in replay, pylint exit 0.

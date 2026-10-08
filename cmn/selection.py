@@ -25,12 +25,14 @@ import pytest
 
 from cmn.registries import UNMET_DEPENDENCY
 from cmn.pytest_support import (
-    carried_identifiers,
     case_identifier,
     case_module,
-    dependency_closure,
     item_priority,
     registered_priority_levels,
+)
+from cmn.dependencies import (
+    carried_identifiers,
+    dependency_closure,
 )
 from cmn.traceability import (
     cases_for_index_values,

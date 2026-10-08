@@ -23,8 +23,9 @@ also why it can be applied to a result that was produced before it existed.
 """
 
 import logging
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Final, Optional
+from typing import Any, Final, Iterator, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,50 @@ class StepOutcome:
         if self.detail:
             parts.append(self.detail)
         return " | ".join(parts)
+
+
+@contextmanager
+def entering(case_id: str, number: int, phase: str, detail: str = "") -> Iterator[None]:
+    """Log a phase on entry, and on the way out however it leaves.
+
+    **The ledger is computed after the fact and cannot survive a crash.** A
+    request that times out, an adapter that raises, a provider connection that
+    drops: each leaves no result to read, so a record written only at the end
+    records nothing about where the run was. This writes the location first.
+
+    **What it buys is time to repair.** "Something failed in this case" sends a
+    reader to the whole pipeline; "it was inside STEP_02_ACTION: send the
+    request" sends them to one call.
+
+    Args:
+        case_id (str): Which case, carried on every line.
+        number (int): The step number, from 1.
+        phase (str): ``ACTION`` or ``VERIFY``.
+        detail (str): What is about to be attempted, where that is known.
+
+    Yields:
+        None: The body runs inside the record.
+
+    Raises:
+        BaseException: Whatever the body raised, re-raised unchanged after the
+            location is logged. **Nothing is swallowed**: this records where a
+            failure happened and never decides what it means.
+    """
+    label = f"STEP_{number:02d}_{phase}"
+    opening = f"{case_id} | {label} | entering"
+    logger.info("%s", f"{opening} | {detail}" if detail else opening)
+    try:
+        yield
+    except BaseException as error:
+        # THE TYPE AND THE MESSAGE, because a crash between a request and a
+        # response is diagnosed from what was raised and where, and the where
+        # is the half nothing recorded before this.
+        logger.error(
+            "%s | %s | crashed inside this phase | %s: %s",
+            case_id, label, type(error).__name__, error,
+        )
+        raise
+    logger.info("%s | %s | left", case_id, label)
 
 
 def ledger(outcome: Any, result: Any) -> list[StepOutcome]:

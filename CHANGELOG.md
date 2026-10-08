@@ -29,6 +29,77 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A skip is counted by its cause, and the skip ceilings are retired, 2026-10-08
+
+**A case that skipped did not pass, and the pass rate now says so.** A skip
+entered neither the pass-rate numerator nor its denominator, so a rate was
+stated over whatever happened to run. It now enters the denominator and never
+the numerator, which makes it read as the failure it is.
+
+**Whether it counts as a failure is decided by the reason it carries.** A skip
+caused by a harness bug, a flaky test or a provider nobody could reach is not
+the model's failure, and charging it to the model is the misattribution the four
+taxonomy families exist to prevent.
+
+| Reason | In the pass rate |
+|---|---|
+| `quarantined`, `dependency`, `incomplete`, or unstated | **Counted as a failure** |
+| `environmental`, `unsupported` | Excluded |
+
+**`quarantined` is a new skip reason.** A quarantined case skips before dispatch
+to save the run's cost, and it had been arriving unattributed. An unattributed
+skip is counted, so the answer was right by accident; it is now right by
+declaration.
+
+**Quarantine no longer leaves the pass-rate denominator.** It saves the cost of
+asking again about a known failure and does not stop it being one. The one thing
+that releases a quarantined skip is `release_accepted_in`, the tracker reference
+in which product management announced that releasing with the finding is
+acceptable, and an unconfirmed entry cannot carry one.
+
+**V3 and V4 are retired.** A 20% total skip ceiling and a 90% pass floor cannot
+both hold once a skip counts in the denominator: a run sitting exactly where V3
+tolerated it breached V2 automatically. V4 capped the blocking-band skip rate at
+10%, and V1 already fails a run on a single blocking-band observation that does
+not pass, so a ceiling that can fire only after something stricter has fired
+decided nothing. Both rule names stay retired rather than reused, and both
+thresholds stay loadable so a stored verdict remains recomputable.
+
+**A skipped case records its own observation, which nothing did before.**
+`pytest.skip` raised before anything was recorded, so the accounting specified
+since A13 had no skips to count. The three in-case skip sites now record one
+each, carrying the reason, and a judgement the replay store did not hold records
+`environmental` where it used to record a model **failure**.
+
+**A band line names each kind of skip by the remedy it takes**: behind a higher
+band failure, as a known failure in quarantine, or for a reason of ours. A
+quarantined skip had been reading as our infrastructure wobbling.
+
+**Replay on both sides is recorded as measuring no model.** Both halves are
+recordings, so such a run establishes only that our pipeline still reads its own
+fixtures the same way. It is the pull-request gate and a precondition, and a
+finding filed against a vendor cites a live candidate.
+
+**Recording a skip exposed one more thing the artifact was doing.** A skipped
+report is not a passing one, so the attachment condition read `passed` alone and
+began filing a vendor report for every quarantined case the moment a skip
+recorded an observation. Nothing is filed about a skip: it holds no response for
+a provider to read. The observation is still published, which is what gives the
+rate a skip to count.
+
+**The blocking-band floor honours the dispensation it was documented to honour.**
+It read the field nowhere. It now loads the entries for the engine, releases a
+skipped case the reference names, and names the case and the reference in the
+line. A dispensation recorded against another case releases nothing.
+
+Retired with the rules: `112006` through `112009`, `112019` and `112032`, each
+listed struck through rather than removed. Added: `112044` through `112050`,
+`112341` and `112342` in the harness, `115717` in the case repository, with
+`MQC_REQ_HAR_CMN_0142` and `0143` and `MQC_REQ_CAS_CI_0042`. Designs:
+`test_taxonomy.md` sections 7.4.1, 7.4.1.0, 7.4.1.2, 7.4.1.3 and 7.4.2;
+`cmn_verdict_and_cli.md` sections 4.3, 4.4, 4.6.13, 5.3, 7.11 and 10.24.2;
+`consumer_ci.md` sections 3.12.3 and 6.4.1.
+
 ### Claude candidate moved to Claude Opus 5.5, 2026-09-23
 
 **The model identifier changed and the adapter did not.** Of the four breaking

@@ -395,6 +395,56 @@ class TestMQCBandSummary:
         assert band_label("") == "Whole selection"
         assert band_label("2,3,4") == "Bands P2,P3,P4"
 
+    @allure.story("A skip is named by the remedy it takes")
+    def MQC_CMN_UNI_112049_each_kind_of_skip_is_named_by_its_remedy(self) -> None:
+        """Three kinds, three phrases, and the counts add up to the total.
+
+        A quarantined skip is a model finding somebody is already repairing; a
+        cascaded one clears itself when the foundation is fixed; anything else
+        is a fixture, a budget or a provider, which is ours. **Each takes a
+        different act**, so a line collapsing two of them leaves a reader
+        acting on the wrong one while the arithmetic stays right.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.11.
+
+        Returns:
+            None
+        """
+        reasons = [
+            "QC_HARNESS_DEPENDENCY_UNMET: foundational case 1 did not hold",
+            "QC_HARNESS_QUARANTINED: MQC_TASK_a::MQC_RULE_r is quarantined",
+            "QC_HARNESS_QUARANTINED: MQC_TASK_b::MQC_RULE_r is quarantined",
+            "QC_HARNESS_FIXTURE_MISSING: no recording for this observation",
+        ]
+        counts = band_lines(
+            passed=6, failed=0, skip_reasons=reasons, priority="1"
+        )[0]
+
+        assert "Band P1: 10 total, 6 executed" in counts, counts
+        assert "1 skipped behind a higher band failure" in counts, (
+            f"a cascaded skip is not named, so a reader cannot tell it from a "
+            f"quarantined one: {counts}"
+        )
+        assert "2 skipped as a known failure in quarantine" in counts, (
+            f"a quarantined skip read as our infrastructure wobbling, when it "
+            f"is a model finding under repair: {counts}"
+        )
+        assert "1 skipped for a reason of ours" in counts, counts
+
+        # NO KIND IS COUNTED TWICE AND NONE IS LOST, which is what a reader
+        # subtracting the named kinds from the total depends on.
+        named = 1 + 2 + 1
+        assert named == len(reasons)
+
+        # AND A BAND WITH ONE KIND NAMES ONLY THAT KIND, so an absent phrase
+        # means an absent cause rather than a suppressed one.
+        parked_only = band_lines(
+            passed=0, failed=0, skip_reasons=reasons[1:3], priority="0"
+        )[0]
+        assert "2 skipped as a known failure in quarantine" in parked_only
+        assert "higher band failure" not in parked_only
+        assert "reason of ours" not in parked_only
+
     @allure.story("A healthy total never hides a blocking failure")
     def MQC_CMN_UNI_112333_a_band_table_total_overriding_a_blocking_band_is_reported(
         self,

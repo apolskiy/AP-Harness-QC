@@ -75,8 +75,8 @@ Evaluated in full: **not short-circuited**. See §4.7.
 |---|---|---|
 | V1 | Any P0 or P1 observation not passing | Red |
 | V2 | Overall pass rate below 90% | Red |
-| V3 | Total skips above 20% | Red |
-| V4 | P0/P1 skips above 10% | Red |
+| ~~V3~~ | ~~Total skips above 20%~~ | **Retired 2026-10-08**: `test_taxonomy.md` section 7.4.1.0 |
+| ~~V4~~ | ~~P0/P1 skips above 10%~~ | **Retired 2026-10-08**: `test_taxonomy.md` section 7.4.1.0 |
 | V5 | Any quarantine entry expired as of `as_of_date`, by model change or the 21-day window | Red |
 | V6 | Zero graded observations | Red: §4.5 |
 | V7 | P0 share of the corpus above its ceiling | Red: §4.4 |
@@ -93,12 +93,16 @@ Each metric uses a different denominator, and the distribution one is load-beari
 | Metric | Denominator | Excluded |
 |---|---|---|
 | Priority distribution | Unique (task × rubric) case definitions | `SEC` layer entirely |
-| Pass rate (V2) | Executions | Quarantined cases |
-| Skip rate (V3, V4) | Observations | `unsupported` pairs, `dependency` skips |
+| Pass rate (V2) | Executions, **including a skip the model caused** | A skip whose cause was ours or the network's, a dispensed quarantine entry, probes |
+| Skip rate (**diagnostic only**) | Observations | `unsupported` pairs, `dependency` skips |
 
-**Why dependency skips are excluded:** a foundational P0 failure cascades into many skips. Counting them would breach V3 as well, adding a derived failure on top of the real one and misdirecting diagnosis toward the environment. The run is already red from V1.
+**What the pass-rate denominator changed to, 2026-10-08.** It excluded every quarantined case and every skip. It now excludes neither: a quarantined case and a cascaded skip did not pass, and a rate stated over what happened to run is the "selective passing rate" the band floor was corrected for the day before. The exclusions that remain are the three a declaration or an attribution earns, and `test_taxonomy.md` section 7.4.1 holds the table.
 
-**Why unsupported pairs are excluded:** a declared capability gap is not an environmental failure, and leaving it in the denominator would trip V3 for a reason that is not a defect.
+**The skip rate is now a diagnostic rather than a gate**, since the two rules reading it are retired. It is still reported per (test x engine) pair, because a case that always skips on one engine and never on another is a defect or a capability gap rather than flakiness, and a global percentage buries it (`test_taxonomy.md` section 7.4).
+
+**Why dependency skips are excluded from the skip rate:** a foundational P0 failure cascades into many skips, and counting them in the skip diagnostic misdirects reading toward the environment when the run is already red from V1. **They are not excluded from the pass rate**, where they are exactly what they look like: cases that did not pass because something they rest on failed.
+
+**Why unsupported pairs are excluded from both:** a declared capability gap is not a failure of anything, and it is the one exclusion carrying a written reason in configuration.
 
 ### 4.5 Empty and degenerate inputs
 
@@ -120,6 +124,9 @@ Revised 2026-10-02. An entry carries a case identifier, a reason, the date it
 was quarantined, the model it was observed against, and an optional ticket
 reference.
 
+* **A quarantined case is not dispatched**, which is what it is for: a case
+  already known to fail buys nothing by being asked again, and asking spends
+  provider quota on a result somebody already holds (section 4.6.12).
 * Quarantined cases are excluded from the pass-rate denominator, never deleted
   from the suite.
 * They are listed in the report.
@@ -443,6 +450,118 @@ and inventing a band for it would assert something the run did not measure.
 reporting is the remedy and gating would be a second mechanism contradicting
 the first. What changes is that the acceptance is visible in the result rather
 than only in the file.
+
+#### 4.6.12 It saves the run's cost, which it did not
+
+Added 2026-10-07 at the project owner's instruction, who stated the purpose:
+**stop unnecessary execution and save on run cost, for a test known to fail and
+being fixed.**
+
+**Nothing skipped a quarantined case.** `cmn/selection.py` and the pytest hooks
+had no knowledge of quarantine; it was read at verdict time only. So every run
+dispatched every quarantined case, spent the quota, and then removed the result
+from one statistic. **The acceptance was free and the measurement was not**,
+which is the wrong way round.
+
+**The skip is in the case repository, because the mapping is.** A quarantine
+entry names a corpus case (`MQC_TASK_x::MQC_RULE_y`) and a pytest item carries a
+test identifier; only the repository holding the suite can map between them, so
+`observe` checks before dispatching and the harness supplies the predicate.
+That is the same boundary section 4.6.9 draws for the data.
+
+##### What this moves, and it is a safeguard rather than a detail
+
+**A skipped case produces no observation**, so it enters neither `graded` nor
+`executions`. Section 4.6.11.1 relied on it being in `graded`:
+
+| | Before | After |
+|---|---|---|
+| V1 sees a quarantined failing P0 | **Yes**, and fails the run | No: nothing ran, so nothing is in `graded` |
+| V2 sees it | No, filtered from `executions` | No |
+| **The band sees it** | Only if it ran | **Yes, as a skip in its own report** |
+
+**So the guarantee relocates rather than lapsing.** "A failing blocker cannot be
+quarantined into a pass" is now enforced by the blocking-band floor, which
+counts every skip against the band it was selected into and excuses nothing
+(`AP-Model-QC` `consumer_ci.md` section 3.12.2). The floor is **stricter** than
+V1 was: V1 needed the case to run and fail, and the floor needs only that it did
+not pass.
+
+**The project owner's decision, taken over the alternative.** The other way to
+keep the run-level warning was a priority on the quarantine entry, which
+section 4.6.11.2 declined because it duplicates a fact the corpus owns. Taking
+the band from the band job needs no new field: a case skipped inside band N is
+in band N by construction.
+
+**What is lost is the run-level exclusion warning**, which read the band off an
+observation that no longer exists. Section 4.6.11.2's "a quarantined case with
+no observations reports no band" becomes the ordinary case rather than the
+exception, and the band report carries the statement instead.
+
+#### 4.6.13 A blocker releases only on a recorded dispensation
+
+Added 2026-10-08 at the project owner's instruction. **A failing blocker is not
+quarantined into a pass.** The one way past it is product management deciding
+that releasing with it is acceptable, and that decision has to be on the record
+before the gate honours it.
+
+##### The field, and when it may be filled in
+
+`QuarantineEntry` gains `release_accepted_in`: the tracker reference where the
+decision was **announced**. Empty is the default and the ordinary case.
+
+| `release_accepted_in` | The blocking band |
+|---|---|
+| Empty | **Blocks.** Quarantine saves the run's cost and buys nothing else |
+| A tracker reference | Passes, and says so loudly |
+
+**It is populated only once the decision is announced in the bug tracking
+system.** A field somebody can set while deciding is a field that records the
+intention rather than the decision, and the reference is what makes the
+difference auditable: a reader can go and read what was agreed.
+
+**An unconfirmed entry cannot carry one.** Section 4.6.4 holds that an entry
+without `quarantined_on` or `observed_model` is our bookkeeping failing; a
+dispensation on top of that would accept a release against a finding whose
+expiry cannot even be evaluated.
+
+##### It is an exception and the report says so
+
+**A green granted this way needs a caveat, so it carries one.** The project
+already refuses to issue a quiet qualified pass: a manual selection yields no
+verdict, and `gated: false` marks a result that is not durable. A band passing
+on a dispensation names the case, the band and the reference.
+
+**This is not a threshold and must not become one.** `ticket` remains inert
+(section 4.6.7). `release_accepted_in` has **two readers and no third**: the
+blocking-band floor, and the pass-rate denominator. Nothing aggregates it,
+nothing counts how many are outstanding, and anything beyond those two would
+make it a mechanism rather than an exception.
+
+**The second reader was added the same day, correcting this section.** It first
+said one reader, on the ground that a second use widens an exception into a
+mechanism. The project owner's instruction placed the skip accounting under the
+same column: a quarantined case skips and that skip counts as a failure "unless
+excluded by the separate column". So the field is what excuses the skip from the
+rate as well as the band, and the two readers answer the same question at two
+scopes rather than being two mechanisms.
+
+| Reader | Question it answers |
+|---|---|
+| The blocking-band floor | May this band pass with the case unmeasured? |
+| The pass-rate denominator | Does this skip count against the floor? |
+
+**The narrowing that keeps it an exception is the write side, not the read
+side.** The field may be populated only once the decision is announced in the
+tracker, and an unconfirmed entry cannot carry one at all. Those are what stop
+it becoming a dial, and neither is weakened by a second reader.
+
+##### Why it sits on the quarantine entry rather than somewhere new
+
+The decision is about a case already known to fail and already declared, which
+is what a quarantine entry is. A separate dispensation file would be a second
+registry of the same fact, which `framework-rules.md` section 4.1 forbids, and
+the expiry that keeps quarantine honest would not apply to it.
 
 #### 4.6.8 Three extractions the rework forced, and one duplication it exposed
 
@@ -1022,7 +1141,17 @@ checkable rather than asserted.
 |---|---|
 | On a failing case | Attached once, covering every observation including the ones that passed |
 | On a passing case | **Not attached.** Nothing is filed about it, and prompts are large |
+| On a skipped case | **Not attached.** A skip holds no response for a provider to read |
 | Credentials | Passed through `cmn.config.redact` first, which already walks a structure for credential-shaped keys |
+
+**The skipped row was added 2026-10-08 and it is not a refinement.** A skipped
+report is not a passing one, so the condition read `passed` alone and was
+correct for exactly as long as a skipped case recorded nothing. Once a skip
+began recording its own observation (`test_taxonomy.md` section 7.4.1.2), every
+quarantined case started filing a vendor report about a response nobody
+received. `MQC_CMN_UNI_112050` asserts both halves: the observation is
+published, because that is what gives the pass rate a skip to count, and the
+report is not.
 
 **The request is retained on every `DispatchOutcome`**, because the case's
 verdict is not known while the observations are being taken: the passing
@@ -2026,9 +2155,20 @@ the honest answer to "of what ran, how much held" and the misleading answer to
 rather than trusting it, which is why a finding carries its population beside
 its code.
 
-**The skips are still named by kind**, because the remedy differs: one behind a
-failed foundation is cleared by fixing the foundation, and one for another
-reason is usually ours.
+**The skips are still named by kind**, because the remedy differs. There are
+three kinds and each is cleared by a different act:
+
+| The line says | The remedy |
+|---|---|
+| `skipped behind a higher band failure` | Fix the foundation. These clear themselves |
+| `skipped as a known failure in quarantine` | Fix the finding, or record a release decision |
+| `skipped for a reason of ours` | A fixture, a budget or a provider: ours to repair |
+
+**Quarantine earned its own phrase on 2026-10-08**, when a quarantined case
+began skipping before dispatch. It had been arriving in the third row, which
+reads as our infrastructure wobbling when it is in fact a model finding
+somebody is already repairing. **The counts were right and the phrase was
+wrong**, which is the worse of the two: a reader acts on the phrase.
 
 **A zero denominator yields no rate**, which is the rule section 1 states: the
 question is unanswerable, and that is never a hundred per cent. **An empty
@@ -2128,10 +2268,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112003` | P | `green_when_p2_fails_within_pass_floor` (V1) |
 | `112004` | B | `green_at_exactly_ninety_percent_pass_rate` (V2) |
 | `112005` | N | `red_just_below_ninety_percent_pass_rate` (V2) |
-| `112006` | B | `green_at_exactly_twenty_percent_skips` (V3) |
-| `112007` | N | `red_just_above_twenty_percent_skips` (V3) |
-| `112008` | B | `green_at_exactly_ten_percent_priority_skips` (V4) |
-| `112009` | N | `red_just_above_ten_percent_priority_skips` (V4) |
+| ~~`112006`~~ | | ~~`green_at_exactly_twenty_percent_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
+| ~~`112007`~~ | | ~~`red_just_above_twenty_percent_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
+| ~~`112008`~~ | | ~~`green_at_exactly_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
+| ~~`112009`~~ | | ~~`red_just_above_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
 | `112010` | N | `red_when_quarantine_entry_expired` (V5) |
 | `112011` | P | `green_when_quarantine_entry_current` (V5) |
 | `112012` | B | `expiry_boundary_evaluated_against_injected_date` |
@@ -2141,7 +2281,14 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112016` | N | `red_when_every_pair_unsupported` (V6) |
 | `112017` | N | `dependency_skips_excluded_from_skip_denominator` |
 | `112018` | N | `unsupported_pairs_excluded_from_skip_denominator` |
-| `112019` | N | `quarantined_cases_excluded_from_pass_denominator` |
+| ~~`112019`~~ | | ~~`quarantined_cases_excluded_from_pass_denominator`~~. **Retired 2026-10-08**, section 4.6.12. Quarantine saves the cost of asking again about a known failure and does not stop it being one, so it no longer leaves the denominator; `112046` and `112048` state what replaced it |
+| `112044` | N | `the_retired_skip_ceilings_never_fire` |
+| `112045` | P | `a_skip_we_caused_leaves_the_pass_rate` |
+| `112046` | N | `a_skip_the_model_caused_counts_as_a_failure` |
+| `112047` | B | `a_counted_skip_never_reaches_the_numerator` |
+| `112048` | P | `a_dispensed_quarantine_skip_leaves_the_pass_rate` |
+| `112049` | B | `each_kind_of_skip_is_named_by_its_remedy` |
+| `112050` | N | `a_skipped_case_publishes_and_files_nothing` |
 | `112020` | P | `security_layer_excluded_from_distribution_ceiling` |
 | `112021` | N | `precondition_failure_blocks_graded_evaluation` |
 | `112022` | N | `precondition_skip_is_a_failure` |
@@ -2311,7 +2458,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112509` | N | `a_merge_bringing_main_into_a_branch_is_reported` |
 | `112030` | N | `a_broken_graded_observation_blocks_and_exits_three` |
 | `112031` | N | `an_incomplete_skip_blocks_however_few_there_are` |
-| `112032` | B | `an_environmental_skip_is_tolerated_to_its_ceiling` |
+| ~~`112032`~~ | | ~~`an_environmental_skip_is_tolerated_to_its_ceiling`~~. **Retired 2026-10-08**, `test_taxonomy.md` section 7.4.1. It asserted a run over a ceiling was red, and an outage is not the model's failure at any rate; `112045` states the replacement |
 | `112510` | P | `an_integration_branch_may_omit_its_referent` |
 | `112400` | N | `a_dependent_of_a_failed_base_case_is_skipped_not_failed` |
 | `112401` | P | `a_dependent_of_a_passing_base_case_runs_normally` |
@@ -2353,8 +2500,13 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112335` | N | `a_case_whose_recordings_disagree_on_the_request_is_reported` |
 | `112336` | P | `a_ledger_names_every_step_and_the_phase_it_stopped_at` |
 | `112337` | B | `a_rule_without_a_rubric_reports_its_judge_steps_inapplicable` |
+| `112338` | N | `a_quarantined_case_reaching_dispatch_is_reported` |
+| `112339` | P | `a_dependent_of_a_failure_is_probed_in_replay` |
+| `112340` | B | `a_probe_is_counted_in_no_denominator` |
+| `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
+| `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 250 cases, 139 negative, 82 positive, 29 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 256 cases, 142 negative, 85 positive, 29 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3330,12 +3482,23 @@ red, and only one is a finding about a third party.
 A network outage and an unwritten case are both skips and they are not the same
 event. **The reason decides, not the branch the run happened on.**
 
-| Reason | Means | Treatment |
-|---|---|---|
-| `environmental` | Outside our control, such as a provider outage | Counted, ceiling applies (V3, V4) |
-| `dependency` | A foundational case failed, so this cascaded | Excluded; the real failure is already red |
-| `unsupported` | A declared capability gap, on the record (A13) | Excluded; not a defect |
-| **`incomplete`** | **The work is not finished** | **Blocks. No ceiling** |
+| Reason | Means | In the pass rate | In the skip diagnostic |
+|---|---|---|---|
+| `environmental` | Outside our control: a provider unreachable, a fixture that would not load, a budget spent | **Excluded**: ours or the network's | Counted |
+| `dependency` | A foundational case failed, so this cascaded | **A failure**: it did not pass | Excluded; the real failure is already red |
+| `unsupported` | A declared capability gap, on the record (A13) | **Excluded**: not a defect | Excluded; not a defect |
+| `incomplete` | The work is not finished | **A failure** | **Blocks outright. No ceiling** |
+| **`quarantined`** | **A known failure we declined to pay to measure again** | **A failure, unless dispensed** | Counted |
+
+**Revised 2026-10-08 on two axes.** `quarantined` was added, because a
+quarantined case now skips before dispatch and arrived with no reason of its
+own. And the treatment column split in two, because the pass rate and the skip
+diagnostic answer different questions: the first asks whose failure this was,
+the second asks whether a number is being double-counted. `dependency` is
+excluded from one and counted by the other for exactly that reason.
+
+**The ceilings those treatments referred to are retired**, V3 and V4 both
+(`test_taxonomy.md` section 7.4.1.0).
 
 **`incomplete` is new and it closes the worst of the two holes.** A case that
 skipped because nobody had written it yet had no reason of its own, so it took
@@ -3439,6 +3602,69 @@ The skip carries reason `dependency`, which `cmn/layers.py` already excludes
 from the skip denominator: a foundational failure cascading into ten skips must
 not also breach the skip ceiling, adding a derived failure on top of the real
 one and pointing diagnosis at the environment.
+
+#### 10.28.2.1 Replay probes the dependent; live always skips
+
+Added 2026-10-07 at the project owner's instruction, who named the case section
+10.28.1 does not cover: **a P1 whose P0 foundation failed may have its own
+defect, and fixing the P0 will not fix it.**
+
+**Both readings are right and they pull apart.** Section 10.28.1 is correct that
+a combined-vector case failing after a bare-override case failed is one defect
+reported twice. The owner is correct that it might instead be two defects, and
+nothing can tell which **without running the dependent**.
+
+| | Section 10.28.1's case | The owner's case |
+|---|---|---|
+| The dependent fails | For the foundation's reason | For its own |
+| Counting it | Double-counts one behaviour | Loses a finding until the next round trip |
+
+##### The resolution is to measure it and count it nowhere
+
+The project already separates a measurement from a verdict: a manual selection
+yields **no verdict** rather than a misleading green, and `gated: false` marks a
+result that is not durable. A probed dependent is that kind of measurement.
+
+| | Before | After |
+|---|---|---|
+| Executed | No | **In replay** |
+| Recorded and reported | No | **Yes** |
+| Pass rate, skip rate, distribution, verdict | Absent | **Excluded** |
+
+**So nothing is double-counted**, because a probe enters no aggregate, and the
+dependent's own defect is visible on the first run rather than the second.
+
+##### Replay probes and live skips, because cost is the only objection left
+
+**The information is free in replay and is not free live.** A replay run spends
+no candidate quota, so probing costs nothing and the CI bands run replay. A
+live run spends, and what it would buy can be had free on the next replay.
+
+| Mode | A dependent of a failed foundation |
+|---|---|
+| `replay` | **Probed**: executed, recorded, counted nowhere |
+| `live` | **Skipped**, as before, carrying `QC_HARNESS_DEPENDENCY_UNMET` |
+
+**This is the project owner's decision over two alternatives**: probing live
+behind a flag, and probing live always. Both were rejected on cost, the second
+flatly and the first because a flag nobody passes is a feature nobody has.
+
+##### It fits the outcome registry rather than extending the machinery
+
+`cmn/layers.py` registers every outcome with its treatment in all four
+denominators and **refuses a registration that omits one**, which is exactly
+the extension point this needs: `probe` declares false in all four. No
+denominator learns a special case, and the refusal guarantees a later outcome
+cannot be added without deciding what it counts toward.
+
+##### Why probing is safe, checked rather than assumed
+
+`depends_on` declares a **result** presupposition, not data flow: the carry file
+moves outcomes and never responses. Fifty-eight dependencies were read and
+**none consults its foundation's output**, so a probed dependent has everything
+it needs. A dependent written to read a foundation's response would produce a
+meaningless red when probed, and `framework-rules.md` already forbids that
+coupling.
 
 #### 10.28.3 Declared by marker, resolved by identifier
 

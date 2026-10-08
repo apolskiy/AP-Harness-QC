@@ -112,10 +112,25 @@ _OUTCOMES: Final[dict[str, OutcomeProperties]] = {
     # fix, so any broken observation blocks the run through the soundness check
     # in verdict.py, which exits 3 rather than 1.
     "broken": OutcomeProperties("broken", False, False, False, True),
-    # A skip produced no measurement, so it cannot count toward a pass rate
-    # computed over executions. Which skips reach the skip numerator at all is
-    # decided by the skip reason, not by this flag.
-    "skip": OutcomeProperties("skip", False, False, True, True),
+    # A SKIP IS A NON-PASS, AND ITS CAUSE DECIDES WHETHER IT IS A FAILURE
+    # (`test_taxonomy.md` section 7.4.1). This flag says a skip may enter the
+    # pass-rate denominator at all; `skip_counts_as_failure` decides which ones
+    # do, because a provider nobody could reach and a quarantined finding are
+    # not the same event and must not be counted alike.
+    #
+    # NEVER THE NUMERATOR, whatever the cause: nothing was measured, so nothing
+    # passed.
+    "skip": OutcomeProperties("skip", True, False, True, True),
+    # A PROBE IS A MEASUREMENT AND NOT A VERDICT. A dependent whose foundation
+    # failed is executed in replay, where it costs nothing, because its failure
+    # may be its own rather than a second report of the foundation's and
+    # nothing can tell which without running it (design section 10.28.2.1).
+    #
+    # FALSE IN EVERY DENOMINATOR, which is the whole of its accounting: it
+    # cannot pass, cannot fail, cannot skip and cannot weight a distribution.
+    # That is what stops a probe counting one behaviour twice, and it is why
+    # the registry refuses a registration omitting any of the four.
+    "probe": OutcomeProperties("probe", False, False, False, False),
 }
 
 # Skip reasons excluded from the skip denominator entirely, with why.
@@ -129,8 +144,24 @@ _OUTCOMES: Final[dict[str, OutcomeProperties]] = {
 # the denominator would trip V3 for a reason that is not a defect (A13).
 _EXCLUDED_SKIP_REASONS: Final[frozenset[str]] = frozenset({"dependency", "unsupported"})
 
+# `quarantined` was added 2026-10-08, when a quarantined case began skipping
+# before dispatch (`cmn_verdict_and_cli.md` section 4.6.12) and arrived with no
+# reason of its own. An unattributed skip counts as a failure, which is the
+# right answer by accident; this makes it the answer by declaration.
 _SKIP_REASONS: Final[frozenset[str]] = frozenset(
-    {"environmental", "dependency", "unsupported", "incomplete"}
+    {"environmental", "dependency", "unsupported", "incomplete", "quarantined"}
+)
+
+# WHICH SKIPS ARE NOT THE MODEL'S FAULT, by the project owner's instruction of
+# 2026-10-08: a skip is a failure "unless it is the result of a harness bug or
+# a flaky test, or for some reason inability to reach the model".
+#
+# `environmental` carries all three, being the reason for anything outside the
+# model's behaviour: a fixture that would not load, a budget spent, a provider
+# that could not be reached. `unsupported` is a declared capability gap and the
+# failure of nobody. Everything else did not pass and the rate says so.
+_SKIPS_NOT_THE_MODELS_FAULT: Final[frozenset[str]] = frozenset(
+    {"environmental", "unsupported"}
 )
 
 # A SKIP IS NOT ONE THING, AND THE REASON SAYS WHICH. A provider outage and an
@@ -325,6 +356,26 @@ def require_denominator_declaration(declaration: dict[str, object]) -> OutcomePr
     )
 
 
+def skip_counts_as_failure(skip_reason: Optional[str]) -> bool:
+    """Report whether one skip counts as a failure in the pass rate.
+
+    A quarantined case, a cascaded dependency and unfinished work did not pass.
+    An unreachable provider, a fixture that would not load and a declared
+    capability gap are not the model's failure and leave the rate.
+
+    Design: ``test_taxonomy.md`` section 7.4.1.
+
+    Args:
+        skip_reason (Optional[str]): Why the case skipped.
+
+    Returns:
+        bool: False for ``environmental`` and ``unsupported``, true otherwise.
+        **True for an unstated reason**, because a skip nobody attributed is not
+        evidence that the model was blameless.
+    """
+    return str(skip_reason or "") not in _SKIPS_NOT_THE_MODELS_FAULT
+
+
 def skip_counts_toward_rate(skip_reason: Optional[str]) -> bool:
     """Report whether one skip enters the skip-rate numerator.
 
@@ -343,7 +394,8 @@ def registered_skip_reasons() -> frozenset[str]:
     """Return every registered skip reason.
 
     Returns:
-        frozenset[str]: The three reasons, which are counted differently (A13).
+        frozenset[str]: The five reasons, each counted differently
+        (``cmn_verdict_and_cli.md`` section 10.24.2).
     """
     return _SKIP_REASONS
 

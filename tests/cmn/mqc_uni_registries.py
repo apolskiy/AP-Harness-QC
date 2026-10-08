@@ -58,7 +58,8 @@ class TestMQCRegistryMembership:
             None
         """
         assert registered_skip_reasons() == frozenset(
-            {"dependency", "environmental", "incomplete", "unsupported"}
+            {"dependency", "environmental", "incomplete", "quarantined",
+             "unsupported"}
         ), "the skip reasons changed, and each one decides a different treatment"
 
         assert registered_run_contexts() == frozenset({"ci", "ci_debug", "local"})

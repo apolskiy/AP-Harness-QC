@@ -350,6 +350,18 @@ def load_quarantine(path: Path) -> list[QuarantineEntry]:
                 f"reference {ticket!r}, which is neither an absolute URL nor a "
                 f"tracker key of the PROJECT-123 shape, so nobody can follow it"
             )
+        # THE DISPENSATION TAKES THE SAME VALIDATION AS THE TICKET, and for a
+        # stronger reason: it is the only thing that lets a blocker release,
+        # and a reference nobody can follow records that somebody said so
+        # rather than what was decided. Design section 4.6.13.
+        accepted = str(entry.get("release_accepted_in") or "")
+        if accepted and not _TICKET_REFERENCE.match(accepted):
+            raise ValueError(
+                f"QC_HARNESS_PARSER_ERROR: quarantine entry "
+                f"{entry.get('case_id')!r} in {path} accepts a release in "
+                f"{accepted!r}, which is neither an absolute URL nor a tracker "
+                f"key of the PROJECT-123 shape, so the decision cannot be read"
+            )
         stamped = entry.get("quarantined_on")
         entries.append(
             QuarantineEntry(
@@ -358,6 +370,7 @@ def load_quarantine(path: Path) -> list[QuarantineEntry]:
                 quarantined_on=coerce_date(stamped, path) if stamped else None,
                 observed_model=str(entry.get("observed_model") or ""),
                 ticket=ticket,
+                release_accepted_in=accepted,
             )
         )
     return entries

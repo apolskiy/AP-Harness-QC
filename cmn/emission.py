@@ -162,8 +162,9 @@ def publish_result(item: Any, report: Any) -> int:
     raw result: a parameter, a label and an attachment all reach the open
     result there (section 5.2.1.2).
 
-    **A failing case attaches every call it made** and a passing one does not,
-    per section 5.3: nothing is filed about a pass and prompts are large.
+    **A failing case attaches every call it made**; a passing one and a
+    skipped one do not, per section 5.3. Nothing is filed about a pass, and a
+    skip holds no response for a provider to read.
 
     Args:
         item (Any): The test that ran, read for its name.
@@ -191,7 +192,12 @@ def publish_result(item: Any, report: Any) -> int:
     if chosen.taxonomy_code is not None:
         allure.dynamic.label("taxonomy_code", chosen.taxonomy_code)
 
-    if not report.passed:
+    # ON A FAILURE, AND A SKIP IS NOT ONE. A skipped report is not passed
+    # either, so reading `passed` alone began filing a vendor report for every
+    # quarantined case the moment a skip started recording an observation
+    # (section 5.3). Nothing is filed about a case nobody measured: there is no
+    # response in it for a provider to read.
+    if not report.passed and not getattr(report, "skipped", False):
         attach_history(item, recorded)
     return len(observations)
 
