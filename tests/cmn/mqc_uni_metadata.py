@@ -65,7 +65,7 @@ pytestmark = pytest.mark.unit
 
 # A taxonomy code as a design document writes one.
 _CODE_PATTERN = re.compile(r"`(QC_(?:LLM|SEC|HARNESS|DATA)_[A-Z_]+)`")
-# One row of the evaluation family table in test_taxonomy.md section 11.1.
+# One row of the evaluation family table in harness_test_taxonomy.md section 11.1.
 # Parsed rather than substring-matched: the surrounding prose names these
 # identifiers too, and reporting prose would be the over-reporting that trains
 # a check away on its second run.
@@ -92,7 +92,7 @@ _INVENTORY_ROW = re.compile(
 # Dated records rather than live specifications. The Phase 0 register
 # deliberately names alternatives that were considered and rejected, so a code
 # appearing there is evidence of a decision rather than an unregistered entry.
-_HISTORICAL_DOCUMENTS = frozenset({"phase0_project_ambiguities.md"})
+_HISTORICAL_DOCUMENTS = frozenset({"harness_phase0_project_ambiguities.md"})
 
 # Directories that are not this project's source, so their conventions are
 # not this project's to enforce.
@@ -825,7 +825,7 @@ class TestMQCFamilyRegistrationMechanism:
         """
         taxonomy = (
             Path(__file__).resolve().parents[2]
-            / "docs" / "design" / "test_taxonomy.md"
+            / "docs" / "design" / "harness_test_taxonomy.md"
         )
         # BOUNDED TO SECTION 11.1, because that is the table the procedure
         # names and the registry is open: a sixth family is expected (section

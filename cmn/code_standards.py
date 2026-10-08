@@ -23,7 +23,6 @@ module is deliberately only the part pylint cannot express.
 
 import ast
 import re
-import subprocess
 from datetime import date
 from pathlib import Path
 from typing import Any, Final
@@ -261,64 +260,6 @@ def markup_header_problems(root: Path, licence: str) -> list[str]:
     return problems
 
 
-# The runbook, relative to a repository root. One per repository, because the
-# harness names no consumer and the workflows differ anyway.
-RUNBOOK: Final[str] = "docs/running_jobs.md"
-
-# A documented dispatch, as the runbook spells it.
-_DISPATCH = re.compile(r"gh workflow run\s+(\S+\.yml)")
-
-# An input named on that command line. GitHub rejects an undeclared one, and
-# the reader concludes the procedure is broken rather than the page.
-_FIELD = re.compile(r"--field\s+([A-Za-z_][A-Za-z0-9_-]*)=")
-
-
-def runbook_problems(root: Path) -> list[str]:
-    """Report every documented dispatch that would be rejected.
-
-    **Prose is checked because a reader who believes a page stops looking.**
-    The failure is silent at authoring time and lands on whoever follows the
-    procedure, which is the person least able to tell a wrong page from a
-    broken workflow.
-
-    Args:
-        root (Path): The repository root.
-
-    Returns:
-        list[str]: One entry per problem, naming the command and what is wrong
-        with it. An empty list means every documented dispatch would be
-        accepted. **A missing runbook is not a problem here**, because whether
-        a repository carries one is a separate question from whether the one it
-        carries is correct.
-    """
-    runbook = root / RUNBOOK
-    if not runbook.is_file():
-        return []
-
-    problems: list[str] = []
-    for command in _dispatch_commands(runbook.read_text(encoding="utf-8")):
-        workflow = _DISPATCH.search(command)
-        if workflow is None:
-            continue
-        definition = root / ".github" / "workflows" / workflow.group(1)
-        if not definition.is_file():
-            problems.append(
-                f"{RUNBOOK} dispatches {workflow.group(1)}, which does not exist"
-            )
-            continue
-        declared = _declared_inputs(definition)
-        for field in _FIELD.findall(command):
-            if field not in declared:
-                problems.append(
-                    f"{RUNBOOK} passes --field {field} to {workflow.group(1)}, "
-                    f"which declares {sorted(declared)}"
-                )
-    return problems
-
-
-# THE TWO MANDATED ARTIFACTS, as the flags that write them.
-# `testing-standards.md` section 5 requires both, so these are a pair and not
-# a menu. Design `cmn_verdict_and_cli.md` section 7.1.0.3.
 _JUNIT_FLAG: Final[str] = "--junitxml"
 _ALLURE_FLAG: Final[str] = "--alluredir"
 
@@ -377,48 +318,6 @@ def artifact_mandate_gaps(root: Path) -> list[str]:
     return gaps
 
 
-def _dispatch_commands(text: str) -> list[str]:
-    """Return every fenced line that dispatches a workflow.
-
-    Args:
-        text (str): The runbook source.
-
-    Returns:
-        list[str]: The command lines. **Fenced blocks only**, so prose naming a
-        workflow in passing is not read as a command somebody could run.
-    """
-    commands: list[str] = []
-    fenced = False
-    for line in text.splitlines():
-        if line.startswith("```"):
-            fenced = not fenced
-            continue
-        if fenced and "gh workflow run" in line:
-            commands.append(line)
-    return commands
-
-
-def _declared_inputs(definition: Path) -> set[str]:
-    """Return the dispatch inputs a workflow declares.
-
-    Args:
-        definition (Path): The workflow file.
-
-    Returns:
-        set[str]: Every declared input name, empty when the workflow takes
-        none.
-    """
-    parsed = yaml.safe_load(definition.read_text(encoding="utf-8"))
-    # PyYAML reads the bare key `on` as the boolean True, so both spellings
-    # have to be tried. This is the one place the quirk is load-bearing.
-    triggers = parsed.get(True) or parsed.get("on") or {}
-    dispatch = triggers.get("workflow_dispatch") or {}
-    return set((dispatch.get("inputs") or {}).keys())
-
-
-# The calls that read or write a file and must say in which encoding. `open`
-# is the builtin; the other two are Path methods, matched by attribute name
-# because Tier-crossing would be the only way to know the receiver is a Path.
 _ENCODED_CALLS: Final[frozenset[str]] = frozenset(
     {"open", "read_text", "write_text"}
 )
@@ -622,7 +521,7 @@ def flag_coverage_problems(
     return problems
 
 
-# THE POSITIONAL SCHEME, as `test_taxonomy.md` section 3.2.1 states it. Held
+# THE POSITIONAL SCHEME, as `harness_test_taxonomy.md` section 3.2.1 states it. Held
 # here rather than in the document alone, because a scheme nothing reads is the
 # state the hundred-slot partition was in when it broke in three places.
 _LAYER_DIGIT: Final[dict[str, str]] = {
@@ -646,7 +545,7 @@ def identifier_block_problems(root: Path) -> list[str]:
     from the duplicate-binding check: two modules occupying one block are two
     distinct identifiers, so counting bindings cannot see it.
 
-    Design: ``test_taxonomy.md`` section 3.2.1.4.
+    Design: ``harness_test_taxonomy.md`` section 3.2.1.4.
 
     Args:
         root (Path): The repository root.
@@ -693,45 +592,7 @@ def identifier_block_problems(root: Path) -> list[str]:
 
 # SECTION 9.1'S TABLE, as that document writes it: a group, a backticked field
 # and a scope. Parsed rather than copied, because a second list drifts and this
-# one did. Design `test_taxonomy.md` section 9.5.
-_FIELD_ROW: Final[re.Pattern] = re.compile(
-    r"^\|[^|]*\|\s*`([a-z_]+)`\s*\|\s*(\*\*)?(Result|Run)(\*\*)?\s*\|"
-)
-
-
-def required_result_fields(taxonomy: Path) -> dict[str, str]:
-    """Return every field section 9.1 declares, and the scope of each.
-
-    **Read from the table rather than restated.** Section 9 calls itself the
-    single normative list and its preamble names the hazard: two
-    hand-maintained lists drift, and by 2026-10-03 there were three.
-
-    Design: ``test_taxonomy.md`` section 9.5.
-
-    Args:
-        taxonomy (Path): The taxonomy document.
-
-    Returns:
-        dict: Field name to ``"Result"`` or ``"Run"``.
-
-    Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the table yields
-            nothing, because a reader finding no rows would report no problems
-            and pass for having read nothing.
-    """
-    declared: dict[str, str] = {}
-    for line in section_lines(taxonomy, "### 9.1"):
-        matched = _FIELD_ROW.match(line)
-        if matched is not None:
-            declared[matched.group(1)] = matched.group(3)
-
-    if not declared:
-        raise ValueError(
-            "QC_HARNESS_PARSER_ERROR: section 9.1 yielded no fields, so this "
-            "reader would report no problems by having read nothing"
-        )
-    return declared
-
+# one did. Design `harness_test_taxonomy.md` section 9.5.
 def section_lines(document: Path, heading: str) -> list[str]:
     """Return the lines under one heading, stopping at the next of its rank.
 
@@ -766,127 +627,43 @@ def section_lines(document: Path, heading: str) -> list[str]:
 # A PATH NAMED IN A REGISTER ROW, which is a backticked path in the first cell.
 # Parsed rather than substring-matched, because prose naming a document is not a
 # row and reporting it would be the over-reporting that trains a check away on
-# its second run. Design `test_taxonomy.md` section 12.
-_REGISTER_ROW: Final[re.Pattern] = re.compile(
-    r"^\|\s*`([A-Za-z0-9_./-]+\.(?:md|csv))`\s*\|"
+# its second run. Design `harness_test_taxonomy.md` section 12.
+
+
+_FIELD_ROW: Final[re.Pattern] = re.compile(
+    r"^\|[^|]*\|\s*`([a-z_]+)`\s*\|\s*(\*\*)?(Result|Run)(\*\*)?\s*\|"
 )
 
 
-def registered_documents(register: Path) -> set[str]:
-    """Return every document path a register names.
+def required_result_fields(taxonomy: Path) -> dict[str, str]:
+    """Return every field section 9.1 declares, and the scope of each.
+
+    **Read from the table rather than restated.** Section 9 calls itself the
+    single normative list and its preamble names the hazard: two
+    hand-maintained lists drift, and by 2026-10-03 there were three.
+
+    Design: ``harness_test_taxonomy.md`` section 9.5.
 
     Args:
-        register (Path): The register to read.
+        taxonomy (Path): The taxonomy document.
 
     Returns:
-        set[str]: The paths, as the register spells them, with forward slashes.
+        dict: Field name to ``"Result"`` or ``"Run"``.
 
     Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the register names
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the table yields
             nothing, because a reader finding no rows would report no problems
             and pass for having read nothing.
     """
-    named: set[str] = set()
-    for line in register.read_text(encoding="utf-8").splitlines():
-        matched = _REGISTER_ROW.match(line.strip())
+    declared: dict[str, str] = {}
+    for line in section_lines(taxonomy, "### 9.1"):
+        matched = _FIELD_ROW.match(line)
         if matched is not None:
-            named.add(matched.group(1))
+            declared[matched.group(1)] = matched.group(3)
 
-    if not named:
+    if not declared:
         raise ValueError(
-            f"QC_HARNESS_PARSER_ERROR: {register.name} names no document, so "
-            f"this reader would report no problems by having read nothing"
+            "QC_HARNESS_PARSER_ERROR: section 9.1 yielded no fields, so this "
+            "reader would report no problems by having read nothing"
         )
-    return named
-
-
-def document_register_problems(root: Path, register: Path) -> list[str]:
-    """Return every disagreement between a register and the documents present.
-
-    **Both directions, because each one hides a different failure.** A tracked
-    document the register does not name is a document a review never reaches,
-    which is how a design came to sit behind the changes made around it. A path
-    the register names and nothing provides is a citation that will not resolve.
-
-    **A path outside this root is not checked for existence.** A register
-    legitimately names documents in the paired repository so a reader following
-    a citation knows where it points, and this repository does not hold them.
-
-    Design: ``test_taxonomy.md`` section 12.
-
-    Args:
-        root (Path): The repository root.
-        register (Path): The register within it.
-
-    Returns:
-        list[str]: One description per disagreement, empty when they agree.
-    """
-    named = registered_documents(register)
-    problems: list[str] = []
-
-    for path in sorted(tracked_documents(root) - named):
-        problems.append(
-            f"{path} is tracked and this register does not name it, so a "
-            f"documentation review would not reach it"
-        )
-
-    # TRACKEDNESS, NOT EXISTENCE, in this direction too. **Corrected
-    # 2026-10-05 after this check failed in CI and passed on one machine.** It
-    # required every named path to be present on disk, and the register named
-    # one deliberately untracked file: present where it was written and absent
-    # in every clone. A check that reads the working tree for a file no clone
-    # has can only pass where it was authored, which is the second instance of
-    # that shape in this project.
-    #
-    # **A named path must now be tracked**, and the register names no untracked
-    # file at all: working material is not a project document. A bare filename
-    # is a paired-repository citation that resolves elsewhere.
-    tracked = tracked_documents(root)
-    for path in sorted(named):
-        if "/" not in path or path in tracked:
-            continue
-        problems.append(
-            f"{path} is named by this register and is not tracked, so a "
-            f"citation to it will not resolve in a fresh checkout"
-        )
-    return problems
-
-
-def tracked_documents(root: Path) -> set[str]:
-    """Return every document git tracks in a repository.
-
-    **Asked of git rather than walked.** A filesystem walk finds a generated
-    `.pytest_cache/README.md` and whatever the next tool leaves behind, so it
-    needs a denylist that grows every time one is added. What the register is
-    about is the **tracked** documents, and git is the authority on which those
-    are.
-
-    Args:
-        root (Path): The repository root.
-
-    Returns:
-        set[str]: Tracked ``.md`` and ``.csv`` paths, with forward slashes.
-
-    Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when git cannot answer.
-            **Not treated as nothing tracked**, which would make the register
-            check pass by finding no documents to compare.
-    """
-    try:
-        listed = subprocess.run(
-            ["git", "ls-files", "*.md", "*.csv"],
-            capture_output=True, text=True, check=True, shell=False,
-            cwd=str(root), stdin=subprocess.DEVNULL,
-            # BOUNDED, per `test_taxonomy.md` section 14. A local index read in
-            # a minute is already pathological, and an unbounded one turns a
-            # stalled git into a cancelled job rather than a failed check.
-            timeout=60.0,
-        ).stdout
-    except (OSError, subprocess.SubprocessError) as error:
-        raise ValueError(
-            f"QC_HARNESS_PARSER_ERROR: git could not list the tracked "
-            f"documents in {root}, so the register cannot be checked against "
-            f"them and an empty answer would pass for having compared nothing"
-        ) from error
-
-    return {line.strip() for line in listed.splitlines() if line.strip()}
+    return declared

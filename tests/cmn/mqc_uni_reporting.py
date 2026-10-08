@@ -158,7 +158,7 @@ class TestMQCResultEmission:
         # which is how section 9 came to sit behind the code (section 9.5).
         required = required_result_fields(
             Path(__file__).resolve().parents[2]
-            / "docs" / "design" / "test_taxonomy.md"
+            / "docs" / "design" / "harness_test_taxonomy.md"
         )
         missing = [
             name for name in sorted(required)
@@ -271,14 +271,14 @@ class TestMQCNormativeFieldList:
         ``emit_result``; comparing against the union would pass for the wrong
         reason.
 
-        Design: ``test_taxonomy.md`` section 9.5.
+        Design: ``harness_test_taxonomy.md`` section 9.5.
 
         Returns:
             None
         """
         taxonomy = (
             Path(__file__).resolve().parents[2]
-            / "docs" / "design" / "test_taxonomy.md"
+            / "docs" / "design" / "harness_test_taxonomy.md"
         )
         declared = required_result_fields(taxonomy)
 
@@ -448,7 +448,7 @@ class TestMQCBandSummary:
         # A PRECONDITION IS THE FOURTH KIND AND NO REASON EXCUSES IT. "For a
         # reason of ours" reads as tolerated, and a precondition that did not
         # run measured nothing: the line says what followed instead
-        # (`test_taxonomy.md` section 7.5.1).
+        # (`harness_test_taxonomy.md` section 7.5.1).
         required = band_lines(
             passed=700,
             failed=0,

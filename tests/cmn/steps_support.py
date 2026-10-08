@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Doubles for the step ledger, in a sibling module collection does not reach.
 
-A case module holds only cases (``test_taxonomy.md`` section 13), so the two
+A case module holds only cases (``harness_test_taxonomy.md`` section 13), so the two
 builders the ledger cases need live here.
 
 **Both start from a success and take overrides.** A ledger case is about one
@@ -57,3 +57,19 @@ def evaluated(**overrides: Any) -> SimpleNamespace:
     }
     fields.update(overrides)
     return SimpleNamespace(**fields)
+
+
+class Announced:
+    """An item carrying only the identifier the announcement reads."""
+
+    def __init__(self, nodeid: object) -> None:
+        """Hold the identifier, or its absence.
+
+        Args:
+            nodeid (object): What pytest would carry, or None.
+
+        Returns:
+            None
+        """
+        if nodeid is not None:
+            self.nodeid = nodeid

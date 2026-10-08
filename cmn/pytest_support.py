@@ -369,7 +369,7 @@ def label_priority_severity(items: list[pytest.Item]) -> None:
 # `.pylintrc` enforces on every real definition. The dependency
 # fixtures embed a sub-suite whose callables are named in the 90xxx
 # range, and a resolver that refused them would break the cascade's own
-# test. Design `test_taxonomy.md` section 3.2.1.3.
+# test. Design `harness_test_taxonomy.md` section 3.2.1.3.
 _IDENTIFIER = re.compile(r"MQC_[A-Z]+_[A-Z]{3,5}_(\d{5,6})_")
 
 
@@ -422,3 +422,31 @@ def item_priority(item: pytest.Item) -> Optional[int]:
         return int(marker.args[0])
     except (TypeError, ValueError):
         return None
+
+
+def announce_test(item: pytest.Item) -> str:
+    """Log which case is about to run, before it runs.
+
+    **Emitted from setup, so a crash leaves the name behind.** A traceback
+    names the line that raised and not the case that reached it, and a process
+    killed mid-request leaves no traceback at all. The last announced name is
+    the one thing that locates the work either way, which is what a mean time
+    to repair is measured against.
+
+    **The node identifier rather than the callable's name**, because it carries
+    the module and the class as well: that is the code segment a reader opens,
+    and `framework-rules.md` section 3.1 holds that naming the segment is what
+    a result establishes.
+
+    Design: ``harness_test_taxonomy.md`` section 8.3.1.
+
+    Args:
+        item (pytest.Item): The test about to run.
+
+    Returns:
+        str: The line that was logged, so a case can assert it without
+        reaching into the logging machinery.
+    """
+    line = f"RUNNING {getattr(item, 'nodeid', '?')}"
+    logger.info("%s", line)
+    return line

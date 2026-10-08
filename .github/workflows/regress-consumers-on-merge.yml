@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Finding out before the consumer does.
 #
-# Specified by docs/design/ci_pipeline.md sections 3B and 3C.
+# Specified by docs/design/harness_ci_pipeline.md sections 3B and 3C.
 #
 # THIS IS THE FAN-OUT THE SPLIT EXISTS FOR. A harness change is verified here
 # against this repository's own preconditions. Those prove the instrument works;
@@ -199,7 +199,7 @@ jobs:
       # not the deterministic gates, so both were found when the consumer's own
       # gate went red after a later push. A replay contacts no provider and
       # takes under two seconds, so the argument for excluding it was never
-      # cost. Design `ci_pipeline.md` section 3B.3.
+      # cost. Design `harness_ci_pipeline.md` section 3B.3.
       #
       # IT DOES NOT GATE. The consumer carries findings about the model, and
       # this job asks only whether our change broke it.

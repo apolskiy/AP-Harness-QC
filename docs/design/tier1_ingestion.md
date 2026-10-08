@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 > **Parent:** `DESIGN.md` section 3.2. Read the normative references in section 3.1 first.
 > **Status:** Phase 2 design document, awaiting review before Phase 3. Thereafter it is a **living specification**: where implementation improves on it, it is amended in the same change as the code.
 > **Subject:** the **harness**. Model evaluations are specified in `AP-Model-QC`, in `docs/testing/model_evaluation_test_plan.md`, which assumes this harness complete.
-> **Authority:** decisions trace to `phase0_project_ambiguities.md` (cited as A1-A13, B1-B10) and `test_taxonomy.md`.
+> **Authority:** decisions trace to `harness_phase0_project_ambiguities.md` (cited as A1-A13, B1-B10) and `harness_test_taxonomy.md`.
 > **Contract:** per A12 this document is a specification that implementation is evaluated against, not a description of intent. Where it is silent, the implementation must ask rather than choose.
 
 ---
@@ -95,7 +95,7 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 |---|---|---|---|---|
 | `rule_id` | `str` | ✓ | - | `MQC_RULE_<slug>` |
 | `priority` | `int` | ✓ | - | 0-4. Priority lives here because (task × rubric) is the case |
-| `priority_conditions` | `list[str]` | ✓ | - | Registered condition IDs matched, per `test_taxonomy.md` §4.1. See G6 |
+| `priority_conditions` | `list[str]` | ✓ | - | Registered condition IDs matched, per `harness_test_taxonomy.md` §4.1. See G6 |
 | `assertions` | `list[ProgrammaticAssertion]` | | `[]` | Deterministic half |
 | `rubric` | `Optional[Rubric]` | | `None` | Judged half |
 | `tool_expectation` | `Optional[ToolExpectation]` | | `None` | |
@@ -111,7 +111,7 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 
 **Optional, and empty for every rule outside the security family.** The field answers a question only an attack payload raises, and `GoldenRuleSet` already serves two readers that each ignore most of it.
 
-**Every invariant in this document emits `QC_DATA_INVARIANT_VIOLATION`**, the code registered for data that is structurally complete and semantically contradictory. G1 through G6 and R1 through R5 share it because they share a fix: the author has to rethink the rule set rather than correct a name or a file. See `test_taxonomy.md` section 6.3.1.
+**Every invariant in this document emits `QC_DATA_INVARIANT_VIOLATION`**, the code registered for data that is structurally complete and semantically contradictory. G1 through G6 and R1 through R5 share it because they share a fix: the author has to rethink the rule set rather than correct a name or a file. See `harness_test_taxonomy.md` section 6.3.1.
 
 **Consumers differ by field.** `GoldenRuleSet` serves two readers, and neither reads all of it:
 
@@ -120,7 +120,7 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 | Tier 3 (evaluation) | `assertions`, `rubric`, `tool_expectation` |
 | CMN (verdict, traceability) | `priority`, `priority_conditions`, `requirement_ids` |
 
-**Tier 3's interface receives only the evaluation-relevant subset.** `priority` and `priority_conditions` are test metadata: the evaluator has nothing to do with them, and passing them would invite an implementation to begin reading them. See `extensibility_standard.md` §2.
+**Tier 3's interface receives only the evaluation-relevant subset.** `priority` and `priority_conditions` are test metadata: the evaluator has nothing to do with them, and passing them would invite an implementation to begin reading them. See `harness_extensibility_standard.md` §2.
 
 **Invariant G6: priority is justified, validated and counted.** `priority_conditions` is a **list of registered condition identifiers**, not free text. Free text would permit "because it's important" and collapse the mechanism.
 
@@ -132,7 +132,7 @@ Three validations at ingest:
 2. Every identifier is registered for its level.
 3. `priority >= min(level of matched conditions)`: the ceiling rule. Matching only a P2 condition means the case cannot be assigned P0.
 
-**The registry of identifiers is `test_taxonomy.md` section 4.1.0**, and is not repeated here. An identifier absent from it is a defect.
+**The registry of identifiers is `harness_test_taxonomy.md` section 4.1.0**, and is not repeated here. An identifier absent from it is a defect.
 
 `priority_conditions` is **emitted to result metadata**, so analysis can group failures by condition class: "everything that failed under `P0_SAFETY_CRITICAL_MODEL`", which is the grouping the code discipline exists to enable.
 
@@ -507,7 +507,7 @@ Specified 2026-09-22, after implementation had settled a shape the design never 
 
 **No character offset is carried, deliberately.** It would help in a long document and would be wrong more often than it helped: the offset is into the normalized text this harness built, not into the file an author edits, and an offset that does not match what the author sees is worse than none.
 
-**This shape belongs to any screen, not to this one.** `extensibility_standard.md` section 7.1 generalises the untrusted-content rules across tiers for the same reason, and the Tier 3 screen reports the same four things about a different subject.
+**This shape belongs to any screen, not to this one.** `harness_extensibility_standard.md` section 7.1 generalises the untrusted-content rules across tiers for the same reason, and the Tier 3 screen reports the same four things about a different subject.
 
 **Detection is a measurement, not the defence.** Structural isolation, meaning candidate content never enters judge instruction text, is the defence, and it lives in Tier 3.
 
@@ -711,7 +711,7 @@ about tool coercion and carries override language it does not need.
 7.3.1). Ordering makes a compound case interpretable; it does not make an
 accidental compound deliberate. Declaring the vector each case is *about*, and
 asserting it, is the check that would have caught the gap at authoring time, and
-is recorded in `OPEN_QUESTIONS.md` rather than built here.
+is recorded in `harness_open_questions.md` rather than built here.
 
 ---
 

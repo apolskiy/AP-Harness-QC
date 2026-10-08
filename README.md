@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **577 cases, all passing**. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **579 cases, all passing**. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 269, none uncovered, none untraced |
+| Requirements traced | 271, none uncovered, none untraced |
 | Numbered steps | Seven per observation, each an action and a verification, in the JUnit `<failure>` and `<system-out>` and in Allure |
 | Dependents of a failure | **Probed in replay**, skipped live: measured, recorded, counted in no denominator |
 | Quarantine | Skips before the request is formed, so it saves the run's cost and never buys a pass |
@@ -78,7 +78,7 @@ unconfigured clone cannot spend quota or emit an unmarked live result. See
 in v1, and only the live schedule needs it.
 
 **To dispatch a debug, diagnostic or regression run, read
-`docs/running_jobs.md` instead.** It is the whole operating procedure and it
+`docs/harness_running_jobs.md` instead.** It is the whole operating procedure and it
 requires no design reading: which of the three workflows, which inputs, what
 comes back, and what each exit code means.
 
@@ -109,7 +109,7 @@ Results are published as standard CI artifacts, JUnit XML and Allure, for
 read-only downstream consumption. This repository depends on no consumer and
 names none.
 
-**To download a run's results and view them**, `docs/running_jobs.md` section 5 has the artifact names, the `gh run download` line and the Allure commands, verified against Allure 2.41.0.
+**To download a run's results and view them**, `docs/harness_running_jobs.md` section 5 has the artifact names, the `gh run download` line and the Allure commands, verified against Allure 2.41.0.
 
 ## Repository Layout
 

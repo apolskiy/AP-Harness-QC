@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a branch may be called, how long it may live, and where it may merge.
 
-Specified by ``docs/design/ci_pipeline.md`` section 3C.6.
+Specified by ``docs/design/harness_ci_pipeline.md`` section 3C.6.
 
 **Every function here is pure.** A branch name, a base, a date and a set of
 merge records go in; problems come out. Nothing reads git, nothing reads a
@@ -143,7 +143,7 @@ def _resolve_referent(
         Optional[tuple]: The referent and its registered kind. **A bare stamp
         resolves for the integration kind only**: doing several things is what
         that branch is for, so any single referent would assert something false
-        about the rest. ci_pipeline.md section 3C.6.1.
+        about the rest. harness_ci_pipeline.md section 3C.6.1.
     """
     if referent is None:
         if branch_kind != INTEGRATION_KIND:

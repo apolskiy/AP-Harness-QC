@@ -737,7 +737,7 @@ def _rule_v3(
 ) -> tuple[bool, str]:
     """Retired 2026-10-08: the total skip ceiling, which never fires now.
 
-    Design: ``test_taxonomy.md`` section 7.4.1.0.
+    Design: ``harness_test_taxonomy.md`` section 7.4.1.0.
 
     Args:
         population (_Population): Unused.
@@ -756,7 +756,7 @@ def _rule_v4(
 ) -> tuple[bool, str]:
     """Retired 2026-10-08: the blocking-band skip ceiling, which never fires.
 
-    Design: ``test_taxonomy.md`` section 7.4.1.0.
+    Design: ``harness_test_taxonomy.md`` section 7.4.1.0.
 
     Args:
         population (_Population): Unused.

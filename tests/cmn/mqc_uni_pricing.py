@@ -369,7 +369,7 @@ class TestMQCCostReport:
         A secondary family counts the same as a primary one here. Primacy says
         what a case is about, not who pays for it.
 
-        Design: ``test_taxonomy.md`` section 11.7.3.
+        Design: ``harness_test_taxonomy.md`` section 11.7.3.
 
         Args:
             table (PriceTable): The shipped table.

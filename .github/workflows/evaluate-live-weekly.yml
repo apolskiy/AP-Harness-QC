@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # The only workflow that spends.
 #
-# Specified by docs/design/ci_pipeline.md section 5.
+# Specified by docs/design/harness_ci_pipeline.md section 5.
 #
 # THE WEEKLY RUN IS UNCONDITIONAL because a version string is not a guarantee.
 # Providers revise a model behind a stable identifier, so the nightly probe

@@ -10,7 +10,7 @@ xAI (Grok), DeepSeek, Mistral, Groq, Together and OpenRouter all serve this
 same shape, so each is a subclass naming an engine, a default model, an
 endpoint and a credential variable. No protocol code is rewritten and no
 conformance wiring is added: registration enrols the new engine in the
-battery automatically (``extensibility_standard.md`` section 10).
+battery automatically (``harness_extensibility_standard.md`` section 10).
 
 Replay-only under A3 until a key is provisioned, which changes nothing
 here: every operation except :meth:`OpenAICompatibleAdapter.dispatch` runs

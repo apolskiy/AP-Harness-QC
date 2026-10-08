@@ -223,7 +223,7 @@ A layer declares its properties at registration; the verdict function reads them
 
 `UNI` and `SYS` are `graded: false`. `SEC` is `graded: true, distribution_exempt: true`. Neither is special-cased in code.
 
-**Registration remains three steps** (`test_taxonomy.md` §3.4): a registry row, a `pytest.ini` marker, a CI gate step. No `.pylintrc` change: the pattern accepts any `MQC_[A-Z]{3}_[A-Z]{3,5}_` identifier, which is why three layers have been added without touching it.
+**Registration remains three steps** (`harness_test_taxonomy.md` §3.4): a registry row, a `pytest.ini` marker, a CI gate step. No `.pylintrc` change: the pattern accepts any `MQC_[A-Z]{3}_[A-Z]{3,5}_` identifier, which is why three layers have been added without touching it.
 
 ---
 
@@ -248,7 +248,7 @@ Properties that do not scale automatically, and what governs each:
 | Registry | An entry is |
 |---|---|
 | Layers | Declared properties (§4) |
-| Evaluation families | Identifier plus its declared ground-truth mechanism (`test_taxonomy.md` §11) |
+| Evaluation families | Identifier plus its declared ground-truth mechanism (`harness_test_taxonomy.md` §11) |
 | Taxonomy codes | Code, family, severity, meaning |
 | Priority conditions | Identifier and level |
 | Aggregation strategies | Implementation plus declared `scale_id` |
@@ -322,7 +322,7 @@ A test type nobody designed for is the real test of this standard.
 4. Does it need a new failure classification? Add a taxonomy code with family and severity.
 5. Does it need new data? Extend a schema with an **optional** field, or add a loader. A new required field breaks every existing fixture.
 5b. **Does it put content in front of a model?** If the content was authored by anyone other than us, it is isolated into a typed data field, per section 7.1. If the content is an injection payload, no model sees it: resistance is asserted, not judged.
-5a. **Is it a new evaluation family?** If the task shape or the source of ground truth differs from every registered family, it is. Register it per `test_taxonomy.md` §11.2 rather than filing its cases under a family they do not belong to, which is how a scope statement comes to describe less than the suite exercises.
+5a. **Is it a new evaluation family?** If the task shape or the source of ground truth differs from every registered family, it is. Register it per `harness_test_taxonomy.md` §11.2 rather than filing its cases under a family they do not belong to, which is how a scope statement comes to describe less than the suite exercises.
 6. **Does it increase concurrent live requests?** If yes, it does not fit without a quota decision.
 
 **If an addition cannot be made through this checklist, that is a finding about the design, not about the addition.** The correct response is to fix the extension point, not to special-case the new type, which is how `MQC_SEC_`'s hand-written exemption became a declared property.

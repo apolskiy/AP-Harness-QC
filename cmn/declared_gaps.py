@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Reading a registry of declared absences, which this project keeps writing.
 
-Specified by ``extensibility_standard.md`` section 3.4.
+Specified by ``harness_extensibility_standard.md`` section 3.4.
 
 **The idiom appeared a fourth time and pylint reported the duplication.**
 ``flag_coverage.yaml`` declares a flag no case proves, ``not_rostered`` an

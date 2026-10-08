@@ -4,7 +4,7 @@
 
 Specified by ``docs/design/tier2_execution.md`` section 3.
 
-**This is a stable interface** under ``extensibility_standard.md`` section 9:
+**This is a stable interface** under ``harness_extensibility_standard.md`` section 9:
 it may gain an optional parameter with a default and may never gain a required
 one. A required parameter would break every adapter written before it, which is
 the guarantee stability means.
@@ -167,7 +167,7 @@ class ProviderAdapter(ABC):
         """Build a provider request asking for a reply in the given schema.
 
         **Concrete, not abstract, and that is deliberate.**
-        ``extensibility_standard.md`` section 9 permits a stable interface to
+        ``harness_extensibility_standard.md`` section 9 permits a stable interface to
         gain an optional parameter and never a required one. A new abstract
         method is worse than a required parameter: it breaks every existing
         implementation at import rather than at a call.
@@ -294,7 +294,7 @@ class ConfiguredAdapter(ProviderAdapter):
     own shape showing through rather than a coincidence.
 
     **This does not weaken the stability guarantee** in
-    ``extensibility_standard.md`` section 9. :class:`ProviderAdapter` remains
+    ``harness_extensibility_standard.md`` section 9. :class:`ProviderAdapter` remains
     the interface and an adapter may implement it directly; this is a
     convenience beneath the contract, not a requirement above it.
 

@@ -9957,3 +9957,75 @@ trip; injection confirmed it fails with the removal disabled.
 
 Harness: 707 passing, 24 system, pylint exit 0. Case repository: 97 passing, 70
 graded in replay, pylint exit 0.
+
+## 2026-10-08: A filename is what an editor tab shows
+
+**Two repositories held a `docs/running_jobs.md` and a
+`docs/document_register.md` each.** The project owner's point: a change made in
+the wrong one parses, lints and commits, and surfaces later as a procedure that
+stopped matching the workflows it dispatches.
+
+### The scope question, and the answer that settled it
+
+Four names collided. Eleven more carried no repository token but did not
+collide, so I asked how far the rule reached rather than guessing: renaming
+`harness_test_taxonomy.md` touches several hundred citations.
+
+The owner's answer was the general case rather than the current listing: **a
+generic name can criss cross**, because any repository carrying tests has a
+taxonomy, a pipeline, an extensibility standard and project phases. So six
+generic names took the token and four were left alone, each already naming a
+harness tier or a harness module.
+
+| Renamed | Left alone |
+|---|---|
+| `test_taxonomy`, `ci_pipeline`, `extensibility_standard`, `phase0_project_ambiguities`, `OPEN_QUESTIONS`, `problems_found`, and the two collisions | `tier1_ingestion`, `tier2_execution`, `tier3_evaluation`, `cmn_verdict_and_cli` |
+
+478 references followed, with a guard against double-prefixing. The progress
+records keep the old paths, and both registers now carry a renamed-from table
+so a reader of that history can follow it.
+
+### What the rename exposed in production code
+
+`runbook_problems(root)` baked in one repository's filename and took a root. The
+case repository **calls it with its own root**, so after the rename it would
+have read `docs/harness_running_jobs.md` under the model root, found nothing,
+and reported no problem. That is a silent pass, and the path is an argument now
+with no default.
+
+`pylint_invocations` had the same shape and the same fix.
+
+### And the runway fired mid-change
+
+`cmn/code_standards.py` reached exactly 900 lines from the docstrings this added,
+and the next subject to add was document naming. So the document subject split
+out into `cmn/document_standards.py`: the register, the runbook, and the heading
+reader a check parses prose with. **Three private helpers and two imports had to
+follow their caller**, which the first attempt missed and the suite caught as
+three `NameError`s rather than as a passing module.
+
+`section_lines` went back, because its caller stayed and importing it forward
+would have been a cycle.
+
+### Every case now says its own name before it runs
+
+At the owner's instruction, for debugging. The numbered steps cover a graded
+case and nothing else, so **709 preconditions announced nothing at all**, which
+is where a crash is least expected and therefore least instrumented.
+
+```
+RUNNING tests/cmn/mqc_uni_verdict.py::TestMQCPriorityGate::MQC_CMN_UNI_112000_green_when_all_rules_satisfied
+```
+
+**The node identifier, not the callable's name**, because a traceback names the
+line that raised rather than the case that reached it, and the two differ
+whenever a helper is shared: a failure inside `verdict_support.graded` reports a
+line in that file and says nothing about which of thirty callers was running.
+
+It reaches the JUnit artifact on a failure and not on a pass, which is
+`pytest.ini`'s existing arrangement rather than a new decision.
+
+### State
+
+Harness: 709 passing, 24 system, pylint exit 0. Case repository: 98 passing, 70
+graded in replay, pylint exit 0.

@@ -263,7 +263,7 @@ class TestMQCGoldenRuleSchema:
         declare a family is a property of a shipped corpus rather than of the
         schema, and `MQC_CAS_UNI_115414` holds the corpus to it.
 
-        Design: ``test_taxonomy.md`` sections 11.7.2 and 11.8.
+        Design: ``harness_test_taxonomy.md`` sections 11.7.2 and 11.8.
 
         Returns:
             None

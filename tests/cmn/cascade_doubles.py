@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """An item double for the cascade cases, in a sibling module.
 
-A case module holds only cases (``test_taxonomy.md`` section 13), so the item
+A case module holds only cases (``harness_test_taxonomy.md`` section 13), so the item
 double the cascade-policy cases need lives here.
 
 **It carries a mode and its declared dependencies**, which is what the cascade

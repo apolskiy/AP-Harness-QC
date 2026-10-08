@@ -88,10 +88,10 @@ because a second copy drifts.
 | Is `inconsistency_ceiling` at 0.10 right? | 2026-10-01, 0.20, with three observations escalating to five on a single disagreement | `cmn_verdict_and_cli.md` section 4.9.2.1 |
 | Should multi-prompt consistency be built? | 2026-10-01, out of scope and a harness expansion | `cmn_verdict_and_cli.md` section 4.9.5 |
 | Should a security case declare the vector it is about? | 2026-10-01, all of them, with a primary | `model_evaluation_test_plan.md` section 9.10.3.1 |
-| What should the harness's own live run measure? | 2026-10-01, the same ladder, fired weekly or on a version change | `ci_pipeline.md` section 2.0.2 |
+| What should the harness's own live run measure? | 2026-10-01, the same ladder, fired weekly or on a version change | `harness_ci_pipeline.md` section 2.0.2 |
 | Which engines are recorded, and what clears the rest? | 2026-10-04 and 2026-10-05, all four | `config/findings/`, and `CLAUDE_LOG.md` for each recording |
 | Where do the credentials live, and which secret is where? | 2026-10-05, **deliberately not recorded in a tracked document** | Nowhere. The properties are asserted by code, per section 1 |
-| Is `--max-spend` wired into anything? | 2026-10-04, into every leg that can dispatch | `ci_pipeline.md`, and the `max_spend` input on each |
+| Is `--max-spend` wired into anything? | 2026-10-04, into every leg that can dispatch | `harness_ci_pipeline.md`, and the `max_spend` input on each |
 | What is the known-good state to compare against? | 2026-10-05, the README figures, which are recomputed and checked | `README.md`, by `MQC_CMN_UNI_112323` |
 
 ---

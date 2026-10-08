@@ -98,7 +98,7 @@ judge:
 #
 # AN ENTRY CARRIES A REASON AND AN EXPIRY, exactly as `flag_coverage.yaml` does,
 # because a list with no expiry is where unproven things go to be forgotten.
-# `extensibility_standard.md` section 3.4.
+# `harness_extensibility_standard.md` section 3.4.
 # not_rostered: EMPTY SINCE 2026-10-04. grok was the only entry and it is
 # rostered above: the key is funded, `grok-4.7` is priced, and the
 # recording run is what the entry was waiting for. The key stays in the

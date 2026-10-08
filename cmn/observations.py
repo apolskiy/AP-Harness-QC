@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The observation record, and the run-scoped fields every result repeats.
 
-Field definitions are normative in ``docs/design/test_taxonomy.md`` section 9.
+Field definitions are normative in ``docs/design/harness_test_taxonomy.md`` section 9.
 ``docs/design/cmn_verdict_and_cli.md`` section 3 states what the verdict does
 with them, and this module is the executable form of both.
 
@@ -162,7 +162,7 @@ class Observation:
             **Ordered, with the primary first.** The relation is many to
             many: ideally a case belongs to one family, and a complex case
             addresses several, of which one is primary. Design
-            ``test_taxonomy.md`` section 11.7.
+            ``harness_test_taxonomy.md`` section 11.7.
         engine (str): Which provider produced it.
         mode (str): ``live`` or ``replay`` (A6).
         requested_model (str): What was asked for.
@@ -244,7 +244,7 @@ class Observation:
                 )
             # EACH VALUE, NOT THE FIRST. A case naming two families publishes
             # both, so checking one would let the second reach the record
-            # unresolvable. Design `test_taxonomy.md` section 11.7.2.
+            # unresolvable. Design `harness_test_taxonomy.md` section 11.7.2.
             registered = registered_evaluation_families()
             unknown = [name for name in self.families if name not in registered]
             if unknown:
@@ -254,7 +254,7 @@ class Observation:
                 )
             # A REPEATED VALUE IS REFUSED. It makes primacy ambiguous and
             # would count the case twice in a per-family total. Design
-            # `test_taxonomy.md` section 11.7.2.
+            # `harness_test_taxonomy.md` section 11.7.2.
             if len(set(self.families)) != len(self.families):
                 raise ValueError(
                     f"QC_HARNESS_PARSER_ERROR: {self.case_id} repeats a family in "
@@ -295,7 +295,7 @@ class Observation:
         downstream could detect it: every value would still be registered and
         still match the row's cases.
 
-        Design: ``test_taxonomy.md`` section 11.7.2.1.
+        Design: ``harness_test_taxonomy.md`` section 11.7.2.1.
 
         Returns:
             Optional[str]: The first family, or ``None`` for a precondition,

@@ -206,7 +206,7 @@ class TestMQCOptionRegistry:
         gemini is the roster's default and the only engine with a funded key.
 
         **A warning that fires when its condition did not occur is worse than no
-        warning.** `ci_pipeline.md` already names the hazard: a signal present on
+        warning.** `harness_ci_pipeline.md` already names the hazard: a signal present on
         every run teaches the reader to skip the line, and this one exists to say
         a record measured a provider nobody chose (A7.4).
 
@@ -715,7 +715,7 @@ class TestMQCConsumerRegistry:
             assert "/" in consumer.repository
             assert consumer.default_ref
             # The pairing is per branch: a run is defined by a pair of refs and
-            # not by either alone (ci_pipeline.md section 3C).
+            # not by either alone (harness_ci_pipeline.md section 3C).
             assert consumer.refs
             # Deterministic gates only. A live run in the fan-out would answer a
             # different question at a price.

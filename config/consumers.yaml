@@ -21,7 +21,7 @@ consumers:
     repository: apolskiy/AP-Model-QC
 
     # THE PAIRING IS PER BRANCH, because a run is defined by a pair of refs and
-    # not by either one alone. ci_pipeline.md section 3C holds the topology: a
+    # not by either one alone. harness_ci_pipeline.md section 3C holds the topology: a
     # harness branch is tested against the case branch that pairs with it, so
     # stabilization work on one side is verified against stabilization work on
     # the other rather than against a main that has not received it yet.

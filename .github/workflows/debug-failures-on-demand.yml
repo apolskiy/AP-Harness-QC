@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Re-running exactly what failed.
 #
-# Specified by docs/design/ci_pipeline.md section 6A.
+# Specified by docs/design/harness_ci_pipeline.md section 6A.
 #
 # diagnose-on-demand.yml selects by MARKER EXPRESSION, which answers "run the
 # security suite" and cannot answer "run these four tests". A triage loop needs

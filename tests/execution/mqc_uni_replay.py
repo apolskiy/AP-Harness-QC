@@ -233,7 +233,7 @@ class TestMQCFixtureStore:
         """Under divergent refs the staleness report is the answer, not an error.
 
         A changed hash says the request composition moved between the two
-        checkouts, which is exactly what the diagnostic in `ci_pipeline.md`
+        checkouts, which is exactly what the diagnostic in `harness_ci_pipeline.md`
         section 6.4 is asking. The store reports and continues rather than
         deciding what the divergence means.
 

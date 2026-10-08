@@ -139,13 +139,13 @@ Recorded 2026-09-23 rather than quietly corrected, because a layout naming files
 | Not drafted | `cmn/vectors.py` | One vector registry, shared, so the two screens cannot disagree |
 | Not drafted | `execution/adapters/registry.py` | The conformance battery parametrizes over it |
 
-**A file name carries what nothing else carries, and nothing more.** The module is in the path, so repeating it in the name duplicates the path. The layer is in no path, so it goes in the name. That one principle produces both halves of the convention, including the half that looks inconsistent: harness modules take no prefix and test modules take two tokens. Normative in `test_taxonomy.md` section 2.1.
+**A file name carries what nothing else carries, and nothing more.** The module is in the path, so repeating it in the name duplicates the path. The layer is in no path, so it goes in the name. That one principle produces both halves of the convention, including the half that looks inconsistent: harness modules take no prefix and test modules take two tokens. Normative in `harness_test_taxonomy.md` section 2.1.
 
 **Production modules carry no `mqc_` prefix; test modules must.** The prefix is a requirement on test artifacts, because those are what the suite collects and what reaches a durable record under a name that must stay unambiguous. A production module is never collected and never named in a result, so prefixing it would add noise without adding identity. `.pylintrc` accepts both spellings for exactly this reason.
 
 **Tests mirror the production modules rather than the layers.** Change-scoped selection resolves changed paths to the tests covering them, so a test tree shaped like the production tree makes that mapping direct. Gates select by marker, not by path, which leaves the layer free to be an attribute of a class rather than a directory. Shaping the tree by layer instead would make the marker redundant, scatter one module's tests across five directories, and leave path-scoped selection with nothing to resolve against.
 
-**`selection.py` and `ci_report.py` exist because CI decisions are Python, not YAML.** `ci_pipeline.md` section 10 states that decision logic lives where a test can reach it and the workflow files only call it. Selection resolves a diff into a test set, a `selection_mode` and a changed-area split of harness against tests; `ci_report.py` assembles the diagnostic summary and decides whether a run is a failure-to-pass transition. Both were specified with test cases before they had a module, which a layout written ahead of the CI design did not anticipate.
+**`selection.py` and `ci_report.py` exist because CI decisions are Python, not YAML.** `harness_ci_pipeline.md` section 10 states that decision logic lives where a test can reach it and the workflow files only call it. Selection resolves a diff into a test set, a `selection_mode` and a changed-area split of harness against tests; `ci_report.py` assembles the diagnostic summary and decides whether a run is a failure-to-pass transition. Both were specified with test cases before they had a module, which a layout written ahead of the CI design did not anticipate.
 
 **The deliberately broken code excerpts live in the case repository**, along with the guards asserting they still exhibit their defects. They moved there on 2026-09-23: they are input to graded cases, and a harness check reading them was a cross-boundary dependency that only became visible when the boundary became real. Section 5.1 records what that cost to find.
 
@@ -210,7 +210,7 @@ something dangling.
 
 ## 3. Document Map
 
-**This is the reading order, not the inventory.** `docs/document_register.md` names every tracked document and is checked against the repository both ways; this section says what to read first and what each design covers. The two were one table until 2026-10-04, when it turned out that `test_taxonomy.md` had fallen behind while named here the whole time, and that two tracked documents and seven governance files were in no list at all. `test_taxonomy.md` section 12 carries it.
+**This is the reading order, not the inventory.** `docs/harness_document_register.md` names every tracked document and is checked against the repository both ways; this section says what to read first and what each design covers. The two were one table until 2026-10-04, when it turned out that `harness_test_taxonomy.md` had fallen behind while named here the whole time, and that two tracked documents and seven governance files were in no list at all. `harness_test_taxonomy.md` section 12 carries it.
 
 ### 3.1 Normative references
 
@@ -218,22 +218,22 @@ Read these before any other document; the rest assume them.
 
 | Document | Holds |
 |---|---|
-| `docs/OPEN_QUESTIONS.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog**: unfinished work is a known gap in section 7.8 | **Live** |
-| `docs/design/phase0_project_ambiguities.md` | Every project-level decision, with the options considered and the reason each was chosen. Items are cited elsewhere as A1 to A13 and B1 to B10. A dated record: it is never rewritten to match later decisions |
-| `docs/design/test_taxonomy.md` | What every identifier means. Module and layer registries, priority definitions and distribution ceilings, the outcome model, four failure taxonomy families, the run verdict rules, required result metadata |
-| `docs/design/extensibility_standard.md` | How the system absorbs a new provider, layer, suite, or unanticipated test type. Tier API contracts, the adapter interface, conformance suites, interface stability tiers, schema versioning, deprecation |
+| `docs/harness_open_questions.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog**: unfinished work is a known gap in section 7.8 | **Live** |
+| `docs/design/harness_phase0_project_ambiguities.md` | Every project-level decision, with the options considered and the reason each was chosen. Items are cited elsewhere as A1 to A13 and B1 to B10. A dated record: it is never rewritten to match later decisions |
+| `docs/design/harness_test_taxonomy.md` | What every identifier means. Module and layer registries, priority definitions and distribution ceilings, the outcome model, four failure taxonomy families, the run verdict rules, required result metadata |
+| `docs/design/harness_extensibility_standard.md` | How the system absorbs a new provider, layer, suite, or unanticipated test type. Tier API contracts, the adapter interface, conformance suites, interface stability tiers, schema versioning, deprecation |
 
 ### 3.2 Module and pipeline designs
 
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 93 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 259 cases | **Implemented** |
-| `docs/design/ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 261 cases | **Implemented** |
+| `docs/design/harness_ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 115 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 110 cases | **Implemented** |
 
-`ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.
+`harness_ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.
 
 
 ### 3.3 Test planning
@@ -380,13 +380,13 @@ A17 recorded one repository as a deliberate demonstration trade and named the tr
 | This repository, `AP-Harness-QC` | `AP-Model-QC` |
 |---|---|
 | The four modules and their precondition suites | The graded cases, `EVAL`, `TOOL` and `SEC` |
-| Every module design, `ci_pipeline.md`, `extensibility_standard.md` | `model_evaluation_test_plan.md`, `rtm_model.csv` |
+| Every module design, `harness_ci_pipeline.md`, `harness_extensibility_standard.md` | `model_evaluation_test_plan.md`, `rtm_model.csv` |
 | `harness_test_plan.md`, `rtm_harness.csv` | `data/tasks/`, `data/rules/` |
 | `tools/`, generators and maintenance scripts | `tests/fixtures/replay/`, recorded responses |
-| `test_taxonomy.md`, the single registry | Recorded fixtures and the code excerpts |
+| `harness_test_taxonomy.md`, the single registry | Recorded fixtures and the code excerpts |
 | `gate-on-change.yml`, `probe-model-version-nightly.yml` | Its own gate, pinning a harness version |
 
-**`test_taxonomy.md` stays here and is not duplicated.** It is the single registry of identifiers, priorities and failure codes, and `framework-rules.md` section 4.1 forbids a second one. The case repository references it rather than vendoring a copy, which also keeps the Apache licence on this side from travelling into an MIT repository by accident.
+**`harness_test_taxonomy.md` stays here and is not duplicated.** It is the single registry of identifiers, priorities and failure codes, and `framework-rules.md` section 4.1 forbids a second one. The case repository references it rather than vendoring a copy, which also keeps the Apache licence on this side from travelling into an MIT repository by accident.
 
 #### The boundary was verified, and the verification had a hole in it
 
@@ -469,7 +469,7 @@ inventory row has a case, which is why twelve designed cases, nine of them P0,
 reported nothing at all for as long as they did. Section 7.4 keeps it on the
 record: closing one instance is not the same as closing the class.
 
-**Scope is organised by family.** A family is a task type with its own input shape and its own source of ground truth, registered in `test_taxonomy.md` §11 and carried on every graded result. Three are registered for v1, below. The set is expected to grow, and §11.2 states the four steps that admit a new one.
+**Scope is organised by family.** A family is a task type with its own input shape and its own source of ground truth, registered in `harness_test_taxonomy.md` §11 and carried on every graded result. Three are registered for v1, below. The set is expected to grow, and §11.2 states the four steps that admit a new one.
 
 **A family earns admission by supplying ground truth for a property that would otherwise be judged.** That is the common thread between the three, not subject matter: provided source material makes fabrication a set operation, parsers make shape constraints countable, and a defective excerpt makes falsehood an exact comparison. A family gradable only by rubric adds cases without adding confidence.
 
@@ -583,7 +583,7 @@ The record is **attached to the artifact**, not only written to a log, so it sur
 
 **Inferred skills** are judged from evidence rather than matched as phrases. A bullet describing custom log parsers that cut troubleshooting time by 45% demonstrates debugging without containing the word.
 
-**An alias registry is required.** A posting writing `Javascript` against a resume writing `JavaScript`, or `K8s` against `Kubernetes`, produces a false negative, and a false negative on a key skill can flip a gate. Normalization is a registry in the sense of `extensibility_standard.md` section 6, extended by entry rather than by code.
+**An alias registry is required.** A posting writing `Javascript` against a resume writing `JavaScript`, or `K8s` against `Kubernetes`, produces a false negative, and a false negative on a key skill can flip a gate. Normalization is a registry in the sense of `harness_extensibility_standard.md` section 6, extended by entry rather than by code.
 
 #### 7.1.5 Degree
 
@@ -692,7 +692,7 @@ Recorded as scope alongside 7.1. Not yet authored.
 
 #### 7.2.2 Priority follows measurement reliability
 
-These checks differ sharply in how reliably they can be measured, and priority follows that rather than the importance of the behaviour (see `test_taxonomy.md` section 4.1.2).
+These checks differ sharply in how reliably they can be measured, and priority follows that rather than the importance of the behaviour (see `harness_test_taxonomy.md` section 4.1.2).
 
 | Check | Determinism | Priority |
 |---|---|---|
@@ -722,7 +722,7 @@ Violations are recorded as `QC_LLM_LENGTH_VIOLATION`, distinct from `QC_LLM_FORM
 
 **Constraint interaction is the dimension worth building for.** Testing a character prohibition and a length ceiling separately, then together, measures whether constraints **compose** or whether satisfying one degrades compliance with the other. Models commonly trade one instruction against another under pressure, and a suite testing each constraint in isolation would never observe it.
 
-**A composite case depends on its components.** Each multi-constraint case declares `depends_on` naming the single-constraint cases it combines. If a constraint fails in isolation, the composite is skipped rather than run: testing it in combination measures nothing new, and a failure would be attributed to interaction when the cause is the component. See `test_taxonomy.md` section 4.1.3.
+**A composite case depends on its components.** Each multi-constraint case declares `depends_on` naming the single-constraint cases it combines. If a constraint fails in isolation, the composite is skipped rather than run: testing it in combination measures nothing new, and a failure would be attributed to interaction when the cause is the component. See `harness_test_taxonomy.md` section 4.1.3.
 
 ---
 
@@ -774,7 +774,7 @@ It does not exercise the requirement-matching gates in section 7.1 or the shape 
 
 ### 7.4 v1 Test Plan Scope: Injection Resistance Family
 
-**Registered 2026-10-03, after its cases had been shipping for a week.** The 21 corpus pairs were written against the known-gap row in section 7.6 and closed on 2026-09-28; nothing added the row to the registry in `test_taxonomy.md` section 11.1 at the time, so the v1 scope described three families while the suite exercised five. That is the omission a registry exists to make visible, and section 11.4 of that document carries the full record of what registering it late cost.
+**Registered 2026-10-03, after its cases had been shipping for a week.** The 21 corpus pairs were written against the known-gap row in section 7.6 and closed on 2026-09-28; nothing added the row to the registry in `harness_test_taxonomy.md` section 11.1 at the time, so the v1 scope described three families while the suite exercised five. That is the omission a registry exists to make visible, and section 11.4 of that document carries the full record of what registering it late cost.
 
 #### 7.4.1 Input
 
@@ -811,7 +811,7 @@ This pairing is why the family measures resistance rather than reticence, and it
 
 #### 7.4.4 Corpus rather than fixtures
 
-21 task and rule pairs in `data/tasks/security.yaml` and `data/rules/security.yaml` **in the case repository**. No file fixtures: the payload is the material, so there is nothing a formatter could silently repair and no fixture precondition is owed under section 11.2 step 8 of `test_taxonomy.md`.
+21 task and rule pairs in `data/tasks/security.yaml` and `data/rules/security.yaml` **in the case repository**. No file fixtures: the payload is the material, so there is nothing a formatter could silently repair and no fixture precondition is owed under section 11.2 step 8 of `harness_test_taxonomy.md`.
 
 Writing them found that two attack families had no vector at all, recorded in `tier1_ingestion.md` section 7.3. **That finding came from writing the cases, not from designing them**, which is the argument for writing a family's cases before declaring its scope settled.
 
@@ -837,7 +837,7 @@ Writing them found that two attack families had no vector at all, recorded in `t
 
 The precedent is already in the registry. `code_comprehension` settles syntactic defects with a parser and logical ones by execution, and `output_shape` uses parsers and counters; a family is one task with reliable ground truth, not one mechanism.
 
-**The boundary with section 7.5 is the task, not the mechanism.** Those four cases use the same machinery as the tool compliance family and belong to a different one, which `test_taxonomy.md` section 11 settles in its opening: layers say how a test is gated, **families say what the model was asked to do**.
+**The boundary with section 7.5 is the task, not the mechanism.** Those four cases use the same machinery as the tool compliance family and belong to a different one, which `harness_test_taxonomy.md` section 11 settles in its opening: layers say how a test is gated, **families say what the model was asked to do**.
 
 | | Section 7.5, `tool_compliance` | These four cases, `injection_resistance` |
 |---|---|---|
@@ -868,7 +868,7 @@ The precedent is already in the registry. `code_comprehension` settles syntactic
 
 **The trace is the ground truth, and it is not an interpretation of one.** The tool-call trace either contains the forbidden tool or it does not, and the evaluator in `tier3_evaluation.md` section 5B settles that deterministically. Every rule carries a tool expectation and no rubric.
 
-`test_taxonomy.md` section 3.1 already separates the `TOOL` layer from `EVAL` on exactly this argument: mixing a deterministic check with a probabilistic one under one layer "would make the layer's results incomparable". The same argument admits the family, and the layer and the family are one to one as a result.
+`harness_test_taxonomy.md` section 3.1 already separates the `TOOL` layer from `EVAL` on exactly this argument: mixing a deterministic check with a probabilistic one under one layer "would make the layer's results incomparable". The same argument admits the family, and the layer and the family are one to one as a result.
 
 #### 7.5.3 The two halves again, and the assertion that had to be removed
 
@@ -1015,13 +1015,13 @@ captured understated the bill by roughly five times.
 cases found that two whole attack families matched no vector at all and had
 looked screened on an incidental match (`tier1_ingestion.md` section 7.3). The
 check that would have caught it — a case declaring the vector it is *about* —
-is recorded in `OPEN_QUESTIONS.md` section 2.4.1 and not built.
+is recorded in `harness_open_questions.md` section 2.4.1 and not built.
 
 **The reverse inventory check is still not built, deliberately.** An inventory
 row without an implementation is the *normal* state while a family is being
 authored, so a hard failure would block the authoring order this project
 requires. The right shape is a report rather than a gate, which is why it sits in
-`OPEN_QUESTIONS.md` section 2.1 as a question for the project owner.
+`harness_open_questions.md` section 2.1 as a question for the project owner.
 
 **What the third row's closure changed.** A4.1 settled three observations per
 case, so a fixture is no longer a single sample presented as a characterisation.

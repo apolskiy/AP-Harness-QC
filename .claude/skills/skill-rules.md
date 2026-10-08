@@ -80,7 +80,7 @@ Once versioning begins, `CHANGELOG.md` records this evolution release to release
 ### Phase 2: Test Design Document Creation
 * Generate a structured test plan in `docs/testing/<feature_name>_test_plan.md`.
 * Document test IDs in the current four-segment format `MQC_<MODULE>_<LAYER>_<5DIGIT>_<behavior>` (modules `ING`/`EXE`/`EVL`/`CMN`; layers `UNI`/`SYS`/`EVAL`/`TOOL`/`SEC`), with inputs, expected outputs, and variable checks.
-* Assign a priority to every case with its **matched qualifying condition** named, per `docs/design/test_taxonomy.md` section 4.1. A priority without a named condition is not assignable.
+* Assign a priority to every case with its **matched qualifying condition** named, per `docs/design/harness_test_taxonomy.md` section 4.1. A priority without a named condition is not assignable.
 * Assign IDs from the registered layer's block; never reuse a retired ID.
 
 ### Phase 3: Test Implementation

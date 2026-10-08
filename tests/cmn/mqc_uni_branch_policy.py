@@ -4,7 +4,7 @@
 
 Covers ``MQC_CMN_UNI_112505`` through ``112509``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.23 and specified by
-``docs/design/ci_pipeline.md`` section 3C.6.
+``docs/design/harness_ci_pipeline.md`` section 3C.6.
 
 **Every case here runs offline against synthetic input**, because the policy is
 pure functions over a name, a base, a date and a set of merge records. Nothing

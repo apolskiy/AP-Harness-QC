@@ -41,7 +41,7 @@ _PARSER: Final[str] = "QC_HARNESS_PARSER_ERROR"
 # The fields a carried record must match on, in the order a mismatch reports
 # them. `rule_set_hash` leads because it is the primary guard: a commit
 # reference cannot see an uncommitted edit, and corpus edits between executions
-# are normal working (`test_taxonomy.md` section 9.1.1).
+# are normal working (`harness_test_taxonomy.md` section 9.1.1).
 _GUARDED: Final[tuple[str, ...]] = (
     "rule_set_hash", "code_ref", "case_ref", "engine", "mode", "platform",
 )

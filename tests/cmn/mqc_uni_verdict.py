@@ -137,7 +137,7 @@ class TestMQCRateThresholds:
         assert "V2" in result.breached_rules
 
     # `112006` THROUGH `112009` ARE RETIRED, 2026-10-08 with V3 and V4
-    # (`test_taxonomy.md` section 7.4.1.0). Two asserted that a retired rule
+    # (`harness_test_taxonomy.md` section 7.4.1.0). Two asserted that a retired rule
     # fires; the other two asserted that it does not, which a retired rule
     # satisfies by doing nothing at all. `112044` replaces all four with the
     # one statement still worth making, and the identifiers stay retired.

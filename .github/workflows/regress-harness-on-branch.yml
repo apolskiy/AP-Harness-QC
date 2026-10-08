@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # The whole suite on one branch, on demand, gated.
 #
-# Specified by docs/design/ci_pipeline.md section 3A.
+# Specified by docs/design/harness_ci_pipeline.md section 3A.
 #
 # WHAT THE GATE DELIBERATELY DOES NOT DO. gate-on-change.yml scopes a pull
 # request run to what the change can affect, which is the right trade for

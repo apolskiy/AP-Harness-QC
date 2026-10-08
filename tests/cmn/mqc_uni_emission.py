@@ -294,7 +294,7 @@ class TestMQCPublishedRecord:
         response nobody received.
 
         Design: ``cmn_verdict_and_cli.md`` section 5.3, and
-        ``test_taxonomy.md`` section 7.4.1.2 for what the skip records.
+        ``harness_test_taxonomy.md`` section 7.4.1.2 for what the skip records.
 
         Returns:
             None

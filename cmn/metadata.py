@@ -3,7 +3,7 @@
 """Result metadata emission, and the diagnostic summary that says what a run is not.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` section 5,
-``docs/design/test_taxonomy.md`` section 9, and ``docs/design/ci_pipeline.md``
+``docs/design/harness_test_taxonomy.md`` section 9, and ``docs/design/harness_ci_pipeline.md``
 section 6.5.
 
 **Run-scoped fields are emitted twice**, once in a manifest and again on every
@@ -109,7 +109,7 @@ def require_registered_code(taxonomy_code: str) -> str:
         str: The code, once it is known to be registered.
 
     Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR``. ``test_taxonomy.md``
+        ValueError: With ``QC_HARNESS_PARSER_ERROR``. ``harness_test_taxonomy.md``
             section 6 is the single registry, and a code emitted from outside
             it would be invisible to every count drawn from the record.
     """

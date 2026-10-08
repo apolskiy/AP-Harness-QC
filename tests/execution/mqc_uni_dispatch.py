@@ -391,7 +391,7 @@ class TestMQCRetryAndBackoff:
         Averaging a truncated duration into a latency baseline measures the
         harness's patience, and a case that timed out at the ceiling would drag
         its own baseline upward until genuinely slow responses looked normal
-        (`test_taxonomy.md` section 9.3).
+        (`harness_test_taxonomy.md` section 9.3).
 
         Args:
             minimal_case (Any): The case to dispatch.

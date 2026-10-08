@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Stand-ins for the pytest objects the CLI cases drive.
 
-Specified by ``test_taxonomy.md`` section 13.
+Specified by ``harness_test_taxonomy.md`` section 13.
 
 **Extracted 2026-10-05**, when ``mqc_uni_cli.py`` stood at 965 lines against
 the thousand-line ceiling. These are doubles, which is a subject of its own:

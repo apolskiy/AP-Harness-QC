@@ -5,7 +5,7 @@
 Specified by ``docs/design/tier2_execution.md`` section 3.2.
 
 **This exists so that the conformance battery has something to parametrize
-over.** ``extensibility_standard.md`` section 10 requires registration to enrol
+over.** ``harness_extensibility_standard.md`` section 10 requires registration to enrol
 an adapter in its battery automatically, and a battery written against a
 hand-maintained list is a second place to forget.
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The numbered steps a graded observation passes through, and where it stopped.
 
-Specified by ``docs/design/test_taxonomy.md`` section 8, which has carried this
+Specified by ``docs/design/harness_test_taxonomy.md`` section 8, which has carried this
 since the project began and which nothing implemented: a step is a verifiable
 action and a verification, logged apart, because a step can fail in either
 phase and the two are different diagnoses.

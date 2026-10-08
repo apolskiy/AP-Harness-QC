@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 > **Parent:** `DESIGN.md` section 3.2. Read the normative references in section 3.1 first.
 > **Status:** Phase 2 design document, awaiting review before Phase 3. Thereafter it is a **living specification**: where implementation improves on it, it is amended in the same change as the code.
 > **Subject:** the **harness**. This module decides every run's outcome, so an error here misreports every result the project produces.
-> **Authority:** decisions trace to `phase0_project_ambiguities.md` and `test_taxonomy.md` §7.
+> **Authority:** decisions trace to `harness_phase0_project_ambiguities.md` and `harness_test_taxonomy.md` §7.
 > **Phase 1:** discharged by the project-level Phase 0. This module raised no fresh ambiguity beyond the decisions already recorded there.
 > **Contract:** per A12 this is a specification implementation is evaluated against. Where it is silent, the implementation must ask rather than choose.
 
@@ -33,7 +33,7 @@ It is also the **most testable component in the system**: the verdict is a pure 
 
 ## 3. The Observation Record
 
-**Field definitions live in `test_taxonomy.md` section 9, the single normative list.** This section states only what verdict computation does with them, so the two cannot drift as they previously had.
+**Field definitions live in `harness_test_taxonomy.md` section 9, the single normative list.** This section states only what verdict computation does with them, so the two cannot drift as they previously had.
 
 Verdict computation reads:
 
@@ -48,7 +48,7 @@ Verdict computation reads:
 
 The remaining fields are carried for the durable record and for diagnosis rather than for the verdict.
 
-**Observations are assembled by the reporting hook**, not emitted by tiers. Tier 3 never receives `priority`, so it cannot produce a complete observation; the orchestrating test holds the case metadata and the hook merges it with the tier results. See `extensibility_standard.md` section 2.1.
+**Observations are assembled by the reporting hook**, not emitted by tiers. Tier 3 never receives `priority`, so it cannot produce a complete observation; the orchestrating test holds the case metadata and the hook merges it with the tier results. See `harness_extensibility_standard.md` section 2.1.
 
 ## 4. Verdict Computation
 
@@ -75,8 +75,8 @@ Evaluated in full: **not short-circuited**. See §4.7.
 |---|---|---|
 | V1 | Any P0 or P1 observation not passing | Red |
 | V2 | Overall pass rate below 90% | Red |
-| ~~V3~~ | ~~Total skips above 20%~~ | **Retired 2026-10-08**: `test_taxonomy.md` section 7.4.1.0 |
-| ~~V4~~ | ~~P0/P1 skips above 10%~~ | **Retired 2026-10-08**: `test_taxonomy.md` section 7.4.1.0 |
+| ~~V3~~ | ~~Total skips above 20%~~ | **Retired 2026-10-08**: `harness_test_taxonomy.md` section 7.4.1.0 |
+| ~~V4~~ | ~~P0/P1 skips above 10%~~ | **Retired 2026-10-08**: `harness_test_taxonomy.md` section 7.4.1.0 |
 | V5 | Any quarantine entry expired as of `as_of_date`, by model change or the 21-day window | Red |
 | V6 | Zero graded observations | Red: §4.5 |
 | V7 | P0 share of the corpus above its ceiling | Red: §4.4 |
@@ -96,9 +96,9 @@ Each metric uses a different denominator, and the distribution one is load-beari
 | Pass rate (V2) | Executions, **including a skip the model caused** | A skip whose cause was ours or the network's, a dispensed quarantine entry, probes |
 | Skip rate (**diagnostic only**) | Observations | `unsupported` pairs, `dependency` skips |
 
-**What the pass-rate denominator changed to, 2026-10-08.** It excluded every quarantined case and every skip. It now excludes neither: a quarantined case and a cascaded skip did not pass, and a rate stated over what happened to run is the "selective passing rate" the band floor was corrected for the day before. The exclusions that remain are the three a declaration or an attribution earns, and `test_taxonomy.md` section 7.4.1 holds the table.
+**What the pass-rate denominator changed to, 2026-10-08.** It excluded every quarantined case and every skip. It now excludes neither: a quarantined case and a cascaded skip did not pass, and a rate stated over what happened to run is the "selective passing rate" the band floor was corrected for the day before. The exclusions that remain are the three a declaration or an attribution earns, and `harness_test_taxonomy.md` section 7.4.1 holds the table.
 
-**The skip rate is now a diagnostic rather than a gate**, since the two rules reading it are retired. It is still reported per (test x engine) pair, because a case that always skips on one engine and never on another is a defect or a capability gap rather than flakiness, and a global percentage buries it (`test_taxonomy.md` section 7.4).
+**The skip rate is now a diagnostic rather than a gate**, since the two rules reading it are retired. It is still reported per (test x engine) pair, because a case that always skips on one engine and never on another is a defect or a capability gap rather than flakiness, and a global percentage buries it (`harness_test_taxonomy.md` section 7.4).
 
 **Why dependency skips are excluded from the skip rate:** a foundational P0 failure cascades into many skips, and counting them in the skip diagnostic misdirects reading toward the environment when the run is already red from V1. **They are not excluded from the pass rate**, where they are exactly what they look like: cases that did not pass because something they rest on failed.
 
@@ -230,7 +230,7 @@ engine has no file does no expiry work and does not consult the evaluation date.
 |---|---|
 | Per file rather than one keyed by engine | The per-engine state is readable and diffable on its own, and adding an engine adds a file rather than editing a shared one |
 | Absent means empty | The default costs nothing to express, and an empty list in a file is the same statement with a file to maintain |
-| **The candidate engine, not the judge** | An entry records a finding about the model under test. The judge is not under test (section 6.2 of `test_taxonomy.md`) |
+| **The candidate engine, not the judge** | An entry records a finding about the model under test. The judge is not under test (section 6.2 of `harness_test_taxonomy.md`) |
 
 #### 4.6.4 An undated entry is an instrument defect, and is never red
 
@@ -335,7 +335,7 @@ rather than an empty default.
 |---|---|
 | Quarantine excludes from the **pass-rate** denominator | `_build_population` filters `graded` alone |
 | A precondition cannot be quarantined | It must pass 100 percent with zero skips, so excluding it from a denominator it is not in changes nothing |
-| **This repository holds no graded case** | `ci_pipeline.md` section 3B.2 |
+| **This repository holds no graded case** | `harness_ci_pipeline.md` section 3B.2 |
 | An entry names a case identifier | Which is the case repository's data |
 
 So a quarantine entry here could never be about anything this repository owns.
@@ -996,7 +996,7 @@ the name would be reading a label rather than a fact.
 
 ## 5. Result Metadata Emission
 
-Every observation is emitted with the fields required by `test_taxonomy.md` §9: `engine`, `mode`, `model_version`, `priority`, `priority_conditions`, `taxonomy_code`, `duration`, `output_tokens`, plus the CLI invocation record from §7.
+Every observation is emitted with the fields required by `harness_test_taxonomy.md` §9: `engine`, `mode`, `model_version`, `priority`, `priority_conditions`, `taxonomy_code`, `duration`, `output_tokens`, plus the CLI invocation record from §7.
 
 Emitted as Allure parameters and labels, and through JUnit XML test names, so both reach a downstream collector without changes on its side.
 
@@ -1039,7 +1039,7 @@ rather than recovered from the contract that exists to carry them. A reviewer
 or an analysis has to be able to say which candidate and which judge a result
 came from, which is also why the engines get separate jobs.
 
-**`phase0_project_ambiguities.md` section A7.2's mechanism does not exist.** It
+**`harness_phase0_project_ambiguities.md` section A7.2's mechanism does not exist.** It
 states that "pytest parameterization supplies both automatically:
 `MQC_EVAL_30001_...[gemini]` appears in the JUnit XML `name` attribute and in
 Allure `parameters[]`". The engine is a **command-line flag, not a
@@ -1147,7 +1147,7 @@ checkable rather than asserted.
 **The skipped row was added 2026-10-08 and it is not a refinement.** A skipped
 report is not a passing one, so the condition read `passed` alone and was
 correct for exactly as long as a skipped case recorded nothing. Once a skip
-began recording its own observation (`test_taxonomy.md` section 7.4.1.2), every
+began recording its own observation (`harness_test_taxonomy.md` section 7.4.1.2), every
 quarantined case started filing a vendor report about a response nobody
 received. `MQC_CMN_UNI_112050` asserts both halves: the observation is
 published, because that is what gives the pass rate a skip to count, and the
@@ -1220,7 +1220,7 @@ the mapping passed while nothing published it.
 |---|---|
 | `engine`, `mode`, `resolved_model` | Present, so a result is attributable to one model |
 | `taxonomy_code` | A parameter **and** a label |
-| `families`, `primary_family` | Present on a `SEC` or `TOOL` case, absent on `EVAL`, which is the gap `test_taxonomy.md` section 11.5.1 carries |
+| `families`, `primary_family` | Present on a `SEC` or `TOOL` case, absent on `EVAL`, which is the gap `harness_test_taxonomy.md` section 11.5.1 carries |
 | `vendor-report` | Attached on a failing case, carrying every observation with its request and response |
 
 ---
@@ -1282,7 +1282,7 @@ Specified here because the matrices are **loaded through the CSV loader**, so th
 
 #### 6.1.1 Why the model matrix carries families and the harness matrix does not
 
-**Families apply to graded cases only**, per `test_taxonomy.md` section 11: a precondition tests the harness, which performs no task. The column would be empty in every harness row, and an always-empty column teaches a reader to ignore a column.
+**Families apply to graded cases only**, per `harness_test_taxonomy.md` section 11: a precondition tests the harness, which performs no task. The column would be empty in every harness row, and an always-empty column teaches a reader to ignore a column.
 
 The two files therefore share one schema with `families` optional, and the harness file **omits the column rather than carrying it blank**. That needs no special case: an absent optional column takes its declared default, which is the rule `MQC_ING_UNI_111203` covers. Two schemas would have been the alternative, and two schemas for one matrix format is the drift this section exists to prevent.
 
@@ -1580,7 +1580,7 @@ Everything else follows. A diagnostic run skips preconditions, so it is ungated.
 
 **Being on a branch is not itself disqualifying**, and an earlier draft of this paragraph wrongly implied it was. A pull request runs on a branch, carries unmerged code, and is gated deliberately: it is a recorded proposal under review, and the full run on merge backstops it.
 
-What disqualifies a debug run is that **it can describe a repository state that never existed.** Section 6 of `ci_pipeline.md` lets a diagnostic take its code from one checkpoint and its fixtures from another, precisely so a regression can be attributed. That combination is a useful experiment and an invalid observation: nothing was ever released in that configuration, so no verdict about it means anything, and nothing backstops it the way a merge run backstops a pull request.
+What disqualifies a debug run is that **it can describe a repository state that never existed.** Section 6 of `harness_ci_pipeline.md` lets a diagnostic take its code from one checkpoint and its fixtures from another, precisely so a regression can be attributed. That combination is a useful experiment and an invalid observation: nothing was ever released in that configuration, so no verdict about it means anything, and nothing backstops it the way a merge run backstops a pull request.
 
 The condition is therefore `run_context` rather than a stricter rule about selection or about branches. A run assembled from parts is ungated regardless of how complete each part was.
 
@@ -1631,7 +1631,7 @@ Structural separation alone would fail the day someone widens the collector's pa
 
 Section 6.1 specifies the verdict as a pure function but not what invokes it. It is invoked by the standalone tool, reading emitted artifacts, **not** by an in-process hook during the run.
 
-The reason is specific to this project: thresholds are configuration (`extensibility_standard.md` section 14), so **a verdict can be recomputed from stored artifacts without re-running anything.** "What would this run have scored under the tightened floor?" is then answerable from history, which is what makes a threshold change auditable rather than merely disclosed.
+The reason is specific to this project: thresholds are configuration (`harness_extensibility_standard.md` section 14), so **a verdict can be recomputed from stored artifacts without re-running anything.** "What would this run have scored under the tightened floor?" is then answerable from history, which is what makes a threshold change auditable rather than merely disclosed.
 
 It also keeps the verdict function callable with synthetic observations, which is what makes its 46 cases possible without a suite run.
 
@@ -1665,7 +1665,7 @@ engine at all, because gemini **is** the default, and every deliberate run
 carried `QC_DATA_ENGINE_DEFAULTED`.
 
 **The warning exists to mark a record nobody chose the provider for** (A7.4).
-Firing it on records where somebody did choose inverts it: `ci_pipeline.md`
+Firing it on records where somebody did choose inverts it: `harness_ci_pipeline.md`
 already names this hazard when it says a signal present on every run trains a
 reader to ignore the one line that says a record is not what it appears to be.
 
@@ -1801,7 +1801,7 @@ So the record carries provenance and the load compares it field by field:
 | `band` | Which execution wrote it |
 
 **`rule_set_hash` is the primary guard**, and the refs are secondary, for the
-reason `test_taxonomy.md` section 9.1.1 gives: a commit reference cannot see an
+reason `harness_test_taxonomy.md` section 9.1.1 gives: a commit reference cannot see an
 uncommitted edit, and corpus edits between executions are normal working.
 
 **A mismatch refuses.** The two available fallbacks are both worse than
@@ -1838,7 +1838,7 @@ A fix to a model's injection handling does not map to a module, a layer or a fil
 
 **A case carrying the family in any position is selected, primary or secondary.**
 
-`test_taxonomy.md` §11.7.5 argued the opposite when it recorded this as a gap: that selecting on the primary returns the cases a fix wants re-run, and that including the rest returns cases that merely touch it. **That was wrong, and the error was in what selection is for.**
+`harness_test_taxonomy.md` §11.7.5 argued the opposite when it recorded this as a gap: that selecting on the primary returns the cases a fix wants re-run, and that including the rest returns cases that merely touch it. **That was wrong, and the error was in what selection is for.**
 
 A regression set exists to detect a regression. A case where the family is secondary still exercises it, so if the fix broke something that case can show it; omitting it buys a little quota and risks missing the thing the re-run was for. **Omission is the expensive error and inclusion is the cheap one**, which is the opposite balance from attribution.
 
@@ -2240,7 +2240,7 @@ Credentials are never in configuration. They are read from the environment at ru
 
 ## 9. Extensibility
 
-Governed project-wide by **`docs/design/extensibility_standard.md`**, which applies the same approach to the tier APIs, to provider adapters, and to growth in suite count. This section states only what is specific to verdict computation.
+Governed project-wide by **`docs/design/harness_extensibility_standard.md`**, which applies the same approach to the tier APIs, to provider adapters, and to growth in suite count. This section states only what is specific to verdict computation.
 
 **The invariant as it applies here:** adding a test type must not require editing verdict computation. A regression in the function deciding every run's outcome would misreport results for every existing test, not only the new one.
 
@@ -2268,10 +2268,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112003` | P | `green_when_p2_fails_within_pass_floor` (V1) |
 | `112004` | B | `green_at_exactly_ninety_percent_pass_rate` (V2) |
 | `112005` | N | `red_just_below_ninety_percent_pass_rate` (V2) |
-| ~~`112006`~~ | | ~~`green_at_exactly_twenty_percent_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
-| ~~`112007`~~ | | ~~`red_just_above_twenty_percent_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
-| ~~`112008`~~ | | ~~`green_at_exactly_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
-| ~~`112009`~~ | | ~~`red_just_above_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
+| ~~`112006`~~ | | ~~`green_at_exactly_twenty_percent_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
+| ~~`112007`~~ | | ~~`red_just_above_twenty_percent_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
+| ~~`112008`~~ | | ~~`green_at_exactly_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
+| ~~`112009`~~ | | ~~`red_just_above_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
 | `112010` | N | `red_when_quarantine_entry_expired` (V5) |
 | `112011` | P | `green_when_quarantine_entry_current` (V5) |
 | `112012` | B | `expiry_boundary_evaluated_against_injected_date` |
@@ -2292,6 +2292,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112343` | P | `a_registered_family_round_trips_and_leaves_no_trace` |
 | `112344` | N | `a_precondition_that_skipped_fails_the_run` |
 | `112345` | P | `a_case_whose_environment_scope_is_absent_is_deselected` |
+| `112346` | N | `a_document_naming_no_repository_is_reported` |
+| `112347` | P | `a_case_announces_its_node_identifier_before_running` |
 | `112020` | P | `security_layer_excluded_from_distribution_ceiling` |
 | `112021` | N | `precondition_failure_blocks_graded_evaluation` |
 | `112022` | N | `precondition_skip_is_a_failure` |
@@ -2461,7 +2463,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112509` | N | `a_merge_bringing_main_into_a_branch_is_reported` |
 | `112030` | N | `a_broken_graded_observation_blocks_and_exits_three` |
 | `112031` | N | `an_incomplete_skip_blocks_however_few_there_are` |
-| ~~`112032`~~ | | ~~`an_environmental_skip_is_tolerated_to_its_ceiling`~~. **Retired 2026-10-08**, `test_taxonomy.md` section 7.4.1. It asserted a run over a ceiling was red, and an outage is not the model's failure at any rate; `112045` states the replacement |
+| ~~`112032`~~ | | ~~`an_environmental_skip_is_tolerated_to_its_ceiling`~~. **Retired 2026-10-08**, `harness_test_taxonomy.md` section 7.4.1. It asserted a run over a ceiling was red, and an outage is not the model's failure at any rate; `112045` states the replacement |
 | `112510` | P | `an_integration_branch_may_omit_its_referent` |
 | `112400` | N | `a_dependent_of_a_failed_base_case_is_skipped_not_failed` |
 | `112401` | P | `a_dependent_of_a_passing_base_case_runs_normally` |
@@ -2509,7 +2511,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 259 cases, 143 negative, 87 positive, 29 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 261 cases, 144 negative, 88 positive, 29 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -2534,7 +2536,7 @@ A new case may move the P0 and P1 shares, and those carry enforced ceilings. Wri
 
 **Demotion is the part that matters most.** When a ceiling binds, the mechanism demotes cases, and a demotion made to satisfy a percentage is exactly the inflation the condition registry exists to prevent, running in reverse. A level assigned because a budget had room means no more than one assigned because a budget was short.
 
-So a demotion is a decision like any other: documented, designed for, and only then implemented. `test_taxonomy.md` section 4.1.4 states how it is reported.
+So a demotion is a decision like any other: documented, designed for, and only then implemented. `harness_test_taxonomy.md` section 4.1.4 states how it is reported.
 
 An earlier version of this paragraph argued that documenting afterwards produces weaker prose. Measured against the sections written each way, it does not, and the argument was abandoned rather than kept because it sounded right.
 
@@ -2642,11 +2644,11 @@ Nothing here detected it. The repository is normally used from its own source tr
 
 ### 10.9 The fan-out and named-test cases
 
-Added 2026-09-23 with the three regression and debug workflows in `ci_pipeline.md` sections 3A, 3B and 6A.
+Added 2026-09-23 with the three regression and debug workflows in `harness_ci_pipeline.md` sections 3A, 3B and 6A.
 
 `112137` through `112139` cover the consumer registry the fan-out reads. **A consumer entry naming no repository is rejected** rather than tolerated, because it would report unreachable on every run, which reads as a consumer problem when it is a registry typo. **An absent registry is a starting condition**: a harness with no registered consumers has nothing to fan out to, which is not an error.
 
-`112141` and `112142` cover the per-branch pairing added with `ci_pipeline.md`
+`112141` and `112142` cover the per-branch pairing added with `harness_ci_pipeline.md`
 section 3C. A run is defined by a **pair** of refs, so the registry maps a
 branch of this repository to the consumer ref it is verified against.
 
@@ -3187,7 +3189,7 @@ strings, and a substring check reports itself.
 ### 10.15 The taxonomy carries both directions of a finding
 
 Added 2026-09-23 with `QC_LLM_DEFECT_MISSED` and `QC_LLM_MATCH_MISCOMPUTED`
-(`test_taxonomy.md` section 6.1.1).
+(`harness_test_taxonomy.md` section 6.1.1).
 
 **A recall figure needs both directions to mean anything.** A model that reports
 every defect and several that do not exist scores identically to one that
@@ -3210,7 +3212,7 @@ against a code that no longer exists.
 
 ### 10.16 The family registration mechanism, enforced
 
-Added 2026-09-23. `test_taxonomy.md` section 11.2 is a ten-step procedure for
+Added 2026-09-23. `harness_test_taxonomy.md` section 11.2 is a ten-step procedure for
 adding an evaluation family, and step 10 lists what must hold when it is done.
 Three of those assertions had no enforcement behind them, and one named a case
 that checked something else.
@@ -3412,12 +3414,12 @@ exit 2.
 
 ### 10.22 The operator runbook
 
-Added 2026-09-24. `docs/running_jobs.md` is the whole operating procedure for
+Added 2026-09-24. `docs/harness_running_jobs.md` is the whole operating procedure for
 the three on-demand workflows, and `112504` checks it against them.
 
 **A tester does not read a design document to dispatch a job.** A procedure
 that costs a design read is a procedure people work around, so the runbook is
-separate from `ci_pipeline.md` rather than a section inside it.
+separate from `harness_ci_pipeline.md` rather than a section inside it.
 
 **`112504` reads every fenced `gh workflow run` command and requires that the
 workflow exists and declares every input the command names.** A dispatch naming
@@ -3429,7 +3431,7 @@ it.
 
 ### 10.23 The branch policy
 
-Added 2026-09-24. `112505` through `112509` enforce `ci_pipeline.md` section
+Added 2026-09-24. `112505` through `112509` enforce `harness_ci_pipeline.md` section
 3C.6, and they are pure functions over a branch name, a base and a set of merge
 parents, so every one runs offline against synthetic input.
 
@@ -3501,7 +3503,7 @@ the second asks whether a number is being double-counted. `dependency` is
 excluded from one and counted by the other for exactly that reason.
 
 **The ceilings those treatments referred to are retired**, V3 and V4 both
-(`test_taxonomy.md` section 7.4.1.0).
+(`harness_test_taxonomy.md` section 7.4.1.0).
 
 **`incomplete` is new and it closes the worst of the two holes.** A case that
 skipped because nobody had written it yet had no reason of its own, so it took
@@ -3893,7 +3895,7 @@ declaration like any other.
 ### 10.29 The homoglyph vector
 
 Added 2026-09-24. `112403` covers the vector designed in
-`extensibility_standard.md` section 2.4, which writing the security corpus
+`harness_extensibility_standard.md` section 2.4, which writing the security corpus
 found missing.
 
 **The boundary is a mixed script inside one word**, and the case names both

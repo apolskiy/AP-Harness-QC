@@ -73,7 +73,7 @@ and the crons return when weekly regression is set up against a stable `main`.**
 | Reason | |
 |---|---|
 | A cron against a moving branch | Produces a red nobody acts on, weekly, which trains readers to ignore the one signal that a regression is real |
-| A cron that spends quota | Competed with corpus recording for the free tier's 20 requests per day per model. **That reason expired on 2026-09-28**, when both engines were funded (`OPEN_QUESTIONS.md` section 2A, settled 2026-09-28); the two reasons above did not, and they are why no cron has returned |
+| A cron that spends quota | Competed with corpus recording for the free tier's 20 requests per day per model. **That reason expired on 2026-09-28**, when both engines were funded (`harness_open_questions.md` section 2A, settled 2026-09-28); the two reasons above did not, and they are why no cron has returned |
 | A cron on a broken workflow | `evaluate-live-weekly.yml` in **this** repository ran graded markers that collect nothing here, so it failed every Sunday for a structural reason (section 3.1.0) |
 
 **On-change triggers are unaffected and are the point.** `gate-on-change.yml`
@@ -189,7 +189,7 @@ Each declares `needs` on its predecessor, so a precondition failure leaves the n
 
 **What this repository owes instead is proof that the instrument works**, and that is `MQC_CMN_SYS_122000` to `122002` inside Gate 3: the whole chain on a synthetic corpus, from the ingestion join through replay dispatch and the dual pass to a computed verdict, asserting it reaches **both** a green and a red. A harness that cannot report red about a failing model cannot be trusted when it reports green.
 
-**`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and is recorded in `OPEN_QUESTIONS.md` section 2.7, because what a harness-only live run should measure is a question about quota rather than about structure.
+**`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and is recorded in `harness_open_questions.md` section 2.7, because what a harness-only live run should measure is a question about quota rather than about structure.
 
 **Section 3.1.1 below describes the three-step graded job as the consumer runs it**, and its requirement of three separate JUnit files is a requirement on that pipeline.
 
@@ -236,7 +236,7 @@ A conditional inside a step is the warning sign. One is a compromise worth recor
 
 `os` joins the required result metadata for the same reason `engine` and `mode` are there: a result that cannot say where it ran cannot be compared with one that can, and it becomes a collector parameter column at no cost.
 
-**Alternating platforms between runs is precluded**, per A18 and `extensibility_standard.md` section 7. A gated run executes every supported platform; a scheme that runs one platform on one commit and the other on the next is forbidden rather than merely unchosen, because it cannot separate a platform difference from the change between the two runs.
+**Alternating platforms between runs is precluded**, per A18 and `harness_extensibility_standard.md` section 7. A gated run executes every supported platform; a scheme that runs one platform on one commit and the other on the next is forbidden rather than merely unchosen, because it cannot separate a platform difference from the change between the two runs.
 
 This binds `gate-on-change.yml` and `evaluate-live-weekly.yml`. It does not bind `diagnose-on-demand.yml`, which may name a single platform and yields no verdict either way.
 
@@ -1062,7 +1062,7 @@ the thing it controls becomes reachable.
 |---|---|
 | Measured cost of a recording run | **Six cents** for the `SEC` family, 2026-09-28 |
 | A full graded run for one engine | Cents, including the judge |
-| The account's monthly limit | **$20 per provider**, recorded in `OPEN_QUESTIONS.md` section 1.1 |
+| The account's monthly limit | **$20 per provider**, recorded in `harness_open_questions.md` section 1.1 |
 | The ceiling | $2.00, which is roughly thirty times the measured cost and a tenth of the monthly limit |
 
 **The figure is a backstop, not a budget.** It exists to stop a loop, a
@@ -1097,7 +1097,7 @@ been green locally, twice over, for two unrelated reasons.
 | Where | Omitted |
 |---|---|
 | `testing-standards.md` | `cmn/`, `tools/`, `conftest.py` |
-| `docs/running_jobs.md` | `tools/`, `conftest.py` |
+| `docs/harness_running_jobs.md` | `tools/`, `conftest.py` |
 | `gate-on-change.yml` | `tools/` |
 | `regress-harness-on-branch.yml` | Nothing |
 

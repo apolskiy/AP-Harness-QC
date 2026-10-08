@@ -706,7 +706,7 @@ class GoldenRuleSet:
         families (tuple): The evaluation families this rule grades,
             **ordered with the primary first**. Every value is registered
             and the relation is many to many, so a complex rule names
-            several. Design ``test_taxonomy.md`` sections 11.7 and 11.8.
+            several. Design ``harness_test_taxonomy.md`` sections 11.7 and 11.8.
     """
 
     rule_id: str
@@ -729,7 +729,7 @@ class GoldenRuleSet:
     # WHICH EVALUATION FAMILIES THIS RULE GRADES, primary first. Declared
     # rather than derived: the layer answers for SEC and TOOL because each
     # maps to one family, and EVAL spans four, so the layer could never
-    # have answered for them. This is the source `test_taxonomy.md` section
+    # have answered for them. This is the source `harness_test_taxonomy.md` section
     # 11.5.1 recorded as missing, and the per-case mapping T5 takes.
     families: tuple[str, ...] = ()
 
@@ -744,7 +744,7 @@ class GoldenRuleSet:
         **A repeat is refused**, since a duplicate makes the primary ambiguous
         and would count the case twice in a per-family cost total.
 
-        Design: ``test_taxonomy.md`` sections 11.7.2 and 11.8.
+        Design: ``harness_test_taxonomy.md`` sections 11.7.2 and 11.8.
 
         Args:
             payload (Any): The declared value, absent or a sequence.

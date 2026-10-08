@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Builders the metadata cases assert against.
 
-Specified by ``test_taxonomy.md`` section 13.
+Specified by ``harness_test_taxonomy.md`` section 13.
 
 **Extracted 2026-10-05**, when ``mqc_uni_metadata.py`` stood at 998 lines
 against the thousand-line ceiling. The module is a list of claims about

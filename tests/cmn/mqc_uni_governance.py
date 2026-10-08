@@ -101,7 +101,7 @@ _BEHAVIOUR_LIMITS = (3, 60)
 
 # Which module each design document inventories. A row is keyed by module and
 # number together, because the five-digit blocks are partitioned per module
-# (test_taxonomy.md section 3.2.1) and a bare number would let a case match the
+# (harness_test_taxonomy.md section 3.2.1) and a bare number would let a case match the
 # WRONG module's row. That is worse than no check: it passes for the wrong
 # reason, which is how the overlap that prompted this went unnoticed.
 _DOCUMENT_MODULES = {

@@ -66,7 +66,7 @@ class TestMQCCascadeCost:
 
         # AND IT IS NEITHER A PASS NOR A FAILURE. Quarantine accepts a finding;
         # the band counts the skip against the band it was selected into.
-        # A SKIP IS A NON-PASS, per `test_taxonomy.md` section 7.4.1: in the
+        # A SKIP IS A NON-PASS, per `harness_test_taxonomy.md` section 7.4.1: in the
         # denominator and never the numerator, so declining to measure a case
         # reads as the failure it is. Quarantine saves the cost of measuring a
         # known failure and does not stop it being one.

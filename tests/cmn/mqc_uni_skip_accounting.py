@@ -7,7 +7,7 @@ Covers `MQC_CMN_UNI_112341` and `112342`, inventoried in
 
 **One subject: the accounting a skip receives.** A skip is a non-pass whatever
 its cause, and whether it is counted as a failure is decided by the reason it
-carries (`test_taxonomy.md` section 7.4.1). The one thing that can turn a
+carries (`harness_test_taxonomy.md` section 7.4.1). The one thing that can turn a
 counted skip back into an exclusion is a release dispensation product
 management has recorded (section 4.6.13).
 

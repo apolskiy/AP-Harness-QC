@@ -168,7 +168,7 @@ An errored response therefore terminates evaluation at the same point a screen a
 
 #### It is a model finding, not a harness one
 
-The provider transported the response correctly; the model produced nothing. That is the boundary rule of `extensibility_standard.md` section 2 applied exactly as it is for malformed tool arguments, so the code is `QC_LLM_NO_OUTPUT` and **not** a `QC_HARNESS_*` code.
+The provider transported the response correctly; the model produced nothing. That is the boundary rule of `harness_extensibility_standard.md` section 2 applied exactly as it is for malformed tool arguments, so the code is `QC_LLM_NO_OUTPUT` and **not** a `QC_HARNESS_*` code.
 
 A harness code here would record our infrastructure as broken and hide a real finding about the model. The distinction survives into the record, where repeated `QC_LLM_NO_OUTPUT` on one engine says something about that model that a parser error does not.
 
@@ -442,7 +442,7 @@ An engine may judge when it is **on the roster** and **declares
 engines exists anywhere.
 
 That is deliberate: a permitted-engines list would have to be edited whenever an
-adapter is added, which is exactly the coupling `extensibility_standard.md`
+adapter is added, which is exactly the coupling `harness_extensibility_standard.md`
 section 2 exists to prevent. The capability is already declared by every adapter
 because the judge's reply is schema-constrained (section 4), so the gate is a
 property the adapter already publishes rather than a new registration.
@@ -1169,7 +1169,7 @@ Calibration runs on the schedule, not on pull requests, since it requires live j
 
 ## 10. Conformance Suite
 
-Per `extensibility_standard.md` section 10, a registered aggregation strategy is enrolled automatically. The battery asserts that a strategy declares a `scale_id`, is deterministic for identical input, and handles both a single criterion and an empty-after-filtering set.
+Per `harness_extensibility_standard.md` section 10, a registered aggregation strategy is enrolled automatically. The battery asserts that a strategy declares a `scale_id`, is deterministic for identical input, and handles both a single criterion and an empty-after-filtering set.
 
 Judge adapters reuse the Tier 2 adapter conformance suite, with one addition: a judge engine must declare `structured_output`, since without it the schema tripwire in section 7 does not exist.
 
@@ -1310,7 +1310,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 **`114608` is the case the warn-not-abort decision exists to make possible.** Content the ingest screen matched and let through must be matched again by the Tier 3 screen. The two screens agreeing is the measurement A19 declined to destroy, and without this case the decision buys nothing.
 
-**`10350` and `10355` are retired.** They covered a redaction fallback that was implemented, never called, and removed on 2026-09-24 (`phase0_project_ambiguities.md`, part three). Their identifiers stay retired and are never reused.
+**`10350` and `10355` are retired.** They covered a redaction fallback that was implemented, never called, and removed on 2026-09-24 (`harness_phase0_project_ambiguities.md`, part three). Their identifiers stay retired and are never reused.
 
 **`114301` is marked foundational** (`@pytest.mark.base`). Isolation is the module's security control, and the assertion reduces it to a string containment check over the composed payload, so the defence is demonstrated rather than claimed.
 

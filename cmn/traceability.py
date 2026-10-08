@@ -503,7 +503,7 @@ def cases_for_families(
     **Inclusive of a secondary family.** A case where the family is secondary
     still exercises it, so omitting it from a regression set risks missing the
     regression the re-run exists to find. Primacy serves attribution rather
-    than selection, which ``test_taxonomy.md`` section 11.7.2 records as a
+    than selection, which ``harness_test_taxonomy.md`` section 11.7.2 records as a
     correction to an earlier claim.
 
     Design: ``cmn_verdict_and_cli.md`` section 7.7.2.

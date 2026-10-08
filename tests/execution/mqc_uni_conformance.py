@@ -8,7 +8,7 @@ Covers `MQC_EXE_UNI_113100` through `113102`, `113103`, `113104` through `113107
 
 **Parametrized over the registry, never over a list.** A list is a second place
 to forget, which is the failure mode the automatic enrolment in
-``extensibility_standard.md`` section 10 exists to remove. Registering an
+``harness_extensibility_standard.md`` section 10 exists to remove. Registering an
 adapter enrols it here, and there is nothing to remember.
 
 **These assert over the registry, which record-level cases cannot.** A case

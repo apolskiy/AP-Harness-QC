@@ -470,7 +470,7 @@ class Consumer:
         repository (str): The owner and repository to check out.
         refs (dict): Harness branch to consumer ref. **The pairing is per
             branch** because a run is defined by a pair of refs and not by
-            either alone (``ci_pipeline.md`` section 3C), so stabilization work
+            either alone (``harness_ci_pipeline.md`` section 3C), so stabilization work
             on one side is verified against stabilization work on the other.
         default_ref (str): The consumer ref for a harness branch the mapping
             does not name, which is every feature branch. A feature branch pairs
@@ -732,7 +732,7 @@ def unrostered_adapters(path: Path, registered: Iterable[str], as_of: date) -> l
     to be forgotten, which is the reasoning ``flag_coverage.yaml`` already
     carries for flags.
 
-    Design: ``extensibility_standard.md`` section 3.4.
+    Design: ``harness_extensibility_standard.md`` section 3.4.
 
     Args:
         path (Path): The engine roster file.

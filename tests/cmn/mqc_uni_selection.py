@@ -603,7 +603,7 @@ class TestMQCSpendCeiling:
         carries both flags on different lines. A check that over-reports is one
         a reader learns to skip.
 
-        Design: ``ci_pipeline.md`` section 8.2.
+        Design: ``harness_ci_pipeline.md`` section 8.2.
 
         Returns:
             None

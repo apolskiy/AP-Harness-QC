@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Demotion ordering, and why a demotion is reported rather than absorbed.
 
-Specified by ``docs/design/test_taxonomy.md`` sections 4.1.4 and 4.1.4.1.
+Specified by ``docs/design/harness_test_taxonomy.md`` sections 4.1.4 and 4.1.4.1.
 
 **Qualifying conditions set a ceiling, not an assignment.** A case may sit below
 the most severe condition it matches, and that is legitimate. What is not

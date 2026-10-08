@@ -29,6 +29,40 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Documents are named for their repository, and a case says its own name, 2026-10-08
+
+**Two repositories held a `docs/running_jobs.md` and a
+`docs/document_register.md` each**, and an editor tab shows a filename rather
+than a checkout: a change made in the wrong one parses, lints and commits.
+
+**A tracked document under `docs/` carries its repository's token**, which is
+the vocabulary the shipped names already used (`harness_test_plan.md` against
+`model_evaluation_test_plan.md`). Eight documents here and two in the case
+repository were renamed, 478 references followed, and both registers carry a
+renamed-from table so the old paths in the progress records stay resolvable.
+
+**A generic name is a collision waiting to happen**, which decided the scope:
+any repository carrying tests has a taxonomy, a pipeline, an extensibility
+standard and project phases. Four names already naming a harness tier or module
+were left alone and are declared exemptions rather than silences.
+
+**The rename exposed two functions reading one repository's filename under
+either repository's root.** `runbook_problems` is called from the case
+repository with its own root; after the rename it would have found no runbook
+and reported no problem. Both take the path explicitly now, with no default.
+
+**The document subject split out of `cmn/code_standards.py`** into
+`cmn/document_standards.py`, which the 900-line runway forced mid-change.
+
+**Every case announces its node identifier before it runs.** The numbered steps
+cover a graded case and nothing else, so 709 preconditions announced nothing. A
+traceback names the line that raised rather than the case that reached it, and
+the two differ whenever a helper is shared.
+
+Added: `112346` and `112347`, `115718`, `MQC_REQ_HAR_CMN_0147` and `0148`,
+`MQC_REQ_CAS_CI_0043`, with `cmn/document_naming.py`. Designs: `code-style.md`
+sections 7.2 and 7.1, `harness_test_taxonomy.md` section 8.3.1.
+
 ### A precondition does not skip, and a band line states all five counts, 2026-10-08
 
 **A harness unit job reported green at 99.44%**: 704 total, 700 executed, 700
@@ -70,7 +104,7 @@ criterion was covered and the mechanism it guards was not, and
 `unregister_evaluation_family` was called by nothing in either repository.
 
 Added: `112343` through `112345` and `MQC_REQ_HAR_CMN_0144` through `0146`, with
-`cmn/environments.py` and the `environment` marker. Designs: `test_taxonomy.md`
+`cmn/environments.py` and the `environment` marker. Designs: `harness_test_taxonomy.md`
 sections 7.5.1 and 11.6, `framework-rules.md` sections 1 and 3.1,
 `testing-standards.md`, `consumer_ci.md` section 3.12.3.
 
@@ -141,7 +175,7 @@ Retired with the rules: `112006` through `112009`, `112019` and `112032`, each
 listed struck through rather than removed. Added: `112044` through `112050`,
 `112341` and `112342` in the harness, `115717` in the case repository, with
 `MQC_REQ_HAR_CMN_0142` and `0143` and `MQC_REQ_CAS_CI_0042`. Designs:
-`test_taxonomy.md` sections 7.4.1, 7.4.1.0, 7.4.1.2, 7.4.1.3 and 7.4.2;
+`harness_test_taxonomy.md` sections 7.4.1, 7.4.1.0, 7.4.1.2, 7.4.1.3 and 7.4.2;
 `cmn_verdict_and_cli.md` sections 4.3, 4.4, 4.6.13, 5.3, 7.11 and 10.24.2;
 `consumer_ci.md` sections 3.12.3 and 6.4.1.
 
@@ -210,12 +244,12 @@ inventoried in a design document before it was built, which
   pylint's defaults permit to be single letters, so without it `[row for r in
   rows]` scores 10.00/10 while violating the rule it is meant to satisfy.
 
-- **`docs/design/phase0_project_ambiguities.md`** - a register of 13 blocking
+- **`docs/design/harness_phase0_project_ambiguities.md`** - a register of 13 blocking
   items, 10 deferrable assumptions and 3 governance ambiguities, each with a
   recorded decision. The governance layer specified *how* to build but never
   *what*; this closed that gap before any design commitment.
 
-- **`docs/design/test_taxonomy.md`** - the normative reference for what every
+- **`docs/design/harness_test_taxonomy.md`** - the normative reference for what every
   identifier means: module and layer registries, priority definitions with
   worked examples and distribution ceilings, the outcome model, and four failure
   taxonomy families (`QC_LLM_*`, `QC_HARNESS_*`, `QC_DATA_*`, `QC_SEC_*`).

@@ -9,7 +9,7 @@ SPDX-License-Identifier: Apache-2.0
 whole operating procedure for the three on-demand workflows. Every command
 works unchanged in `bash` and in PowerShell.
 
-If you want to know *why*, `docs/design/ci_pipeline.md` covers the workflows
+If you want to know *why*, `docs/design/harness_ci_pipeline.md` covers the workflows
 and section 3C covers branch topology. Nothing here requires reading them.
 
 ---
@@ -277,7 +277,7 @@ above the scale rather than inside it: a precondition failure means the graded
 layers never execute and nothing is measured, which is a stronger consequence
 than any level within the scale can express.
 
-`AP-Model-QC` `docs/running_jobs.md` section 4 covers reading a graded report,
+`AP-Model-QC` `docs/harness_running_jobs.md` section 4 covers reading a graded report,
 including the reproduction attachment a provider ticket is written from.
 
 ### 5.4 When you only want to know what failed

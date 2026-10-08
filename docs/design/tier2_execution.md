@@ -39,7 +39,7 @@ A vendor SDK object reaching Tier 3 is a design defect, because it would make th
 
 ## 3. The Adapter Interface
 
-One interface, implemented per provider. This is a **stable interface** under `extensibility_standard.md` section 9, so it may gain an optional parameter with a default and may never gain a required one.
+One interface, implemented per provider. This is a **stable interface** under `harness_extensibility_standard.md` section 9, so it may gain an optional parameter with a default and may never gain a required one.
 
 | Operation | Returns | Responsibility |
 |---|---|---|
@@ -61,7 +61,7 @@ An unrecognised provider error maps to `QC_HARNESS_PARSER_ERROR` and **records t
 
 ### 3.2 The adapter registry
 
-`extensibility_standard.md` section 10 requires that registration enrol an adapter in its conformance battery automatically. That requires a registry, and this is where it lives: `execution/adapters/registry.py`, mapping an engine name to the adapter class serving it.
+`harness_extensibility_standard.md` section 10 requires that registration enrol an adapter in its conformance battery automatically. That requires a registry, and this is where it lives: `execution/adapters/registry.py`, mapping an engine name to the adapter class serving it.
 
 | Rule | Why |
 |---|---|
@@ -120,7 +120,7 @@ four values rather than a module.
 
 **The registry was already extensible and the adapters were not.** Registration
 enrols an engine in the conformance battery automatically (section 10 of
-`extensibility_standard.md`), so adding one was never a wiring problem. It was
+`harness_extensibility_standard.md`), so adding one was never a wiring problem. It was
 a **duplication** problem: every new engine reimplemented request composition,
 normalization, tool-call capture, version resolution and error mapping, none of
 which is actually vendor-specific.
@@ -274,7 +274,7 @@ remembered to add it to one list.
 
 **Arguments are always a parsed mapping.** Providers differ here: some return arguments as a structured object, others as a JSON string that must be parsed. Leaving that difference visible to Tier 3 would mean the judge handling two shapes for the same fact.
 
-**A parse failure on tool arguments is a model finding, not a harness defect.** The provider transported the response correctly; the model emitted malformed JSON. It maps to `QC_LLM_SCHEMA_VIOLATION`, not `QC_HARNESS_PARSER_ERROR`. This is the boundary rule from `extensibility_standard.md` section 2, applied to the one place it is easiest to get backwards.
+**A parse failure on tool arguments is a model finding, not a harness defect.** The provider transported the response correctly; the model emitted malformed JSON. It maps to `QC_LLM_SCHEMA_VIOLATION`, not `QC_HARNESS_PARSER_ERROR`. This is the boundary rule from `harness_extensibility_standard.md` section 2, applied to the one place it is easiest to get backwards.
 
 ### 4.3 The finish reason is reconciled, not transcribed
 
@@ -555,7 +555,7 @@ artifacts.
 
 #### 7.4.1 The architecture already allowed it
 
-`extensibility_standard.md` section 2 states that a tier does not know how the
+`harness_extensibility_standard.md` section 2 states that a tier does not know how the
 tier below obtained its input, and that Tier 3 cannot tell whether a response
 came from a provider or a fixture. **That principle extends to the judge without
 amendment**, because `JudgeBinding.invoke` is an injected callable: a replaying
@@ -775,7 +775,7 @@ declaration was read by `resolve_judge_engine` and satisfied by nothing.
 
 #### 7.8.2 Two methods, added without breaking an implementation
 
-Section 9 of `extensibility_standard.md` permits a stable interface to gain an
+Section 9 of `harness_extensibility_standard.md` permits a stable interface to gain an
 **optional** parameter and never a required one. A new **abstract** method is
 worse than a required parameter: it breaks every implementation at import.
 
@@ -1105,13 +1105,13 @@ A dispatch produces an outcome rather than a response, because a skipped case is
 | `response` | `Optional[NormalizedResponse]` | Absent exactly when the case was skipped |
 | `taxonomy_code` | `Optional[str]` | The `QC_HARNESS_*` code, present exactly when `response` is absent |
 | `duration_ms` | `int` | Measured by the dispatcher, per section 4.4 |
-| `duration_kind` | `str` | `measured` or `truncated`, per `test_taxonomy.md` section 9.3 |
+| `duration_kind` | `str` | `measured` or `truncated`, per `harness_test_taxonomy.md` section 9.3 |
 | `attempts` | `int` | How many requests were issued, so a retried case is visible |
 | `rate_limit_encounters` | `int` | Counted per case and summed per run (section 8) |
 
 **`response` and `taxonomy_code` are mutually exclusive, and one is always present.** A record carrying both would leave downstream code to decide which it believed; a record carrying neither would be a case that neither produced a measurement nor said why.
 
-**On a timeout the duration is `truncated`.** It records how long the harness waited, not how long the model took, and the two must not be averaged together (`test_taxonomy.md` section 9.3).
+**On a timeout the duration is `truncated`.** It records how long the harness waited, not how long the model took, and the two must not be averaged together (`harness_test_taxonomy.md` section 9.3).
 
 **A run carries two records, not one.** `DispatchPlan` is fixed for the run: mode, fixture root, model and whether to record. `DispatchSession` is consumed by it: the clock, the spacing interval, the failure streak and the counters. Holding both in one mutable record would put the mode next to a counter that changes on every case, and a caller wanting to know how a run was configured would have to read a record that had been mutated since.
 
@@ -1442,8 +1442,8 @@ than to one pair at a time.
 
 #### 8.6.3 Where the remedies are written down
 
-The codes are registered in `test_taxonomy.md` section 6 and the operator
-response for each is in `running_jobs.md` section 6.1, which this section
+The codes are registered in `harness_test_taxonomy.md` section 6 and the operator
+response for each is in `harness_running_jobs.md` section 6.1, which this section
 organises rather than restates. **`QC_HARNESS_*` remains a skip at every
 level**: a harness event says our infrastructure produced no measurement, and
 no level of it is a finding about a model.
@@ -1573,7 +1573,7 @@ so a replay does answer what it ran against.
 
 ## 9. Conformance Suite
 
-Per `extensibility_standard.md` section 10, registration enrols an adapter automatically. The battery asserts:
+Per `harness_extensibility_standard.md` section 10, registration enrols an adapter automatically. The battery asserts:
 
 1. `compose_request` produces a valid request from a minimal case.
 2. `normalize_response` returns the canonical shape with every required field populated.
@@ -1746,7 +1746,7 @@ Its failure means the canonical shape does not hold across adapters, so every do
 
 #### 10.1.1 The version probe
 
-`113501` through `113504` cover the nightly probe specified in `ci_pipeline.md` section 4. The probe resolves each engine's model version and decides whether a live run is warranted, which is decision logic and therefore testable rather than configuration.
+`113501` through `113504` cover the nightly probe specified in `harness_ci_pipeline.md` section 4. The probe resolves each engine's model version and decides whether a live run is warranted, which is decision logic and therefore testable rather than configuration.
 
 **`113503` is the boundary that matters.** On a first run no baseline exists, and an absent baseline is not a change. Treating it as one would dispatch a live run for every engine the first time the probe executes, and again after any baseline reset, spending quota to discover nothing. The case is stated at the exact condition, per the boundary rule.
 
@@ -1766,7 +1766,7 @@ Its failure means the canonical shape does not hold across adapters, so every do
 
 `.gitattributes` also pins line endings. **Both exist because either alone is a single point of failure**: the attributes file can be edited or absent in a copy of the repository, and normalization in code cannot repair a fixture that was recorded from already-rewritten content.
 
-**`113605` is the one place a stale fixture is not a problem.** `MQC_REQ_HAR_EXE_0009` requires staleness to be reported rather than silently replayed, because replaying a recorded answer to a different question corrupts the result. Under the divergent refs of `ci_pipeline.md` section 6.4, a changed request hash is the answer the diagnostic was asking: it says the request composition changed between the two checkpoints. The run reports it per fixture and continues.
+**`113605` is the one place a stale fixture is not a problem.** `MQC_REQ_HAR_EXE_0009` requires staleness to be reported rather than silently replayed, because replaying a recorded answer to a different question corrupts the result. Under the divergent refs of `harness_ci_pipeline.md` section 6.4, a changed request hash is the answer the diagnostic was asking: it says the request composition changed between the two checkpoints. The run reports it per fixture and continues.
 
 **`113504` keeps a broken detector from reading as a model finding.** A probe failure means our code or the provider's metadata endpoint failed, so it records a `QC_HARNESS_*` event and dispatches nothing. The unconditional weekly run covers the period regardless, which is why the probe is allowed to fail without escalating.
 
@@ -1774,7 +1774,7 @@ Its failure means the canonical shape does not hold across adapters, so every do
 
 `113110` through `113114` are the conformance battery's own rows, explained in section 9.1: they assert over the registry rather than over a constructed record. `113113` and `113115` guard the registry itself, one against a name claimed twice and one against a name claimed by nothing.
 
-`113000` through `113008`, with `113009` and `113010`, are the per-adapter cases section 9 requires and `extensibility_standard.md` section 11 makes mandatory for any registry addition. Each names a **real difference between the three providers**, not a restatement of the shared contract:
+`113000` through `113008`, with `113009` and `113010`, are the per-adapter cases section 9 requires and `harness_extensibility_standard.md` section 11 makes mandatory for any registry addition. Each names a **real difference between the three providers**, not a restatement of the shared contract:
 
 | Provider behaviour | Case | What goes wrong without it |
 |---|---|---|

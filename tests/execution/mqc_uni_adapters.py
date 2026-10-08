@@ -6,7 +6,7 @@ Covers `MQC_EXE_UNI_113000` through `113008`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.3.
 
 **Passing the conformance battery is necessary and not sufficient**
-(``extensibility_standard.md`` section 11). An adapter can satisfy every shared
+(``harness_extensibility_standard.md`` section 11). An adapter can satisfy every shared
 contract assertion while mapping its provider's rate-limit error to the wrong
 code or dropping a system instruction, because the contract cannot know what
 each implementation was supposed to do internally.

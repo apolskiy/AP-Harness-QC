@@ -96,7 +96,7 @@ def band_lines(
             preconditions. **Named apart because no reason excuses one**: a
             precondition measures our harness and a skipped one measured
             nothing, so the run exits 3 and the line says so rather than
-            offering a reason (`test_taxonomy.md` section 7.5.1).
+            offering a reason (`harness_test_taxonomy.md` section 7.5.1).
 
     Returns:
         list[str]: Two lines, or empty when the selection was empty. **An empty

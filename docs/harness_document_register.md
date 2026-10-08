@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 # Document Register
 
 **Every tracked document in this repository, and what it holds.** Added
-2026-10-04 at the project owner's instruction, after `test_taxonomy.md` was
+2026-10-04 at the project owner's instruction, after `harness_test_taxonomy.md` was
 found to have fallen behind the changes made around it.
 
 **This is the list a documentation review works through.** `DESIGN.md` section 3
@@ -29,14 +29,14 @@ a complete list nobody opens prevents nothing.
 | Document | Holds |
 |---|---|
 | `DESIGN.md` | The referential index. Architecture, the reading order, and the decisions shaping everything downstream |
-| `docs/design/phase0_project_ambiguities.md` | Every project-level decision, with what was rejected and why. Cited as A1 to A13 and B1 to B10. A dated record, never rewritten |
-| `docs/design/test_taxonomy.md` | The single registry of identifiers, priorities, failure codes, the outcome model, verdict rules, required result metadata and the evaluation family registry |
-| `docs/design/extensibility_standard.md` | How the system absorbs a new provider, layer or test type. Tier contracts, adapter interface, conformance suites, schema versioning |
+| `docs/design/harness_phase0_project_ambiguities.md` | Every project-level decision, with what was rejected and why. Cited as A1 to A13 and B1 to B10. A dated record, never rewritten |
+| `docs/design/harness_test_taxonomy.md` | The single registry of identifiers, priorities, failure codes, the outcome model, verdict rules, required result metadata and the evaluation family registry |
+| `docs/design/harness_extensibility_standard.md` | How the system absorbs a new provider, layer or test type. Tier contracts, adapter interface, conformance suites, schema versioning |
 | `docs/design/tier1_ingestion.md` | Schemas, loaders, validation policy, referential integrity, ingest-time screening, calibration |
 | `docs/design/tier2_execution.md` | Adapter interface, response and tool-call shapes, model version resolution, replay integrity, rate limiting |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation, aggregation, calibration |
 | `docs/design/cmn_verdict_and_cli.md` | Verdict computation, both CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, subset selection |
-| `docs/design/ci_pipeline.md` | The workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming |
+| `docs/design/harness_ci_pipeline.md` | The workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming |
 
 ## Test planning
 
@@ -50,13 +50,13 @@ a complete list nobody opens prevents nothing.
 
 | Document | Holds |
 |---|---|
-| `docs/document_register.md` | **This file.** Every tracked document and what it holds, checked against the repository both ways |
+| `docs/harness_document_register.md` | **This file.** Every tracked document and what it holds, checked against the repository both ways |
 | `README.md` | **The latest state only.** What the project is, how to run it, the current figures. Never a history |
-| `docs/running_jobs.md` | How to run each workflow and what each one spends |
-| `docs/OPEN_QUESTIONS.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog** |
+| `docs/harness_running_jobs.md` | How to run each workflow and what each one spends |
+| `docs/harness_open_questions.md` | Decisions waiting on a person, and the blockers only the account owner can clear. **Not a backlog** |
 | `CHANGELOG.md` | **How the project arrived at its current shape.** The history a reader needs to understand why something is the way it is |
 | `CLAUDE_LOG.md` | Decisions and their reasoning in date order, written for an external reader. What was found, what it broke, what the injection showed |
-| `docs/problems_found.md` | **The index over the log**, grouping what this project found by the shape of the defect: model findings, machinery that was right and unreachable, checks that fed themselves, records wrong about their own reason, and tooling defects |
+| `docs/harness_problems_found.md` | **The index over the log**, grouping what this project found by the shape of the defect: model findings, machinery that was right and unreachable, checks that fed themselves, records wrong about their own reason, and tooling defects |
 
 **`README.md`, `CHANGELOG.md` and `CLAUDE_LOG.md` divide by time, not by topic.**
 The README says what is true now, the changelog says how it became true, and the
@@ -105,3 +105,32 @@ this repository**, per `CLAUDE.md`.
 | `model_evaluation_test_plan.md` | The evaluation requirements and the graded case inventory |
 | `rtm_model.csv` | Evaluation requirements mapped to graded cases, with their evaluation families |
 | `consumer_ci.md` | The case repository's own CI topology and harness pinning |
+
+## Renamed documents
+
+A renamed document keeps its former name recorded here, for the reason
+`testing-standards.md` section 3.2 gives about identifiers: `CLAUDE_LOG.md`
+carries the old path in entries that were true when written, and a reader of
+that history has to be able to follow it.
+
+**Renamed 2026-10-08** at the project owner's instruction, so an open editor tab
+says which checkout a file belongs to (`code-style.md` section 7.2). A generic
+name is a collision waiting to happen: any repository carrying tests has a
+taxonomy, a pipeline, an extensibility standard and project phases.
+
+| Now | Former name |
+|---|---|
+| docs/harness_running_jobs.md | was `docs/running_jobs.md` |
+| docs/harness_document_register.md | was `docs/document_register.md` |
+| docs/harness_open_questions.md | was `docs/OPEN_QUESTIONS.md` |
+| docs/harness_problems_found.md | was `docs/problems_found.md` |
+| docs/design/harness_test_taxonomy.md | was `docs/design/test_taxonomy.md` |
+| docs/design/harness_ci_pipeline.md | was `docs/design/ci_pipeline.md` |
+| docs/design/harness_extensibility_standard.md | was `docs/design/extensibility_standard.md` |
+| docs/design/harness_phase0_project_ambiguities.md | was `docs/design/phase0_project_ambiguities.md` |
+
+**Four names were deliberately left alone**, each already naming a harness tier
+or a harness module, so a reader with one open knows where they are:
+`tier1_ingestion.md`, `tier2_execution.md`, `tier3_evaluation.md` and
+`cmn_verdict_and_cli.md`. `MQC_CMN_UNI_112346` holds that list and fails on a
+fifth.

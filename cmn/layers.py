@@ -3,7 +3,7 @@
 """The layer registry, and the outcome registry the verdict reads denominators from.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` section 9 and
-``docs/design/test_taxonomy.md`` sections 2 and 9.
+``docs/design/harness_test_taxonomy.md`` sections 2 and 9.
 
 **Layer semantics are read, never hardcoded.** The verdict function asks a layer
 whether it is graded and whether it is exempt from the distribution ceilings
@@ -113,7 +113,7 @@ _OUTCOMES: Final[dict[str, OutcomeProperties]] = {
     # in verdict.py, which exits 3 rather than 1.
     "broken": OutcomeProperties("broken", False, False, False, True),
     # A SKIP IS A NON-PASS, AND ITS CAUSE DECIDES WHETHER IT IS A FAILURE
-    # (`test_taxonomy.md` section 7.4.1). This flag says a skip may enter the
+    # (`harness_test_taxonomy.md` section 7.4.1). This flag says a skip may enter the
     # pass-rate denominator at all; `skip_counts_as_failure` decides which ones
     # do, because a provider nobody could reach and a quarantined finding are
     # not the same event and must not be counted alike.
@@ -363,7 +363,7 @@ def skip_counts_as_failure(skip_reason: Optional[str]) -> bool:
     An unreachable provider, a fixture that would not load and a declared
     capability gap are not the model's failure and leave the rate.
 
-    Design: ``test_taxonomy.md`` section 7.4.1.
+    Design: ``harness_test_taxonomy.md`` section 7.4.1.
 
     Args:
         skip_reason (Optional[str]): Why the case skipped.

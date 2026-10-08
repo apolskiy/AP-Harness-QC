@@ -15,7 +15,7 @@ SPDX-License-Identifier: Apache-2.0
 | Test class | `TestMQC<Component>` | `pytest.ini` `python_classes`, `.pylintrc` `class-rgx` |
 | Test callable | `MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>` | `pytest.ini` `python_functions`, `.pylintrc` `function-rgx` / `method-rgx` |
 
-**The layer appears in the test module name** because nothing else carries it: the directory gives the module and the path gives nothing else. `mqc_uni_schemas.py` holds harness preconditions; `mqc_eval_grounding.py` holds model gradings. One layer per file, which subsumes the one-layer-per-class rule below. The full rule, including why harness modules take no prefix, is normative in `docs/design/test_taxonomy.md` section 2.1.
+**The layer appears in the test module name** because nothing else carries it: the directory gives the module and the path gives nothing else. `mqc_uni_schemas.py` holds harness preconditions; `mqc_eval_grounding.py` holds model gradings. One layer per file, which subsumes the one-layer-per-class rule below. The full rule, including why harness modules take no prefix, is normative in `docs/design/harness_test_taxonomy.md` section 2.1.
 
 The `test_` prefix is prohibited at every level: module, class, and function. Names built for pytest's defaults are a lint failure, not a style preference: `pytest.ini` would not collect them, so such a test lints clean, reports nothing, and never runs.
 
@@ -32,7 +32,7 @@ Currently registered layers:
 | `MQC_TOOL_` | `tool` | 141000-149999, by module | Tool-use compliance: required tools invoked, forbidden tools avoided. |
 | `MQC_SEC_` | `sec` | 151000-159999, by module | Model security behaviour: injection resistance, prompt leakage, tool coercion. **Own suite; exempt from priority distribution ceilings.** |
 
-`<MODULE>` is `ING`, `EXE`, `EVL` or `CMN`. Meanings, module and priority definitions, the outcome model and the failure taxonomy are normative in `docs/design/test_taxonomy.md`. This file holds the machine-enforced patterns only.
+`<MODULE>` is `ING`, `EXE`, `EVL` or `CMN`. Meanings, module and priority definitions, the outcome model and the failure taxonomy are normative in `docs/design/harness_test_taxonomy.md`. This file holds the machine-enforced patterns only.
 
 **Preconditions before graded layers.** `MQC_UNI_` and `MQC_SYS_` carry no priority and must pass 100%. If either fails, the graded layers (`MQC_EVAL_`, `MQC_TOOL_`) do not execute: a harness whose own tests are failing produces results that are suspect anyway, and running them spends provider quota to generate noise.
 
@@ -310,7 +310,7 @@ rather than a permitted list.
 * **ID Blocks**: IDs are assigned once and never reused, including after a test is deleted. A retired ID stays retired so downstream history never silently rebinds an identifier to different behavior.
 * **Behavior Suffix**: lowercase `snake_case` describing the asserted behavior, minimum 3 characters (`MQC_UNI_111000_rejects_missing_rubric_key`).
 * **One Layer Per Class**: a test class carries exactly one layer marker and exactly one priority. `pytest` propagates class-level markers to every method, so a class mixing layers causes both tests to be collected by the wrong gate and neither to be gated correctly. Verified by collection probe 2026-09-19.
-* **Priority Required On Graded Tests**: every **graded** test carries `@pytest.mark.priority(N)`, N in 0..4, assigned in the test design document. Definitions are normative in `docs/design/test_taxonomy.md`.
+* **Priority Required On Graded Tests**: every **graded** test carries `@pytest.mark.priority(N)`, N in 0..4, assigned in the test design document. Definitions are normative in `docs/design/harness_test_taxonomy.md`.
 
   **A precondition carries no priority marker because it is above the scale, not below it.** Saying it carries none invites the reading that it matters less, and the opposite is true: a P0 graded failure fails the run, while a precondition failure means the graded layers **never execute at all**, the run exits 3 rather than 1, and nothing is measured. That is a stronger consequence than any level inside the scale can express.
 
@@ -356,7 +356,7 @@ Gates run in order and each blocks the next. Gates 2 and 3 are deterministic and
 
 A shell-specific form anywhere in a tracked document is a defect, because the reader on the other platform has no way to tell that the line was never meant for them.
 
-**Serialization, not separation, resolves the quota conflict.** Priority bands share a provider quota, so running them concurrently multiplies requests against one free-tier ceiling and defeats the request spacing in `test_taxonomy.md`. Running them **one at a time** removes that objection entirely.
+**Serialization, not separation, resolves the quota conflict.** Priority bands share a provider quota, so running them concurrently multiplies requests against one free-tier ceiling and defeats the request spacing in `harness_test_taxonomy.md`. Running them **one at a time** removes that objection entirely.
 
 | Requirement | Mechanism |
 |---|---|
@@ -386,7 +386,7 @@ pytest -m "evaluator or tool" --priority 2,3,4 --with-prerequisites --engine gem
 pytest -m "evaluator or tool" --priority 2,3,4 --carry-outcomes reports/carry.json --engine gemini
 ```
 
-**Every gate runs on every supported platform, and alternating between them is prohibited.** Platforms are separate jobs with `fail-fast: false`, so one platform's failure neither cancels nor masks the other. A run that covers only one platform yields no verdict for the same reason a manual selection does not: it cannot establish what the gate exists to establish. Supported platforms are listed in `DESIGN.md` section 5.0 and the preclusion is normative in `docs/design/extensibility_standard.md` section 7.
+**Every gate runs on every supported platform, and alternating between them is prohibited.** Platforms are separate jobs with `fail-fast: false`, so one platform's failure neither cancels nor masks the other. A run that covers only one platform yields no verdict for the same reason a manual selection does not: it cannot establish what the gate exists to establish. Supported platforms are listed in `DESIGN.md` section 5.0 and the preclusion is normative in `docs/design/harness_extensibility_standard.md` section 7.
 
 The live suite is the one exception and it is a narrowing, not an alternation: it runs on one platform because platform coverage tests the harness rather than the model, and the replay legs have already covered both.
 
@@ -476,7 +476,7 @@ Allure labels are the grouping dimension downstream collection reads, so they ar
 * `@allure.epic("AP-Harness-QC")` on every test class. The case repository uses its own epic, so a collector reading both can tell which produced a result.
 * `@allure.feature(...)` naming the tier under test (`Ingestion`, `Execution`, `Evaluation`).
 * `@allure.story(...)` naming the scenario.
-* `@pytest.mark.priority(N)` on every **graded** test, translated by a `conftest.py` hook into the matching `@allure.severity(...)` label. A precondition carries no priority and therefore no severity label; the hook leaves it unset rather than inventing a default, because a default would make preconditions sortable by a severity nobody assigned. P0 maps to `blocker` through P4 to `trivial`; definitions are normative in `docs/design/test_taxonomy.md`. The run-verdict gate reads the marker and downstream analysis reads the label, from one source of truth.
+* `@pytest.mark.priority(N)` on every **graded** test, translated by a `conftest.py` hook into the matching `@allure.severity(...)` label. A precondition carries no priority and therefore no severity label; the hook leaves it unset rather than inventing a default, because a default would make preconditions sortable by a severity nobody assigned. P0 maps to `blocker` through P4 to `trivial`; definitions are normative in `docs/design/harness_test_taxonomy.md`. The run-verdict gate reads the marker and downstream analysis reads the label, from one source of truth.
 * `allure.step` blocks around each distinct action. Steps are the only per-action record that survives into durable history.
 * **Failure Taxonomy Tag**: every deliberate failure assertion attaches its `QC_LLM_*` or `QC_HARNESS_*` code from `framework-rules.md` via `allure.dynamic.label` or the assertion message, so root-cause class is recoverable from the artifact alone.
 

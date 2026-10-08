@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """What the CI definitions must hold, checked before a push rather than by it.
 
-Specified by ``docs/design/ci_pipeline.md`` sections 8.2 and 8.3.
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.2 and 8.3.
 
 **Split from ``code_standards.py`` on 2026-10-04**, when these took that module
 past the thousand-line ceiling. The concerns differ: that module is about the
@@ -36,7 +36,7 @@ _CEILING_FLAG: Final[str] = "--max-spend"
 # A STEP THAT CAN REACH A PROVIDER. `--mode live` dispatches to the candidate
 # and `--judge-mode live` dispatches to the judge, which is never replayed: a
 # bound judge is a live call whatever the candidate mode. Either spends.
-# Design `ci_pipeline.md` section 8.2.
+# Design `harness_ci_pipeline.md` section 8.2.
 _SPENDING_FLAGS: Final[tuple[str, ...]] = ("--mode live", "--judge-mode live")
 
 # AND THE ONE THAT BOUNDS IT. `--max-spend` aborts before a request would take
@@ -61,7 +61,7 @@ def uncapped_spending_steps(root: Path) -> list[str]:
     a ceiling, on the same reasoning that makes the artifact check key on the
     flags rather than on the word pytest.
 
-    Design: ``ci_pipeline.md`` section 8.2.
+    Design: ``harness_ci_pipeline.md`` section 8.2.
 
     Args:
         root (Path): The repository root.
@@ -125,10 +125,10 @@ def _shell_invocations(workflow: Path) -> list[tuple[int, str]]:
 # EVERY PYLINT INVOCATION IN THE REPOSITORY, wherever it is written. The path
 # list is part of the command: a directory omitted from one copy passes that
 # gate and fails another, which arrives as a red on a commit already reported
-# green. Design `ci_pipeline.md` section 8.3.
+# green. Design `harness_ci_pipeline.md` section 8.3.
 
 
-def pylint_invocations(root: Path) -> dict[str, list[str]]:
+def pylint_invocations(root: Path, runbook: str) -> dict[str, list[str]]:
     """Return every pylint invocation written in the repository, by file.
 
     Reads the workflows and the tracked prose, because a documented command a
@@ -137,6 +137,9 @@ def pylint_invocations(root: Path) -> dict[str, list[str]]:
 
     Args:
         root (Path): The repository root.
+        runbook (str): The runbook's path relative to that root, supplied by the
+            caller because the two repositories name theirs differently
+            (`code-style.md` section 7.2).
 
     Returns:
         dict[str, list[str]]: Relative path to each invocation's argument
@@ -146,7 +149,7 @@ def pylint_invocations(root: Path) -> dict[str, list[str]]:
     sources = sorted((root / ".github" / "workflows").glob("*.yml"))
     sources += [
         root / ".claude" / "rules" / "testing-standards.md",
-        root / "docs" / "running_jobs.md",
+        root / runbook,
     ]
     for source in sources:
         if not source.is_file():
@@ -160,7 +163,7 @@ def pylint_invocations(root: Path) -> dict[str, list[str]]:
     return found
 
 
-def disagreeing_pylint_invocations(root: Path) -> list[str]:
+def disagreeing_pylint_invocations(root: Path, runbook: str) -> list[str]:
     """Report every pylint invocation that differs from the others.
 
     **The path list is part of the command.** Four copies stood with four
@@ -169,16 +172,18 @@ def disagreeing_pylint_invocations(root: Path) -> list[str]:
     directory passes the gate and fails the branch regression, which arrives as
     a red on a commit that was already reported green.
 
-    Design: ``ci_pipeline.md`` section 8.3.
+    Design: ``harness_ci_pipeline.md`` section 8.3.
 
     Args:
         root (Path): The repository root.
+        runbook (str): The runbook's path relative to that root, which the two
+            repositories name differently (`code-style.md` section 7.2).
 
     Returns:
         list[str]: One entry per invocation that is not the majority form,
         empty when every copy agrees.
     """
-    found = pylint_invocations(root)
+    found = pylint_invocations(root, runbook)
     everything = [call for calls in found.values() for call in calls]
     if not everything:
         return [
@@ -209,7 +214,7 @@ def duplicate_yaml_keys(root: Path) -> list[str]:
     loader that constructs the mapping has already resolved it. It needs no
     loader subclass either, which the ancestor limit in ``.pylintrc`` refuses.
 
-    Design: ``ci_pipeline.md`` section 8.3.2.
+    Design: ``harness_ci_pipeline.md`` section 8.3.2.
 
     Args:
         root (Path): The repository root.

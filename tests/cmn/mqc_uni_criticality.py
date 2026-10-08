@@ -4,7 +4,7 @@
 
 Covers ``MQC_CMN_UNI_112330``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
-``test_taxonomy.md`` section 6.4.
+``harness_test_taxonomy.md`` section 6.4.
 
 **Split from ``mqc_uni_metadata.py`` on 2026-10-05**, which the one case took
 to 1024 lines against the thousand-line ceiling. The ranking is its own
@@ -45,7 +45,7 @@ class TestMQCCodeCriticality:
         ranking exists to make are both named here: a compromise outranks a
         disagreement, and a disagreement is last.
 
-        Design: ``test_taxonomy.md`` section 6.4.
+        Design: ``harness_test_taxonomy.md`` section 6.4.
 
         Returns:
             None

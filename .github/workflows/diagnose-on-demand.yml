@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Runnable, never counted, never silent.
 #
-# Specified by docs/design/ci_pipeline.md section 6.
+# Specified by docs/design/harness_ci_pipeline.md section 6.
 #
 # THIS RUN CARRIES NO VERDICT AND GATES NOTHING. It is excluded from the durable
 # record by THREE INDEPENDENT MECHANISMS, because any one of them alone fails in

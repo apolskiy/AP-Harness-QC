@@ -8,7 +8,7 @@ Covers `MQC_CMN_UNI_112344` and `112345`, inventoried in
 **One subject: whether a case was this run's to measure.** A case needing
 something the environment lacks is deselected, which takes it out of the total.
 Anything that reaches execution and skips is a precondition that measured
-nothing, and the run exits 3 for it (`test_taxonomy.md` section 7.5.1).
+nothing, and the run exits 3 for it (`harness_test_taxonomy.md` section 7.5.1).
 
 A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
@@ -53,7 +53,7 @@ class TestMQCPreconditionSkips:
         **No reason excuses one.** A precondition measures our harness and every
         one is unconditionally blocking, so a skipped one measured nothing.
 
-        Design: ``test_taxonomy.md`` section 7.5.1.
+        Design: ``harness_test_taxonomy.md`` section 7.5.1.
 
         Returns:
             None
@@ -104,7 +104,7 @@ class TestMQCEnvironmentScope:
         put a non-outcome in the result where a reader had to interpret it: the
         line read "4 skipped for a reason of ours" and the job was green.
 
-        Design: ``test_taxonomy.md`` section 7.5.1.
+        Design: ``harness_test_taxonomy.md`` section 7.5.1.
 
         Returns:
             None

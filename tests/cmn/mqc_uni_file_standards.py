@@ -39,16 +39,19 @@ from cmn.case_module_standards import (
     unbounded_subprocess_calls,
 )
 from cmn.code_standards import (
-    document_register_problems,
-    registered_documents,
-    artifact_mandate_gaps,
-    flag_coverage_problems,
     annotation_gaps,
+    artifact_mandate_gaps,
     encoding_gaps,
+    flag_coverage_problems,
     future_annotation_imports,
     header_problems,
     markup_header_problems,
     markup_sources,
+)
+from cmn.document_standards import (
+    HARNESS_RUNBOOK,
+    document_register_problems,
+    registered_documents,
     runbook_problems,
 )
 
@@ -294,7 +297,7 @@ class TestMQCRunbook:
         Steps carrying a ``working-directory`` are skipped, their frame being
         that directory rather than the workspace.
 
-        Design: ``ci_pipeline.md`` section 3B.3.2.
+        Design: ``harness_ci_pipeline.md`` section 3B.3.2.
 
         Returns:
             None
@@ -356,7 +359,9 @@ class TestMQCRunbook:
         Returns:
             None
         """
-        problems = runbook_problems(Path(__file__).resolve().parents[2])
+        problems = runbook_problems(
+            Path(__file__).resolve().parents[2], HARNESS_RUNBOOK
+        )
         assert not problems, (
             "the runbook documents a dispatch that would be rejected, so the "
             "procedure fails for whoever follows it: " + "; ".join(problems)
@@ -391,7 +396,7 @@ class TestMQCCaseModuleContents:
         expiry, and an expired entry fails this. The list shrinks and never
         grows, because anything undeclared fails here on the day it is written.
 
-        Design: ``test_taxonomy.md`` section 13.
+        Design: ``harness_test_taxonomy.md`` section 13.
 
         Returns:
             None
@@ -468,7 +473,7 @@ class TestMQCBoundedSubprocesses:
         judgement; whether a bound exists is not, and only the second is
         mechanical.
 
-        Design: ``test_taxonomy.md`` section 14.
+        Design: ``harness_test_taxonomy.md`` section 14.
 
         Returns:
             None
@@ -509,13 +514,13 @@ class TestMQCDocumentRegister:
         every clone, which is how this case first went red in CI. A bare
         filename is a paired-repository citation and resolves elsewhere.
 
-        Design: ``test_taxonomy.md`` section 12.
+        Design: ``harness_test_taxonomy.md`` section 12.
 
         Returns:
             None
         """
         root = Path(__file__).resolve().parents[2]
-        register = root / "docs" / "document_register.md"
+        register = root / "docs" / "harness_document_register.md"
 
         assert register.is_file(), (
             "the register is absent, so nothing lists what a documentation "
@@ -534,7 +539,7 @@ class TestMQCDocumentRegister:
             f"the register yielded only {len(named)} documents, so the row "
             f"pattern no longer matches the register it is checking"
         )
-        assert "docs/document_register.md" in named, (
+        assert "docs/harness_document_register.md" in named, (
             "the register does not name itself, so adding it was not subject "
             "to the rule it introduces"
         )
@@ -723,21 +728,21 @@ class TestMQCLintParity:
         **The prose counts as much as the workflow.** A documented command a
         contributor copies decides what they check before pushing.
 
-        Design: ``ci_pipeline.md`` section 8.3.1.
+        Design: ``harness_ci_pipeline.md`` section 8.3.1.
 
         Returns:
             None
         """
         root = Path(__file__).resolve().parents[2]
 
-        found = pylint_invocations(root)
+        found = pylint_invocations(root, HARNESS_RUNBOOK)
         assert len(found) >= 4, (
             f"only {len(found)} file(s) name a pylint invocation, so the reader "
             f"no longer matches the places the command is written"
         )
-        assert not disagreeing_pylint_invocations(root), (
+        assert not disagreeing_pylint_invocations(root, HARNESS_RUNBOOK), (
             "pylint is run over different paths in different places: "
-            + "; ".join(disagreeing_pylint_invocations(root))
+            + "; ".join(disagreeing_pylint_invocations(root, HARNESS_RUNBOOK))
         )
 
         # IT REPORTS A DISAGREEMENT, which a repository already in agreement
@@ -753,13 +758,13 @@ class TestMQCLintParity:
         (workflows / "narrow.yml").write_text(
             "run: python -m pylint a/ --rcfile=.pylintrc\n", encoding="utf-8"
         )
-        reported = disagreeing_pylint_invocations(tmp_path)
+        reported = disagreeing_pylint_invocations(tmp_path, HARNESS_RUNBOOK)
         assert len(reported) == 1, f"expected one finding, got {reported}"
         assert "narrow.yml" in reported[0]
 
         # AND A TREE WITH NO INVOCATION AT ALL IS REPORTED, rather than passing
         # for having compared nothing.
-        assert disagreeing_pylint_invocations(tmp_path / "empty")
+        assert disagreeing_pylint_invocations(tmp_path / "empty", HARNESS_RUNBOOK)
 
     def MQC_CMN_UNI_112152_a_duplicated_yaml_key_is_reported(
         self, tmp_path: Path
@@ -777,7 +782,7 @@ class TestMQCLintParity:
         cannot do is run before a push on a machine without it, and the only
         local verification in use was a parse.
 
-        Design: ``ci_pipeline.md`` section 8.3.2.
+        Design: ``harness_ci_pipeline.md`` section 8.3.2.
 
         Returns:
             None

@@ -29,7 +29,7 @@ The tension is structural. `framework-rules.md` Gate 1 demands a **10.00/10 dete
 
 Three further facts constrain it:
 * This is a **public** repository. Pull requests from forks cannot read repository secrets, so any live-call gate breaks for outside contributions.
-* Live calls cost money per run, and `QC_HARNESS_RATE_LIMIT` and a timeout code already exist in the taxonomy (the timeout code was later split by source, see `test_taxonomy.md` section 9.4): an admission that provider failures will happen inside CI.
+* Live calls cost money per run, and `QC_HARNESS_RATE_LIMIT` and a timeout code already exist in the taxonomy (the timeout code was later split by source, see `harness_test_taxonomy.md` section 9.4): an admission that provider failures will happen inside CI.
 * Flakiness is not currently measurable across existing suites, because none configures reruns and every test is observed once per run.
 
 | Option | Determinism | Cost/run | Exercises real models |
@@ -456,7 +456,7 @@ Allure provides exactly five severity levels, and `testing-standards.md` already
 
 Allure carries `severity` in `labels[]`, so priority reaches a downstream record through a standard field. Implementation: `@pytest.mark.priority(N)` translated by a conftest hook into the Allure label, one source of truth serving both the gate and the report.
 
-Priority is assigned in the **test design document** before code exists, never at implementation time. Each level requires a written definition in `docs/design/test_taxonomy.md`; without definitions every test becomes P0 within a month, the standard failure mode of severity schemes.
+Priority is assigned in the **test design document** before code exists, never at implementation time. Each level requires a written definition in `docs/design/harness_test_taxonomy.md`; without definitions every test becomes P0 within a month, the standard failure mode of severity schemes.
 
 ---
 
@@ -485,7 +485,7 @@ This raises the bar for Phase 2 deliverables. If code is **evaluated against** t
 
 **Corollary:** extension points are configuration, never code. Already satisfied for engines (B8, B9) and test layers (three-step registration). Every later extension point is held to the same standard.
 
-**New document required:** `docs/design/test_taxonomy.md`, the single normative reference for layer tokens and their meanings, priority level definitions, and the failure taxonomy. `testing-standards.md` retains the machine-enforced patterns and points to it. One document a new contributor reads to learn what any identifier means, rather than reconstructing it from a linter regex.
+**New document required:** `docs/design/harness_test_taxonomy.md`, the single normative reference for layer tokens and their meanings, priority level definitions, and the failure taxonomy. `testing-standards.md` retains the machine-enforced patterns and points to it. One document a new contributor reads to learn what any identifier means, rather than reconstructing it from a linter regex.
 
 ---
 
@@ -588,18 +588,18 @@ This is not a repository that would have to be untangled. The document set alrea
 
 | Harness side | Case side |
 |---|---|
-| Four module designs, `ci_pipeline.md`, `extensibility_standard.md` | `model_evaluation_test_plan.md` |
+| Four module designs, `harness_ci_pipeline.md`, `harness_extensibility_standard.md` | `model_evaluation_test_plan.md` |
 | `harness_test_plan.md`, `rtm_harness.csv` | `rtm_model.csv`, `data/`, `tests/fixtures/` |
 | 222 precondition cases | 66 graded cases |
 | 82 harness requirements | 26 model requirements |
 
-**One document genuinely spans both: `test_taxonomy.md`**, the single registry of identifiers, priorities and failure codes. Under a split it becomes the shared dependency, published from the harness side and consumed by the case side, because `framework-rules.md` section 4.1 forbids duplicating it and two copies would drift exactly as that section describes.
+**One document genuinely spans both: `harness_test_taxonomy.md`**, the single registry of identifiers, priorities and failure codes. Under a split it becomes the shared dependency, published from the harness side and consumed by the case side, because `framework-rules.md` section 4.1 forbids duplicating it and two copies would drift exactly as that section describes.
 
 Two mechanisms already in the design survive a split without change. **The request hash on every fixture** makes a recorded response safe across independently versioned repositories: a harness whose request composition has moved reports staleness rather than replaying an answer to a different question, which is precisely the cross-version check a split would need. **The `MQC` prefix** was adopted because a durable record spans several sources, so identifiers remain unambiguous when the sources become separate repositories.
 
 #### What the constraint costs today
 
-The two-ref diagnostic in `ci_pipeline.md` section 6.4 separates **code from recorded responses**, not harness from cases. `code_ref` moves both together, because they are one tree.
+The two-ref diagnostic in `harness_ci_pipeline.md` section 6.4 separates **code from recorded responses**, not harness from cases. `code_ref` moves both together, because they are one tree.
 
 A split would make that a third axis, and the natural form of the inputs would become `harness_ref` and `cases_ref` alongside `fixture_ref`. **The checkpoint design is therefore a partial version of the separation described here**, reached within one repository, and it is the closest this arrangement gets to the capability the split would provide.
 
@@ -643,7 +643,7 @@ Considered as a way to halve CI time. **The gate exists to prove that this commi
 
 That is the attribution problem A14 was designed to avoid, reintroduced on a different axis. Cost is also not binding: preconditions and graded replay consume no quota, and Actions is free for public repositories. If cost ever binds, the lever is scoping, not alternating.
 
-**Recorded as a standing preclusion** in `extensibility_standard.md` section 7, not left as a rejected option here. The saving it offers is real and will be proposed again, and a rejected option in a dated register is weaker than a rule.
+**Recorded as a standing preclusion** in `harness_extensibility_standard.md` section 7, not left as a rejected option here. The saving it offers is real and will be proposed again, and a rejected option in a dated register is weaker than a rule.
 
 #### Live runs do not need a platform matrix
 
@@ -693,7 +693,7 @@ The decision behind the amendment is that the security suite is deterministic **
 
 #### Generalised beyond this project
 
-Both rules are recorded in `extensibility_standard.md` section 7.1 as deliberately fixed, because **neither is a property of Tier 3**. Any component that composes a request to a model inherits them, and the checklist for an unanticipated test type now asks whether the addition puts content in front of a model.
+Both rules are recorded in `harness_extensibility_standard.md` section 7.1 as deliberately fixed, because **neither is a property of Tier 3**. Any component that composes a request to a model inherits them, and the checklist for an unanticipated test type now asks whether the addition puts content in front of a model.
 
 ---
 
@@ -706,7 +706,7 @@ Both rules are recorded in `extensibility_standard.md` section 7.1 as deliberate
 | B3 | Python version | **CONFIRMED 2026-09-19:** 3.14. Single version, no matrix: the harness has no version-sensitive surface. Enforced by `py-version` in `.pylintrc` rather than inferred from the runner. |
 | B4 | Cost ceiling per scheduled run | **CLOSED 2026-09-19:** not applicable under A3 Option 1 (zero recurring cost). The **paid-API alternative is documented in the design document as a costed alternative approach**, with the demo-project rationale stated: showing the option was evaluated rather than overlooked. |
 | B5 | Identifier prefix for downstream records | **REVISED 2026-09-19:** use **`MQC`** rather than a separate abbreviation. Two identifiers for one project, one in test IDs and another in the downstream record, would obstruct analysis across the record. One prefix everywhere. Open detail: a collector-assigned row would read `MQC_10001` against a test reading `MQC_UNI_10001_...`; different namespaces, visually similar. |
-| B6 | Artifact names published to Actions | **REVISED 2026-09-19:** parameterized by engine, `mqc-junit-<engine>`, `mqc-allure-<engine>`. A collector captures the engine as a named regex group, the standard pattern for matrix legs, so engine becomes a parameter column with no collector code change. Must be stable forever once keyed on. **REVISED AGAIN 2026-09-22:** superseded by `mqc-reports-<layer>-<engine>-<mode>` in `ci_pipeline.md` section 7.1. The original keyed on engine alone, which predates two later requirements: A6 makes replay and live results distinguishable from the row, and `framework-rules.md` section 1 emits a separate JUnit file per graded gate. A name carrying neither layer nor mode cannot distinguish them, and "stable forever" binds from the moment something keys on it, which nothing yet has. |
+| B6 | Artifact names published to Actions | **REVISED 2026-09-19:** parameterized by engine, `mqc-junit-<engine>`, `mqc-allure-<engine>`. A collector captures the engine as a named regex group, the standard pattern for matrix legs, so engine becomes a parameter column with no collector code change. Must be stable forever once keyed on. **REVISED AGAIN 2026-09-22:** superseded by `mqc-reports-<layer>-<engine>-<mode>` in `harness_ci_pipeline.md` section 7.1. The original keyed on engine alone, which predates two later requirements: A6 makes replay and live results distinguishable from the row, and `framework-rules.md` section 1 emits a separate JUnit file per graded gate. A name carrying neither layer nor mode cannot distinguish them, and "stable forever" binds from the moment something keys on it, which nothing yet has. |
 | B7 | Scope of v1: all three tiers, or Tier 1 first? | Tier 1 (Ingestion) complete first, since Tiers 2 and 3 both consume its schemas. |
 | B9 | CI job topology | **DECIDED 2026-09-19:** one job per engine via a GitHub Actions matrix, with **`fail-fast: false`** (the default `true` would let one engine's rate limit cancel the others). CI passes `--engine` explicitly despite the default, so a misconfigured matrix cannot silently evaluate Gemini three times and present it as three engines. |
 | B10 | Test identity across engines | **DECIDED 2026-09-19:** engine is a **pytest parameter**, not part of the test ID. One `MQC_EVAL_30001_...` observed three times, never `30001_gemini` / `30002_openai` / `30003_claude`. Duplicating IDs would triple the ID space and make the collector treat one test under three conditions as three unrelated tests, destroying cross-engine comparability. |
@@ -733,7 +733,7 @@ This is a genuine design fork: **structured outputs make the pipeline robust; no
 
 `ci.yml`, `probe.yml` and `live.yml` named their workflows by abbreviation. **`ci.yml` describes every workflow in the directory and therefore none of them**, since all four are continuous integration, and `probe` and `live` say nothing about when either fires.
 
-> **DECIDED 2026-09-22: `<verb>[-<subject>]-<cadence>.yml`.** Recorded with its extension rule in `ci_pipeline.md` section 2.1.
+> **DECIDED 2026-09-22: `<verb>[-<subject>]-<cadence>.yml`.** Recorded with its extension rule in `harness_ci_pipeline.md` section 2.1.
 
 **Rejected: leaving four files unnamed on the grounds that four can be learned by reading them.** That is true now and stops being true as workflows are added, and the moment to fix a naming scheme is before the files it has to distinguish exist. A rename later is a paired change with every cross-workflow dispatch reference.
 
@@ -776,8 +776,8 @@ The debug workflow was fully specified in `testing-standards.md` section 3.3, wi
 | A11 | **Closed.** Yellow withdrawn: binary verdict with priority-weighted thresholds: >20% total skips, >10% P0/P1 skips, or any P0/P1 not passing → red. Harness failure classified as skip, which resolved the A2 conflict. Conditional halt on harness failure. | 2026-09-19 | User |
 | A2 | **AMENDED**: a model regression never *blocks a merge*. PR runs are fixture-backed so a P0/P1 failure means our code changed a frozen outcome (correctly red); scheduled live runs report red as an alert but gate nothing. Supersedes the original wording. | 2026-09-19 | User + discussion |
 | A13 | **Accepted**: aggregate gates, per-(test × engine) diagnostics; unsupported pairs declared in config and excluded from the denominator. | 2026-09-19 | User |
-| A12 | **Accepted**: design documents are specifications that code is evaluated against; extension points are configuration, never code. New `docs/design/test_taxonomy.md` required. | 2026-09-19 | User |
-| A9 | **`MQC_TOOL_` confirmed**: marker `tool`, ID block 40001+. Sub-prefix meanings documented in `test_taxonomy.md`. | 2026-09-19 | User |
+| A12 | **Accepted**: design documents are specifications that code is evaluated against; extension points are configuration, never code. New `docs/design/harness_test_taxonomy.md` required. | 2026-09-19 | User |
+| A9 | **`MQC_TOOL_` confirmed**: marker `tool`, ID block 40001+. Sub-prefix meanings documented in `harness_test_taxonomy.md`. | 2026-09-19 | User |
 | A8, A9, A10 | **Accepted**: resolved model version captured per run and per result; tool-use compliance as its own layer with capture-not-execute; output formatting normalized rather than rejected. | 2026-09-19 | User + discussion |
 | A7 | **Accepted**: three-outcome adjudication with Allure `failed`/`broken` mapped to the two taxonomies; engine as parameter+label; latency normalised by the collector with output tokens recorded; rate-limit spacing, retry-then-skip, and diagnostics; unconfigured runs warn into the artifact. Sub-question A7a open. **Closed 2026-09-20: A7a resolved by A11 thresholds.** | 2026-09-19 | User |
 | A6 | **Accepted**: execution mode recorded per result; `--engine` and `--mode` orthogonal, both defaulting safely. | 2026-09-19 | Discussion |

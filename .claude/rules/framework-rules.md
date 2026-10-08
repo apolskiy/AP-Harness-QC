@@ -8,7 +8,7 @@ SPDX-License-Identifier: Apache-2.0
 
 All pull requests and code additions must pass a multi-stage automated verification gate:
 1. **Gate 1 - Static Analysis & Naming Gate**: Execution of `pylint --rcfile=.pylintrc` across all package modules. The >= 3 character naming rule is enforced mechanically by the `variable-rgx`, `argument-rgx`, `attr-rgx` and `inlinevar-rgx` patterns in `.pylintrc`, so a single-character binding fails the build rather than relying on review. Code must achieve a **10.00/10 score** before unit tests run.
-2. **Gate 2 - Unit Precondition**: Execution of `MQC_<MODULE>_UNI_#####` tests via `pytest -m unit`. Ungraded: **100% pass and zero skips required**, and the zero is enforced rather than stated: any precondition skip exits 3. A case needing something the environment lacks declares an environment scope and is **deselected** where the scope is absent, so it leaves the total rather than reporting a non-outcome in it (`test_taxonomy.md` section 7.5.1). Failure stops the pipeline.
+2. **Gate 2 - Unit Precondition**: Execution of `MQC_<MODULE>_UNI_#####` tests via `pytest -m unit`. Ungraded: **100% pass and zero skips required**, and the zero is enforced rather than stated: any precondition skip exits 3. A case needing something the environment lacks declares an environment scope and is **deselected** where the scope is absent, so it leaves the total rather than reporting a non-outcome in it (`harness_test_taxonomy.md` section 7.5.1). Failure stops the pipeline.
 3. **Gate 3 - System Precondition**: Execution of `MQC_<MODULE>_SYS_#####` tests via `pytest -m system` in **replay mode**. Ungraded: 100% pass and zero skips required, enforced as in Gate 2. A precondition that can flake is not a precondition, so it never runs live here; a live SYS smoke runs separately on the schedule.
 4. **Gate 4 - Evaluator Agent Run** (graded): Execution of `MQC_<MODULE>_EVAL_#####` rubric and scoring tests via `pytest -m evaluator`. Subject to the priority gate and the 90% pass floor.
 5. **Gate 5 - Tool-Use Compliance**: Execution of `MQC_<MODULE>_TOOL_#####` tests via `pytest -m tool`. Verifies the model invoked the tools it was instructed to use and avoided those it was forbidden. Tier 2 captures tool-call intent without executing it.
@@ -119,6 +119,6 @@ Every failure carries a code, attached to the assertion message and to the Allur
 
 ### 4.1 One registry
 
-**`docs/design/test_taxonomy.md` section 6 is the single registry of codes.** This file states the families and their meaning; it deliberately does **not** restate the code list.
+**`docs/design/harness_test_taxonomy.md` section 6 is the single registry of codes.** This file states the families and their meaning; it deliberately does **not** restate the code list.
 
 Two registries drift, and this file previously carried a stale copy naming two families when four existed. A code is registered in one place, and `MQC_CMN_UNI_112200` through `112202` verify that every emitted and referenced code is registered there.

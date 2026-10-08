@@ -202,7 +202,7 @@ The hundred lines between the runway ceiling and the hard limit are room for
 the comments, docstrings and design pointers an ordinary edit adds. **They are
 not a budget for two more tests.** A case that pushes a module past nine
 hundred moves out with its subject, which is cheap now that a case module
-holds only cases (`test_taxonomy.md` section 13).
+holds only cases (`harness_test_taxonomy.md` section 13).
 
 #### Split by subject, never by number
 
@@ -244,7 +244,7 @@ Applies to every Markdown file in the repository, and to text the harness genera
 * **One colon per sentence.** A second colon in the same sentence reads as a broken parenthetical. Rewrite instead: lead with the main clause and let the colon introduce the list, or use commas.
 * **Prefer the shorter punctuation.** A comma that works is better than a semicolon that also works.
 
-These rules apply to model output as well, enforced as described in `docs/design/test_taxonomy.md` section 6.1 and the boundary checks in `docs/design/extensibility_standard.md` section 2.
+These rules apply to model output as well, enforced as described in `docs/design/harness_test_taxonomy.md` section 6.1 and the boundary checks in `docs/design/harness_extensibility_standard.md` section 2.
 
 ### 7.1 A log line states what happened; the reasoning lives in the design
 
@@ -265,6 +265,13 @@ drift a single registry exists to prevent, applied to output.
 failure, the why is the point: "4 skipped behind a higher band failure" names
 the cause because the cause decides the remedy. Debug output is for a reader
 who has already asked why.
+
+#### A case announces itself before it runs
+
+**`RUNNING <nodeid>`, from setup.** A traceback names the line that raised and
+not the case that reached it, and the two differ whenever a helper is shared.
+The identifier carries the module and the class, so the line hands a reader the
+code segment to open. Specified in `harness_test_taxonomy.md` section 8.3.1.
 
 #### The vocabulary for a measured run
 
@@ -287,6 +294,64 @@ the wrong thing.
 **A line reports only its own subject.** A band states its own total and never
 how many cases the other bands hold, so pytest's deselected count is suppressed
 rather than printed: it is the size of everything this run was not asked to do.
+
+### 7.2 A document's filename says which repository it belongs to
+
+Added 2026-10-08 at the project owner's instruction. **Two repositories held a
+`docs/harness_running_jobs.md` and a `docs/harness_document_register.md` each**, and an editor
+tab shows a filename rather than a checkout.
+
+**The failure is a change made in the wrong repository**, which is the most
+expensive kind to find: both files parse, both lint, both commit, and the
+mistake surfaces as a procedure that stopped matching the workflows it
+dispatches. The two repositories' designs cross-reference constantly, so a
+reader moves between them all day and the names are the only thing
+distinguishing one open file from the other.
+
+#### The rule
+
+**A tracked document under `docs/` carries its repository's token.** `harness`
+here, `model` in the case repository, which is the vocabulary the shipped names
+already use: `harness_test_plan.md` against `model_evaluation_test_plan.md`, and
+`rtm_harness.csv` against `rtm_model.csv`.
+
+```
+docs/harness_running_jobs.md        docs/model_harness_running_jobs.md
+docs/harness_document_register.md   docs/model_harness_document_register.md
+```
+
+**A name already unambiguous needs nothing added.** `cmn_verdict_and_cli.md`,
+`tier1_ingestion.md` and `consumer_ci.md` name subjects that exist in one
+repository only, so a reader with one open knows where they are. The rule is
+satisfied by the name being unmistakable, not by a prefix for its own sake.
+
+#### What is exempt, and why each one is
+
+| Exempt | Why |
+|---|---|
+| `README.md`, `DESIGN.md`, `CHANGELOG.md` | Conventional names a tool or a reader expects at a root. Renaming them hides them |
+| `CLAUDE.md`, `CLAUDE_LOG.md` | Read by name by the assistant and by the governance list |
+| `.claude/rules/*.md` | Governance, loaded by name |
+| `LICENSE`, `NOTICE` | The licence texts themselves |
+
+**The exempt set is small and sits at a repository root**, which is the thing
+that makes it safe: a file at the root of a checkout is seen beside that
+checkout's name, and a file three directories down is not.
+
+#### The old names stay resolvable
+
+A renamed document is recorded in the register with its former name and the date,
+for the reason section 3.2 of `testing-standards.md` gives about identifiers:
+`CLAUDE_LOG.md` carries the old path in entries that were true when written, and
+a reader of that history has to be able to follow it.
+
+#### Enforced, not remembered
+
+`cmn.code_standards.undifferentiated_documents` reports a tracked document under
+`docs/` whose name carries neither the repository's token nor an exemption.
+`MQC_CMN_UNI_112346` and `MQC_CAS_UNI_115718` call it with each root, which is
+the one-implementation-two-callers arrangement the encoding, annotation and
+header rules already use.
 
 ## 8. Cross-Platform Rules
 

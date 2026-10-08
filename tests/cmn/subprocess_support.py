@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Running a nested suite under a bound, because a hang reports nothing.
 
-Specified by ``test_taxonomy.md`` section 14.
+Specified by ``harness_test_taxonomy.md`` section 14.
 
 **Five cases spawn a nested pytest** to observe something the parent process
 cannot see about itself: a dependency skip, a collection reordering, a

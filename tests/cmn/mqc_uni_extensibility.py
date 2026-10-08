@@ -349,7 +349,7 @@ class TestMQCEngineExpansion:
         absent from the roster, so the engine could not be selected and nothing
         said so.
 
-        Design: ``extensibility_standard.md`` section 3.4.
+        Design: ``harness_extensibility_standard.md`` section 3.4.
 
         Args:
             tmp_path (Path): For the negative controls.
@@ -433,7 +433,7 @@ class TestMQCEngineExpansion:
         **The duplicate-binding check cannot see this.** Two modules occupying
         one block are two distinct identifiers, so counting bindings balances.
 
-        Design: ``test_taxonomy.md`` section 3.2.1.4.
+        Design: ``harness_test_taxonomy.md`` section 3.2.1.4.
 
         Returns:
             None

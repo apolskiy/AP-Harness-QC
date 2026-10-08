@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # A change detector, not a test run.
 #
-# Specified by docs/design/ci_pipeline.md section 4. For each registered engine
+# Specified by docs/design/harness_ci_pipeline.md section 4. For each registered engine
 # it resolves the model version the adapter would use and compares it against
 # the recorded baseline. Nothing is evaluated and no case executes.
 #

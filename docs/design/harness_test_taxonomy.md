@@ -9,7 +9,7 @@ SPDX-License-Identifier: Apache-2.0
 >
 > **Audience:** anyone adding a test, reading a result, or extending the suite. If an identifier appears in a report and its meaning is not derivable from this document, that is a defect in this document.
 >
-> **Authority:** decisions recorded here trace to `phase0_project_ambiguities.md`. Item references such as (A11) point there.
+> **Authority:** decisions recorded here trace to `harness_phase0_project_ambiguities.md`. Item references such as (A11) point there.
 
 ---
 
@@ -780,8 +780,8 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
 | `QC_HARNESS_DEPENDENCY_UNMET` | A foundational test failed, so this case was never evaluated (4.1.1). Excluded from the skip-rate denominator. |
-| `QC_HARNESS_UPSTREAM_UNVERIFIED` | The pinned harness commit has no passing gate run, so the instrument was never established (`ci_pipeline.md` section 3C.3). Distinct from `QC_HARNESS_DEPENDENCY_UNMET`: unmet is unavailable, unverified is available but not established |
-| `QC_HARNESS_BRANCH_NAME` | A branch name departs from the grammar in `ci_pipeline.md` section 3C.6, or names a case that is not inventoried |
+| `QC_HARNESS_UPSTREAM_UNVERIFIED` | The pinned harness commit has no passing gate run, so the instrument was never established (`harness_ci_pipeline.md` section 3C.3). Distinct from `QC_HARNESS_DEPENDENCY_UNMET`: unmet is unavailable, unverified is available but not established |
+| `QC_HARNESS_BRANCH_NAME` | A branch name departs from the grammar in `harness_ci_pipeline.md` section 3C.6, or names a case that is not inventoried |
 | `QC_HARNESS_BRANCH_STALE` | A branch was cut from `main` past the staleness ceiling and has not been succeeded (3C.6.3) |
 | `QC_HARNESS_BRANCH_ROUTE` | A merge does not follow the one route into `main`, or brought `main` into a branch (3C.6.2 and 3C.6.5) |
 
@@ -1223,7 +1223,7 @@ inventory row and `112313` that every case is traced, and a requirement nobody
 wrote has no case to trace.
 
 **The gap was found by a reader asking for it**, not by the suite. That is the
-same shape `test_taxonomy.md` section 12 records about the document register: a
+same shape `harness_test_taxonomy.md` section 12 records about the document register: a
 rule stated in a governance file and checked by nothing is a convention.
 
 #### Where the ledger is computed, and why nothing new is stored
@@ -1256,6 +1256,43 @@ harness code already draws.
 ### 8.3 It reaches the durable record for free
 
 Allure steps are a standard part of the format and are already parsed by collectors that read it. Emitting structured step names through `allure.step` therefore delivers step-level history through an existing field rather than new machinery.
+
+#### 8.3.1 And every case announces itself before it runs
+
+Added 2026-10-08 at the project owner's instruction: a test should print its own
+name during execution, for debugging.
+
+**The numbered steps cover a graded case and nothing else.** `observe` logs the
+phase it is entering, so a crash between a request and a response leaves its
+location (section 8.1). A precondition runs no steps, so until now **nothing
+announced it at all**, and the 707 of them are where a crash is least expected
+and therefore least instrumented.
+
+**A traceback names the line that raised, not the case that reached it.** The
+two differ whenever a helper is shared, which in this suite is most of the time:
+a failure inside `verdict_support.graded` says `verdict_support.py:44` and says
+nothing about which of thirty callers was running. And a process killed
+mid-request leaves no traceback at all.
+
+```
+RUNNING tests/cmn/mqc_uni_verdict.py::TestMQCPriorityGate::MQC_CMN_UNI_112000_green_when_all_rules_satisfied
+```
+
+**The node identifier rather than the callable's name**, because it carries the
+module and the class as well. That is the code segment a reader opens, which
+`framework-rules.md` section 3.1 holds is what a result establishes: the line
+hands over a place to look.
+
+**Emitted from `pytest_runtest_setup`**, before the dependency cascade and
+before anything the case does, so the last announced name is the one that was
+running whatever happened next.
+
+**It reaches the durable record on a failure and not on a pass**, which is
+`pytest.ini`'s existing arrangement rather than a new decision:
+`junit_logging = log` carries captured logs into the XML and
+`junit_log_passing_tests = False` keeps a passing case's log out of it. A
+reader debugging a red sees the announcements; a green run does not pay for
+them in artifact size.
 
 ### 8.4 Clarification-seeking is a single-turn property
 
@@ -1679,7 +1716,7 @@ Recorded 2026-10-03 as a finding, at the project owner's instruction.
 | Sense | Values | Where it is used |
 |---|---|---|
 | **Evaluation family**, this section | The five rows in §11.1 | §11, and `Observation.family` |
-| Layer-aligned family | "the security family", "the tool family", "the evaluator family" | `phase0_project_ambiguities.md` A4, `consumer_ci.md` §4D.3, `tier3_evaluation.md` §5A.6, `DESIGN.md` §7.6 |
+| Layer-aligned family | "the security family", "the tool family", "the evaluator family" | `harness_phase0_project_ambiguities.md` A4, `consumer_ci.md` §4D.3, `tier3_evaluation.md` §5A.6, `DESIGN.md` §7.6 |
 | Corpus-file family | `security`, `tool_compliance` as **file names** | `_UNJUDGED_FAMILIES` in the case repository's `mqc_uni_corpus.py`. `model_evaluation_test_plan.md` §8.6 exists to separate this sense from the first, and `tool_compliance` is now both a corpus file and a registered family, which is the collision that section warned about |
 | Failure-code family | `QC_LLM_*`, `QC_HARNESS_*`, `QC_DATA_*`, `QC_SEC_*` | `framework-rules.md` §4, A5a |
 
@@ -1878,7 +1915,7 @@ the source the layer was standing in for.
 
 ## 12. The Document Register
 
-Added 2026-10-04 at the project owner's instruction, after `test_taxonomy.md`
+Added 2026-10-04 at the project owner's instruction, after `harness_test_taxonomy.md`
 was found to have fallen behind the changes made around it: section 9's
 normative list existed in three copies, its emission claim described behaviour
 no code performed, and the identifier width in its own examples was the old one.
@@ -1890,12 +1927,12 @@ that the map lacked it. The map answers **what to read first**; a review needs
 **what exists**, and those are different questions that the same table was being
 asked to serve.
 
-| | `DESIGN.md` section 3 | `docs/document_register.md` |
+| | `DESIGN.md` section 3 | `docs/harness_document_register.md` |
 |---|---|---|
 | Answers | What to read, in what order, and what each design covers | What documents exist |
 | Complete | No, and it does not need to be | **Yes, and checked** |
 | Named `.claude/rules/` | As a directory | Each file |
-| Named `README.md`, `docs/running_jobs.md` | **No** | Yes |
+| Named `README.md`, `docs/harness_running_jobs.md` | **No** | Yes |
 
 **Two tracked documents were in no list at all** and seven were covered only by
 the directory they sit in. A reviewer working from section 3 would have reached

@@ -4,7 +4,7 @@
 
 Covers ``MQC_CMN_UNI_112336`` and ``112337``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 12 and specified by
-``docs/design/test_taxonomy.md`` section 8.
+``docs/design/harness_test_taxonomy.md`` section 8.
 
 **Section 8 specified this from the project's beginning and nothing emitted a
 step.** Zero of sixty-nine test modules across both repositories called
@@ -18,11 +18,14 @@ A failure here is **not a model finding**, so the module carries no priority mar
 from types import SimpleNamespace
 from typing import Final
 
+import logging
+
 import pytest
 
+from cmn.pytest_support import announce_test
 from cmn.steps import ledger, stopped_at, stopped_line, summary
 
-from tests.cmn.steps_support import dispatched, evaluated
+from tests.cmn.steps_support import Announced, dispatched, evaluated
 
 pytestmark = pytest.mark.unit
 
@@ -48,7 +51,7 @@ class TestMQCStepLedger:
         performed is ours and skips, a verification that did not hold is a
         measurement and fails.
 
-        Design: ``test_taxonomy.md`` section 8.
+        Design: ``harness_test_taxonomy.md`` section 8.
 
         Returns:
             None
@@ -135,7 +138,7 @@ class TestMQCStepLedger:
         their unjudged steps as an early halt would report every one of them as
         having stopped early, which is the boundary this case holds.
 
-        Design: ``test_taxonomy.md`` section 8.2.1.
+        Design: ``harness_test_taxonomy.md`` section 8.2.1.
 
         Returns:
             None
@@ -175,3 +178,52 @@ class TestMQCStepLedger:
         assert halt.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING", (
             f"the missing judgement does not name its code: {halt}"
         )
+
+
+class TestMQCCaseAnnouncement:
+    """A case says its own name before it runs, whatever happens next."""
+
+    def MQC_CMN_UNI_112347_a_case_announces_its_node_identifier_before_running(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The line carries the module, the class and the case.
+
+        **A traceback names the line that raised, not the case that reached
+        it**, and the two differ whenever a helper is shared, which in this
+        suite is most of the time. A process killed mid-request leaves no
+        traceback at all, so the last announced name is the only thing that
+        locates the work.
+
+        Design: ``harness_test_taxonomy.md`` section 8.3.1.
+
+        Returns:
+            None
+        """
+        node = (
+            "tests/cmn/mqc_uni_steps.py::TestMQCProbe::"
+            "MQC_CMN_UNI_119000_a_probe"
+        )
+        announced = announce_test(Announced(node))
+
+        assert announced == f"RUNNING {node}", announced
+
+        # THE MODULE, THE CLASS AND THE CASE, which is the code segment a
+        # reader opens. The callable's name alone names no file.
+        for part in ("mqc_uni_steps.py", "TestMQCProbe", "MQC_CMN_UNI_119000"):
+            assert part in announced, f"{part} is absent from {announced}"
+
+        # AND IT IS LOGGED, not only returned, because the log is what survives
+        # a crash and reaches the JUnit artifact on a failure.
+        with caplog.at_level(logging.INFO, logger="cmn.pytest_support"):
+            announce_test(Announced(node))
+        assert any(
+            record.getMessage() == f"RUNNING {node}"
+            for record in caplog.records
+        ), (
+            "the announcement was not logged: "
+            f"{[entry.getMessage() for entry in caplog.records]}"
+        )
+
+        # AN ITEM CARRYING NO IDENTIFIER STILL ANNOUNCES SOMETHING, because a
+        # hook that raised here would turn a reporting aid into a run failure.
+        assert announce_test(Announced(None)) == "RUNNING ?"

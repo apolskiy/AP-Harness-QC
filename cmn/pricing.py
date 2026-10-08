@@ -261,7 +261,7 @@ class CostLine:
     Attributes:
         case_id (str): Which case.
         families (tuple): Its evaluation families, empty where it has none.
-            Many to many, per ``test_taxonomy.md`` section 11.7.
+            Many to many, per ``harness_test_taxonomy.md`` section 11.7.
         observations (int): How many times it was observed, so a per-observation
             figure is derivable without re-reading the corpus.
         candidate (TokenUsage): What the model under test consumed.
@@ -307,7 +307,7 @@ class CostReport:
         figure answers what a family costs to run rather than how the bill
         divides: dropping either family still saves what that case costs. A
         division would need an attribution rule for shared cases that nothing
-        could justify. Design ``test_taxonomy.md`` section 11.7.3.
+        could justify. Design ``harness_test_taxonomy.md`` section 11.7.3.
 
         Returns:
             dict[str, float]: Family to its cost, for every case carrying one.

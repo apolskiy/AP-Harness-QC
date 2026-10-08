@@ -123,7 +123,7 @@ class TestMQCRuntimeRegistration:
         membership pin in ``112319`` would fail for a reason nobody could
         locate from its message.
 
-        Design: ``test_taxonomy.md`` section 11.6.
+        Design: ``harness_test_taxonomy.md`` section 11.6.
 
         Returns:
             None

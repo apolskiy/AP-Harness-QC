@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Everything deterministic. No quota, no credential, no environment.
 #
-# Specified by docs/design/ci_pipeline.md section 3. This file names no secret
+# Specified by docs/design/harness_ci_pipeline.md section 3. This file names no secret
 # and no environment, which is the STRUCTURAL half of A1: a secret held in an
 # environment is unreachable from a workflow that does not name it, so there is
 # no conditional to get wrong and no path by which a pull request from a fork

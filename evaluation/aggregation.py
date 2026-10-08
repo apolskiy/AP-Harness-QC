@@ -13,7 +13,7 @@ machine-checkable fact rather than a convention someone has to remember.
 distinction disappears if only failures carry scores.
 
 **Registration enrols a strategy in its conformance battery automatically**
-(``extensibility_standard.md`` section 10). The battery asserts that a strategy
+(``harness_extensibility_standard.md`` section 10). The battery asserts that a strategy
 declares a scale, is deterministic for identical input, and handles both a
 single criterion and an empty-after-filtering set.
 """

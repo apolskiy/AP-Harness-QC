@@ -716,7 +716,7 @@ def _skip(
         DispatchOutcome: The skip. **A timeout records a truncated duration**,
         because the interval measures how long the harness waited rather than
         how long the model took, and averaging the two would measure our own
-        patience (``test_taxonomy.md`` section 9.3).
+        patience (``harness_test_taxonomy.md`` section 9.3).
     """
     truncated = tally.code == "QC_HARNESS_CANDIDATE_TIMEOUT"
     return DispatchOutcome(

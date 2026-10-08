@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Judge a consumer's graded replay by taxonomy family, not by failure count.
 
-Specified by ``docs/design/ci_pipeline.md`` section 3B.3.
+Specified by ``docs/design/harness_ci_pipeline.md`` section 3B.3.
 
 **A model finding must not fail this job.** A harness regression that went red
 because the model under test overstates a figure would be reporting the wrong

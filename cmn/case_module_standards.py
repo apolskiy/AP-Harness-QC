@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Where a test module's supporting code is allowed to live.
 
-Specified by ``docs/design/test_taxonomy.md`` section 13.
+Specified by ``docs/design/harness_test_taxonomy.md`` section 13.
 
 **A collected test module holds cases, and nothing else holds cases.** The
 functions and classes that support them belong in a sibling module that
@@ -178,7 +178,7 @@ def unbounded_subprocess_calls(root: Path) -> list[str]:
     right is a judgement; whether a bound exists is not, and only the second is
     mechanical.
 
-    Design: ``test_taxonomy.md`` section 14.
+    Design: ``harness_test_taxonomy.md`` section 14.
 
     Args:
         root (Path): The repository root to scan.

@@ -4,7 +4,7 @@
 
 Covers ``MQC_CMN_UNI_112241`` and ``112243``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
-``test_taxonomy.md`` section 11.7.
+``harness_test_taxonomy.md`` section 11.7.
 
 **Written 2026-10-03, when the relation was stated to be many to many.** The
 matrix column had been a semicolon-separated set since it was introduced and
@@ -61,7 +61,7 @@ class TestMQCSeveralFamilies:
         pass a check that only looked for both values present, which is the
         shape of a case that cannot fail for the reason it exists.
 
-        Design: ``test_taxonomy.md`` section 11.7.2.1.
+        Design: ``harness_test_taxonomy.md`` section 11.7.2.1.
 
         Returns:
             None
@@ -101,7 +101,7 @@ class TestMQCSeveralFamilies:
         per-value check is for: validating the first alone would let the second
         reach the record unresolvable.
 
-        Design: ``test_taxonomy.md`` section 11.7.2.
+        Design: ``harness_test_taxonomy.md`` section 11.7.2.
 
         Returns:
             None

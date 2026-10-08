@@ -9,10 +9,10 @@ change in one place.
 
 Registered here:
 
-* Priority conditions, per ``docs/design/test_taxonomy.md`` section 4.1.0.
+* Priority conditions, per ``docs/design/harness_test_taxonomy.md`` section 4.1.0.
   Invariant G6 in :mod:`ingestion.schemas` reads them to validate that a
   declared priority names a registered condition and respects its ceiling.
-* Failure taxonomy codes, per ``docs/design/test_taxonomy.md`` section 6.
+* Failure taxonomy codes, per ``docs/design/harness_test_taxonomy.md`` section 6.
 
 Nothing here decides anything. Callers ask whether an identifier is registered
 and at what level; the rules that use those answers live with the component
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # condition justifies. The level is a ceiling rather than an assignment: a case
 # matching only a P2 condition cannot be assigned P0, but may be demoted to P3.
 #
-# Mirrors test_taxonomy.md section 4.1.0. An identifier absent there is a defect
+# Mirrors harness_test_taxonomy.md section 4.1.0. An identifier absent there is a defect
 # here, and MQC_CMN_UNI_112200 through 112202 verify the correspondence.
 _PRIORITY_CONDITIONS: Final[dict[str, int]] = {
     "P0_SAFETY_CONTROL": 0,
@@ -54,7 +54,7 @@ _PRIORITY_CONDITIONS: Final[dict[str, int]] = {
     "P4_INFORMATIONAL": 4,
 }
 
-# Ingestion diagnostics, per test_taxonomy.md section 6.3. Severity is carried
+# Ingestion diagnostics, per harness_test_taxonomy.md section 6.3. Severity is carried
 # because the same family spans INFO, WARNING and ERROR: a blank cell taking its
 # declared default is normal operation, and recording it as a defect would
 # corrupt every later count of harness reliability.
@@ -76,7 +76,7 @@ _DATA_CODES: Final[dict[str, str]] = {
     "QC_DATA_IDENTIFIER_UNSAFE": "ERROR",
 }
 
-# Harness and infrastructure failures, per test_taxonomy.md section 6.2. Every
+# Harness and infrastructure failures, per harness_test_taxonomy.md section 6.2. Every
 # adapter maps its provider's errors into this closed set, so a rate limit from
 # one vendor and a rate limit from another become the same row in the durable
 # record. Without translation, cross-engine comparison of harness reliability
@@ -283,7 +283,7 @@ def is_registered_harness_code(taxonomy_code: str) -> bool:
     return taxonomy_code in _HARNESS_CODES
 
 
-# The model-quality family, from test_taxonomy.md section 6.1. Registered here
+# The model-quality family, from harness_test_taxonomy.md section 6.1. Registered here
 # so a code emitted by Tier 3 can be checked rather than trusted. The family is
 # deliberately wide: a code's presence, a set of codes and their severity
 # together drive fix prioritization, so merging two signals to shorten the list
@@ -323,7 +323,7 @@ _LLM_CODES: Final[frozenset[str]] = frozenset({
     "QC_LLM_INCONSISTENT",
 })
 
-# The security family, from test_taxonomy.md section 6.4. A security finding is
+# The security family, from harness_test_taxonomy.md section 6.4. A security finding is
 # neither a measure of task quality nor a harness defect; it is a third thing
 # with different escalation, and it stays visible independently of quality
 # scores (A5a).
@@ -358,7 +358,7 @@ def is_registered_sec_code(taxonomy_code: str) -> bool:
     return taxonomy_code in _SEC_CODES
 
 
-# CRITICALITY, FROM MOST SERIOUS TO LEAST. `test_taxonomy.md` section 6.4.
+# CRITICALITY, FROM MOST SERIOUS TO LEAST. `harness_test_taxonomy.md` section 6.4.
 #
 # THE COMMENT ABOVE `_LLM_CODES` HAS ALWAYS SAID severity drives fix
 # prioritisation, and nothing implemented it. The consequence was concrete: a
@@ -529,7 +529,7 @@ _EVALUATION_FAMILIES: Final[dict[str, EvaluationFamily]] = {
     # ground-truth mechanism more plainly than the three above, and neither
     # could use a judge even if one were wanted: a declared adversarial case
     # reaches no judge under A19, and a trace is not an interpretation.
-    # Design `test_taxonomy.md` section 11.4, scope `DESIGN.md` sections 7.4
+    # Design `harness_test_taxonomy.md` section 11.4, scope `DESIGN.md` sections 7.4
     # and 7.5.
     "injection_resistance": EvaluationFamily(
         identifier="injection_resistance",
@@ -553,7 +553,7 @@ _EVALUATION_FAMILIES: Final[dict[str, EvaluationFamily]] = {
     ),
     # REGISTERED 2026-10-04, their cases having shipped since 2026-09-23. The
     # third retroactive registration, found by the documentation review that
-    # section 12's register exists to support. Design `test_taxonomy.md`
+    # section 12's register exists to support. Design `harness_test_taxonomy.md`
     # section 11.8, scope `DESIGN.md` sections 7.6 and 7.7.
     "source_fidelity": EvaluationFamily(
         identifier="source_fidelity",

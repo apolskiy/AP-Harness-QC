@@ -3,7 +3,7 @@
 """Model version resolution, and the nightly probe built on it.
 
 Specified by ``docs/design/tier2_execution.md`` section 5 and
-``docs/design/ci_pipeline.md`` section 4.
+``docs/design/harness_ci_pipeline.md`` section 4.
 
 **The resolved identifier, never the requested one.** Aliases float, and
 recording only the request hides precisely the event that makes a later score

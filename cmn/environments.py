@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which environment a case needs, and what happens where it is absent.
 
-Specified in ``docs/design/test_taxonomy.md`` section 7.5.1.
+Specified in ``docs/design/harness_test_taxonomy.md`` section 7.5.1.
 
 **A skip is an outcome and this is not one.** "This case could not have run
 here" is a statement about the selection, so a case whose scope the environment
@@ -165,7 +165,7 @@ def refuse_precondition_skips(session: Any) -> int:
     nothing and there is no acceptable proportion of that. A harness unit job
     reported green at 99.44% with four skips before this existed.
 
-    Design: ``test_taxonomy.md`` section 7.5.1.
+    Design: ``harness_test_taxonomy.md`` section 7.5.1.
 
     Args:
         session (Any): The finishing session, whose exit status is raised.
