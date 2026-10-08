@@ -435,11 +435,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
 def pytest_terminal_summary(
     terminalreporter: Any, exitstatus: int, config: Any
 ) -> None:
-    """Print what this selection established, in its own terms.
+    """Print the band's result and drop the deselected count from pytest's.
 
-    **pytest's last line reports what it did not run.** A band job ends with a
-    count of deselected cases, which is every precondition plus every other
-    band, and no rate divides into it. This states the band's own denominator.
+    **A line reports only its own subject** (`code-style.md` section 7.1), and
+    the deselected count is the size of everything this run was not asked to
+    do: every precondition and every other band. Removing it from the
+    reporter's statistics removes it from the final line, which pytest composes
+    from them after this hook returns.
 
     Args:
         terminalreporter (Any): pytest's reporter, carrying the statistics.
@@ -459,3 +461,7 @@ def pytest_terminal_summary(
     )
     for line in lines:
         terminalreporter.write_line(line)
+
+    # DROPPED AFTER OUR LINES ARE WRITTEN, because `band_lines` above reads the
+    # same statistics and a band's own total is not computed from this key.
+    stats.pop("deselected", None)

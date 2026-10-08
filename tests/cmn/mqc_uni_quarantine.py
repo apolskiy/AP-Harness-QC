@@ -577,7 +577,16 @@ class TestMQCExclusionReporting:
         caplog.clear()
         with caplog.at_level(logging.INFO, logger="cmn.verdict_tool"):
             report_exclusions(verdict(passing_suite(), VerdictConfig(), TODAY))
-        assert not caplog.records
+        # FROM THE REPORTER, NOT FROM EVERYTHING. The claim is that
+        # `report_exclusions` says nothing, and `verdict` above it logs its own
+        # distribution note: asserting on every record made this case depend on
+        # nothing else in the project ever logging at INFO.
+        assert not [
+            entry for entry in caplog.records if entry.name == "cmn.verdict_tool"
+        ], (
+            "a run that excluded nothing reported an exclusion, so the report "
+            "is a line every run carries rather than a signal"
+        )
 
         # AND QUARANTINE NEVER EXEMPTS V1. A failing P0 is red whatever the
         # file says, which is why a blocking band in a pass means something

@@ -246,6 +246,42 @@ Applies to every Markdown file in the repository, and to text the harness genera
 
 These rules apply to model output as well, enforced as described in `docs/design/test_taxonomy.md` section 6.1 and the boundary checks in `docs/design/extensibility_standard.md` section 2.
 
+### 7.1 A log line states what happened; the reasoning lives in the design
+
+Added 2026-10-07 at the project owner's instruction, extending section 3.1 from
+docstrings to output.
+
+**The rule is the same and so is the reason.** A reader looking at a log line
+wants the outcome. A reader wanting to know why the rule exists is better served
+by the document that owns it, and reproducing the rationale in every line is the
+drift a single registry exists to prevent, applied to output.
+
+| | Belongs in |
+|---|---|
+| What ran, what passed, what did not, and the counts | The log line |
+| Why the rule is drawn where it is, what was rejected | The design document |
+
+**The exception is a failure and a debug line.** Where the line explains a
+failure, the why is the point: "4 skipped behind a higher band failure" names
+the cause because the cause decides the remedy. Debug output is for a reader
+who has already asked why.
+
+#### The vocabulary for a measured run
+
+**Total, executed, passed, failed, skipped**, in that order, and a skip carries
+its cause:
+
+```
+Band P0: 15 total, 12 executed, 9 passed, 3 failed, 3 skipped behind a higher band failure
+```
+
+**"Not measured" is not a state.** A case that did not run was skipped, and
+naming it anything else leaves a reader with no outcome to act on.
+
+**A line reports only its own subject.** A band states its own total and never
+how many cases the other bands hold, so pytest's deselected count is suppressed
+rather than printed: it is the size of everything this run was not asked to do.
+
 ## 8. Cross-Platform Rules
 
 The harness is verified on Ubuntu and Windows (A18). These are not style preferences: each one names a defect that occurs on exactly one platform and is silent on the other.

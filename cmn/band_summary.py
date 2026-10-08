@@ -71,9 +71,9 @@ def band_lines(
 ) -> list[str]:
     """Return the two lines a band job is read for.
 
-    **Selected is the denominator a reader can see.** Passed plus failed plus
-    skipped is what this run was asked to do, and both rates are stated with
-    their fractions so a reader can check the arithmetic rather than trust it.
+    Reports the band's total, what executed, what passed, what failed and what
+    was skipped, each skip carrying its cause, then both rates with their
+    fractions. ``code-style.md`` section 7.1 holds the vocabulary.
 
     Args:
         passed (int): Cases that passed.
@@ -96,12 +96,15 @@ def band_lines(
     blocked = sum(1 for reason in skip_reasons if _DEPENDENCY_SKIP in reason)
     other = skipped - blocked
 
-    counted = [f"{selected} selected", f"{executed} executed",
+    # TOTAL, EXECUTED, PASSED, FAILED, SKIPPED, in the project owner's
+    # vocabulary (`code-style.md` section 7.1). "Selected" sat next to pytest's
+    # "deselected" and invited the reader to subtract one from the other.
+    counted = [f"{selected} total", f"{executed} executed",
                f"{passed} passed", f"{failed} failed"]
     if blocked:
-        counted.append(f"{blocked} skipped behind a failed foundation")
+        counted.append(f"{blocked} skipped behind a higher band failure")
     if other:
-        counted.append(f"{other} skipped for another reason")
+        counted.append(f"{other} skipped for a reason of ours")
 
     label = band_label(priority)
     return [
@@ -240,7 +243,7 @@ def band_table(measured: list[tuple[str, int, int, list[str]]]) -> list[str]:
         else "**No release blocking failure.** P0 and P1 are clean."
     )
     return [
-        "| Band | Selected | Executed | Passed | Failed | Skipped "
+        "| Band | Total | Executed | Passed | Failed | Skipped "
         "| Execution pass | Total pass |",
         "|---|---|---|---|---|---|---|---|",
         *rows,

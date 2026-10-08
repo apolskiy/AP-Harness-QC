@@ -355,10 +355,10 @@ class TestMQCBandSummary:
         )
         counts, rates = reported[0], reported[1]
 
-        assert counts.startswith("Band P0: 15 selected, 12 executed"), (
+        assert counts.startswith("Band P0: 15 total, 12 executed"), (
             f"the denominator is not the band's own selection: {counts}"
         )
-        assert "3 skipped behind a failed foundation" in counts, (
+        assert "3 skipped behind a higher band failure" in counts, (
             f"a dependency skip is not named, so a reader cannot tell it from "
             f"an environmental one: {counts}"
         )

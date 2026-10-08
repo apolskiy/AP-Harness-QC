@@ -946,6 +946,46 @@ This distinction is what separates "our pipeline could not measure this" from "w
   * `STEP_<NN>_VERIFY: <what is asserted>`
 * Every log line carries the case identifier, step number, phase, outcome, and taxonomy code where one applies.
 
+### 8.2.1 Implemented 2026-10-07, and unimplemented until then
+
+**This section specified the steps from the project's beginning and nothing
+emitted one.** Zero of sixty-nine test modules across both repositories called
+`allure.step`, and neither repository's matrix carried a row for section 8, so
+nothing reported the absence: `MQC_CMN_UNI_112303` checks that every case has an
+inventory row and `112313` that every case is traced, and a requirement nobody
+wrote has no case to trace.
+
+**The gap was found by a reader asking for it**, not by the suite. That is the
+same shape `test_taxonomy.md` section 12 records about the document register: a
+rule stated in a governance file and checked by nothing is a convention.
+
+#### Where the ledger is computed, and why nothing new is stored
+
+`cmn.steps.ledger` reads a `DispatchOutcome` and an `EvaluationResult` and
+returns fourteen phases, two per step. **Every fact it reports was already
+recorded**; what was missing was a reading of them in order. So it computes and
+never stores, which is also why it can be applied to a result produced before
+it existed.
+
+| Step | Reads |
+|---|---|
+| 1 form the request | `outcome.request` |
+| 2 send the request | `outcome.taxonomy_code`, mode, attempts |
+| 3 ingest the response | `outcome.response`, its finish reason |
+| 4 screen the response | `result.screen` |
+| 5 check the response | `result.assertion_results` |
+| 6 send to the judge | `result.judge_skipped_reason` |
+| 7 receive the judgement | `result.score` |
+
+**A rule authoring no rubric reports steps 6 and 7 as not applicable**, not as
+a stop. The whole security suite declares itself decided by its assertions, and
+reading its unjudged steps as an early halt would report twenty-one rules as
+having stopped short.
+
+**Allure stays out of the harness.** The harness computes the ledger and the
+case repository records it, which is the same boundary the cases owning no
+harness code already draws.
+
 ### 8.3 It reaches the durable record for free
 
 Allure steps are a standard part of the format and are already parsed by collectors that read it. Emitting structured step names through `allure.step` therefore delivers step-level history through an existing field rather than new machinery.

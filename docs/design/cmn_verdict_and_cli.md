@@ -2351,8 +2351,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112333` | N | `a_band_table_total_overriding_a_blocking_band_is_reported` |
 | `112334` | B | `a_dated_model_snapshot_prices_as_its_base` |
 | `112335` | N | `a_case_whose_recordings_disagree_on_the_request_is_reported` |
+| `112336` | P | `a_ledger_names_every_step_and_the_phase_it_stopped_at` |
+| `112337` | B | `a_rule_without_a_rubric_reports_its_judge_steps_inapplicable` |
 
-**Inventory: 248 cases, 139 negative, 81 positive, 28 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 250 cases, 139 negative, 82 positive, 29 boundary.** One identifier is retired and listed struck through rather than removed, so a reader of stored history can resolve it (section 7.8.4). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
