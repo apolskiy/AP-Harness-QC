@@ -10227,3 +10227,61 @@ repair was a script file, as the rule says.
 
 Harness: 710 passing, 24 system, pylint exit 0. Case repository: 100 passing, 70
 graded in replay, pylint exit 0.
+
+## 2026-10-09: A declared gap is a silent gap, so the check fails instead
+
+**Claude had no recording for seven security cases.** Three skipped in P0 and
+four in P1, the blocking floor refused both bands, and claude's gate was red for
+a reason that says nothing about claude. gemini, grok and openai have all 70.
+
+Nothing compared the corpus against the recordings, so a blocking band could be
+built on an absence and the gap surfaced only as a skip in a band report, which
+is late and reads as a result.
+
+### The first draft was wrong and the correction is the whole point
+
+I drafted `config/recording_gaps.yaml`, declaring the seven with a reason and an
+expiry, on the precedent `config/module_runway.yaml` sets. The project owner
+refused it:
+
+> if it's not caught in CI, it will not be selected, it will never get recorded
+> and executed. Silent gaps are much worse
+
+**That is not true of the precedents, which is why they are declarable.** A
+module past the runway ceiling still runs; a flag with no case still works. A
+case with no recording **does not run at all**, so nothing else will ever
+report it and a declaration makes the gap permanent.
+
+| Declared elsewhere | Why it is safe there |
+|---|---|
+| A module past the runway | The module runs; the entry defers a split |
+| A flag with no case | The flag works; the entry defers a test |
+| **A missing recording** | **The case never runs.** The entry defers it forever |
+
+### So it fails, at the precondition gate
+
+`cmn.replay_audit.missing_recordings` compares every rostered engine against
+every P0 and P1 case, and `MQC_CAS_UNI_115721` fails on any gap. That is earlier
+than the band report and more actionable: exit 3 names the pairs and blocks the
+graded bands, which is correct because a blocking band resting on an absence
+establishes nothing.
+
+**A lower band is not held to it.** P2 to P4 are governed by a pass floor rather
+than by answering for everything, and the band line already says
+`QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine`.
+
+**`115722` guards the guard**, because an empty store must report every blocking
+case rather than passing: a reader cannot otherwise tell a complete corpus from
+an unread one.
+
+### And a figure check was compelling a false claim
+
+The README pattern demanded `**N cases, all passing**`, so with one case red the
+README could not state the truth. **A count check has no business asserting an
+outcome it never measured**: it reads the figure and leaves the words alone now.
+
+### State
+
+Harness: 710 passing, pylint exit 0. Case repository: **101 passing and 1 failing
+by design**, pylint exit 0. The failure is `115721`, naming claude's seven
+missing recordings, and it closes with a live run rather than a code change.
