@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **579 cases, all passing**. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **580 cases, all passing**. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 271, none uncovered, none untraced |
+| Requirements traced | 272, none uncovered, none untraced |
 | Numbered steps | Seven per observation, each an action and a verification, in the JUnit `<failure>` and `<system-out>` and in Allure |
 | Dependents of a failure | **Probed in replay**, skipped live: measured, recorded, counted in no denominator |
 | Quarantine | Skips before the request is formed, so it saves the run's cost and never buys a pass |

@@ -30,9 +30,6 @@ past_the_runway:
   ingestion/schemas.py:
     reason: "Every ingested record's validator, one subject. 989 lines when the rule was written on 2026-10-05"
     expires_on: 2026-12-31
-  tests/cmn/mqc_uni_metadata.py:
-    reason: "Result metadata and the dependency declaration. 967 lines when the rule was written on 2026-10-05"
-    expires_on: 2026-12-31
   tests/evaluation/mqc_uni_pipeline.py:
     reason: "The evaluation order end to end. 907 lines when the rule was written on 2026-10-05"
     expires_on: 2026-12-31

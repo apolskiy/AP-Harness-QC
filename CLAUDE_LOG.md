@@ -10029,3 +10029,59 @@ It reaches the JUnit artifact on a failure and not on a pass, which is
 
 Harness: 709 passing, 24 system, pylint exit 0. Case repository: 98 passing, 70
 graded in replay, pylint exit 0.
+
+## 2026-10-08: A module now says what is in it, and a generator keeps it true
+
+**At the project owner's instruction**, after the test-name announcement: a
+comment summary at the top of each test module listing the cases it contains.
+
+### Generated, because a hand-written list is one more thing to drift
+
+The project's scars here are specific: a README claiming 498 cases against 462
+inventoried, an inventory total wrong on three of its four numbers, and five
+cases added with a count incremented and no row written. **A list a human
+maintains would join them.**
+
+So `tools/refresh_case_summaries.py` writes the block from each module's own
+syntax tree, and a case compares the two in both directions. A case added
+without refreshing fails; a block naming a deleted case fails. Neither is
+fixable by editing the block, which is the point.
+
+**Parsed rather than matched**, because a regex cannot tell a definition from a
+definition inside a string literal: five case doubles inside a triple-quoted
+suite once read as untraced cases.
+
+74 modules, 747 cases, both repositories, one implementation.
+
+### The block pushed a module over the hard ceiling, which was the right alarm
+
+`tests/cmn/mqc_uni_metadata.py` went from 967 to 1016 lines. It had been
+**declared past the nine-hundred-line runway since 2026-10-05**, and the
+declaration says what to do: the next subject moves out. The second subject was
+never related to the first, which is why it was legible as one:
+
+| Stays | Moves |
+|---|---|
+| What a result record carries | What the project declares it depends on and ships |
+
+`mqc_uni_packaging.py` now holds `112222` through `112225` and `112231`. The
+runway declaration is **removed rather than updated**, because the list shrinks
+and never grows, and the check told me so by name once the split landed.
+
+### Two mistakes in the extraction, both caught by machinery
+
+**I wrote the truncated source before writing the extracted half**, and the
+script then failed on a path that does not exist on Windows, leaving the classes
+on neither side. `git show HEAD:` had them, because the work was committed before
+this cycle: the recovery cost a minute and no content.
+
+**Then eight imports did not follow their callers.** Six were unused in the
+module they stayed in and two were missing from the module they moved to, and
+pylint and the suite named all eight. A frozenset of skipped trees moved with
+its only reader, which is also why it is not shared with the one in
+`cmn.code_standards`: the two answer different questions and have drifted before.
+
+### State
+
+Harness: 710 passing, 24 system, pylint exit 0. Case repository: 99 passing, 70
+graded in replay, pylint exit 0.
