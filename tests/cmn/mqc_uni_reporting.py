@@ -26,7 +26,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112148  a_required_field_the_code_does_not_emit_is_reported
 # TestMQCBandSummary
 #   112332  a_band_summary_states_its_own_denominator
-#   112049  each_kind_of_skip_is_named_by_its_remedy
+#   112051  every_skip_names_its_case_and_its_cause
 #   112333  a_band_table_total_overriding_a_blocking_band_is_reported
 # ------------------------------------------------------------ end of cases
 
@@ -41,7 +41,7 @@ from cmn.metadata import emit_result
 from cmn.observations import Observation, RunContext
 from cmn.reporting import observation_parameters, vendor_report
 
-from cmn.band_summary import band_label, band_lines, band_table, pass_rate
+from cmn.band_summary import band_label, band_table, pass_rate, result_lines
 
 pytestmark = pytest.mark.unit
 
@@ -361,48 +361,52 @@ class TestMQCBandSummary:
         Returns:
             None
         """
-        blocked = ["QC_HARNESS_DEPENDENCY_UNMET: foundational case 1 did not hold"]
-        reported = band_lines(
-            passed=9, failed=3, skip_reasons=blocked * 3, priority="0"
+        blocked = [
+            (f"MQC_EVL_SEC_15400{index}_a", "QC_HARNESS_DEPENDENCY_UNMET: 1 did not hold")
+            for index in range(3)
+        ]
+        reported = result_lines(
+            passed=9, failed=3, skips=blocked, priority="0", engine="gemini"
         )
-        assert len(reported) == 2, (
-            f"a band states its counts and its rates, two lines: {reported}"
-        )
-        counts, rates = reported[0], reported[1]
+        assert reported[0] == "Test results for Band P0 on gemini", reported[0]
 
-        assert counts.startswith("Band P0: 15 total, 12 executed"), (
-            f"the denominator is not the band's own selection: {counts}"
+        # ONE LABELLED FACT PER LINE, so a number is found without parsing a
+        # sentence and a tool finds it without a regex over prose.
+        facts = dict(
+            line.split(": ", 1) for line in reported[1:] if ": " in line
         )
-        assert "3 skipped, 3 behind a higher band failure" in counts, (
-            f"a dependency skip is not named, so a reader cannot tell it from "
-            f"an environmental one: {counts}"
-        )
+        assert facts["total"] == "15", reported
+        assert facts["executed"] == "12", reported
+        assert facts["passed"] == "9", reported
+        assert facts["failed"] == "3", reported
+        assert facts["skipped"] == "3", reported
 
         # BOTH RATES, AND THE GAP BETWEEN THEM IS THE COST OF THE SKIPS.
-        assert "execution pass 75.0% (9 of 12)" in rates, (
-            f"the execution rate is not over what ran: {rates}"
-        )
-        assert "total pass 60.0% (9 of 15)" in rates, (
-            f"the total rate does not count the skips, so three cases the band "
-            f"did not measure are invisible in its result: {rates}"
-        )
+        assert facts["execution pass"] == "75.0% (9 of 12)", reported
+        assert facts["total pass"] == "60.0% (9 of 15)", reported
+
+        # AND EVERY SKIP IS NAMED AGAINST ITS OWN CASE.
+        named = [line for line in reported if line.startswith("skipped ")]
+        assert len(named) == 3, named
+        for index, line in enumerate(named, 1):
+            assert line.startswith(f"skipped {index} of 3: MQC_EVL_SEC_"), line
+            assert "QC_HARNESS_DEPENDENCY_UNMET" in line, line
+            assert "blocked by a failure in a higher priority band" in line, line
 
         # NOTHING MEASURED YIELDS NO RATE. A zero denominator means the
         # question is unanswerable, which is never a hundred per cent.
-        only_skips = band_lines(
-            passed=0, failed=0, skip_reasons=blocked, priority="1"
-        )[1]
-        assert "execution pass no rate, nothing measured" in only_skips, (
-            f"an empty execution denominator produced a rate: {only_skips}"
+        only_skips = result_lines(
+            passed=0, failed=0, skips=blocked[:1], priority="1"
         )
-        assert "total pass 0.0% (0 of 1)" in only_skips, (
-            f"a band that measured nothing does not read as nothing "
-            f"established: {only_skips}"
+        rates = dict(
+            line.split(": ", 1) for line in only_skips if ": " in line
         )
+        assert rates["execution pass"] == "no rate, nothing measured", only_skips
+        assert rates["total pass"] == "0.0% (0 of 1)", only_skips
         assert pass_rate(0, 0) is None, "a zero denominator returned a number"
 
         # AN EMPTY SELECTION SAYS NOTHING, because zeroes read as a clean run.
-        assert not band_lines(passed=0, failed=0, skip_reasons=[], priority="4"), (
+        assert not result_lines(passed=0, failed=0, skips=[], priority="4"), (
             "an empty selection printed a row of zeroes"
         )
 
@@ -410,73 +414,87 @@ class TestMQCBandSummary:
         assert band_label("") == "Whole selection"
         assert band_label("2,3,4") == "Bands P2,P3,P4"
 
-    @allure.story("A skip is named by the remedy it takes")
-    def MQC_CMN_UNI_112049_each_kind_of_skip_is_named_by_its_remedy(self) -> None:
-        """Three kinds, three phrases, and the counts add up to the total.
+    # `112049` IS RETIRED, 2026-10-09. It asserted that a skip is named by
+    # its **remedy class**, one phrase per class, and the line now names the
+    # **cause** per case. That is a different assertion, so the identifier
+    # stays retired rather than being rebound (design section 7.11.3).
 
-        A quarantined skip is a model finding somebody is already repairing; a
-        cascaded one clears itself when the foundation is fixed; anything else
-        is a fixture, a budget or a provider, which is ours. **Each takes a
-        different act**, so a line collapsing two of them leaves a reader
-        acting on the wrong one while the arithmetic stays right.
+    @allure.story("Every skip names its own case and cause")
+    def MQC_CMN_UNI_112051_every_skip_names_its_case_and_its_cause(self) -> None:
+        """One line per skipped case, carrying the code and what it means.
 
-        Design: ``cmn_verdict_and_cli.md`` section 7.11.
+        **The phrase it replaces was correct and useless.** "4 for a reason of
+        ours" covered nineteen codes taking five different remedies, and the
+        project owner read it and inferred the wrong cause: four cases with no
+        recorded response were taken for four blocked by a failure in P0.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.11.3.
 
         Returns:
             None
         """
-        reasons = [
-            "QC_HARNESS_DEPENDENCY_UNMET: foundational case 1 did not hold",
-            "QC_HARNESS_QUARANTINED: MQC_TASK_a::MQC_RULE_r is quarantined",
-            "QC_HARNESS_QUARANTINED: MQC_TASK_b::MQC_RULE_r is quarantined",
-            "QC_HARNESS_FIXTURE_MISSING: no recording for this observation",
+        skips = [
+            ("MQC_EVL_SEC_154108_delimiter",
+             "QC_HARNESS_FIXTURE_MISSING: produced no measurement"),
+            ("MQC_EVL_SEC_154104_base64",
+             "QC_HARNESS_FIXTURE_MISSING: produced no measurement"),
+            ("MQC_EVL_EVAL_134200_absent",
+             "QC_HARNESS_DEPENDENCY_UNMET: foundational case did not hold"),
+            ("MQC_EVL_EVAL_134201_altered", "QC_HARNESS_QUARANTINED: parked"),
         ]
-        counts = band_lines(
-            passed=6, failed=0, skip_reasons=reasons, priority="1"
-        )[0]
+        named = [
+            line for line in result_lines(
+                passed=6, failed=0, skips=skips, priority="1", engine="claude"
+            )
+            if line.startswith("skipped ")
+        ]
 
-        assert "Band P1: 10 total, 6 executed" in counts, counts
-        assert "4 skipped, 1 behind a higher band failure" in counts, (
-            f"a cascaded skip is not named, so a reader cannot tell it from a "
-            f"quarantined one: {counts}"
-        )
-        assert "2 a known failure in quarantine" in counts, (
-            f"a quarantined skip read as our infrastructure wobbling, when it "
-            f"is a model finding under repair: {counts}"
-        )
-        assert "1 for a reason of ours" in counts, counts
+        assert len(named) == 4, named
 
-        # NO KIND IS COUNTED TWICE AND NONE IS LOST, which is what a reader
-        # subtracting the named kinds from the total depends on.
-        named = 1 + 2 + 1
-        assert named == len(reasons)
+        # SORTED BY CASE, so the order does not depend on which ran first and
+        # two runs of the same band are comparable line by line.
+        assert named[0].startswith(
+            "skipped 1 of 4: MQC_EVL_EVAL_134200_absent,"
+        ), named[0]
+        assert named[3].startswith(
+            "skipped 4 of 4: MQC_EVL_SEC_154108_delimiter,"
+        ), named[3]
 
-        # AND A BAND WITH ONE KIND NAMES ONLY THAT KIND, so an absent phrase
-        # means an absent cause rather than a suppressed one.
-        parked_only = band_lines(
-            passed=0, failed=0, skip_reasons=reasons[1:3], priority="0"
-        )[0]
-        assert "2 skipped, 2 a known failure in quarantine" in parked_only
-        assert "higher band failure" not in parked_only
-        assert "reason of ours" not in parked_only
+        # EACH CARRIES ITS CODE AND WHAT THE CODE MEANS.
+        joined = "\n".join(named)
+        for code, meaning in (
+            ("QC_HARNESS_FIXTURE_MISSING", "no recorded response for this engine"),
+            ("QC_HARNESS_DEPENDENCY_UNMET",
+             "blocked by a failure in a higher priority band"),
+            ("QC_HARNESS_QUARANTINED", "a known failure in quarantine"),
+        ):
+            assert code in joined, code
+            assert meaning in joined, meaning
 
-        # A PRECONDITION IS THE FOURTH KIND AND NO REASON EXCUSES IT. "For a
-        # reason of ours" reads as tolerated, and a precondition that did not
-        # run measured nothing: the line says what followed instead
-        # (`harness_test_taxonomy.md` section 7.5.1).
-        required = band_lines(
-            passed=700,
-            failed=0,
-            skip_reasons=["a reason of ours"] * 4,
-            preconditions_skipped=4,
-        )[0]
-        assert "704 total, 700 executed" in required, required
-        assert "4 skipped, 4 a precondition, so the run exits 3" in required, (
-            f"a skipped precondition reads as excused: {required}"
+        # ONE COLON PER LINE, which keeps each line a single statement.
+        for line in named:
+            assert line.count(":") == 1, line
+
+        # A CODE NOBODY DESCRIBED IS NAMED, NOT SWALLOWED. Unrecognised and
+        # named is informative; unrecognised and grouped is how the vague
+        # phrase happened.
+        odd = result_lines(
+            passed=0, failed=0,
+            skips=[("MQC_EVL_EVAL_134999_x", "QC_HARNESS_BRANCH_STALE: x")],
+            priority="2",
         )
-        assert "reason of ours" not in required, (
-            f"a precondition skip was offered a reason: {required}"
+        assert any(
+            "QC_HARNESS_BRANCH_STALE, cause not described here" in line
+            for line in odd
+        ), odd
+
+        # AND A SKIP CARRYING NO CODE SAYS SO, because a cause nobody recorded
+        # is itself a defect rather than a blank.
+        blank = result_lines(
+            passed=0, failed=0, skips=[("MQC_EVL_EVAL_134998_x", "no idea")],
+            priority="2",
         )
+        assert any("no code, no cause recorded" in line for line in blank), blank
 
     @allure.story("A healthy total never hides a blocking failure")
     def MQC_CMN_UNI_112333_a_band_table_total_overriding_a_blocking_band_is_reported(

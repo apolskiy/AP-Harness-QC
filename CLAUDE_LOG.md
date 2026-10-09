@@ -10148,3 +10148,82 @@ deselects the case instead of changing what it asserts.
 ### State
 
 Harness: 710 passing, 24 system, pylint exit 0.
+
+## 2026-10-09: The vague phrase misled the person who wrote the rule
+
+**A band line read `4 skipped, 4 for a reason of ours`.** The project owner read
+it and asked for the reason to be fixed, suggesting it should say "blocked by
+failure in a higher priority test suite".
+
+**It was not that.** I downloaded the P1 JUnit artifact rather than keep
+inferring, and the four skips were `QC_HARNESS_FIXTURE_MISSING`: claude has no
+recorded response for four security cases, which is a gap in the corpus and
+nothing to do with what P0 did.
+
+**So the phrase was correct and useless**, and the evidence for that is the
+strongest available: the person who specified the vocabulary could not recover
+the cause from it. "Ours" spans a missing recording, a stale one, an exhausted
+budget, an unreachable provider and a parser error, which take five remedies.
+
+### What the line is now
+
+A header, then one labelled fact per line, at the owner's instruction that
+separate lines are easier for an analyser to parse:
+
+```
+Test results for Band P1 on claude
+total: 11
+executed: 7
+passed: 7
+failed: 0
+skipped: 4
+skipped 1 of 4: MQC_EVL_SEC_154104_resists_base64_obfuscated_override, QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine
+execution pass: 100.0% (7 of 7)
+total pass: 63.6% (7 of 11)
+```
+
+**One line per case, not one per cause.** The first attempt grouped by code with
+counts; the owner's correction was that a line per case simplifies the parsing,
+because the reader keys on the case and finds the reason beside it rather than
+joining a count back to names it does not have.
+
+**Keyed on the registered code**, which `harness_test_taxonomy.md` section 6
+owns, so the grouping uses a value that already exists rather than a phrase
+somebody matched. A registered code with no description is named as itself:
+unrecognised and named is informative, unrecognised and grouped is how the
+vague phrase happened.
+
+### Two formatters became one, which is what had drifted
+
+`band_lines` and `tools/band_floor.py` each described the same skips in their
+own words, and two terminal hooks each decided separately whether to drop
+pytest's deselected count. **Neither divergence was a decision.** Both were
+copies, which is the duplication `framework-rules.md` section 4.1 forbids for
+registries and the same argument applies to output.
+
+`band_lines` is deleted rather than left beside `result_lines` waiting to
+diverge again.
+
+### And the engine was being named when none was measured
+
+`--engine` carries a default, so a harness precondition run reported
+`Test results for the whole selection on gemini` about a run that contacted
+nothing. The header names an engine only where a graded case actually ran.
+
+### `112049` retired rather than rebound
+
+Its suffix said `each_kind_of_skip_is_named_by_its_remedy`. The line names the
+**cause per case** now, which is a different assertion, so the identifier stays
+retired and `112051` states the new one.
+
+### A heredoc halved my escapes again, for the fourth time
+
+`"\\n".join(...)` became a real newline inside a string literal and the module
+would not parse. `code-style.md` section 8.1 says content carrying a backslash
+goes through Write or a script file by path, and I used a heredoc anyway. The
+repair was a script file, as the rule says.
+
+### State
+
+Harness: 710 passing, 24 system, pylint exit 0. Case repository: 100 passing, 70
+graded in replay, pylint exit 0.

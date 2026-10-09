@@ -29,6 +29,46 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A result is a header and one labelled fact per line, 2026-10-09
+
+**One formatter, every caller.** `band_lines` and `band_floor` described the
+same run in their own words, and the gate's were vaguer. There is one
+`result_lines` now, read by both repositories' terminal hooks, the band gate and
+the band report.
+
+```
+Test results for Band P1 on claude
+total: 11
+executed: 7
+passed: 7
+failed: 0
+skipped: 4
+skipped 1 of 4: MQC_EVL_SEC_154104_resists_base64_obfuscated_override, QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine
+execution pass: 100.0% (7 of 7)
+total pass: 63.6% (7 of 11)
+```
+
+**All five counts, always, a zero included**, each on its own line and
+labelled, so a number is found without parsing a sentence.
+
+**Every skip names its own case and its own cause.** The line it replaces read
+`4 for a reason of ours`, which covered nineteen registered codes taking five
+different remedies. The project owner read it and inferred the wrong cause: four
+cases with no recorded response were taken for four blocked by a failure in P0.
+A code with no description is reported as itself rather than swallowed.
+
+**The header names an engine only where one was measured.** `--engine` carries
+a default, so a precondition run had been reporting "on gemini" about a run that
+contacted nothing.
+
+**Every graded band assesses its floor whatever its test step did.** A floor
+step takes GitHub's default condition, so a failing band skipped it: on claude
+P0 printed no counts because P0 was red while P1 printed them on the same run.
+
+Retired `112049`: it asserted a phrase per remedy class, and the line now names
+the cause per case. Added `112051`, `115720`, `MQC_REQ_CAS_CI_0045`. Designs:
+`cmn_verdict_and_cli.md` sections 7.11.2, 7.11.3 and 7.11.4.
+
 ### A case reads nothing above the repository root, 2026-10-08
 
 **`MQC_CMN_UNI_112346` passed on a developer's disk and failed on both

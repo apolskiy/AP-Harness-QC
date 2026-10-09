@@ -52,6 +52,100 @@ _DEPENDENCY_SKIP: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
 # 7.11). Matched on the code the skip message carries.
 _QUARANTINE_SKIP: Final[str] = "QC_HARNESS_QUARANTINED"
 
+# WHAT EACH SKIP CODE MEANS IN WORDS, so a line states the cause and not the
+# family it belongs to. "For a reason of ours" covered nineteen codes taking
+# five different remedies, and the project owner read it and inferred the wrong
+# one (design section 7.11.3).
+#
+# KEYED ON THE REGISTERED CODE, which `test_taxonomy.md` section 6 owns. A code
+# absent from this map is reported as itself rather than folded into a
+# catch-all: unrecognised and named is informative, unrecognised and grouped is
+# how the vague phrase happened.
+_SKIP_CAUSES: Final[dict[str, str]] = {
+    "QC_HARNESS_DEPENDENCY_UNMET": "blocked by a failure in a higher priority band",
+    "QC_HARNESS_QUARANTINED": "a known failure in quarantine, not dispatched",
+    "QC_HARNESS_FIXTURE_MISSING": "no recorded response for this engine",
+    "QC_HARNESS_FIXTURE_STALE": "the recorded response no longer answers this request",
+    "QC_HARNESS_BUDGET_EXHAUSTED": "the run reached its spending ceiling",
+    "QC_HARNESS_CREDIT_EXHAUSTED": "the account has no credit left",
+    "QC_HARNESS_ENGINE_UNREACHABLE": "the provider could not be reached",
+    "QC_HARNESS_PROVIDER_UNAVAILABLE": "the provider declined to serve the request",
+    "QC_HARNESS_RATE_LIMIT": "the provider rate limited the run",
+    "QC_HARNESS_CANDIDATE_TIMEOUT": "the model did not answer in time",
+    "QC_HARNESS_JUDGE_TIMEOUT": "the judge did not answer in time",
+    "QC_HARNESS_AUTH_ERROR": "the credential was refused",
+    "QC_HARNESS_PARSER_ERROR": "the response could not be parsed",
+}
+
+_UNSTATED: Final[str] = "no cause recorded, which is itself a defect"
+
+
+def skip_detail_lines(skips: list[tuple[str, str]]) -> list[str]:
+    """Return one line per skipped case, naming the case and why it skipped.
+
+    **One line per case, not one per cause.** The project owner's instruction
+    of 2026-10-09: a line per case simplifies the parsing, because a reader or
+    an analyser keys on the case and finds its reason beside it rather than
+    joining a count back to names it does not have.
+
+    **Three comma-separated fields after one colon**: the case, the registered
+    code, and what the code means. One colon keeps each line a single statement
+    (`code-style.md` section 7).
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.11.3.
+
+    Args:
+        skips (list): One ``(case, reason)`` pair per skipped case, the reason
+            opening with its registered taxonomy code.
+
+    Returns:
+        list[str]: ``"skipped <n> of <total>: <case>, <CODE>, <meaning>"``,
+        sorted by case so the order does not depend on which ran first. Empty
+        where nothing skipped.
+    """
+    ordered = sorted(skips, key=lambda pair: (pair[0], pair[1]))
+    return [
+        f"skipped {index} of {len(ordered)}: {case or 'an unnamed case'}, "
+        f"{_code_in(reason) or 'no code'}, {_meaning_of(reason)}"
+        for index, (case, reason) in enumerate(ordered, 1)
+    ]
+
+
+def _meaning_of(reason: str) -> str:
+    """Return what a skip reason's code means, in words.
+
+    Args:
+        reason (str): The skip message.
+
+    Returns:
+        str: The described meaning, a statement that the code is registered and
+        undescribed, or that none was recorded. **Never silence**: a skip whose
+        cause nobody wrote down is itself a defect and the line says so.
+    """
+    code = _code_in(reason)
+    if not code:
+        return _UNSTATED
+    return _SKIP_CAUSES.get(code, "cause not described here")
+
+
+def _code_in(reason: str) -> str:
+    """Return the taxonomy code a skip message opens with.
+
+    Args:
+        reason (str): The skip message.
+
+    Returns:
+        str: The code, or an empty string where the message names none. **The
+        first token before a colon**, which is the shape every emitted code
+        already follows.
+    """
+    head = str(reason or "").strip()
+    for prefix in ("Skipped: ", "skipped: "):
+        if head.startswith(prefix):
+            head = head[len(prefix):]
+    token = head.split(":", 1)[0].strip()
+    return token if token.startswith("QC_") else ""
+
 
 def band_label(priority: str) -> str:
     """Return how a selection names itself.
@@ -71,79 +165,88 @@ def band_label(priority: str) -> str:
     return "Bands " + ",".join(f"P{band}" for band in bands)
 
 
-def band_lines(
+def result_lines(
+    *,
     passed: int,
     failed: int,
-    skip_reasons: list[str],
+    skips: list[tuple[str, str]],
     priority: str = "",
+    engine: str = "",
     preconditions_skipped: int = 0,
 ) -> list[str]:
-    """Return the two lines a band job is read for.
+    """Return a band's result as a header and one labelled fact per line.
 
-    Reports the band's total, what executed, what passed, what failed and what
-    was skipped, **all five always and a zero included**, then each skip's cause
-    where there is one, then both rates with their fractions. ``code-style.md``
-    section 7.1 holds the vocabulary.
+    **One fact per line, each labelled**, so a reader finds a number without
+    parsing a sentence and a tool finds it without a regex over prose. The
+    project owner's instruction of 2026-10-09: separate lines are easier for an
+    analyser to find and parse, and a header saying which band and which engine
+    is what makes a line attributable at all.
+
+    ```
+    Test results for Band P1 on claude
+    total: 11
+    executed: 7
+    passed: 7
+    failed: 0
+    skipped: 4
+    skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine
+    execution pass: 100.0% (7 of 7)
+    total pass: 63.6% (7 of 11)
+    ```
+
+    **All five counts, always, a zero included.** pytest omits an empty
+    category, so its line cannot answer "how many were selected" or "were any
+    skipped"; this one always can.
+
+    Design: ``cmn_verdict_and_cli.md`` sections 7.11.2 and 7.11.3.
 
     Args:
         passed (int): Cases that passed.
         failed (int): Cases that failed.
-        skip_reasons (list[str]): One reason per skipped case, so a skip behind
-            a failed foundation, one in quarantine and one of ours can each be
-            named by the remedy it takes.
-        priority (str): The ``--priority`` value, for the label.
-        preconditions_skipped (int): How many of the skips were ungraded
-            preconditions. **Named apart because no reason excuses one**: a
-            precondition measures our harness and a skipped one measured
-            nothing, so the run exits 3 and the line says so rather than
-            offering a reason (`harness_test_taxonomy.md` section 7.5.1).
+        skips (list): One ``(case, reason)`` pair per skipped case, so each
+            skip is reported on its own line against the case it belongs to.
+        priority (str): The ``--priority`` value, for the header.
+        engine (str): The engine measured, for the header. **Absent is
+            ordinary**: a precondition run measures no engine and the header
+            says so by leaving it out rather than by naming a default.
+        preconditions_skipped (int): How many skips were ungraded
+            preconditions, named apart because no cause excuses one.
 
     Returns:
-        list[str]: Two lines, or empty when the selection was empty. **An empty
-        selection prints nothing rather than zeroes**, because a row of zeroes
-        reads as a clean result.
+        list[str]: The header and the facts. **An empty selection yields
+        nothing rather than a row of zeroes**, because zeroes read as a clean
+        result.
     """
-    skipped = len(skip_reasons)
+    skipped = len(skips)
     selected = passed + failed + skipped
     if not selected:
         return []
 
     executed = passed + failed
-    blocked = sum(1 for reason in skip_reasons if _DEPENDENCY_SKIP in reason)
-    parked = sum(1 for reason in skip_reasons if _QUARANTINE_SKIP in reason)
-    # A PRECONDITION IS COUNTED OUT OF THE OTHERS FIRST, because "for a reason
-    # of ours" reads as tolerated and nothing about this is.
-    required = max(0, min(preconditions_skipped, skipped - blocked - parked))
-    other = skipped - blocked - parked - required
+    # LOWERCASED WHERE IT IS NOT A BAND NAME. "Band P1" is a name and keeps
+    # its capital; "Whole selection" is a description and reads as prose here.
+    subject = band_label(priority)
+    if not subject.startswith("Band"):
+        subject = f"the {subject[0].lower()}{subject[1:]}"
+    heading = f"Test results for {subject}"
+    if engine:
+        heading += f" on {engine}"
 
-    # TOTAL, EXECUTED, PASSED, FAILED, SKIPPED, in the project owner's
-    # vocabulary (`code-style.md` section 7.1). "Selected" sat next to pytest's
-    # "deselected" and invited the reader to subtract one from the other.
-    #
-    # ALL FIVE, ALWAYS, INCLUDING A ZERO. Two band jobs for two engines read
-    # `2 failed, 13 passed` and `3 failed, 9 passed, 3 skipped`, which is
-    # pytest's own line omitting an empty category, and this line omitted the
-    # skip count the same way. A reader comparing two engines was comparing two
-    # shapes, so a difference in the run and a difference in the format looked
-    # alike. The cause breakdown stays conditional, because an absent cause is
-    # a fact and an absent count is a gap.
-    counted = [f"{selected} total", f"{executed} executed",
-               f"{passed} passed", f"{failed} failed", f"{skipped} skipped"]
-    if blocked:
-        counted.append(f"{blocked} behind a higher band failure")
-    if parked:
-        counted.append(f"{parked} a known failure in quarantine")
-    if required:
-        counted.append(f"{required} a precondition, so the run exits 3")
-    if other:
-        counted.append(f"{other} for a reason of ours")
-
-    label = band_label(priority)
-    return [
-        f"{label}: " + ", ".join(counted),
-        f"{label}: execution pass {_stated(passed, executed)}, "
-        f"total pass {_stated(passed, selected)}",
+    lines = [
+        heading,
+        f"total: {selected}",
+        f"executed: {executed}",
+        f"passed: {passed}",
+        f"failed: {failed}",
+        f"skipped: {skipped}",
     ]
+    required = max(0, min(preconditions_skipped, skipped))
+    if required:
+        lines.append(f"preconditions skipped: {required}, so the run exits 3")
+    lines.extend(skip_detail_lines(skips))
+    lines.append(f"execution pass: {_stated(passed, executed)}")
+    lines.append(f"total pass: {_stated(passed, selected)}")
+    return lines
 
 
 def _stated(passed: int, denominator: int) -> str:
@@ -189,6 +292,26 @@ def pass_rate(passed: int, denominator: int) -> Optional[float]:
     return 100.0 * passed / denominator
 
 
+def skipped_cases_from(reports: list[object]) -> list[tuple[str, str]]:
+    """Return one ``(case, reason)`` pair per skipped report.
+
+    **The callable's name, not the whole node identifier.** The module and the
+    class are in the identifier too, and a line carrying all three is wider
+    than a terminal; the announcement at setup already gave the full path
+    (`harness_test_taxonomy.md` section 8.3.1).
+
+    Args:
+        reports (list): The skipped reports.
+
+    Returns:
+        list: One pair per report, in report order.
+    """
+    return [
+        (str(getattr(report, "nodeid", "")).rsplit("::", 1)[-1], reason)
+        for report, reason in zip(reports, skip_reasons_from(reports))
+    ]
+
+
 def skip_reasons_from(reports: list[object]) -> list[str]:
     """Return one reason per skipped report, however pytest spelled it.
 
@@ -230,7 +353,9 @@ def band_table(measured: list[tuple[str, int, int, list[str]]]) -> list[str]:
 
     Args:
         measured (list): One entry per band, as priority, passed, failed and
-            the reason of each skip.
+            one ``(case, reason)`` pair per skip. **The length is what this
+            reads**, so the pair shape costs it nothing and keeps one input
+            type across every caller.
 
     Returns:
         list[str]: Markdown lines, empty when nothing was measured at all.
@@ -239,8 +364,8 @@ def band_table(measured: list[tuple[str, int, int, list[str]]]) -> list[str]:
     totals = [0, 0, 0, 0]
     blocking_failures = 0
 
-    for priority, passed, failed, reasons in measured:
-        skipped = len(reasons)
+    for priority, passed, failed, skips in measured:
+        skipped = len(skips)
         selected = passed + failed + skipped
         if not selected:
             continue

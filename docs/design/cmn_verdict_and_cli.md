@@ -2247,6 +2247,68 @@ Band P1: 11 total, 11 executed, 8 passed, 3 failed, 0 skipped
 Band P1: execution pass 72.7% (8 of 11), total pass 72.7% (8 of 11)
 ```
 
+##### 7.11.3 A skip names its own cause, by code, counted
+
+Added 2026-10-09 at the project owner's instruction, after a line read:
+
+```
+11 total, 7 executed, 7 passed, 0 failed, 4 skipped, 4 for a reason of ours
+```
+
+**The project owner read that and inferred the wrong cause**, taking the four
+for cases blocked by the P0 failure in the same run. They were
+`QC_HARNESS_FIXTURE_MISSING`: claude had no recorded response for four security
+cases, which is a gap in the corpus and not a consequence of anything P0 did.
+
+**So the phrase was correct and useless.** It is ours, and "ours" spans a
+missing recording, a stale one, an exhausted budget, an unreachable provider
+and a parser error, which take five different remedies. A reader given the
+family and not the member has to guess, and the guess was wrong.
+
+**A skip now reports its code and its count**, one line per distinct cause:
+
+```
+Band P1: 11 total, 7 executed, 7 passed, 0 failed, 4 skipped
+Band P1: skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine
+```
+
+**Keyed on the registered code, not on prose.** `test_taxonomy.md` section 6 is
+the single registry, and a skip message opens with its code, so the count is
+grouped by a value that already exists rather than by a phrase somebody matched.
+An unrecognised code is reported **as the code**, which is informative and
+honest, rather than folded into a catch-all.
+
+| Code | What the line says |
+|---|---|
+| `QC_HARNESS_DEPENDENCY_UNMET` | blocked by a failure in a higher priority band |
+| `QC_HARNESS_QUARANTINED` | a known failure in quarantine, not dispatched |
+| `QC_HARNESS_FIXTURE_MISSING` | no recorded response for this engine |
+| `QC_HARNESS_FIXTURE_STALE` | the recorded response no longer answers this request |
+| `QC_HARNESS_BUDGET_EXHAUSTED` | the run reached its spending ceiling |
+| `QC_HARNESS_ENGINE_UNREACHABLE` | the provider could not be reached |
+| Anything else registered | the code itself, uninterpreted |
+
+**The three phrases this replaces** named a remedy class rather than a cause:
+behind a higher band failure, a known failure in quarantine, and for a reason of
+ours. The first two were right because each mapped to exactly one code. The
+third covered nineteen.
+
+##### 7.11.4 The reporting is an API the bands call, not prose each band carries
+
+**At the project owner's instruction**: move as much of the logging out of the
+band jobs as possible and have each band call it, so a fail, a skip and a pass
+read the same whichever band produced them. Band-specific values stay
+band-specific and are passed in.
+
+| Stays in the band | Moves into the API |
+|---|---|
+| The priority, the report path, whether the floor is blocking | The counts, the skip enumeration, the step summary, the floor verdict |
+
+**Because the duplication is what drifted.** Three hand-written step sets
+diverged in their conditions, so the band that failed printed nothing; two
+hand-written terminal hooks diverged in whether they dropped pytest's deselected
+count. Neither was a decision. Both were copies.
+
 ##### And the floor step reports whatever the band did
 
 **A floor step takes GitHub's default condition**, `success()`, so a failing
@@ -2350,7 +2412,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112046` | N | `a_skip_the_model_caused_counts_as_a_failure` |
 | `112047` | B | `a_counted_skip_never_reaches_the_numerator` |
 | `112048` | P | `a_dispensed_quarantine_skip_leaves_the_pass_rate` |
-| `112049` | B | `each_kind_of_skip_is_named_by_its_remedy` |
+| ~~`112049`~~ | | ~~`each_kind_of_skip_is_named_by_its_remedy`~~. **Retired 2026-10-09**, section 7.11.3. It asserted a phrase per remedy class and the line now names the cause per case, which is a different assertion; `112051` states it |
+| `112051` | P | `every_skip_names_its_case_and_its_cause` |
 | `112050` | N | `a_skipped_case_publishes_and_files_nothing` |
 | `112343` | P | `a_registered_family_round_trips_and_leaves_no_trace` |
 | `112344` | N | `a_precondition_that_skipped_fails_the_run` |
@@ -2575,7 +2638,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 262 cases, 145 negative, 88 positive, 29 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 262 cases, 145 negative, 89 positive, 28 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
