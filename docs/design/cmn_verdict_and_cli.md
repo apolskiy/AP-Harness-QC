@@ -2209,6 +2209,69 @@ established, and a report that appeared only on green is a report nobody needs.
 their denominators, so a band's own line and its row in the table cannot
 disagree.
 
+#### 7.11.2 It is the last line, because that is the line read first
+
+Added 2026-10-09 at the project owner's instruction: **the deselected count is
+the first thing an engineer inspecting a failure sees, and it is absolutely not
+interesting.**
+
+```
+=============== 3 failed, 8 passed, 158 deselected in 1.17s ================
+```
+
+**That line is pytest's, not ours, and it is last.** `pytest_terminal_summary`
+is called by the terminal reporter's `pytest_sessionfinish` **before**
+`summary_stats()`, so anything written from that hook lands above pytest's own
+line and pytest's own line is what a reader scanning from the bottom finds.
+
+**Two different hooks, because each does something only it can do.**
+
+| Hook | Runs | Does |
+|---|---|---|
+| `pytest_terminal_summary` | Before `summary_stats()` | Drops `deselected` from the stats, so pytest's line stops reporting it |
+| `pytest_unconfigure` | **After** `summary_stats()` | Writes the band's five counts, last |
+
+**The drop has to be early and the write has to be late**, which is why one
+hook could never have done both. The first attempt wrote the lines and dropped
+the count from one hook, and the drop worked in the harness and was never
+copied into the case repository, so the band jobs a reader was actually reading
+still carried it.
+
+**All five counts, always, a zero included** (`code-style.md` section 7.1).
+pytest omits an empty category by design, so its line cannot answer "how many
+were selected" or "were any skipped" and must not be the one a reader relies
+on:
+
+```
+Band P1: 11 total, 11 executed, 8 passed, 3 failed, 0 skipped
+Band P1: execution pass 72.7% (8 of 11), total pass 72.7% (8 of 11)
+```
+
+##### And the floor step reports whatever the band did
+
+**A floor step takes GitHub's default condition**, `success()`, so a failing
+test step in the same job skips it. The consequence is backwards: on claude, P0
+printed no counts because P0 was red, while P1 printed
+`11 total, 7 executed, 7 passed, 0 failed, 4 skipped` on the same run. **Same
+workflow, same engine, two different logs**, and the band a reader needed the
+counts from was the one that had none.
+
+Every graded band's floor step carries `if: always()` now, and
+`MQC_CAS_UNI_115720` fails the run when one does not.
+
+**The three band jobs are still three hand-written copies of one procedure**,
+differing only in the band label, the priority, the report name and whether the
+floor is blocking. That is the cause and this is the symptom: a composite action
+would make the divergence impossible rather than detected. It is recorded here
+rather than done, because the workflow checks read `run:` lines out of a job and
+eight call sites would stop seeing the pytest invocation until
+`workflow_support.run_lines` follows a local `uses:`.
+
+**What was lost and deliberately not restored.** pytest's line carries the run
+duration. A band's wall clock is in the job's own timing and in the step
+summary, and a reader deciding what to fix does not need it in the same breath
+as the counts.
+
 #### This does not change the verdict
 
 The verdict keeps its own denominators and its own floor. **This is a report

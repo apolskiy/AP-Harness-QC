@@ -295,6 +295,12 @@ the wrong thing.
 how many cases the other bands hold, so pytest's deselected count is suppressed
 rather than printed: it is the size of everything this run was not asked to do.
 
+**And the counts are the last line.** The deselected count is the first thing an
+engineer inspecting a failure sees, because pytest's summary line is written
+after every hook that could replace it. Dropping the count happens before that
+line is built and writing the counts happens after it, from two hooks, because
+no single hook runs at both moments (`cmn_verdict_and_cli.md` section 7.11.2).
+
 ### 7.2 A document's filename says which repository it belongs to
 
 Added 2026-10-08 at the project owner's instruction. **Two repositories held a
