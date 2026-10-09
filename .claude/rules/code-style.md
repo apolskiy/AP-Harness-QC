@@ -347,8 +347,11 @@ a reader of that history has to be able to follow it.
 
 #### Enforced, not remembered
 
-`cmn.code_standards.undifferentiated_documents` reports a tracked document under
-`docs/` whose name carries neither the repository's token nor an exemption.
+`cmn.document_naming.undifferentiated_documents` reports a tracked document
+under `docs/` whose name carries neither the repository's token nor an
+exemption. **The token comes from the declared project name**, which travels
+with the repository: reading the directory name failed on a runner, where the
+checkout's parent carries the repository's name as well (section 8.0).
 `MQC_CMN_UNI_112346` and `MQC_CAS_UNI_115718` call it with each root, which is
 the one-implementation-two-callers arrangement the encoding, annotation and
 header rules already use.
@@ -365,6 +368,72 @@ The harness is verified on Ubuntu and Windows (A18). These are not style prefere
 * **Temporary files come from `tempfile`.** Never a literal `/tmp` or `C:\Temp`.
 * **No shell invocation.** `subprocess` is called with a list and `shell=False`, because quoting rules differ between `sh` and PowerShell.
 * **Documented commands work on both.** Any command in a tracked document is either OS-neutral or given for both shells. `${VAR}` is not PowerShell and `$env:VAR` is not bash.
+
+### 8.0 A case reads nothing above the repository root
+
+Added 2026-10-08, after a case that passed on a developer's disk failed on both
+runners and **failing the harness merge failed every model job behind it**.
+
+**A checkout sits wherever somebody put it.** On a developer's disk this one is
+`PythonProject/AP-Harness-QC`; GitHub Actions checks out to
+`work/<repo>/<repo>`, so **the parent directory carries the same name as the
+root**. A case asserting something about the parent is asserting something about
+a path the project does not own.
+
+| | Parent of the root |
+|---|---|
+| A developer's disk | `PythonProject`, or anything at all |
+| A runner | `AP-Harness-QC`, the repository's own name again |
+| A worktree | The worktree directory, named for a branch |
+
+**What broke.** `MQC_CMN_UNI_112346` proved itself non-vacuous by asserting that
+`undifferentiated_documents` refuses a root whose name carries no repository
+token, and reached for `_ROOT.parent` as such a root. On a runner that parent is
+`work/AP-Harness-QC`, which carries `harness`, so the refusal never fired and
+the assertion failed with `DID NOT RAISE ValueError`.
+
+**The rule.** A case builds what it needs under `tmp_path` and names it, or
+reads inside the repository. `Path(__file__).resolve().parents[2]` is the root
+and nothing above it is readable.
+
+**One exception, and it is declared rather than assumed.** A case needing a
+sibling checkout says so with the `paired` environment scope, naming the
+directory it needs (`harness_test_taxonomy.md` section 7.5.1). That read is
+above the root by design and **it cannot be wrong on a runner**, because the
+absent sibling deselects the case instead of changing what it asserts. The
+defect above was an undeclared read whose answer happened to differ; a declared
+one has only two outcomes and both are correct.
+
+#### It is the same class as the encoding rule, and fails the same way
+
+Section 8.2.1 separates a platform difference that raises from one that silently
+changes a value. This is the second kind one level up: the code was correct, the
+test was correct about a path it did not own, and **it passed everywhere it was
+ever run before CI**. Both runners agreed with each other and disagreed with the
+author, which is the signature of a dependence on the environment rather than on
+the platform.
+
+#### Reproducing it costs a copy of the tree
+
+**Not enforced mechanically**, because what a case reads is resolved at runtime
+and a scanner cannot follow it. What can be done is reproduce the layout, which
+is cheap and found this in one run:
+
+```
+<scratch>/work/AP-Harness-QC/AP-Harness-QC/     the tree, copied
+pytest tests/cmn/mqc_uni_document_naming.py     run from there
+```
+
+Running the **committed** version there reproduced the runner's failure exactly,
+and the fix passes. That is the injection `testing-standards.md` requires,
+applied to an environment rather than to a defect.
+
+#### And the mechanism it exposed was worth fixing too
+
+`repository_token` read the directory name, which is incidental. It reads the
+project name from `pyproject.toml` now and falls back to the directory name, so
+the token **travels with the repository** rather than with where it was cloned.
+A clone into `qc/` would otherwise have refused the whole suite.
 
 ### 8.1 File edits carrying escapes go through a script, never a shell heredoc
 

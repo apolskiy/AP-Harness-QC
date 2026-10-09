@@ -10085,3 +10085,66 @@ its only reader, which is also why it is not shared with the one in
 
 Harness: 710 passing, 24 system, pylint exit 0. Case repository: 99 passing, 70
 graded in replay, pylint exit 0.
+
+## 2026-10-08: Passed here, failed on both runners, and took the model jobs with it
+
+**`MQC_CMN_UNI_112346` failed the harness merge, and every model job behind it
+failed with it.** The case was mine, written the same day, and the defect was in
+the part of it that was supposed to prove it was not vacuous.
+
+### What it asserted about a path it does not own
+
+The case checks that `undifferentiated_documents` refuses a root whose name
+carries no repository token, and used **the root's parent** as such a root:
+
+| | Parent of the root |
+|---|---|
+| This disk | `PythonProject`, no token, refusal fires, green |
+| A runner | `work/AP-Harness-QC`, **carries `harness`**, no refusal, red |
+
+GitHub Actions checks out to `work/<repo>/<repo>`. So the parent carries the
+repository's own name, the refusal never fired, and the assertion read
+`DID NOT RAISE ValueError` on Ubuntu and on Windows alike.
+
+**Both runners agreeing with each other and disagreeing with me is the
+signature**: a platform defect splits the two, and an environment defect does
+not.
+
+### Reproduced before fixed, which cost one copy of the tree
+
+```
+<scratch>/work/AP-Harness-QC/AP-Harness-QC/     the tree, copied
+git show HEAD:<the two files>                   the committed version
+pytest tests/cmn/mqc_uni_document_naming.py     from there
+```
+
+`DID NOT RAISE ValueError`, exit 1. The same failure from the same cause, and
+the fix passes in the same layout. That is the injection
+`testing-standards.md` requires, applied to an environment rather than a defect.
+
+### Two fixes, because the case found a real fragility as well as its own bug
+
+**The probe builds and names its own directory** under `tmp_path`, so it no
+longer reads a path the project does not own.
+
+**And `repository_token` stopped reading the directory name.** A checkout sits
+wherever somebody put it, and a clone into `qc/` would have made the token empty
+and refused the whole suite. It reads the declared project name from
+`pyproject.toml` now, with the directory name as the fallback, so the answer
+travels with the repository.
+
+### The rule, and the one exception it has
+
+`code-style.md` section 8.0: a case builds what it needs under `tmp_path`, or
+reads inside the repository. **Not enforced mechanically**, because what a case
+reads is resolved at runtime and a scanner cannot follow it; the recipe above is
+what makes it checkable.
+
+**Scanning for others found one**, and it is the exception: `112517` reads a
+sibling checkout under the `paired` environment scope, which names the directory
+it needs. That read cannot be wrong on a runner, because an absent sibling
+deselects the case instead of changing what it asserts.
+
+### State
+
+Harness: 710 passing, 24 system, pylint exit 0.

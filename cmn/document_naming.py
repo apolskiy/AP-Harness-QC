@@ -15,6 +15,7 @@ subject exists in one repository only passes on its own terms.
 """
 
 import logging
+import tomllib
 from pathlib import Path
 from typing import Final
 
@@ -37,22 +38,50 @@ _SKIPPED_TREES: Final[frozenset[str]] = frozenset({
 def repository_token(root: Path) -> str:
     """Return the token a repository's document names carry.
 
-    **Derived from the directory name rather than configured**, because a
-    configured value is a second place for the answer to live and the
-    repository already states it: ``AP-Harness-QC`` yields ``harness``.
+    **Read from the project name, which travels with the repository.** The
+    directory name does not: a checkout lives wherever somebody put it, and a
+    runner puts it at ``work/<repo>/<repo>`` so the parent carries the same
+    name as the root. A case asserting that the parent had no token passed on a
+    developer's disk and failed on both runners (`code-style.md` section 8).
+
+    **The directory name is the fallback and not the source.** A tree with no
+    ``pyproject.toml`` is not a repository this rule governs, and falling back
+    keeps the function usable on a fixture directory a case builds.
 
     Args:
         root (Path): The repository root.
 
     Returns:
-        str: The lowercase token, or an empty string where the directory name
-        carries no recognisable one.
+        str: The lowercase token, or an empty string where neither the project
+        name nor the directory name carries a recognisable one.
     """
-    name = root.resolve().name.lower()
-    for candidate in ("harness", "model"):
-        if candidate in name:
-            return candidate
+    for name in (_project_name(root), root.resolve().name.lower()):
+        for candidate in ("harness", "model"):
+            if candidate in name:
+                return candidate
     return ""
+
+
+def _project_name(root: Path) -> str:
+    """Return the declared project name, lowercased.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        str: The name, or an empty string where there is no readable
+        ``pyproject.toml`` with one. **A malformed file yields nothing rather
+        than raising**, because the caller's own refusal is the better message:
+        this function cannot say what a missing name means.
+    """
+    manifest = root / "pyproject.toml"
+    if not manifest.is_file():
+        return ""
+    try:
+        parsed = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return ""
+    return str((parsed.get("project") or {}).get("name", "") or "").lower()
 
 
 def documents_under(root: Path, folder: str = "docs") -> list[Path]:

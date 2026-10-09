@@ -56,7 +56,9 @@ _EXEMPT: Final[frozenset[str]] = frozenset({
 class TestMQCDocumentNaming:
     """Every document under `docs` says which repository it belongs to."""
 
-    def MQC_CMN_UNI_112346_a_document_naming_no_repository_is_reported(self) -> None:
+    def MQC_CMN_UNI_112346_a_document_naming_no_repository_is_reported(
+        self, tmp_path: Path
+    ) -> None:
         """A filename carries the repository's token, or an exemption's reason.
 
         **The four exemptions name a harness tier or a harness module**, so a
@@ -67,6 +69,10 @@ class TestMQCDocumentNaming:
         `OPEN_QUESTIONS.md` and `problems_found.md` took the token.
 
         Design: ``.claude/rules/code-style.md`` section 7.2.
+
+        Args:
+            tmp_path (Path): A directory for the refusal probe, named here so
+                the probe does not depend on where this checkout sits.
 
         Returns:
             None
@@ -96,8 +102,26 @@ class TestMQCDocumentNaming:
         # AND THE CHECK IS NOT VACUOUS. A root with no token is refused rather
         # than passed, because passing would report agreement having read
         # nothing.
+        #
+        # **IN A DIRECTORY THIS CASE NAMES**, which is the correction of
+        # 2026-10-08: this probe used `_ROOT.parent`, and a runner checks out to
+        # `work/<repo>/<repo>` so the parent carries the same name as the root.
+        # It passed on a developer's disk, failed on both runners, and failing
+        # the harness merge failed every model job behind it.
+        neutral = tmp_path / "unnamed-checkout"
+        neutral.mkdir()
         with pytest.raises(ValueError):
-            undifferentiated_documents(_ROOT.parent)
+            undifferentiated_documents(neutral)
+
+        # THE TOKEN COMES FROM THE PROJECT NAME, which travels with the
+        # repository; the directory name is the fallback and not the source.
+        (neutral / "pyproject.toml").write_text(
+            '[project]\nname = "ap-model-qc"\n', encoding="utf-8"
+        )
+        assert repository_token(neutral) == "model", (
+            "the declared project name was not read, so the token still "
+            "depends on where somebody cloned the repository"
+        )
 
         # THE ROOT CONVENTIONS ARE PINNED, so each addition is one more file
         # whose name says nothing about its checkout.

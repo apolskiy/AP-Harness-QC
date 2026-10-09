@@ -29,6 +29,38 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A case reads nothing above the repository root, 2026-10-08
+
+**`MQC_CMN_UNI_112346` passed on a developer's disk and failed on both
+runners**, and failing the harness merge failed every model job behind it.
+
+The case proved itself non-vacuous by asserting that
+`undifferentiated_documents` refuses a root whose name carries no repository
+token, and reached for the root's **parent** as such a root. GitHub Actions
+checks out to `work/<repo>/<repo>`, so that parent carries the repository's own
+name: the refusal never fired and the assertion failed with `DID NOT RAISE
+ValueError`.
+
+**The probe builds and names its own directory now**, under `tmp_path`. A
+checkout sits wherever somebody put it, so a case asserting anything about the
+path above the root is asserting something about a path the project does not
+own.
+
+**And the mechanism it exposed was worth fixing too.** `repository_token` read
+the directory name, which is incidental; it reads the declared project name from
+`pyproject.toml` now and falls back to the directory name, so the token travels
+with the repository. A clone into `qc/` would otherwise have refused the whole
+suite.
+
+**Reproduced before being fixed**, by copying the tree to
+`work/AP-Harness-QC/AP-Harness-QC` and running the committed version there: the
+same failure, from the same cause, and the fix passes. `code-style.md` section
+8.0 carries the rule and the recipe.
+
+**The one legitimate read above the root is declared.** A case needing a sibling
+checkout says so with the `paired` environment scope, and an absent sibling
+deselects it rather than changing what it asserts.
+
 ### A test module lists the cases it holds, 2026-10-08
 
 **A module docstring says what a module is about and not what is in it.**
