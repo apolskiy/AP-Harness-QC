@@ -2272,7 +2272,7 @@ Band P1: 11 total, 7 executed, 7 passed, 0 failed, 4 skipped
 Band P1: skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine
 ```
 
-**Keyed on the registered code, not on prose.** `test_taxonomy.md` section 6 is
+**Keyed on the registered code, not on prose.** `harness_test_taxonomy.md` section 6 is
 the single registry, and a skip message opens with its code, so the count is
 grouped by a value that already exists rather than by a phrase somebody matched.
 An unrecognised code is reported **as the code**, which is informative and

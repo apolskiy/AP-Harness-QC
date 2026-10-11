@@ -13,12 +13,15 @@ heading a check reads prose out of, and a filename that has to say which
 repository it belongs to. Everything left behind is about Python files.
 """
 
+import logging
 import re
 import subprocess
 from pathlib import Path
 from typing import Final
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -93,6 +96,204 @@ def runbook_problems(root: Path, runbook: str) -> list[str]:
 _REGISTER_ROW: Final[re.Pattern] = re.compile(
     r"^\|\s*`([A-Za-z0-9_./-]+\.(?:md|csv))`\s*\|"
 )
+
+
+# A STATED INVENTORY, IN THE ONE PHRASING EVERY DESIGN USES. Four documents
+# once used three different wordings for this sentence, which would have forced
+# the reader to parse prose variants: a check that parses prose fails the first
+# time somebody rewords rather than changes a number.
+_INVENTORY: Final[re.Pattern] = re.compile(
+    r"\*\*Inventory: (\d+) cases, (\d+) negative, (\d+) positive, (\d+) boundary"
+)
+
+# A ROW IN AN INVENTORY TABLE, bare six digits with its category. A struck
+# through row is a retirement and is deliberately not matched: the identifier
+# stays resolvable and the case no longer exists to be counted.
+_INVENTORY_ROW: Final[re.Pattern] = re.compile(
+    r"^\| `(\d{6})` \| ([PNB]) \|", re.M
+)
+
+
+# AN INVENTORY ROW, CAPTURED FOR ITS IDENTITY AND ITS BEHAVIOUR. A struck
+# through row is a retirement and is deliberately unmatched: the identifier
+# stays resolvable and the case no longer exists to collide with anything.
+_BINDING_ROW: Final[re.Pattern] = re.compile(
+    r"^\|\s*`(?P<identifier>\d{6})`\s*\|\s*[PNB]\s*\|\s*`?(?P<behaviour>[a-z_0-9]+)"
+)
+
+# A CASE CALLABLE, PARSED RATHER THAN MATCHED where it matters. Here a regex is
+# safe because the subject is a definition line and the project's own scanner
+# defect came from matching definitions inside string literals; the suite
+# reader below parses.
+_CASE_DEFINITION: Final[re.Pattern] = re.compile(
+    r"def MQC_[A-Z]{3}_[A-Z]{3,5}_(?P<identifier>\d{6})_(?P<behaviour>[a-z_0-9]+)"
+)
+
+
+def duplicate_inventory_bindings(
+    design_dir: Path, historical: frozenset[str] = frozenset()
+) -> list[str]:
+    """Report every identifier a design inventory binds to two behaviours.
+
+    **Every per-row check passes while an identifier is bound twice**, because
+    each is keyed on a row and the defect is a relationship between two rows.
+    That is the shape a per-row check cannot see, whatever its strictness.
+
+    Args:
+        design_dir (Path): The directory holding the design documents.
+        historical (frozenset[str]): Document names whose rows record what was
+            rather than what is, excluded so a retired binding does not read as
+            a live collision.
+
+    Returns:
+        list[str]: One entry per collision, naming the document, the identifier
+        and both behaviours.
+    """
+    seen: dict[str, list[str]] = {}
+    for document in sorted(design_dir.glob("*.md")):
+        if document.name in historical:
+            continue
+        for line in document.read_text(encoding="utf-8").splitlines():
+            match = _BINDING_ROW.match(line.strip())
+            if match is None:
+                continue
+            key = f"{document.name}:{match.group('identifier')}"
+            seen.setdefault(key, []).append(match.group("behaviour"))
+    return _collisions(seen)
+
+
+def duplicate_case_bindings(root: Path) -> list[str]:
+    """Report every identifier the collected suite binds to two behaviours.
+
+    **The inventory and the suite can disagree separately**, and in this
+    project they agreed: five identifiers were bound twice in both, so a check
+    on one half would have found the same five and a check on neither found
+    nothing for a week.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per collision, naming the identifier and both
+        behaviours with the modules that define them.
+    """
+    base = root / "tests"
+    if not base.is_dir():
+        return []
+    seen: dict[str, list[str]] = {}
+    for source in sorted(base.rglob("mqc_*.py")):
+        if "__pycache__" in source.parts:
+            continue
+        body = source.read_text(encoding="utf-8")
+        for match in _CASE_DEFINITION.finditer(body):
+            # DEFINED, NOT MENTIONED. A `def` inside a triple-quoted fixture is
+            # a double rather than a case, which is the scanner defect
+            # `code-style.md` section 8.1 records; the line's own indentation
+            # distinguishes a module-level class body from a string.
+            if not _defines_here(body, match.start()):
+                continue
+            seen.setdefault(match.group("identifier"), []).append(
+                f"{match.group('behaviour')} in {source.name}"
+            )
+    return _collisions(seen)
+
+
+def _defines_here(body: str, position: int) -> bool:
+    """Report whether a match is a real definition rather than fixture text.
+
+    Args:
+        body (str): The module source.
+        position (int): Where the match begins.
+
+    Returns:
+        bool: True when the enclosing line is a definition at class-body
+        indentation, which a line inside a quoted fixture is not.
+    """
+    start = body.rfind("\n", 0, position) + 1
+    prefix = body[start:position]
+    return prefix.strip() == "" and len(prefix) == 4
+
+
+def _collisions(seen: dict[str, list[str]]) -> list[str]:
+    """Return one entry per identifier bound more than once.
+
+    Args:
+        seen (dict): Identifier or scoped key to the behaviours bound to it.
+
+    Returns:
+        list[str]: Sorted, so two runs report in the same order.
+    """
+    return [
+        f"{where} is bound to {' and '.join(sorted(names))}"
+        for where, names in sorted(seen.items())
+        if len(set(names)) > 1
+    ]
+
+
+def inventory_count_problems(design_dir: Path) -> list[str]:
+    """Report every design whose stated inventory disagrees with its own rows.
+
+    **A stated total is derived data, and derived data gets restated wrongly.**
+    The harness checked this inline from 2026-09-26; the case repository had no
+    equivalent and its own figure drifted to 52 against 48 rows, because five
+    cases were added with the count incremented and no row written.
+
+    Design: ``AP-Model-QC`` ``consumer_ci.md`` section 4, which recorded the
+    asymmetry as an open question.
+
+    Args:
+        design_dir (Path): The directory holding the design documents.
+
+    Returns:
+        list[str]: One entry per disagreement, naming the document, what it
+        states and what its rows give. **A document stating no inventory is not
+        a problem here**, because whether a design carries one is a separate
+        question from whether the one it carries is right.
+    """
+    problems: list[str] = []
+    for document in sorted(design_dir.glob("*.md")):
+        body = document.read_text(encoding="utf-8")
+        stated = _INVENTORY.search(body)
+        if stated is None:
+            continue
+        rows = [category for _, category in _INVENTORY_ROW.findall(body)]
+        actual = (
+            len(rows), rows.count("N"), rows.count("P"), rows.count("B")
+        )
+        claimed = tuple(int(group) for group in stated.groups())
+        if claimed != actual:
+            problems.append(
+                f"{document.name} states {claimed[0]} cases "
+                f"({claimed[1]} negative, {claimed[2]} positive, "
+                f"{claimed[3]} boundary) and its rows give {actual[0]} "
+                f"({actual[1]} negative, {actual[2]} positive, "
+                f"{actual[3]} boundary)"
+            )
+    if problems:
+        logger.warning(
+            "%d design(s) state an inventory their own rows contradict",
+            len(problems),
+        )
+    return problems
+
+
+def documents_stating_an_inventory(design_dir: Path) -> list[str]:
+    """Return every design that states an inventory at all.
+
+    **So a caller can assert it compared something.** A check that silently
+    finds no inventory to compare reports agreement having read nothing, which
+    is the vacuity the instrument audit exists to prevent.
+
+    Args:
+        design_dir (Path): The directory holding the design documents.
+
+    Returns:
+        list[str]: The document names, sorted.
+    """
+    return sorted(
+        document.name for document in sorted(design_dir.glob("*.md"))
+        if _INVENTORY.search(document.read_text(encoding="utf-8"))
+    )
 
 
 def registered_documents(register: Path) -> set[str]:

@@ -70,6 +70,11 @@ from typing import Any
 import pytest
 
 from cmn.code_standards import section_lines
+from cmn.document_standards import (
+    duplicate_inventory_bindings,
+    documents_stating_an_inventory,
+    inventory_count_problems,
+)
 from cmn.metadata import (
     DiagnosticSummary,
     artifact_name,
@@ -213,23 +218,21 @@ class TestMQCTaxonomyRegistryConsistency:
         Returns:
             None
         """
+        # ONE IMPLEMENTATION, TWO CALLERS, from 2026-10-09. This was inline
+        # here, so the case repository had no equivalent and its own figure
+        # drifted to 52 against 48 rows: `consumer_ci.md` section 4 recorded
+        # that asymmetry as an open question and `MQC_CAS_UNI_115723` closes it.
         design_dir = Path(__file__).resolve().parents[2] / "docs" / "design"
-        checked = 0
-        for document in design_dir.glob("*.md"):
-            text = document.read_text(encoding="utf-8")
-            stated = re.search(
-                r"\*\*Inventory: (\d+) cases, (\d+) negative, (\d+) positive, "
-                r"(\d+) boundary", text
-            )
-            if stated is None:
-                continue
-            categories = re.findall(r"^\| `\d{6}` \| ([PNB]) \|", text, re.M)
-            assert int(stated.group(1)) == len(categories), document.name
-            assert int(stated.group(2)) == categories.count("N"), document.name
-            assert int(stated.group(3)) == categories.count("P"), document.name
-            assert int(stated.group(4)) == categories.count("B"), document.name
-            checked += 1
-        assert checked == 4
+        stating = documents_stating_an_inventory(design_dir)
+        assert len(stating) == 4, (
+            f"4 designs state an inventory and {len(stating)} were found, so "
+            f"this check compared less than it claims: {stating}"
+        )
+        problems = inventory_count_problems(design_dir)
+        assert not problems, (
+            f"{len(problems)} design(s) state an inventory their own rows "
+            f"contradict: " + "; ".join(problems)
+        )
 
 
 class TestMQCResultEmission:
@@ -789,28 +792,15 @@ class TestMQCInventoryIdentifiers:
         Returns:
             None
         """
+        # ONE IMPLEMENTATION, FOUR CALLERS, from 2026-10-10. This was inline
+        # and read only this repository's inventory, so the case repository had
+        # no equivalent in either direction and five identifiers were bound
+        # twice there for a week while every per-row check passed
+        # (`AP-Model-QC` `consumer_ci.md` section 4).
         design_dir = Path(__file__).resolve().parents[2] / "docs" / "design"
-        seen: dict[str, list[str]] = {}
-
-        for document in sorted(design_dir.glob("*.md")):
-            if document.name in _HISTORICAL_DOCUMENTS:
-                continue
-            for line in document.read_text(encoding="utf-8").splitlines():
-                match = _INVENTORY_ROW.match(line.strip())
-                if match is None:
-                    continue
-                identifier = match.group("identifier")
-                behaviour = match.group("behaviour")
-                seen.setdefault(f"{document.name}:{identifier}", []).append(behaviour)
-
-        duplicated = {
-            where: names for where, names in seen.items() if len(names) > 1
-        }
+        duplicated = duplicate_inventory_bindings(design_dir, _HISTORICAL_DOCUMENTS)
         assert not duplicated, (
             "an identifier is assigned once and never reused, so two live rows "
             "for one identifier rebind it to different behaviour: "
-            + "; ".join(
-                f"{where} bound to {' and '.join(names)}"
-                for where, names in sorted(duplicated.items())
-            )
+            + "; ".join(duplicated)
         )

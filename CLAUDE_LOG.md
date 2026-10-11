@@ -10285,3 +10285,98 @@ outcome it never measured**: it reads the figure and leaves the words alone now.
 Harness: 710 passing, pylint exit 0. Case repository: **101 passing and 1 failing
 by design**, pylint exit 0. The failure is `115721`, naming claude's seven
 missing recordings, and it closes with a live run rather than a code change.
+
+## 2026-10-09: Three copies became one definition, and the copies had hidden two defects
+
+**The project owner asked why the band reporting could not be one API with
+conditional differences.** It could, and collapsing it found two shipped
+defects that three copies had been hiding from each other.
+
+### What the copies actually differed in
+
+Four values: the priority, the report stem, the carry artifacts, and whether
+the floor is blocking. Everything else was the same prose three times.
+
+### The collapse, and the one thing it had to wait for
+
+`.github/actions/band/action.yml` takes those four as inputs. pytest stays
+invoked by Actions rather than wrapped, because the owner named the per-test
+listing as useful and a Python wrapper would nest it under a step named for the
+wrapper.
+
+**It could not land before the readers followed it.** Eight call sites in the
+case repository read the pytest invocation out of a job's `run:` lines. Two of
+them went quiet the moment the invocation moved, which is worse than the
+duplication: a check that finds nothing reports agreement. So `run_lines`
+follows a local `uses:` first, and refuses a dangling one rather than returning
+what it did find.
+
+### Two defects that had shipped
+
+**A band reported an emptiness about 51 cases.** The P2-P4 step summary read
+`junit_mqc_p2p4.xml` and the run wrote `junit_mqc_p2_p4.xml`, in two places
+including the overall table. `band_report` treated a missing file as an empty
+band and printed "that band ran nothing" at exit 0, so the overall gate summary
+has been missing its P2-P4 row and asserting an absence as a result.
+
+**An absence is not an emptiness**, which is the same distinction the recording
+check turns on, so the tool refuses at exit 4 now.
+
+**And P2-P4 ran its floor before its summary**, against the reason the other
+two state: a floor that fails before publishing hides the figures. One
+definition cannot disagree with itself about that.
+
+### A mis-registration the authoring order caught
+
+I registered the follow-a-local-uses requirement in **this** repository, as
+`MQC_REQ_HAR_CMN_0150` with `MQC_CMN_UNI_112349`. Wrong register: the harness's
+`pylint_invocations` reads workflow files for lint invocations and never walks a
+job's steps, while the reader that needed changing is the case repository's.
+
+**It cost a row rather than a module**, because the owner's order is design,
+trace, then code: the trace was written and the error was visible before
+anything was implemented against it. Both numbers stay retired.
+
+### State
+
+Harness: 710 passing, 24 system, pylint exit 0. Case repository: 105 of 106
+passing, pylint exit 0, the one failure being claude's seven missing recordings.
+
+## 2026-10-10: Five numbers meaning two things each, resolved by age
+
+**The project owner's rule settled it in one sentence:** the older binding keeps
+the number and the newer one rebinds, unless there is a qualitative impact.
+
+So the question became a git question rather than a judgement, and the answer
+was unambiguous: every rebound case is one to three days younger than the one it
+collided with. `git log -S` on each of the ten callables gave the dates.
+
+**The rule also moves the least stored history**, which is why it is the right
+one rather than merely a tiebreak: the older binding has by definition more
+results recorded under that number.
+
+**`115730` was the test of it.** It is cited by three requirements and by
+section 3.12.2's prose, and it moved, because the convenient answer and the
+correct one differed and the record a collector reads is what the rule protects.
+
+### The check that was missing, and what it would have cost
+
+`112226` read this repository's inventory inline. The case repository had no
+equivalent in either direction, which is how five collisions accumulated for a
+week while the inventory check found both rows, the trace check found both names
+valid, and the count check saw a row count that had genuinely grown.
+
+**Verified against the committed state rather than asserted.** The shared reader
+finds five collisions in the pre-rebinding inventory and five in the
+pre-rebinding suite, and none in either afterwards. A check that finds nothing
+proves nothing until it has been shown finding something.
+
+**The suite reader parses the indentation.** A `def` inside a triple-quoted
+fixture is a double rather than a case, which is the scanner defect
+`code-style.md` section 8.1 records and which this project has already shipped
+once: five case doubles inside a `_SUITE` string once read as untraced cases.
+
+### State
+
+Harness: 710 passing, pylint exit 0. Case repository: 106 of 107 passing, pylint
+exit 0, the one failure being claude's seven missing recordings.

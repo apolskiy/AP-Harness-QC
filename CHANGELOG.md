@@ -29,6 +29,74 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The five collisions are resolved, older binding keeps the number, 2026-10-10
+
+**Five identifiers in the case repository were each bound to two behaviours**,
+in its design inventory and in its suite, and every per-row check passed
+throughout: each is keyed on a row or a callable, and the defect is a
+relationship between two of them.
+
+**The older binding keeps the number**, which is also the choice that moves the
+least stored history. Each date is the commit that introduced the callable:
+
+| Number | Keeps it | Rebound to |
+|---|---|---|
+| `115709` | `a_graded_job_not_naming_its_engine` (10-03) | `115727` |
+| `115710` | `a_rostered_target_without_a_workflow_or_key` (10-05) | `115728` |
+| `115711` | `a_case_module_holding_support_code` (10-05) | `115729` |
+| `115712` | `a_subprocess_without_a_timeout` (10-05) | `115730` |
+| `115716` | `an_assertion_that_cannot_fail` (10-06) | `115731` |
+
+**`115730` carries the most citations and moved anyway.** Keeping the heavily
+cited binding would have been convenient and wrong: the record a collector
+reads is the ground the rule stands on.
+
+**And the check that was missing.** `duplicate_inventory_bindings` and
+`duplicate_case_bindings` are one implementation with four callers;
+`MQC_CMN_UNI_112226` called it inline and read only the harness's inventory,
+which is the asymmetry that let five collisions sit for a week.
+`MQC_CAS_UNI_115732` reads both directions for the case repository. Verified
+against the committed state: five found in each direction, none after.
+
+Also closed: the case repository had no equivalent of `112203`, so nothing
+compared its stated inventory against its own rows. `MQC_CAS_UNI_115723` closes
+the open question `consumer_ci.md` section 4 recorded.
+
+### One band definition, and two defects the collapse exposed, 2026-10-09
+
+**Three hand-written band jobs became one definition taking the band as a
+parameter.** `.github/actions/band/action.yml` holds the pytest invocation, the
+step summary and the floor; each job passes its band, priority, report stem and
+whether its floor is blocking, and keeps its own checkout, Python setup and
+install.
+
+**Which is what makes a band split a caller change.** P2-P4 becomes P2, P3 and
+P4 as the corpus grows, splitting when one band selects more than a thousand
+cases. With the band as an input that is three callers and no change to the
+definition.
+
+**A reader of a job's commands now follows a local `uses:`.** Eight call sites
+read the pytest invocation out of a job; moving it into the definition made two
+find nothing and report agreement. A dangling local reference is refused rather
+than skipped.
+
+**Two shipped defects the collapse surfaced:**
+
+A band's step summary read `junit_mqc_p2p4.xml` where the run wrote
+`junit_mqc_p2_p4.xml`, in two places. `tools/band_report.py` treated the
+missing file as an empty band and said **"that band ran nothing"** at exit 0,
+so P2-P4 reported an emptiness while running 51 cases and was absent from the
+overall table. A report asked for and not there is refused now, at exit 4.
+
+P2-P4 also ran its floor before its summary, against the reason P0 and P1
+state for the opposite order: a floor that fails before publishing hides the
+figures.
+
+Added `115724` through `115726`, `MQC_REQ_CAS_CI_0048` through `0050`.
+Retired unused: `MQC_REQ_HAR_CMN_0150` and `MQC_CMN_UNI_112349`, registered in
+the harness before anybody noticed the reader belongs to the case repository.
+Designs: `consumer_ci.md` section 3.12.7, `harness_ci_pipeline.md` section 8.4.
+
 ### A result is a header and one labelled fact per line, 2026-10-09
 
 **One formatter, every caller.** `band_lines` and `band_floor` described the

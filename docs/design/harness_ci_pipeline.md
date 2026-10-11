@@ -1087,6 +1087,48 @@ lines. **A check that over-reports is one a reader learns to skip**, which is
 worse than the gap it was written for.
 
 
+### 8.4 A workflow check follows a local `uses:`, or it goes blind
+
+Added 2026-10-09, before the band jobs were collapsed into a composite action.
+
+**`pylint_invocations` and the checks beside it read `run:` lines out of a
+job.** Eight call sites in the case repository depend on seeing the pytest
+invocation there: the attribution-ladder check, the engine-naming checks, the
+green-gate check.
+
+**Factor that invocation anywhere and those checks go quiet rather than red.**
+A check that finds nothing reports agreement, which is the failure mode this
+project treats as worst: a green that means nothing was read.
+
+So `run_lines` resolves a local `uses:` and includes the referenced definition's
+own `run:` lines. A composite action at `./.github/actions/band` is read as part
+of the job that uses it.
+
+| Reference | Followed |
+|---|---|
+| `./.github/actions/<name>` | Yes, its `action.yml` steps are read |
+| `./.github/workflows/<name>.yml` | Yes, its jobs' steps are read |
+| `actions/checkout@v5` | No. A third-party action is not this repository's prose |
+
+**A missing local reference is a problem, not a silence.** A `uses:` naming a
+path that does not exist means the workflow is broken, and the reader says so
+rather than returning the lines it did find.
+
+**This is a strict improvement whatever happens to the band jobs.** The checks
+were already blind to anything factored out; nothing had been factored out yet,
+so the weakness was latent rather than absent.
+
+**The reader is the case repository's, so the requirement is too.** This was
+first registered here as `MQC_REQ_HAR_CMN_0150` with `MQC_CMN_UNI_112349`, and
+that was the wrong register: `pylint_invocations` here reads workflow files for
+lint invocations and never walks a job's steps, while
+`tests/cases/workflow_support.run_lines` there walks its own repository's. The
+requirement is `MQC_REQ_CAS_CI_0050`, traced by `MQC_CAS_UNI_115726`.
+
+**Both retired numbers stay retired.** Nothing was implemented against
+either, and the authoring order is what caught it: design, trace, then code,
+so the mis-registration cost a row rather than a module.
+
 ### 8.3 One lint invocation, and a YAML parse that is not a schema check
 
 Added 2026-10-04 after a push turned the harness gate red on a commit that had

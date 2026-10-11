@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # WHICH BANDS MAY NOT REST ON AN ABSENCE. A blocking band answers for every
 # case it selected, so an unmeasured one cannot be rounded up; a lower band is
 # governed by a pass floor and a missing recording costs it coverage instead
-# (`AP-Model-QC` `consumer_ci.md` section 3.12.4).
+# (`AP-Model-QC` `consumer_ci.md` section 3.12.6).
 _BLOCKING_PRIORITIES: Final[frozenset[int]] = frozenset({0, 1})
 
 
@@ -43,7 +43,7 @@ def missing_recordings(
 
     **It fails rather than being declarable.** A case that is not selected is
     never recorded and never executed, so a tolerated gap is a permanent one
-    (section 3.12.4).
+    (section 3.12.6).
 
     Args:
         root (Path): The case repository root.
