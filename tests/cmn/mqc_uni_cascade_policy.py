@@ -21,8 +21,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCCascadeCost
 #   112338  a_quarantined_case_reaching_dispatch_is_reported
-#   112339  a_dependent_of_a_failure_is_probed_in_replay
-#   112340  a_probe_is_counted_in_no_denominator
+#   112350  a_dependent_of_a_failure_skips_outside_an_inquest
+#   112351  an_inquest_records_a_dependent_as_unattributed
 # ------------------------------------------------------------ end of cases
 
 from types import SimpleNamespace
@@ -31,12 +31,15 @@ from typing import Final
 import pytest
 
 from cmn.dependencies import (
+    opens_an_inquest,
     enforce_dependencies,
-    probes_dependents,
     record_base_outcome,
     reset_dependency_state,
+    inquest_dependency,
 )
+from cmn.emission import attributed_observations
 from cmn.layers import outcome_properties, registered_outcomes
+from cmn.observations import Observation
 from cmn.registries import is_registered_harness_code
 
 from tests.cmn.cascade_doubles import cascade_item
@@ -88,96 +91,170 @@ class TestMQCCascadeCost:
             "failure stops lowering the rate it should lower"
         )
 
-    def MQC_CMN_UNI_112339_a_dependent_of_a_failure_is_probed_in_replay(
+    # `112339` AND `112340` ARE RETIRED, 2026-10-11. The first asserted that
+    # replay probes, and replay no longer does: CI reports pass, fail and skip
+    # only, so the mechanism moved out of CI rather than being excluded from
+    # its denominators. The second asserted the registry entry and not that
+    # anything produced it, and nothing did for four days
+    # (design sections 10.28.2.2 and 10.28.2.3).
+
+    def MQC_CMN_UNI_112350_a_dependent_of_a_failure_skips_outside_an_inquest(
         self,
     ) -> None:
-        """Replay measures the dependent; live declines to pay for it.
+        """Only a gap-filling live run dispatches; everything else skips.
 
-        **A dependent of a failed foundation may carry its own defect.** Fixing
-        the foundation would not fix it, and nothing can tell which it is
-        without running the dependent. Section 10.28.1 skipped it so one
-        behaviour was not counted twice, which is right where the dependent
-        fails for the foundation's reason and loses a finding where it fails
-        for its own.
+        **The only pass, fail and skip acceptable for statistics are CI's**, and
+        an unattributed result is not a statistic. Replay used to dispatch and
+        the CI bands are replay, so CI was emitting exactly the outcome that
+        must not count.
 
-        **Replay runs it free**, so the information is taken on every CI band;
-        a live run would spend quota on what the next replay gives away.
+        **Four flags saying "count this nowhere" are the second guarantee, not
+        the first.** They were right and unread for four days, which is what
+        makes never emitting it where counting happens the stronger rule.
 
-        Design: ``cmn_verdict_and_cli.md`` section 10.28.2.1.
+        Design: ``cmn_verdict_and_cli.md`` section 10.28.2.3.
 
         Returns:
             None
         """
-        assert probes_dependents(cascade_item("probe", "replay")), (
-            "replay declines to probe, so a dependent's own defect waits for "
-            "the next round trip although measuring it costs nothing"
+        assert opens_an_inquest(
+            cascade_item("x", "live", fill_gaps=True)
+        ), (
+            "a gap-filling live run declines to dispatch, so a dependent with "
+            "no recording can never be measured by anything"
         )
-        assert not probes_dependents(cascade_item("probe", "live")), (
-            "a live run probes, spending quota on what the next replay would "
-            "give away free"
-        )
-        # AN UNSET MODE IS TREATED AS SPENDING, so a caller that configured
-        # nothing never probes.
-        assert not probes_dependents(cascade_item("probe", "")), (
-            "an unconfigured run probes, so the default spends"
-        )
-        assert not probes_dependents(SimpleNamespace(name="bare")), (
-            "an item carrying no config probes, which would crash a caller "
+
+        # EVERYTHING ELSE SKIPS, WHICH IS THE POINT. Replay is where CI runs.
+        for mode, gaps, why in (
+            ("replay", False, "replay dispatches, so CI emits an unattributed result"),
+            ("replay", True, "replay with the flag dispatches, and replay is CI"),
+            ("live", False, "a live run without the flag spends on a dependent"),
+            ("", True, "an unconfigured run dispatches, so the default spends"),
+        ):
+            assert not opens_an_inquest(
+                cascade_item("x", mode, fill_gaps=gaps)
+            ), why
+
+        assert not opens_an_inquest(SimpleNamespace(name="bare")), (
+            "an item carrying no config dispatches, which would crash a caller "
             "that has no invocation to read"
         )
 
-        # THE FOUNDATION FAILED: replay marks the dependent and lets it run,
-        # and live skips it.
+        # THE FOUNDATION FAILED: a gap-filling run marks the dependent and lets
+        # it run, and every other run skips it with the cascade's code.
         reset_dependency_state()
-        record_base_outcome(cascade_item(f"MQC_EVL_SEC_{_FOUNDATION}_x", "replay"), False)
+        record_base_outcome(
+            cascade_item(f"MQC_EVL_SEC_{_FOUNDATION}_x", "replay"), False
+        )
 
-        probed = cascade_item("MQC_EVL_SEC_154109_y", "replay", (_FOUNDATION,))
-        enforce_dependencies(probed)
-        assert probed.added, (
-            "the probed dependent carries no marker, so the reporting hook "
+        dispatched = cascade_item(
+            "MQC_EVL_SEC_154109_y", "live", (_FOUNDATION,), fill_gaps=True
+        )
+        enforce_dependencies(dispatched)
+        assert dispatched.added, (
+            "the dispatched dependent carries no marker, so the reporting hook "
             "cannot tell its result from a measured one"
         )
 
-        with pytest.raises(BaseException) as raised:
-            enforce_dependencies(cascade_item("MQC_EVL_SEC_154109_y", "live", (_FOUNDATION,)))
-        assert "QC_HARNESS_DEPENDENCY_UNMET" in str(raised.value), (
-            f"a live dependent of a failure did not skip with the cascade's "
-            f"code: {raised.value}"
-        )
+        for mode, gaps in (("replay", False), ("live", False)):
+            with pytest.raises(BaseException) as raised:
+                enforce_dependencies(cascade_item(
+                    "MQC_EVL_SEC_154109_y", mode, (_FOUNDATION,), fill_gaps=gaps
+                ))
+            assert "QC_HARNESS_DEPENDENCY_UNMET" in str(raised.value), (
+                f"a {mode} dependent of a failure did not skip with the "
+                f"cascade's code: {raised.value}"
+            )
 
-    def MQC_CMN_UNI_112340_a_probe_is_counted_in_no_denominator(self) -> None:
-        """A boundary, and the boundary is every denominator at once.
+    def MQC_CMN_UNI_112351_an_inquest_records_a_dependent_as_unattributed(
+        self,
+    ) -> None:
+        """The marker reaches the artifact, which it never did before.
 
-        **A probe is a measurement and not a verdict.** It is taken so a
-        dependent's own defect is visible, and it enters no aggregate so that
-        one behaviour cannot be reported twice: that is the whole of its
-        accounting, and section 10.28.1's objection survives it intact.
+        **`112340` asserted the registry entry and not that anything produced
+        it.** The marker was set from 2026-10-07 and read by nothing, so every
+        dispatched dependent was published as an ordinary pass or fail and
+        counted in every denominator: the exact opposite of what the design
+        specified, passing two cases throughout.
 
-        **The registry refuses an outcome that omits a denominator**, which is
-        why this is a boundary rather than four separate claims.
-
-        Design: ``cmn_verdict_and_cli.md`` section 10.28.2.1.
+        Design: ``cmn_verdict_and_cli.md`` section 10.28.2.2.
 
         Returns:
             None
         """
-        assert "probe" in registered_outcomes(), (
-            "the probe outcome is unregistered, so every probed observation "
-            "reports a harness error instead of a result"
+        # THE OUTCOME IS REGISTERED AND COUNTS NOWHERE, which is the half that
+        # was already true.
+        assert "unattributed" in registered_outcomes(), (
+            "the outcome is unregistered, so a recorded one would be refused"
         )
-        properties = outcome_properties("probe")
+        properties = outcome_properties("unattributed")
         for field in (
             "counts_in_pass_rate", "is_pass",
             "counts_in_skip_rate", "counts_in_distribution",
         ):
             assert not getattr(properties, field), (
-                f"a probe declares {field}, so measuring a dependent of a "
-                f"failure counts one behaviour twice in that denominator"
+                f"an unattributed observation counts toward {field}, so a "
+                f"dependent's result is attributed to a model whose premise "
+                f"was broken"
             )
 
-        # AND THE NEIGHBOURS ARE UNCHANGED, or this would have moved an
-        # existing outcome's accounting while adding one.
-        assert outcome_properties("pass").is_pass
-        assert outcome_properties("fail").counts_in_pass_rate
-        assert outcome_properties("skip").counts_in_skip_rate
-        assert not outcome_properties("broken").counts_in_pass_rate
+        # AND THE WORD IS NOT THE PRE-TEST ONE. `probe` means the version
+        # check, which tests nothing; one word for two concepts is what hid
+        # this entry being produced by nothing.
+        assert "probe" not in registered_outcomes(), (
+            "`probe` is still a registered outcome, so the word names both the "
+            "pre-test version check and this, which is the drift "
+            "`testing-standards.md` forbids"
+        )
+
+        # THE MARKER IS READ. An item carrying it publishes `unattributed`
+        # whatever its assertions did, and one without it publishes normally.
+        assert inquest_dependency(
+            cascade_item("x", "live", (_FOUNDATION,), fill_gaps=True)
+        ) == "", "an item the cascade never marked reports a foundation"
+
+        marked = cascade_item("y", "live", fill_gaps=True)
+        marked.add_marker(pytest.mark.inquest(_FOUNDATION))
+        assert inquest_dependency(marked) == _FOUNDATION, (
+            "the marker is set and unread, which is how the registry entry "
+            "came to be produced by nothing"
+        )
+        assert inquest_dependency(None) == "", (
+            "a caller holding no item raised rather than answering"
+        )
+
+        # AND THE TRANSFORMATION IS WHAT THE ARTIFACT GETS. `publish_result`
+        # calls this, so asserting it asserts what reaches the record.
+        measured = [
+            Observation(
+                case_id="MQC_TASK_a::MQC_RULE_a", layer="SEC",
+                outcome=outcome, priority=1, observation_index=index,
+            )
+            for index, outcome in enumerate(("pass", "fail", "pass"))
+        ]
+
+        unmarked = attributed_observations(
+            cascade_item("x", "live", fill_gaps=True), measured
+        )
+        assert [entry.outcome for entry in unmarked] == ["pass", "fail", "pass"], (
+            "an unmarked case was restated, so an ordinary result is attributed "
+            "to nothing"
+        )
+
+        restated = attributed_observations(marked, measured)
+        assert [entry.outcome for entry in restated] == ["unattributed"] * 3, (
+            f"a case dispatched despite a broken foundation published "
+            f"{[entry.outcome for entry in restated]}, so its result is "
+            f"attributed to a model whose premise was broken"
+        )
+
+        # ALL OF THEM OR NONE, because the attribution is a property of the
+        # case and not of one observation.
+        assert len({entry.outcome for entry in restated}) == 1, restated
+
+        # AND NOTHING ELSE IS DISTURBED, so a reader of the artifact still has
+        # the case, the band and the index it was measured under.
+        for before, after in zip(measured, restated):
+            assert after.case_id == before.case_id
+            assert after.priority == before.priority
+            assert after.observation_index == before.observation_index

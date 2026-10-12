@@ -25,10 +25,12 @@ into Allure could only be tested by running a reporter.
 
 import json
 import logging
+from dataclasses import replace
 from typing import Any, Final, Optional
 
 import allure
 
+from cmn.dependencies import inquest_dependency
 from cmn.observations import Observation, RunContext
 from cmn.reporting import observation_parameters, vendor_report
 
@@ -153,6 +155,47 @@ def published_fields(
     return fields
 
 
+def attributed_observations(
+    item: Any, observations: list[Observation]
+) -> list[Observation]:
+    """Return the observations as they should be published, by attribution.
+
+    **A case dispatched despite a broken foundation is attributed to nothing.**
+    Its assertions ran and may have failed for its own reason or for the
+    foundation's, and nothing can tell which, so the outcome is
+    ``unattributed`` and counts in no denominator.
+
+    **Named rather than inline so it can be asserted directly.** The marker was
+    set from 2026-10-07 and read by nothing, and the two cases guarding it
+    tested the predicate and the registry entry, neither of which reaches the
+    artifact: a transformation with no name is a transformation no case calls.
+
+    Design: ``cmn_verdict_and_cli.md`` sections 10.28.2.2 and 10.28.2.3.
+
+    Args:
+        item (Any): The test that ran, read for the cascade's marker.
+        observations (list[Observation]): What the case recorded.
+
+    Returns:
+        list[Observation]: The same observations, or every one restated as
+        ``unattributed`` where the cascade dispatched the case despite a
+        foundation that did not hold. **All of them or none**, because the
+        attribution is a property of the case rather than of one observation.
+    """
+    despite = inquest_dependency(item)
+    if not despite:
+        return list(observations)
+    logger.info(
+        "%s was dispatched despite %s not holding, so its %d observation(s) "
+        "are unattributed and counted in no denominator",
+        getattr(item, "name", "?"), despite, len(observations),
+    )
+    return [
+        replace(observation, outcome="unattributed")
+        for observation in observations
+    ]
+
+
 def publish_result(item: Any, report: Any) -> int:
     """Publish the current case's record to the artifact.
 
@@ -165,6 +208,10 @@ def publish_result(item: Any, report: Any) -> int:
     **A failing case attaches every call it made**; a passing one and a
     skipped one do not, per section 5.3. Nothing is filed about a pass, and a
     skip holds no response for a provider to read.
+
+    **A case dispatched despite a broken foundation publishes as
+    `unattributed`**, whatever its assertions did: it was measured and cannot be
+    attributed while its premise is broken (section 10.28.2.3).
 
     Args:
         item (Any): The test that ran, read for its name.
@@ -182,7 +229,9 @@ def publish_result(item: Any, report: Any) -> int:
     if not recorded:
         return 0
 
-    observations = [observation for observation, _ in recorded]
+    observations = attributed_observations(
+        item, [observation for observation, _ in recorded]
+    )
     for name, value in published_fields(observations, _RUN["context"]).items():
         allure.dynamic.parameter(name, value)
 

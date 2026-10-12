@@ -29,6 +29,93 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A README change carries a changelog entry, 2026-10-12
+
+**Added.** `cmn.document_standards.changelog_problems` reports a repository
+holding a README and no changelog, called with each root by
+`MQC_CMN_UNI_112353` and `MQC_CAS_UNI_115735`. The README describes the current
+state and nothing else, which is what makes it readable and also what makes it
+historyless: a figure that moves there records neither when nor why.
+
+**Changed.** README figures: 588 cases, 283 requirements traced.
+
+### A refused request is the model's bug, not our credential's, 2026-10-12
+
+**Fixed.** HTTP 403 was mapped to `QC_HARNESS_AUTH_ERROR` alongside 401, and the
+circuit breaker aborts on that code without counting. One refused case therefore
+ended a recording run and reported a rejected credential while the balance was
+intact. 401 is about the caller and 403 about the request, so one ends the run
+and the other ends the case.
+
+**Added.** `QC_LLM_OVER_REFUSAL`, ranked 6. A provider refusing a task that
+declares no adversarial content, in a run where it answered other requests, is a
+model finding: an entitlement the account lacks refuses every request, so the
+run is the control. `attributed_refusal` applies it, and a refusal of an
+adversarial task stays correct behaviour rather than a quality failure.
+
+**Added.** `QC_HARNESS_REQUEST_REFUSED` for the cases the evidence does not
+attribute, with the provider's own message recorded beside it.
+
+**Changed.** `mqc_uni_refusal.py` split from `mqc_uni_conformance.py`, which the
+subject took to 936 lines against the 900-line runway ceiling.
+
+### A fixture stores the request it sent, and a ticket can be run, 2026-10-11
+
+**Added.** `record_fixture` stores the composed request beside its hash, so the
+call a provider received is recoverable from the fixture alone. `load_fixture`
+re-hashes the stored request and reports a disagreement as stale, which makes
+the hash a check on the record rather than a substitute for it.
+
+**Added.** `reproduction_snippet` prints a recorded call as runnable code in the
+provider's own SDK. A `curl` was asked for and declined on evidence: the
+recording holds SDK keyword arguments rather than an HTTP body, and one
+provider's stored field has no wire form, so a hand-built request would run with
+different behaviour than the call it reproduces.
+
+**Added.** `cmn/credentials.py`, holding the credential vocabulary that
+`cmn/config.py` had grown past the thousand-line ceiling. Configuration
+refusal and the new fixture screen now read one registry.
+`fixture_credential_problems` reports a credential-shaped field name or value
+in any stored fixture and never quotes the value it found.
+
+**Changed.** A gap-filling run dispatches an observation whose recording carries
+no request. Such a recording still replays, so filling the field is a run rather
+than an outage.
+
+**Fixed.** A duplicate section number: `tier2_execution.md` had two `7.8`
+sections and two requirements cited the number for different specifications.
+The later one is `7.12`.
+
+### A dependent's result is `unattributed`, and the marker is finally read, 2026-10-11
+
+**Fixed.** `cmn/dependencies.py` set a marker since 2026-10-07 and no reporting
+hook read it, so a case dispatched although its foundation had failed published
+as an ordinary pass or fail and counted in every denominator. The registry
+entry declaring it countable nowhere was produced by nothing.
+`cmn.emission.attributed_observations` is the named transformation that applies
+it, called from `publish_result`.
+
+**Changed.** The outcome is `unattributed` rather than `probe`. The word named
+two near-opposite concepts: the pre-test reachability and version check in
+`execution/preflight.py`, which decides whether running is worth it and tests
+nothing, and this, which tests a case's own behaviour. The older sense keeps the
+word.
+
+**Changed.** Only a live run carrying `--fill-gaps` dispatches such a dependent,
+and that activity is an **inquest**: `opens_an_inquest` is the predicate,
+`inquest_dependency` reads the marker, and the marker itself is `inquest`. The
+outcome keeps the name `unattributed`, because the activity and what it returns
+are two concepts and naming only the second left the first described by its
+result (section 10.28.2.4).
+Replay used to, and the CI bands are replay, so CI was emitting the one outcome
+that must not count toward statistics. Every other invocation skips the
+dependent with `QC_HARNESS_DEPENDENCY_UNMET`.
+
+**Retired.** `112339` and `112340`, to one-line pointers. The first asserted
+that replay probes, which it no longer does; the second asserted the registry
+entry without asserting that anything produced it. `112350` and `112351`
+replace them, the second checking the published artifact end to end.
+
 ### The five collisions are resolved, older binding keeps the number, 2026-10-10
 
 **Five identifiers in the case repository were each bound to two behaviours**,

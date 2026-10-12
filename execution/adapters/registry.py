@@ -18,7 +18,8 @@ it wanted.
 """
 
 import logging
-from typing import Final, Iterator, Type
+import json
+from typing import Any, Final, Iterator, Type
 
 from execution.adapters.base import ProviderAdapter
 from execution.adapters.claude import ClaudeAdapter
@@ -178,3 +179,46 @@ register_adapter(ClaudeAdapter)
 register_adapter(GeminiAdapter)
 register_adapter(OpenAIAdapter)
 register_adapter(GrokAdapter)
+
+def reproduction_snippet(engine: str, request: dict[str, Any]) -> str:
+    """Return a runnable snippet that re-issues one recorded call.
+
+    **The stored request is this SDK's keyword arguments**, so the snippet
+    passes them through unchanged and nothing is reconstructed. That is the
+    whole reason it is a snippet rather than a ``curl``: for one provider a
+    stored field has no wire form at all, so a hand-built HTTP body would run
+    with different behaviour than the call it claims to reproduce
+    (``consumer_ci.md`` section 9.5.3).
+
+    **No credential appears.** Every client reads its own environment variable,
+    which is named in a comment so a reader knows what to set.
+
+    Args:
+        engine (str): The engine the call was made against.
+        request (dict): The composed request the recording stored.
+
+    Returns:
+        str: Python a reader can run, or an empty string where the engine is
+        unregistered or declares no reproduction. **Empty rather than
+        approximate**, because a reproduction that does not reproduce is worse
+        than none.
+    """
+    try:
+        adapter = adapter_for(engine)
+    except (KeyError, ValueError):
+        logger.warning("No adapter for %s, so no reproduction is offered", engine)
+        return ""
+    call = getattr(adapter, "REPRODUCTION_CALL", "")
+    builder = getattr(adapter, "reproduction_setup", None)
+    setup = tuple(builder()) if callable(builder) else ()
+    if not call or not setup:
+        return ""
+    package = getattr(adapter, "REPRODUCTION_PACKAGE", "")
+    arguments = ",\n".join(
+        f"    {name}={json.dumps(value, indent=4, ensure_ascii=False)}"
+        for name, value in sorted(request.items())
+    )
+    lines = [f"# pip install {package}"] if package else []
+    lines.extend(setup)
+    lines.extend(["", f"response = {call}(", arguments, ")", "print(response)"])
+    return "\n".join(lines)

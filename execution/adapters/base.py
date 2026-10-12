@@ -308,6 +308,34 @@ class ConfiguredAdapter(ProviderAdapter):
     ENGINE_NAME: str = ""
     DEFAULT_MODEL: str = ""
 
+    # HOW A RECORDED CALL IS RE-ISSUED. Declared rather than derived, because
+    # the stored request is this SDK's keyword arguments and not an HTTP body:
+    # `curl` would mean reconstructing each provider's wire format, and for one
+    # provider a stored field has no wire form at all, so the reconstruction
+    # would run with different behaviour than the call it claims to reproduce
+    # (`consumer_ci.md` section 9.5.3).
+    #
+    # EMPTY BY DEFAULT, so an adapter that declares nothing produces no
+    # reproduction rather than a wrong one.
+    REPRODUCTION_PACKAGE: str = ""
+    REPRODUCTION_CALL: str = ""
+
+    @classmethod
+    def reproduction_setup(cls) -> tuple[str, ...]:
+        """Return the lines that construct this provider's client.
+
+        **A method rather than a constant**, because two adapters share one
+        protocol and differ only in a base URL and a variable name: a constant
+        made them identical declarations, which is a duplication pylint is
+        right to report.
+
+        Returns:
+            tuple[str, ...]: Import and construction lines, naming the
+            environment variable in a comment and **never a credential**.
+            Empty where the adapter declares no reproduction.
+        """
+        return ()
+
     def __init__(self, model: Optional[str] = None) -> None:
         """Record which model this adapter requests.
 

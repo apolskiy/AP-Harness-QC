@@ -32,7 +32,8 @@ _ERROR_CLASSES: Final[tuple[tuple[type, str], ...]] = (
     (anthropic.RateLimitError, "QC_HARNESS_RATE_LIMIT"),
     (anthropic.APITimeoutError, "QC_HARNESS_CANDIDATE_TIMEOUT"),
     (anthropic.AuthenticationError, "QC_HARNESS_AUTH_ERROR"),
-    (anthropic.PermissionDeniedError, "QC_HARNESS_AUTH_ERROR"),
+    # 403 ENDS THE CASE, NOT THE RUN. Design section 8.6.7.
+    (anthropic.PermissionDeniedError, "QC_HARNESS_REQUEST_REFUSED"),
     (anthropic.BadRequestError, "QC_HARNESS_REQUEST_REJECTED"),
     (anthropic.NotFoundError, "QC_HARNESS_VERSION_UNAVAILABLE"),
     # THE PROVIDER REPORTING ITSELF BUSY, retryable and deliberately not a
@@ -107,6 +108,21 @@ class ClaudeAdapter(ConfiguredAdapter):
 
     ENGINE_NAME = _ENGINE_NAME
     DEFAULT_MODEL = _DEFAULT_MODEL
+    REPRODUCTION_PACKAGE = "anthropic"
+    REPRODUCTION_CALL = "client.messages.create"
+
+    @classmethod
+    def reproduction_setup(cls) -> tuple[str, ...]:
+        """Return the lines that construct an Anthropic client.
+
+        Returns:
+            tuple[str, ...]: The import and the construction, naming the
+            variable the client reads.
+        """
+        return (
+            "import anthropic",
+            f"client = anthropic.Anthropic()  # reads {cls.API_KEY_ENV}",
+        )
 
     # WHAT THIS SDK READS FOR ITSELF. The Anthropic client resolves its own
     # credential rather than taking one through a constructor argument, so

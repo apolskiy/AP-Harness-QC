@@ -61,7 +61,7 @@ def check_referential_integrity(
         # R3 TAKES EVERY RULE AT ONCE. Its claim is that a constraint is checked
         # by something, and asking it of one rule at a time demanded that every
         # rule check every constraint: satisfiable only by refusing to
-        # specialise rules. Design section 7.3.1.
+        # specialise rules. Design section 6.3.1.
         violations.extend(_check_every_constraint_is_checked(task, named))
 
     if violations:

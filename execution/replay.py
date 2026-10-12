@@ -21,7 +21,9 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Optional
+
+from cmn.credentials import credential_shaped_name, credential_shaped_value
 
 logger = logging.getLogger(__name__)
 
@@ -104,11 +106,19 @@ class StoredFixture:
         resolved_model (str): The model identity the recording came from, so
             replaying against a later version is visible in the record rather
             than assumed away.
+        request (Optional[dict]): The composed request that produced the
+            response, so the exact call is recoverable from the fixture alone
+            (design section 7.13). **None for a fixture recorded before the
+            field existed**, which is a record that predates it rather than a
+            request that was empty. Such a fixture is re-recorded rather than
+            repaired, because a derived request is a second mechanism used once
+            (section 7.13.2).
     """
 
     request_hash: str
     response: dict[str, Any]
     resolved_model: str
+    request: Optional[dict[str, Any]] = None
 
 
 class FixtureStale(Exception):
@@ -218,6 +228,20 @@ def load_fixture(root: Path, key: FixtureKey, request_hash: str) -> StoredFixtur
         )
 
     stored = _read_fixture(path, key)
+    # THE STORED REQUEST IS CHECKED AGAINST ITS OWN HASH, which is what the
+    # hash is for once the request itself is the record (design section
+    # 7.13.1). A fixture whose two halves disagree has been edited or was
+    # written by a composer that has since changed.
+    if stored.request is not None and hash_request(stored.request) != stored.request_hash:
+        logger.warning(
+            "QC_HARNESS_FIXTURE_STALE %s engine %s observation %d disagrees with its own hash",
+            key.case_id, key.engine, key.observation_index,
+        )
+        raise FixtureStale(
+            f"QC_HARNESS_FIXTURE_STALE: {key.case_id} on {key.engine} observation "
+            f"{key.observation_index} stores a request that does not hash to the "
+            f"hash recorded beside it"
+        )
     if stored.request_hash != request_hash:
         logger.warning(
             "QC_HARNESS_FIXTURE_STALE %s engine %s observation %d",
@@ -232,7 +256,7 @@ def load_fixture(root: Path, key: FixtureKey, request_hash: str) -> StoredFixtur
 
 def record_fixture(
     root: Path, key: FixtureKey, request_hash: str, response: dict[str, Any],
-    resolved_model: str,
+    resolved_model: str, request: Optional[dict[str, Any]] = None,
 ) -> Path:
     """Write one observation, with the identity it was recorded under.
 
@@ -246,22 +270,90 @@ def record_fixture(
         request_hash (str): Hash of the request that produced the response.
         response (dict): The normalized response.
         resolved_model (str): The model the provider reported serving.
+        request (Optional[dict]): The composed request that produced the
+            response. **Stored rather than only hashed** (design section 7.13):
+            a ticket needs the exact call, and the hash was standing in for the
+            record instead of checking it. Omitted only by a caller that has no
+            request, such as a test double.
 
     Returns:
         Path: Where the fixture was written.
     """
     path = key.as_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    payload: dict[str, Any] = {
         "request_hash": request_hash,
         "resolved_model": resolved_model,
         "response": response,
     }
+    # WRITTEN ONLY WHEN SUPPLIED, so a caller holding no request does not
+    # record a null that a reader cannot tell from an empty call.
+    if request is not None:
+        payload["request"] = _normalize_newlines(request)
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding=_ENCODING, newline="\n"
     )
     logger.info("Recorded %s observation %d", key.case_id, key.observation_index)
     return path
+
+
+def fixture_credential_problems(root: Path) -> list[str]:
+    """Report every stored fixture carrying a credential-shaped field or value.
+
+    **The boundary is what makes storing a request safe, and this asserts it.**
+    A credential enters at client construction and never the composed payload
+    (design section 7.13.3), so a fixture should carry none. A redaction nothing
+    checks lapses the first time an adapter composes a field differently.
+
+    Args:
+        root (Path): The fixture root to walk. **Passed in rather than
+            discovered**, because the harness owns no fixtures and each
+            repository calls this with its own store.
+
+    Returns:
+        list[str]: One entry per offending field, naming the fixture and the
+        field and **never the value**, which would put the secret in the report
+        that found it. Empty where the store is clean or absent.
+    """
+    problems: list[str] = []
+    if not root.is_dir():
+        return problems
+    for path in sorted(root.rglob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding=_ENCODING))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # UNREADABLE IS NOT THIS CHECK'S FINDING. `load_fixture` reports it.
+            continue
+        relative = path.relative_to(root).as_posix()
+        problems.extend(
+            f"{relative}: {complaint}" for complaint in _credential_fields(payload, "")
+        )
+    return problems
+
+
+def _credential_fields(payload: Any, trail: str) -> list[str]:
+    """Return the credential-shaped fields and values inside one structure.
+
+    Args:
+        payload (Any): Any part of the parsed fixture.
+        trail (str): The dotted path reached so far, for the message.
+
+    Returns:
+        list[str]: One complaint per offending field, naming neither value.
+    """
+    found: list[str] = []
+    if isinstance(payload, dict):
+        for key, value in payload.items():
+            where = f"{trail}.{key}" if trail else str(key)
+            if credential_shaped_name(key):
+                found.append(f"field {where} is named like a credential")
+            elif credential_shaped_value(value):
+                found.append(f"field {where} holds a value shaped like a credential")
+            found.extend(_credential_fields(value, where))
+    elif isinstance(payload, list):
+        for index, entry in enumerate(payload):
+            found.extend(_credential_fields(entry, f"{trail}[{index}]"))
+    return found
 
 
 def stored_observation_count(root: Path, case_id: str, engine: str) -> int:
@@ -306,6 +398,9 @@ def _read_fixture(path: Path, key: FixtureKey) -> StoredFixture:
             request_hash=str(payload["request_hash"]),
             response=dict(payload["response"]),
             resolved_model=str(payload["resolved_model"]),
+            request=(
+                dict(payload["request"]) if payload.get("request") is not None else None
+            ),
         )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
         logger.warning("QC_HARNESS_FIXTURE_MISSING %s is unreadable", path)

@@ -37,5 +37,6 @@ class OpenAIAdapter(OpenAICompatibleAdapter):
 
     ENGINE_NAME = _ENGINE_NAME
     DEFAULT_MODEL = _DEFAULT_MODEL
+
     BASE_URL = None
     API_KEY_ENV = "OPENAI_API_KEY"

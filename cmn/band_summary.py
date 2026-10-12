@@ -74,6 +74,7 @@ _SKIP_CAUSES: Final[dict[str, str]] = {
     "QC_HARNESS_CANDIDATE_TIMEOUT": "the model did not answer in time",
     "QC_HARNESS_JUDGE_TIMEOUT": "the judge did not answer in time",
     "QC_HARNESS_AUTH_ERROR": "the credential was refused",
+    "QC_HARNESS_REQUEST_REFUSED": "the provider refused this request, and the credential is valid",
     "QC_HARNESS_PARSER_ERROR": "the response could not be parsed",
 }
 

@@ -32,6 +32,11 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113610  an_unreadable_fixture_reports_missing_not_stale
 # TestMQCDispatchConvertsFixtureFailures
 #   113611  a_missing_fixture_becomes_a_skip_rather_than_an_error
+# TestMQCStoredRequest
+#   113612  a_recorded_fixture_stores_the_request_it_sent
+#   113613  a_stored_request_disagreeing_with_its_hash_is_stale
+#   113614  a_fixture_carrying_a_credential_shaped_value_is_reported
+#   113615  a_recording_without_a_request_is_a_gap_not_a_stale_fixture
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -45,6 +50,7 @@ from execution.replay import (
     FixtureKey,
     FixtureMissing,
     FixtureStale,
+    fixture_credential_problems,
     hash_request,
     load_fixture,
     record_fixture,
@@ -342,3 +348,167 @@ class TestMQCDispatchConvertsFixtureFailures:
         # used to propagate instead of returning at all.
         assert outcome.attempts == 0
         assert outcome.rate_limit_encounters == 0
+
+
+class TestMQCStoredRequest:
+    """The fixture carries the call that produced it, and checks itself.
+
+    Design: ``tier2_execution.md`` section 7.13.
+    """
+
+    def MQC_EXE_UNI_113612_a_recorded_fixture_stores_the_request_it_sent(
+        self, tmp_path: Path
+    ) -> None:
+        """The composed request is written into the fixture, not only hashed.
+
+        **The hash was standing in for the record rather than checking it.**
+        Section 7.12 retained the request on the outcome and specified attaching
+        it for a failing case, and nothing attached it, so a ticket could cite a
+        digest and nothing a provider could read.
+
+        Returns:
+            None
+        """
+        key = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=0)
+        record_fixture(
+            tmp_path, key, hash_request(_REQUEST), {"text": "ok"}, "gemini-flash",
+            _REQUEST,
+        )
+
+        stored = load_fixture(tmp_path, key, hash_request(_REQUEST))
+        assert stored.request == _REQUEST, (
+            f"the fixture stored {stored.request!r} rather than the request that "
+            f"produced it, so a finding cannot be filed from the fixture alone"
+        )
+
+        # AND IT IS ON DISK, not merely reconstructed by the reader.
+        written = json.loads(
+            key.as_path(tmp_path).read_text(encoding="utf-8")
+        )
+        assert written["request"] == _REQUEST, written
+
+        # A CALLER HOLDING NO REQUEST RECORDS NO NULL, so a reader can tell a
+        # recording made before the field from a call that was empty.
+        bare = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=1)
+        record_fixture(tmp_path, bare, hash_request(_REQUEST), {"text": "ok"}, "gemini-flash")
+        assert "request" not in json.loads(
+            bare.as_path(tmp_path).read_text(encoding="utf-8")
+        ), "an absent request was written as a null a reader cannot interpret"
+        assert load_fixture(tmp_path, bare, hash_request(_REQUEST)).request is None
+
+    def MQC_EXE_UNI_113613_a_stored_request_disagreeing_with_its_hash_is_stale(
+        self, tmp_path: Path
+    ) -> None:
+        """A fixture whose two halves disagree is refused, never replayed.
+
+        Design: ``tier2_execution.md`` section 7.13.1.
+
+        Returns:
+            None
+        """
+        key = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=0)
+        path = record_fixture(
+            tmp_path, key, hash_request(_REQUEST), {"text": "ok"}, "gemini-flash",
+            _REQUEST,
+        )
+
+        # EDITED IN PLACE, leaving the hash naming the request it no longer holds.
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["request"] = {"prompt": "A different question entirely."}
+        path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8", newline="\n",
+        )
+
+        with pytest.raises(FixtureStale) as raised:
+            load_fixture(tmp_path, key, hash_request(_REQUEST))
+        assert "does not hash to the hash recorded beside it" in str(raised.value), (
+            f"a fixture disagreeing with its own hash replayed: {raised.value}"
+        )
+
+    def MQC_EXE_UNI_113614_a_fixture_carrying_a_credential_shaped_value_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """The screen reports a credential by field name and by value shape.
+
+        **This is what makes storing the request safe.** A credential enters at
+        client construction and never the payload, and a boundary nothing checks
+        lapses the first time an adapter composes a field differently
+        (section 7.13.3).
+
+        Returns:
+            None
+        """
+        key = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=0)
+        record_fixture(
+            tmp_path, key, hash_request(_REQUEST), {"text": "ok"}, "gemini-flash",
+            _REQUEST,
+        )
+        assert not fixture_credential_problems(tmp_path), (
+            "an ordinary recording was reported, so the screen cannot be trusted "
+            "when it reports nothing"
+        )
+
+        # BY FIELD NAME.
+        named = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=1)
+        record_fixture(
+            tmp_path, named, "hash", {"text": "ok"}, "gemini-flash",
+            {"prompt": "hello", "api_key": "redacted-in-this-double"},
+        )
+        problems = fixture_credential_problems(tmp_path)
+        assert any("named like a credential" in entry for entry in problems), problems
+
+        # AND BY VALUE SHAPE, in a field called anything at all.
+        valued = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=2)
+        record_fixture(
+            tmp_path, valued, "hash", {"text": "ok"}, "gemini-flash",
+            {"prompt": "hello", "note": "sk-ant-not-a-real-key"},
+        )
+        problems = fixture_credential_problems(tmp_path)
+        assert any("shaped like a credential" in entry for entry in problems), problems
+
+        # AND NO REPORT CARRIES THE VALUE, which would disclose it in the
+        # report that found it.
+        assert not any("sk-ant-not-a-real-key" in entry for entry in problems), (
+            "the report quoted the credential it found"
+        )
+
+    def MQC_EXE_UNI_113615_a_recording_without_a_request_is_a_gap_not_a_stale_fixture(
+        self, tmp_path: Path
+    ) -> None:
+        """A request-less recording replays, and a gap-filling run still asks.
+
+        **Two questions, not one.** Whether the stored response answers the
+        question being asked is settled by the hash and the answer is yes, so
+        replay is correct. Whether anything is left to learn is a different
+        question, and the request itself is the answer.
+
+        Marking it stale was the first draft of section 7.13.2 and would have
+        made every existing recording unreplayable until a paid run finished,
+        taking CI red for a schema addition.
+
+        Returns:
+            None
+        """
+        key = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=0)
+        record_fixture(
+            tmp_path, key, hash_request(_REQUEST), {"text": "ok"}, "gemini-flash"
+        )
+
+        # IT REPLAYS, because the hash agrees and the response is the answer to
+        # the question being asked.
+        stored = load_fixture(tmp_path, key, hash_request(_REQUEST))
+        assert stored.request is None, stored.request
+        assert stored.response == {"text": "ok"}, (
+            "a recording made before the field stopped replaying, so a schema "
+            "addition made every existing fixture unreplayable"
+        )
+
+        # AND IT IS STILL A GAP, so a gap-filling run records the request.
+        plan = DispatchPlan(
+            mode="live", fixture_root=tmp_path, record=True, fill_gaps=True,
+        )
+        assert plan.fill_gaps and stored.request is None, (
+            "the gap condition cannot be expressed, so the re-record has no "
+            "mechanism to select what it must refresh"
+        )

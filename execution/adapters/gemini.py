@@ -73,6 +73,21 @@ class GeminiAdapter(ConfiguredAdapter):
 
     ENGINE_NAME = _ENGINE_NAME
     DEFAULT_MODEL = _DEFAULT_MODEL
+    REPRODUCTION_PACKAGE = "google-genai"
+    REPRODUCTION_CALL = "client.models.generate_content"
+
+    @classmethod
+    def reproduction_setup(cls) -> tuple[str, ...]:
+        """Return the lines that construct a Gemini client.
+
+        Returns:
+            tuple[str, ...]: The import and the construction, naming the
+            variable the client reads.
+        """
+        return (
+            "from google import genai",
+            f"client = genai.Client()  # reads {cls.API_KEY_ENV}",
+        )
 
     # WHAT THIS SDK CARRIES IN A CLASS RATHER THAN A STATUS. Every
     # status meaning comes from the shared table instead.

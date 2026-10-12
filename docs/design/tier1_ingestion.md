@@ -391,9 +391,9 @@ Five checks, run **after** the join because they need both sides. Every violatio
 | **R4** | Every tool in `required_tools`/`forbidden_tools` appears in `available_tools` | A vacuous test: forbidding a tool never offered |
 | **R5** | `required_tools ∩ forbidden_tools` is empty | Contradictory expectation |
 
-**R3 is the one nobody writes.** A constraint sent without a corresponding check means the rule is untested and nothing surfaces it. **Its unit is the task**, which section 7.3.1 records as a correction: evaluated per rule it demanded that every rule check every constraint, which is satisfiable only by refusing to specialise rules. Its converse, R2, means grading a model on an instruction it never received: an unfair test producing a finding about a model that did nothing wrong. Both yield plausible-looking results, which is what makes them dangerous.
+**R3 is the one nobody writes.** A constraint sent without a corresponding check means the rule is untested and nothing surfaces it. **Its unit is the task**, which section 6.3.1 records as a correction: evaluated per rule it demanded that every rule check every constraint, which is satisfiable only by refusing to specialise rules. Its converse, R2, means grading a model on an instruction it never received: an unfair test producing a finding about a model that did nothing wrong. Both yield plausible-looking results, which is what makes them dangerous.
 
-#### 7.3.1 R3 is scoped to the task, not to one of its rules
+#### 6.3.1 R3 is scoped to the task, not to one of its rules
 
 Corrected 2026-10-01, when a consumer task first sent constraints and named
 more than one rule.

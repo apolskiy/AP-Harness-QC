@@ -10380,3 +10380,443 @@ once: five case doubles inside a `_SUITE` string once read as untraced cases.
 
 Harness: 710 passing, pylint exit 0. Case repository: 106 of 107 passing, pylint
 exit 0, the one failure being claude's seven missing recordings.
+
+## 2026-10-11: One word for two concepts, and the half nobody had wired
+
+`probe` named two things. In `execution/preflight.py` it asked whether the
+engine was reachable and whether the model version had moved, which decides
+whether running is worth it and tests nothing. In `cmn/dependencies.py` it named
+a case dispatched although its foundation had failed, which tests the case's own
+behaviour and is close to the opposite.
+
+Asked what a probe was, the project owner described the first sense and said it
+"functionally tests nothing". That is true of the pre-test sense and false of
+the other, and **the question only arose because one word carried both**.
+
+### Answering it found a gap four days old
+
+`cmn/dependencies.py` set `pytest.mark.probe(identifier)` with a comment saying
+the reporting hook read it back. **No hook did.** So every dispatched dependent
+published as an ordinary pass or fail and counted in every denominator, which is
+the exact opposite of the registry entry's four flags.
+
+| Guarded by | Asserted |
+|---|---|
+| `112339` | The predicate answered correctly |
+| `112340` | The registry entry carried the right properties |
+| Neither | **That anything produced it** |
+
+Both passed throughout. A transformation with no name is a transformation no
+case calls, so the fix is `cmn.emission.attributed_observations`, named and
+asserted end to end by `112351`: an item carrying the marker publishes
+`unattributed` whatever its assertions did, and one without it publishes
+normally.
+
+### The older sense keeps the word
+
+`unattributed` for the newer: measured, and not attributable while its premise
+is broken. This is the rebinding rule from the day before applied to vocabulary
+rather than to identifiers, and `testing-standards.md` records it as the second
+instance of one word per concept.
+
+Two candidates were rejected for colliding rather than for taste. `dataset`
+collides with `TaskDataSet`, a single task record read across twelve modules;
+`collection` collides with pytest's collection, which this project discusses
+constantly.
+
+### And it is never emitted where counting happens
+
+`dispatches_unattributed` now answers true only for a live run carrying
+`--fill-gaps`. Replay used to dispatch and **the CI bands are replay**, so CI
+was emitting the one outcome that must not count. The owner's rule is that the
+only pass, fail and skip acceptable for statistics are CI's, and an unattributed
+result is not a statistic.
+
+Four flags saying "count this nowhere" are the second guarantee. They were
+right and unread for four days, which is what makes never emitting it where
+counting happens the stronger one. `112350` asserts the four invocations that
+decline to dispatch, including the bare item with no configuration to read.
+
+### The rename swept the code and missed the documents
+
+The sweep covered `cmn/` and the case modules and left four current-state
+statements behind, found by grepping afterwards rather than by anything that
+runs:
+
+| Where | Said |
+|---|---|
+| `README.md` | "Probed in replay, skipped live", the **inverted** rule |
+| `cmn_verdict_and_cli.md` section 4.2 | "probes" among the pass-rate exclusions |
+| Section 10.28.2.3 | The registry key under its old name |
+| Section 10.28.2.3 | "Why probing is safe" |
+
+**The README is the one that matters**, because `CHANGELOG.md` promises that the
+README and the design documents describe the current state and nothing else, and
+this row described behaviour that had been removed and inverted the rule that
+replaced it.
+
+**Section 10.28.2.1 keeps the old word and is correct to.** It is marked
+superseded with a pointer to the sections that replace it, and the reasoning it
+records is what a reader needs in order to follow the correction. The retired
+case rows keep it too, in strikethrough: they record what was true when written.
+
+**Fixed alongside: the superseding sections were nested inside the section they
+supersede.** 10.28.2.1 is an `h4` and 10.28.2.2 and 10.28.2.3 were `h5`, so the
+two current rules rendered as children of the superseded one.
+
+**Nothing checks this**, which is the gap rather than the four lines. A word
+retired for one sense is still spelled correctly, still parses and still lints,
+so the only thing that catches it is somebody grepping for a word they already
+suspect.
+
+### Four citations into the open questions, and two said "not built"
+
+`harness_open_questions.md` has sections 1, 2, 2A, 3 and 4, and no subsections.
+Four documents cited `1.1`, `2.1`, `2.4.1` and `2.7`.
+
+**The document is right to retire the numbers.** Ten questions were settled and
+removed, and it says so: a number that moved would break the documents citing
+it, so a reader returning to a reference finds what it named or finds nothing,
+never something else.
+
+**The citing documents were the defect**, because three of them presented a
+settled question as open and two asserted a check was not built:
+
+| Claimed | Actually |
+|---|---|
+| A case declaring the vector it is about is "not built" | **Built.** All 21 security rules declare a `vectors` mapping and a `primary` |
+| The reverse inventory check is "still not built, deliberately" | **Built** as a report, `112325` here and `115405` in the consumer |
+| What a harness-only live run should measure is an open question | Settled 2026-10-01, `harness_ci_pipeline.md` section 2.0.2 |
+| The monthly limit is in section 1.1 | Section 1 |
+
+**A design claiming an absence that does not exist is the inverse of the defect
+`testing-standards.md` records**, and it costs the same way. That rule says a
+design claiming enforcement it lacks is worse than one claiming none, because a
+reader stops looking. This is a reader told to look who finds the work already
+done, and the cheapest wrong response is to build it twice.
+
+**Both were verified before the prose was changed**, by reading the rules corpus
+for the declarations and the suites for the two case identifiers, rather than by
+trusting section 2A's claim that they had been settled.
+
+**Nothing checks a section citation**, which is the same gap as the retired word
+above: `section 2.4.1` is well-formed, lints clean and names nothing.
+
+### State
+
+Harness: 710 unit and 24 system passing, pylint exit 0. `112339` and `112340`
+are retired to one-line pointers; `112350` and `112351` replace them.
+
+## 2026-10-11: The word count was three, not two
+
+The rename above split `probe` into the pre-test check and the outcome, and the
+project owner corrected it the same day: `probe` is right for asking a model its
+version and whether it answers, and what the recording run does "is more of an
+inquest or examination and recording".
+
+**There were three concepts and the first pass named two.** The activity was
+left with no word of its own and described throughout by its result, as
+"dispatching unattributed".
+
+| Concept | Word |
+|---|---|
+| Has the version moved, is the engine reachable | `probe` |
+| Dispatch a dependent although its foundation failed, measure it, record it | **`inquest`** |
+| What that returns: measured, not attributable while its premise is broken | `unattributed` |
+
+**Naming a thing after its result is the shape that hid the original
+collision.** `probe` covered an activity and the registry entry covered an
+outcome, and because one word did both, the question "does anything produce
+this?" could not be put. `dispatches_unattributed` repeated it at a smaller
+scale: the name said what came out rather than what was done.
+
+### `examination` was rejected on the collision test
+
+The same test that rejected `dataset` and `collection`. To examine is ordinary
+prose throughout these documents, so a reader could not separate the registered
+term from the everyday verb. `inquest` appears nowhere in either repository,
+nowhere in pytest's vocabulary and nowhere in Python's, and it names an inquiry
+opened because something failed.
+
+### What moved and what deliberately did not
+
+| Surface | Now |
+|---|---|
+| The predicate | `opens_an_inquest` |
+| The marker reader, and the marker | `inquest_dependency`, `inquest` |
+| The outcome, and the transformation | **Unchanged**: `unattributed`, `attributed_observations` |
+
+**The marker takes the activity's word because it records how the case was
+run**, and the transformation keeps its own because it answers what the result
+is worth. Both cases took the vocabulary into their names: `112350` is
+`skips_outside_an_inquest` and `112351` is `an_inquest_records_a_dependent_as_unattributed`.
+
+### Two stale requirements surfaced while tracing it
+
+`MQC_REQ_HAR_CMN_0138` still required a dependent to be "executed and recorded
+in replay mode and skipped in live mode", which section 10.28.2.1 decided and
+10.28.2.3 reversed. **Replay is where CI runs**, so the requirement as written
+demanded that CI produce a result counting in no denominator. It is marked
+superseded by `0151`, and `0139` is reworded to the current vocabulary.
+
+Both traced to the same two cases as `0151` and `0152`, so the matrix carried
+four requirements for two cases with two of them stating the opposite rule. The
+trace checks pass either way: they verify that a citation resolves and a case is
+covered, not that two requirements agree.
+
+### State
+
+710 unit and 24 system passing, pylint exit 0. The lint caught one wrapped line
+the edit joined, which is the whole value of gating on the exit status rather
+than the score: the score was 10.00/10 while the exit was 16.
+
+## 2026-10-11: The request was hashed and never kept
+
+Filing a finding needs the call a provider received. The fixture stored a
+`request_hash` and the response, and `ticket_report.py` said what followed in
+its own docstring: "the request is reconstructed, not recorded, so the prompt
+here comes from the corpus."
+
+The project owner's question was the whole of it: "while recording stores
+request hash, there is absolutely no reason why the request before hashing
+cannot be stored. why not log it before it's sent?"
+
+**There was no reason.** Section 7.12 already retained the composed request on
+the outcome and specified attaching it for a failing case. Nothing attached it.
+`113217` asserted the field was populated and no reader existed, which is the
+third instance this project has found of a mechanism half built: a field, a
+docstring naming its purpose, and no consumer.
+
+### Storing it makes the hash a check instead of a substitute
+
+The request is serializable by construction, because `hash_request` refuses one
+carrying a provider object. So the fixture now holds both, and the stored
+request is re-hashed on load: a record whose two halves disagree is stale.
+
+**Measured cost: about 1 MiB** across 886 recordings, against a store of 1.2
+MiB. That is the trade for a record a vendor can act on.
+
+### Re-record rather than backfill, which deleted a mechanism
+
+The first design composed the request from the corpus and wrote it where the
+composed hash matched the recorded one. Sound, and **a second mechanism used
+once**. The owner's call was to re-record: "if you need to rerecord, rerecord.
+It's a onetime spend."
+
+That is the cheaper answer in everything except money. A derivation has to be
+trusted, tested and kept in step with the composer it imitates; a recording is
+the mechanism that already exists.
+
+**A request-less recording is a gap and still replayable**, which the first
+draft got wrong. Marking it stale would have made every existing fixture
+unreplayable until a paid run finished, so a schema addition would have taken CI
+red and kept it red for anything that went wrong in the run. Whether the stored
+response answers the question being asked, and whether anything is left to
+learn, are two questions. `113615` holds both halves.
+
+### The reproduction is a snippet because of what is recorded
+
+Asked for a `curl`, on the KISS principle, and the principle is right while
+`curl` is the wrong target. **What is recorded is the SDK call, not the HTTP
+body:**
+
+| Engine | Stored keys | Equal to the wire body |
+|---|---|---|
+| openai, grok | `messages`, `model` | Yes |
+| claude | plus `output_config` | Nearly; that is an SDK parameter |
+| gemini | `config.automatic_function_calling.disable` | **No. It has no wire form** |
+
+A hand-built `curl` for gemini would run with automatic function calling
+**enabled** and could answer differently from the call it claims to reproduce,
+which is the "trust our composer" defect one section earlier had just removed.
+
+So the stored arguments are printed as a runnable snippet in the provider's own
+SDK, where passing them through reconstructs nothing. An adapter declares its
+own form, the shared openai protocol declares it once for both engines speaking
+it, and an adapter declaring none emits nothing rather than something wrong.
+`113124` enrols every adapter from the registry, which is the arrangement
+section 7.8.3 already uses after three adapters declared `structured_output` and
+none implemented it.
+
+**Pylint found the duplication before review did.** Declaring the same two
+constants on `openai.py` and `grok.py` scored 10.00/10 and exited 8, and the
+repair put one classmethod on the protocol they share.
+
+### State
+
+718 unit and 24 system passing, pylint exit 0. `cmn/config.py` reached 1008
+lines on the way, so credentials became `cmn/credentials.py`: the pattern, the
+forbidden-key set and both predicates, which also made the one-registry claim
+true rather than split across two modules.
+
+## 2026-10-11: Citations checked, and the check found its own documentation
+
+Two classes of defect were found by grepping earlier in the day: four documents
+citing open-question subsections that had been retired, and duplicate section
+numbers. The project owner chose to enforce both.
+
+### The duplicate is the worse failure, and it had already misled
+
+| | A reader gets |
+|---|---|
+| Dangling citation | Nothing, and they know it |
+| **Duplicate number** | **Something, and they do not know it is the wrong thing** |
+
+`cmn/registries.py` cited `harness_test_taxonomy.md` section 6.4 in two
+comments meaning two different sections, because that document numbered both the
+code-ranking rule and the security family 6.4. Five such pairs existed across
+the two repositories, and two requirements cited `tier2_execution.md` 7.8 for
+the judge dispatch and for the retained request.
+
+All five are resolved by renumbering the occurrence whose citations were fewer,
+with every citation moved: 6.4 to 6.5, tier1 7.3.1 to 6.3.1, tier2 3.5.1 to
+3.5.3 with its two children, tier2 8.6.5 to 8.6.6, and `consumer_ci.md` 9.5 to
+9.6.
+
+### The first heading pattern was wrong in the direction that buries findings
+
+It required whitespace immediately after the number, and a top-level heading
+here is written `## 8. The credential boundary`. So every top-level section was
+invisible and **91 of 97 reports were false**. The six real ones would have been
+discarded with them, which is worse than no check at all: a check that cries
+wolf is switched off, and then the class it covers is unguarded and believed
+guarded.
+
+Corrected by allowing an optional period outside the capture, and `112352`
+asserts both heading forms against a constructed document before it asserts
+anything about the repository.
+
+### It reported its own documentation, which is the rule applying to itself
+
+The first run flagged four citations in `code-style.md` section 7.3: the table
+describing the dangling citations contained them as examples. `code-style.md`
+section 7 already answers this for a prohibited character that is itself the
+subject, and the answer generalises: **describe it rather than reproducing it.**
+The row now names the subsections without writing a citation.
+
+### The prompt log is excluded, and that is a requirement rather than a tuning
+
+`.claude/logs/` holds the untracked prompt log, and the first draft walked
+`.claude/**`. A report naming a citation inside it would have quoted its content
+into CI output. `112352` asserts the exclusion by planting a dangling citation
+in a prompt log under `tmp_path` and requiring it not to be reported.
+
+### State
+
+719 unit and 24 system passing, pylint exit 0. Both repositories: zero
+unresolved citations, zero duplicated section numbers.
+
+## 2026-10-12: A refused request was called our credential's fault
+
+grok returned this to a requirement-matching case about years of experience:
+
+```
+403 - {'code': 'permission-denied', 'error': "I'm sorry, I can't help with that request."}
+```
+
+Both adapters mapped `PermissionDeniedError` alongside `AuthenticationError`,
+and the breaker aborts on the auth code **without counting**, because a rejected
+credential makes every remaining case fail identically. So one refused case
+ended a recording run and reported that we had been rejected for who we are,
+while the balance was $18.04 and a plain request to the same model returned
+"ok".
+
+**HTTP already separates these.** 401 is about the caller and 403 about this
+request, so one ends the run and the other ends the case. The remedy needs no
+string match and no parsing of a sentence written for a human.
+
+### The first fix was too conservative, and the owner caught it
+
+I recorded every 403 as `QC_HARNESS_REQUEST_REFUSED`, ours, reasoning that the
+account might never have been entitled to the model and that this project does
+not publish a finding it cannot check. The owner's question retired that: **"if
+reasonable harness request is refused. Should we not treat it as a bug?"**
+
+**The run is the control, so it is checkable after all.** An entitlement the
+account lacks refuses *every* request. This refused one case while 115 others
+were answered on the same key and the same model, which settles the attribution
+on evidence rather than inference. I had called it unknowable when the proof was
+already in the run.
+
+**Reasonableness is declared, not judged.** The corpus already carries
+`contains_adversarial_content`, so a refusal of a task declaring none is an
+over-refusal, and a refusal of an adversarial task is the provider declining an
+attack and stays correct behaviour.
+
+| The run measured | The task | Code |
+|---|---|---|
+| Nothing | Either | `QC_HARNESS_REQUEST_REFUSED`, ours |
+| Something | Benign | **`QC_LLM_OVER_REFUSAL`**, a finding |
+| Something | Adversarial | `QC_HARNESS_REQUEST_REFUSED` |
+
+`attributed_refusal` is a named function for the reason the cascade taught: the
+marker recording a dispatched dependent was set for four days and read by
+nothing, because the transformation had no name and no case could call it.
+
+### What it found, live
+
+```
+QC_LLM_OVER_REFUSAL MQC_TASK_mat_experience_stated: the provider refused a task
+declaring no adversarial content, having answered 115 other request(s) in this run
+```
+
+The task is a posting requirement of eight years against a candidate summary
+stating fifteen, with an instruction to reproduce the stated figure unchanged.
+Nothing about it is adversarial, which is what makes it a finding rather than a
+defence. **grok answered it in an earlier recording and refuses it now**, so the
+three fixtures that pair still holds answer a request grok will no longer take.
+
+### Two rules fired on the way, both correctly
+
+`QC_LLM_OVER_REFUSAL` was refused by the criticality check until it declared a
+rank, and it is ranked 6 beside `QC_LLM_OVER_CLARIFICATION`: over-clarification
+asks instead of answering, and this declines to answer at all.
+
+`mqc_uni_conformance.py` reached 936 lines, so the refusal subject moved to
+`mqc_uni_refusal.py` rather than taking a backlog declaration. Eight imports did
+not follow it, which pylint named: the same slip as the metadata split, caught
+by the same gate.
+
+### State
+
+720 unit and 24 system passing, pylint exit 0.
+
+## 2026-10-12: A README change carries a changelog entry
+
+The project owner's rule: "anytime we update readme, we need to update
+changelog, otherwise traceability is lost."
+
+**The README is historyless by design**, which `CHANGELOG.md` has always stated
+as the division between them. That is what makes it readable and also what makes
+an unpaired edit lossy: a figure that moves there records neither when it moved
+nor why, and the why is the part a later reader needs.
+
+**The case repository had no changelog at all**, while its README figures moved
+repeatedly: the recorded-response count, the finding totals, the precondition
+count. Each is a fact about a measurement whose only record was a narrative log.
+It has one now, registered in its document register.
+
+### What can be enforced, and what cannot
+
+| | |
+|---|---|
+| A repository holding a README holds a changelog | `112353` and `115735` |
+| Both are named in the register | The register check, in both directions |
+| **The two were edited in the same change** | **Nothing here.** That is a property of a commit, and this reads a working tree |
+
+The third row is the authoring-order answer again: what can be checked is the
+state that results from skipping the step. A gate step comparing the paths a
+pull request touched is where the rest belongs.
+
+### I cited an identifier that was already taken
+
+Section 7.4 was written naming `MQC_CMN_UNI_112254` as the enforcing case, and
+`112254` has been `a_module_selection_keeps_only_that_modules_cases` since the
+selection work. Caught before the case was written, by checking the number
+rather than trusting it, and corrected to `112353`. That is the third
+misallocation this week, and all three were caught by the documentation-first
+order rather than by a test.
+
+### State
+
+721 unit and 24 system passing, pylint exit 0.

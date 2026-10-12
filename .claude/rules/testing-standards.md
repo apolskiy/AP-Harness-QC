@@ -302,12 +302,52 @@ module docstrings plus every layer table now use it.
 was written at the time, and rewriting a progress record to agree with a later
 correction is the one thing it must not do.
 
+#### The second instance: `probe`, 2026-10-11
+
+**One word, three concepts, and nobody noticed for four days.**
+
+| | Kept the word | The activity | The outcome |
+|---|---|---|---|
+| Word | `probe` | `inquest` | `unattributed` |
+| Where | `execution/preflight.py` | `cmn/dependencies.py` | `cmn/layers.py` |
+| Asks | Has the version changed, is the engine reachable | Measure and record this case, its foundation having failed | What that measurement is worth |
+| Tests anything | **No.** It decides whether running is worth it | **Yes**, the case's own behaviour | It is the verdict on that behaviour |
+
+The older keeps the word, which is the rule the identifier rebinding followed
+the day before.
+
+**The split is three ways rather than two**, corrected 2026-10-11 by the
+project owner after the first pass collapsed the activity into its result.
+**An inquest** is what a gap-filling live run opens: it dispatches a dependent
+although its foundation failed, measures it and records the fixture.
+**`unattributed`** is what the inquest returns. Naming only the outcome left
+the activity described by its result, which is the same shape that hid the
+original collision.
+
+**The collision hid a second defect.** Asked what a probe was, the project
+owner described the pre-test sense and said it "functionally tests nothing",
+which is true of that sense and the opposite of the other. The question only
+arose because one word carried both, and answering it found that the newer
+sense had never been wired to anything:
+`cmn/dependencies.py` set a marker no reporting hook read.
+
+**So a word doing two jobs is not only a readability cost.** It stopped a
+question being askable, and the unaskable question was the one that would have
+found the gap.
+
 **A synonym that collides is worse than the word it replaces.** Two candidates
 were rejected on that ground rather than on taste: `dataset` collides with
 `TaskDataSet`, which is a **single** task record used across twelve modules, and
 `collection` collides with pytest's test collection, which this project
 discusses constantly. A word is only a better name if it is unambiguous in the
 place it will be read.
+
+**`examination` was rejected on the same ground**, as the activity's name. The
+verb is ordinary prose throughout the designs, so a reader could not tell the
+registered term from the everyday word, which is exactly the failure the two
+rejections above describe. `inquest` collides with nothing in either repository,
+nothing in pytest's vocabulary and nothing in Python's, and it carries the right
+sense: an inquiry opened because something failed.
 
 
 ### Requirements And Test Cases Are Two Registers, Marked Apart

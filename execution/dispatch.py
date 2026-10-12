@@ -93,7 +93,7 @@ class DispatchOutcome:
             artifact. **On every outcome, not only a failing one**: a
             case's verdict is not known while its observations are being
             taken, and the passing ones are what its report needs
-            (design section 7.8).
+            (design section 7.12).
         taxonomy_code (Optional[str]): Present exactly when skipped.
     """
 
@@ -183,6 +183,53 @@ class DispatchPlan:
             )
 
 
+def attributed_refusal(case: Any, session: Any, code: str) -> str:
+    """Return the code a refusal should carry, by what the run already proved.
+
+    **A refused reasonable request is a model bug.** The first draft of section
+    8.6.7 called every 403 ours, on the ground that the account might never have
+    been entitled to the model. The project owner's question retired that: the
+    run itself is the control, because an entitlement the account lacks refuses
+    **every** request and this one refused a single case while others were
+    answered on the same key and the same model.
+
+    **Reasonableness is declared, not judged.** A task carrying
+    ``contains_adversarial_content: false`` has no payload, so a refusal of it
+    is an over-refusal. A refusal of an adversarial task is the provider
+    declining an attack, which is not a quality failure and is left as ours.
+
+    | The run measured | The task | The code |
+    |---|---|---|
+    | Nothing | Either | ``QC_HARNESS_REQUEST_REFUSED``, ours: it may be entitlement |
+    | Something | Benign | ``QC_LLM_OVER_REFUSAL``, a finding |
+    | Something | Adversarial | ``QC_HARNESS_REQUEST_REFUSED``: declining a payload is correct |
+
+    Args:
+        case (Any): The case dispatched, read for the adversarial declaration.
+        session (Any): The run, read for whether anything was measured.
+        code (str): The code the adapter produced.
+
+    Returns:
+        str: ``code`` unchanged for anything but a refusal, and the attributed
+        code for one. **Named rather than inline** so a case can assert it,
+        which is the lesson the cascade marker taught when it was set and read
+        by nothing.
+    """
+    if code != "QC_HARNESS_REQUEST_REFUSED":
+        return code
+    if int(getattr(session, "measured_outcomes", 0)) < 1:
+        return code
+    task = getattr(case, "task", None)
+    if bool(getattr(task, "contains_adversarial_content", False)):
+        return code
+    logger.warning(
+        "QC_LLM_OVER_REFUSAL %s: the provider refused a task declaring no "
+        "adversarial content, having answered %d other request(s) in this run",
+        getattr(case, "case_id", "?"), int(getattr(session, "measured_outcomes", 0)),
+    )
+    return "QC_LLM_OVER_REFUSAL"
+
+
 @dataclass
 class DispatchSession:
     """Run-level pacing state, which no single case can hold.
@@ -233,6 +280,7 @@ class DispatchSession:
     delay: Callable[[float], None] = time.sleep
     rate_limit_encounters: int = 0
     consecutive_failures: int = 0
+    measured_outcomes: int = 0
     last_request_at: Optional[float] = None
     slept_intervals: list[float] = field(default_factory=list)
     max_spend: float = 0.0
@@ -242,7 +290,7 @@ class DispatchSession:
     priced_on: Optional[date] = None
     # EVERY MODEL A RESPONSE REPORTED. `record_spend` already receives it
     # for pricing and dropped it; `unpriced` kept only what it could not
-    # price. Two entries mean a mixed corpus. Design section 8.6.5.
+    # price. Two entries mean a mixed corpus. Design section 8.6.6.
     served: set[str] = field(default_factory=set)
     unpriced: set[str] = field(default_factory=set)
 
@@ -343,7 +391,7 @@ class DispatchSession:
         # replayed response never reaches it, so a replay recorded no model
         # while its fixture names one. `mixed_model_engines` states the rule
         # this follows, that a replayed corpus is included and not exempt.
-        # Design section 8.6.5.
+        # Design section 8.6.6.
         served = str(getattr(outcome.response, "resolved_model", "") or "")
         if served:
             self.served.add(served)
@@ -351,6 +399,10 @@ class DispatchSession:
         self.rate_limit_encounters += outcome.rate_limit_encounters
         if outcome.measured:
             self.consecutive_failures = 0
+            # COUNTED, BECAUSE IT IS THE CONTROL FOR A REFUSAL. One 403 while
+            # other requests on the same key and model succeeded cannot be an
+            # entitlement the account never had (design section 8.6.7).
+            self.measured_outcomes += 1
             return
 
         if outcome.taxonomy_code == "QC_HARNESS_AUTH_ERROR":
@@ -506,13 +558,21 @@ def _recorded_or_dispatched(
         except (FixtureMissing, FixtureStale, FileNotFoundError, ValueError):
             pass
         else:
-            # LOADED CLEANLY, so there is nothing to learn by asking again.
-            del stored
+            # LOADED CLEANLY, so the only thing left to learn is the request
+            # itself where the recording predates the field (design section
+            # 7.13.2). Such a fixture replays correctly and is still a gap.
+            if stored.request is not None:
+                del stored
+                logger.info(
+                    "%s observation %d already recorded, not dispatched",
+                    context.case.case_id, context.observation_index,
+                )
+                return _replay_case(context)
             logger.info(
-                "%s observation %d already recorded, not dispatched",
+                "%s observation %d is recorded without the request it sent, "
+                "so it is dispatched to record one",
                 context.case.case_id, context.observation_index,
             )
-            return _replay_case(context)
     return _dispatch_live(context, session)
 
 def _replay_case(context: _CaseContext) -> DispatchOutcome:
@@ -682,7 +742,7 @@ def _measured(
     if context.plan.record:
         record_fixture(
             context.plan.fixture_root, context.key, hash_request(context.request),
-            response.as_mapping(), response.resolved_model,
+            response.as_mapping(), response.resolved_model, context.request,
         )
 
     return DispatchOutcome(
@@ -727,7 +787,7 @@ def _skip(
         duration_kind="truncated" if truncated else "measured",
         attempts=tally.attempts,
         rate_limit_encounters=tally.rate_limits,
-        taxonomy_code=tally.code,
+        taxonomy_code=attributed_refusal(context.case, session, tally.code),
         request=context.request,
     )
 

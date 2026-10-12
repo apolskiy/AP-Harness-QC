@@ -33,6 +33,7 @@ from typing import Any, Callable, Final, Iterable, Optional
 
 import yaml
 
+from cmn.credentials import FORBIDDEN_KEYS, credential_shaped_name
 from cmn.verdict import QuarantineEntry
 
 logger = logging.getLogger(__name__)
@@ -41,10 +42,6 @@ _ENCODING: Final[str] = "utf-8"
 
 # Key names that must never appear in a configuration file. A credential in
 # configuration is committed, and a committed credential is disclosed.
-_FORBIDDEN_KEYS: Final[frozenset[str]] = frozenset(
-    {"api_key", "apikey", "secret", "token", "password", "credential"}
-)
-
 _REDACTED: Final[str] = "[REDACTED]"
 
 
@@ -151,7 +148,7 @@ def _refuse_credentials(path: Path, payload: Any) -> None:
     """
     if isinstance(payload, dict):
         for key, value in payload.items():
-            if str(key).lower().replace("-", "_") in _FORBIDDEN_KEYS:
+            if str(key).lower().replace("-", "_") in FORBIDDEN_KEYS:
                 raise ValueError(
                     f"QC_HARNESS_PARSER_ERROR: {path} carries {key!r}, and credentials "
                     f"are read from the environment rather than configuration"
@@ -439,7 +436,7 @@ def redact(payload: Any) -> Any:
     if isinstance(payload, dict):
         return {
             key: _REDACTED
-            if str(key).lower().replace("-", "_") in _FORBIDDEN_KEYS
+            if str(key).lower().replace("-", "_") in FORBIDDEN_KEYS
             else redact(value)
             for key, value in payload.items()
         }
@@ -454,7 +451,7 @@ def forbidden_keys() -> frozenset[str]:
     Returns:
         frozenset[str]: The forbidden names.
     """
-    return _FORBIDDEN_KEYS
+    return FORBIDDEN_KEYS
 
 
 @dataclass(frozen=True)
@@ -814,9 +811,6 @@ _CI_MARKERS: Final[tuple[str, ...]] = ("CI", "GITHUB_ACTIONS")
 # WHAT A CREDENTIAL LOOKS LIKE. Matched loosely on purpose: the check
 # reports a name nothing reads, and a typo is exactly the case it is for,
 # so a pattern that demanded the correct spelling would miss every one.
-_CREDENTIAL_SHAPED: Final[re.Pattern] = re.compile(
-    r"(KEY|TOKEN|SECRET|CREDENTIAL|PASSWORD)$", re.IGNORECASE
-)
 
 
 def ci_markers() -> tuple[str, ...]:
@@ -926,7 +920,7 @@ def orphan_credentials(
     known = {name.upper() for name in engine_variables}
     return sorted(
         name for name in names
-        if _CREDENTIAL_SHAPED.search(name) and name.upper() not in known
+        if credential_shaped_name(name) and name.upper() not in known
     )
 
 

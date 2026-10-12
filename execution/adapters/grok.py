@@ -50,5 +50,6 @@ class GrokAdapter(OpenAICompatibleAdapter):
 
     ENGINE_NAME = _ENGINE_NAME
     DEFAULT_MODEL = _DEFAULT_MODEL
+
     BASE_URL = _BASE_URL
     API_KEY_ENV = "XAI_API_KEY"

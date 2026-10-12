@@ -621,6 +621,7 @@ The model under test performed poorly. **Not an instrument defect.**
 | `QC_LLM_RUBRIC_FAILURE` | Judge score fell below the passing threshold |
 | `QC_LLM_HALLUCINATION` | Output contained verifiable factual or context contradictions |
 | `QC_LLM_OVER_DISCLOSURE` | Output revealed more detail than the instruction permitted, such as stating a full derived figure where the instruction called for a minimum |
+| `QC_LLM_OVER_REFUSAL` | The provider refused a task declaring no adversarial content, in a run where it answered others. An entitlement the account lacks refuses every request, so one refusal among successes is about the request (`tier2_execution.md` section 8.6.7) |
 | `QC_LLM_SOURCE_ALTERATION` | Output changed a value the source stated explicitly, such as rewriting a stated experience figure downward. The mirror of an unsourced claim: content altered rather than invented |
 | `QC_LLM_UNSOURCED_CLAIM` | Output asserted something absent from the supplied source material. Distinct from hallucination because it is a set operation against provided text rather than a factual judgement |
 | `QC_LLM_TOOL_VIOLATION` | A required tool was not invoked, or a forbidden tool was (A9; A9a closed 2026-09-19: kept distinct) |
@@ -633,7 +634,7 @@ The model under test performed poorly. **Not an instrument defect.**
 | `QC_LLM_DEFECT_MISSED` | A defect present in the supplied material was not reported. **The mirror of a hallucinated defect**: one invents what is not there, this omits what is |
 | `QC_LLM_INCONSISTENT` | Repeat observations of one case disagreed on outcome against the same fixed rules. **Not a flake to be retried away**: same request, same engine, same commit, different answer, so it is a property of the model rather than of our infrastructure. Raised by `consistent()` in the consumer's `graded_support.py`; registered 2026-09-26 after being emitted since A4.1 |
 
-#### 6.4 Codes are ranked, and the most critical one classifies a finding
+### 6.5 Codes are ranked, and the most critical one classifies a finding
 
 Added 2026-10-05 at the project owner's instruction, after reading two P0
 security failures catalogued as consistency observations.
@@ -772,7 +773,8 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_ENGINE_UNREACHABLE` | The engine was not reached: a 3xx redirect the client did not follow, or a connection failure. **Neither a model nor a judge finding, and not retryable**: a redirect is deterministic and a connection failure has already been retried inside the SDK. A proxy answering 302 with a login page is the ordinary cause (tier2 section 8.5.5) |
 | `QC_HARNESS_REQUEST_REJECTED` | The provider rejected the request as malformed, status 400. **Ours, anticipated, and not retryable**: the same request gets the same answer. Distinct from the catch-all so that an unanticipated failure stays findable (tier2 section 8.5.3) |
 | `QC_HARNESS_PARSER_ERROR` | Ingestion failed to parse input files |
-| `QC_HARNESS_AUTH_ERROR` | Credential or authentication failure |
+| `QC_HARNESS_AUTH_ERROR` | Credential or authentication failure, 401. Ends the run |
+| `QC_HARNESS_REQUEST_REFUSED` | The provider refused this request, 403. **Ends the case, never the run**, and the provider's own message is recorded with it. Whether it is an over-refusal worth filing or an entitlement the account never had is a person's call, per `tier2_execution.md` section 8.6.7 |
 | `QC_HARNESS_PREFLIGHT_FAILURE` | Preflight check failed; run aborted before execution (A11.4) |
 | `QC_HARNESS_QUARANTINED` | The case is quarantined, so it was skipped before a request was formed. **Never red and never a pass**: quarantine accepts a finding and saves the cost of measuring it again, and the blocking band counts the skip against the band it was selected into (`cmn_verdict_and_cli.md` section 4.6.12) |
 | `QC_HARNESS_QUARANTINE_UNCONFIRMED` | A quarantine entry carries no `quarantined_on` or no `observed_model`, so its expiry cannot be evaluated. **Never red**: the quarantine mechanism failed, not the model, and the entry is still honoured while unconfirmed (`cmn_verdict_and_cli.md` section 4.6.4) |

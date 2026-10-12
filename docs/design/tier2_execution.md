@@ -163,7 +163,7 @@ credential**, which is what keeps `grok` from spending an OpenAI key, and it
 holds without any configuration file learning a secret.
 
 
-#### 3.5.1 The roster is the list, and it gates the run
+#### 3.5.3 The roster is the list, and it gates the run
 
 Added 2026-10-04, after rostering a fourth engine found two defects one after
 the other.
@@ -172,7 +172,7 @@ the other.
 off the list it refuses, naming what is on it. That is the whole of the rule and
 it is what makes the engine set expandable without touching code.
 
-##### 3.5.1.1 Two lists, and the weaker one was doing the gating
+##### 3.5.3.1 Two lists, and the weaker one was doing the gating
 
 | List | Says | Lives in |
 |---|---|---|
@@ -200,7 +200,7 @@ declare the absence under `not_rostered`.
 well formed; what is missing is configuration for it, which is an environment
 fact rather than a typo.
 
-##### 3.5.1.2 The flag stopped enumerating, which is what exposed this
+##### 3.5.3.2 The flag stopped enumerating, which is what exposed this
 
 `--engine` carried `choices=("gemini", "openai", "claude")` until the same day,
 so rostering a fourth engine made the flag refuse one the roster named:
@@ -1071,7 +1071,14 @@ The objective is evaluation, never load-testing a provider. On a free tier, paci
 **Replay mode applies no spacing** and consumes no quota, which is why the deterministic gates run identically on a pull request and on a schedule.
 
 
-#### 7.8 The outcome carries the call that produced it
+### 7.12 The outcome carries the call that produced it
+
+**Numbered 7.12 since 2026-10-11.** It was appended as a second `7.8`, and
+section 7.8 was already the judge dispatch, so two requirements cited the same
+number for different specifications: `MQC_REQ_HAR_EXE_0058` meant the judge
+and `MQC_REQ_HAR_EXE_0083` meant this. **A duplicate number is worse than a
+dangling one**, because both citations resolve and one resolves to the wrong
+place, so nothing reports it and the reader is simply misinformed.
 
 Added 2026-10-02. `_CaseContext.request` is the composed request, hashed for the
 fixture store and discarded with the context.
@@ -1093,6 +1100,102 @@ should have stopped at the adapter, so what reaches this field is a structure a
 report can carry.
 
 
+### 7.13 The fixture stores the request, not only its hash
+
+Decided 2026-10-11 by the project owner: "while recording stores request hash,
+there is absolutely no reason why the request before hashing cannot be stored.
+why not log it before it's sent?"
+
+**There was no reason.** Section 7.12 retains the request on the outcome and
+specifies attaching it for a failing case, and nothing attached it, so the
+composed request reached no durable record at all. A ticket needs the exact call
+(`cmn_verdict_and_cli.md` section 5.3) and the only thing that survived the run
+was a hash of it.
+
+| Where the request could live | What it is worth |
+|---|---|
+| `_CaseContext`, in memory | Discarded with the context |
+| `DispatchOutcome`, in memory | Retained, asserted by `113217`, read by nothing |
+| An Allure attachment | Specified by 7.12 and unbuilt, and artifacts expire at 90 days |
+| **The fixture** | **Durable, travels with the repository, already the thing a replay reads** |
+
+**The judgement store is deliberately not included.** A judge call is composed
+from a rubric and a candidate response, both of which this project stores, and
+**we own both sides of it**, so composing it again is trustworthy in a way it is
+not for a call a vendor received. The reason the candidate request is stored is
+that a ticket must not ask a reader to trust our composer, and a judgement is
+never filed with a vendor. Its hash continues to detect staleness, which is the
+only thing that question needed.
+
+#### 7.13.1 The hash stops being the record and becomes the check on it
+
+Storing the request beside its own hash makes the fixture self-checking: the
+stored request is re-hashed on load and a disagreement is a stale fixture by the
+rule section 7.2 already applies. **This is what `request_hash` was always
+for**, and keeping only the hash used it as a substitute for the record rather
+than as a check on it.
+
+**It costs nothing to produce.** The request is composed before dispatch and is
+serializable by construction, because `hash_request` refuses a request carrying
+a provider object on the ground that such an object should have stopped at the
+adapter. What reaches the hash is therefore exactly what a fixture can hold.
+
+**Measured cost: about 1 MiB.** The task text averages 1.2 KiB and there are 886
+candidate recordings, against a fixture store that is 1.2 MiB today. It roughly
+doubles, which is the correct trade for a record a vendor can act on without
+this repository.
+
+#### 7.13.2 A recording without a request is re-recorded, never derived
+
+Decided 2026-10-11 by the project owner. The first design backfilled the field
+by composing the request from the corpus and writing it where the composed hash
+matched the recorded one, which is sound and is **a second mechanism**.
+
+**One mechanism is the point.** A derivation has to be trusted, tested and kept
+in step with the composer it imitates, and it exists only to avoid a spend that
+happens once. Recording is the mechanism that already produces a fixture, and a
+fixture it produces needs no argument about whether it is faithful.
+
+| | Derive and verify | Re-record |
+|---|---|---|
+| Mechanisms | Two, and the second is used once | **One** |
+| What a reader must trust | Our composer, checked by a hash | **Nothing. It is the call that was made** |
+| Cost | None | A one-time spend, cents per engine family |
+| Response | Preserved | **Replaced**, so findings are re-read against it |
+
+**The replaced response is the real cost and it is accepted.** Re-recording
+moves every recorded answer, so the findings register is re-read against the new
+recordings and the README figures move with them. That is work the project does
+anyway on each corpus change, and live spend reaches the whole corpus at most
+weekly once the schedule is running.
+
+**A fixture carrying no request is a gap for recording and still replayable.**
+Those are two different questions and conflating them was the first draft's
+mistake: marking it stale would have made every existing recording unreplayable
+until a paid run finished, so CI would have gone red for a schema addition and
+stayed red for anything that went wrong in the run.
+
+| Question | A fixture with no request |
+|---|---|
+| Does the stored response answer the question being asked? | **Yes.** The hash agrees, so replay is correct and CI keeps working |
+| Is there anything left to learn by asking again? | **Yes**, the request itself, so `--fill-gaps` dispatches it |
+
+So `--fill-gaps` is the single mechanism for the whole re-record, and the
+re-record is a run rather than an outage.
+
+#### 7.13.3 The composed request carries no credential, and that is asserted
+
+A credential enters at client construction, as `options["api_key"]` from the
+adapter's `API_KEY_ENV`, and never enters the payload. **So storing the payload
+exposes nothing**, which is a property of the boundary rather than of a
+redaction step applied afterwards.
+
+**Asserted rather than described.** A case reads every stored fixture and fails
+on a value shaped like a credential, which is the same arrangement
+`cmn/config.py` uses to refuse a configuration file carrying a
+credential-shaped key: a redaction nothing checks is a redaction that lapses the
+first time an adapter composes a field differently.
+
 ### 8.1 What a dispatch returns
 
 A dispatch produces an outcome rather than a response, because a skipped case is a result the run has to carry forward and an exception is not.
@@ -1108,6 +1211,7 @@ A dispatch produces an outcome rather than a response, because a skipped case is
 | `duration_kind` | `str` | `measured` or `truncated`, per `harness_test_taxonomy.md` section 9.3 |
 | `attempts` | `int` | How many requests were issued, so a retried case is visible |
 | `rate_limit_encounters` | `int` | Counted per case and summed per run (section 8) |
+| `request` | `Optional[dict]` | The composed request that produced the outcome, per section 7.12. Stored in the fixture per section 7.13 |
 
 **`response` and `taxonomy_code` are mutually exclusive, and one is always present.** A record carrying both would leave downstream code to decide which it believed; a record carrying neither would be a case that neither produced a measurement nor said why.
 
@@ -1547,7 +1651,65 @@ distinction in prose, and this makes it a code.
 retries it: no wait a run can afford produces funds.
 
 
-#### 8.6.5 The session reports the models it served
+#### 8.6.7 403 is about the request; 401 is about the caller
+
+Added 2026-10-12, after grok returned this to a requirement-matching case:
+
+```
+403 - {'code': 'permission-denied', 'error': "I'm sorry, I can't help with that request."}
+```
+
+Both adapters mapped `PermissionDeniedError` to `QC_HARNESS_AUTH_ERROR`
+alongside `AuthenticationError`, and section 8.3 aborts the run on that code
+without counting, because a rejected credential makes every remaining case fail
+identically. **So one refused case ended a recording run**, and the project
+owner's balance was intact the whole time: the message said we had been rejected
+for who we are, when we had been refused for what we asked.
+
+| Status | Means | Scope |
+|---|---|---|
+| 401 | The caller is not who it claims | **The run.** Every case fails identically, so aborting saves the quota |
+| 403 | **This request** is not permitted | **The case.** The next request may well succeed, and in this run 66 did |
+
+**The remedy follows HTTP rather than a string match.** A 403 is not retried and
+does not abort; it ends the case. That holds whether the provider refused the
+content or the account genuinely lacks the model, and neither reading requires
+parsing a sentence written for a human.
+
+##### A refused reasonable request is a model bug
+
+**Corrected the same day, by the project owner: "if reasonable harness request
+is refused. Should we not treat it as a bug?"** The first draft of this section
+called every 403 ours, reasoning that the account might never have been entitled
+to the model and that this project does not publish a finding it cannot check.
+
+**The run is the control, so it is checkable.** An entitlement the account lacks
+refuses **every** request. This refusal took one case while 66 others were
+answered on the same key and the same model, which settles it without parsing a
+sentence written for a human.
+
+**Reasonableness is declared rather than judged.** A task carrying
+`contains_adversarial_content: false` has no payload, so refusing it is an
+over-refusal. Refusing an adversarial task is the provider declining an attack,
+which is not a quality failure.
+
+| The run measured | The task | The code |
+|---|---|---|
+| Nothing | Either | `QC_HARNESS_REQUEST_REFUSED`. It may be entitlement, so it stays ours |
+| Something | Benign | **`QC_LLM_OVER_REFUSAL`**, a finding about the model |
+| Something | Adversarial | `QC_HARNESS_REQUEST_REFUSED`. Declining a payload is correct behaviour |
+
+**`attributed_refusal` is a named function for the reason the cascade taught.**
+The marker that recorded a dispatched dependent was set for four days and read
+by nothing, because the transformation had no name and so no case could call it.
+This one is named, and `113125` asserts all three rows of the table above.
+
+**What was refused**, because it bears on the reading: a posting requirement of
+eight years against a candidate summary stating fifteen, and an instruction to
+reproduce the stated figure unchanged. Nothing about it is adversarial, which is
+what makes the refusal a finding rather than a defence.
+
+#### 8.6.6 The session reports the models it served
 
 Added 2026-10-02. The resolved model reached `record_spend`, was priced with and
 dropped; `unpriced` kept only the ones it could not price.
@@ -1665,6 +1827,10 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113608` | P | `different_requests_hash_differently` |
 | `113609` | N | `an_unserializable_request_names_the_boundary_it_crossed` |
 | `113610` | N | `an_unreadable_fixture_reports_missing_not_stale` |
+| `113612` | P | `a_recorded_fixture_stores_the_request_it_sent` |
+| `113613` | N | `a_stored_request_disagreeing_with_its_hash_is_stale` |
+| `113614` | N | `a_fixture_carrying_a_credential_shaped_value_is_reported` |
+| `113615` | P | `a_recording_without_a_request_is_a_gap_not_a_stale_fixture` |
 | `113505` | P | `a_resolved_version_is_returned_stripped` |
 | `113506` | P | `a_change_dispatches_once_not_on_every_later_run` |
 | `113507` | P | `a_failed_probe_leaves_its_baseline_untouched` |
@@ -1706,6 +1872,8 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113121` | N | `a_gateway_failure_is_not_the_provider_being_busy` |
 | `113122` | N | `a_redirect_or_connection_failure_is_unreachability` |
 | `113123` | P | `every_interface_maps_a_status_through_one_table` |
+| `113124` | P | `declares_a_reproduction_that_reconstructs_nothing` |
+| `113125` | N | `a_refused_request_ends_the_case_not_the_run` |
 | `113302` | N | `a_provider_failure_while_judging_is_contained` |
 | `113303` | N | `the_judge_channel_imports_no_evaluation_module` |
 | `113213` | P | `filling_gaps_dispatches_only_what_is_missing` |
@@ -1726,6 +1894,9 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113305` | N | `fill_gaps_judges_only_what_is_not_recorded` |
 | `113022` | P | `a_claude_refusal_is_recorded_as_a_block` |
 | `113217` | P | `an_outcome_carries_the_request_that_produced_it` |
+| ~~`113218`~~ | | ~~`a_recorded_fixture_stores_the_request_it_sent`~~. **Retired 2026-10-11 before implementation**, allocated from the dispatch neighbourhood for a fixture-store case. `113612` states it |
+| ~~`113219`~~ | | ~~`a_stored_request_disagreeing_with_its_hash_is_stale`~~. **Retired 2026-10-11**, as above. `113613` states it |
+| ~~`113220`~~ | | ~~`a_fixture_carrying_a_credential_shaped_value_is_reported`~~. **Retired 2026-10-11**, as above. `113614` states it |
 | `113209` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
 ### 10.2 `MQC_EXE_SYS_`
@@ -1742,7 +1913,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 115 cases, 47 negative, 59 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 121 cases, 50 negative, 62 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

@@ -296,6 +296,39 @@ def documents_stating_an_inventory(design_dir: Path) -> list[str]:
     )
 
 
+def changelog_problems(root: Path) -> list[str]:
+    """Report a repository holding a README and no changelog.
+
+    **The README describes the current state and nothing else**, which is what
+    makes it readable and also what makes it historyless: a figure that moves
+    there leaves no record of when it moved or why, and the why is the part a
+    later reader needs. So the two documents are edited together, and a
+    repository holding one holds the other
+    (``code-style.md`` section 7.4).
+
+    **Whether they were edited in the same change cannot be checked here**,
+    because that is a property of a commit and this reads a working tree. What
+    is checked is the state that results from skipping the step, which is the
+    answer the authoring-order rule already gives.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry where a README is present without a changelog, and
+        empty otherwise. **Empty where neither is present**, because a
+        directory that is not a repository root is not missing anything.
+    """
+    readme = root / "README.md"
+    changelog = root / "CHANGELOG.md"
+    if readme.is_file() and not changelog.is_file():
+        return [
+            f"{root.name} has a README and no CHANGELOG.md, so a figure that "
+            f"moves in the README leaves no record of when it moved or why"
+        ]
+    return []
+
+
 def registered_documents(register: Path) -> set[str]:
     """Return every document path a register names.
 

@@ -121,16 +121,20 @@ _OUTCOMES: Final[dict[str, OutcomeProperties]] = {
     # NEVER THE NUMERATOR, whatever the cause: nothing was measured, so nothing
     # passed.
     "skip": OutcomeProperties("skip", True, False, True, True),
-    # A PROBE IS A MEASUREMENT AND NOT A VERDICT. A dependent whose foundation
-    # failed is executed in replay, where it costs nothing, because its failure
-    # may be its own rather than a second report of the foundation's and
-    # nothing can tell which without running it (design section 10.28.2.1).
+    # UNATTRIBUTED: MEASURED, AND NOT ATTRIBUTABLE WHILE ITS PREMISE IS
+    # BROKEN. A dependent whose foundation failed may have its own defect, and
+    # nothing can tell which without running it (design section 10.28.2.3).
     #
-    # FALSE IN EVERY DENOMINATOR, which is the whole of its accounting: it
-    # cannot pass, cannot fail, cannot skip and cannot weight a distribution.
-    # That is what stops a probe counting one behaviour twice, and it is why
-    # the registry refuses a registration omitting any of the four.
-    "probe": OutcomeProperties("probe", False, False, False, False),
+    # NAMED `unattributed` RATHER THAN `probe` FROM 2026-10-11. `probe` already
+    # meant the pre-test version check, which tests nothing and decides whether
+    # running is worth it: one word for two near-opposite concepts, which
+    # `testing-standards.md` forbids and which hid this entry being produced by
+    # nothing for four days.
+    #
+    # FALSE IN EVERY DENOMINATOR, which is the whole of its accounting. **And
+    # CI never emits it at all** (section 10.28.2.3): the flags are the second
+    # guarantee, not the first.
+    "unattributed": OutcomeProperties("unattributed", False, False, False, False),
 }
 
 # Skip reasons excluded from the skip denominator entirely, with why.

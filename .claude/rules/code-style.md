@@ -362,6 +362,117 @@ checkout's parent carries the repository's name as well (section 8.0).
 the one-implementation-two-callers arrangement the encoding, annotation and
 header rules already use.
 
+### 7.3 A section citation resolves, or it is not a citation
+
+Added 2026-10-11 at the project owner's instruction, after a session found four
+dangling citations and two duplicate section numbers by grepping for them.
+
+**The designs cite each other constantly**, roughly two hundred times in the
+harness alone, and a citation is how this project avoids restating a decision in
+two places. A citation that resolves to nothing is therefore worse than a
+restatement: the reader is sent somewhere and finds nothing there.
+
+#### What went wrong, in two shapes
+
+| Shape | Instance |
+|---|---|
+| **Dangling** | Four documents pointed at subsections 1.1, 2.1, 2.4.1 and 2.7 of the open-questions document, which numbers only 1, 2, 2A, 3 and 4 |
+| **Duplicate** | `tier2_execution.md` had two section `7.8`s, and two requirements cited the number for different specifications |
+
+**The duplicate is the worse of the two.** A dangling citation sends a reader
+nowhere and they know it. A duplicate resolves, so nothing reports it and the
+reader is simply misinformed: `MQC_REQ_HAR_EXE_0058` meant the judge dispatch
+and `MQC_REQ_HAR_EXE_0083` meant the retained request, and both cited `7.8`.
+
+**Three of the four dangling ones were worse still**, because they described a
+settled question as open and two asserted a built check was "not built". A
+design claiming an absence that does not exist costs the same way as one
+claiming enforcement it lacks: the reader stops looking, or builds it twice.
+
+#### The rule
+
+**A citation naming a document and a section resolves to a heading in that
+document, and a document numbers each section once.** Both halves are checked,
+because each alone leaves the other's failure silent.
+
+**This rule applies to itself, which is why the row above names no citation.**
+A document describing a dangling citation contains one, so the subject is
+described rather than reproduced: the same convention section 7 already states
+for a prohibited character that is itself the subject. The check found this
+section on its first run, reporting four citations that exist only as examples
+of the defect.
+
+**A retired number is not an exception.** `harness_open_questions.md` retires
+numbers deliberately, so a reader returning to a reference finds what it named
+or finds nothing. That rule is about the *target*; it does not license a citing
+document to keep pointing at one. The citation moves to where the answer went.
+
+#### Within a repository, and across one by declaration
+
+A citation naming a document the other repository owns cannot be resolved from
+here, because the harness owns no case data and the installed wheel ships no
+tests. So the in-repository half runs everywhere, and the cross-repository half
+declares the `paired` environment scope and is **deselected** where the sibling
+checkout is absent (`harness_test_taxonomy.md` section 7.5.1).
+
+**Deselected rather than skipped**, which is the arrangement section 8.0 already
+relies on: a case that cannot run leaves the total rather than reporting a
+non-outcome in it.
+
+#### Enforced, not remembered
+
+`cmn.document_citations.unresolved_citations` reports a citation whose target is
+in this repository and whose section is not a heading in it, and
+`duplicate_sections` reports a document numbering one section twice.
+`MQC_CMN_UNI_112352` and `MQC_CAS_UNI_115734` call them with each root, the
+one-implementation-two-callers arrangement the encoding, annotation, header and
+naming rules already use.
+
+### 7.4 A README change carries a changelog entry, in the same change
+
+Added 2026-10-12 at the project owner's instruction: "anytime we update readme,
+we need to update changelog, otherwise traceability is lost."
+
+**The README describes the current state and nothing else**, which `CHANGELOG.md`
+states as the division between them. That is what makes the README readable, and
+it is also what makes it historyless: a figure that moves there leaves no record
+of when it moved or why, and the why is the part a later reader needs.
+
+| Document | Answers |
+|---|---|
+| `README.md` | What is true now |
+| `CHANGELOG.md` | **What changed, when, and why** |
+
+**So the two are edited together.** A README edit with no changelog entry is an
+incomplete change, in the same way a regenerated artifact that was not
+re-verified is incomplete.
+
+#### It applies per repository, so both repositories hold both documents
+
+`AP-Model-QC` had a README and no changelog until this rule was written, and its
+README figures had moved repeatedly: the recorded-response count, the finding
+totals, the precondition count. Each of those is a fact about a measurement, and
+the record of when it changed was `CLAUDE_LOG.md` alone, which is a narrative
+rather than a changelog and is not where a reader looks for a version history.
+
+**The exemption in section 7.2 is about naming, not about existence.**
+`README.md` and `CHANGELOG.md` keep their conventional names in both
+repositories because a tool and a reader expect them at a root; that is the
+opposite of a licence to omit one.
+
+#### What cannot be checked here, and what can
+
+Whether two files were edited **in the same change** is a property of a commit,
+which no test running against a working tree can see. What a repository can
+check is the state that results from skipping the step, which is the answer the
+authoring-order rule already gives:
+
+| Enforced | By |
+|---|---|
+| A repository holding a README holds a changelog, and the register names it | `MQC_CMN_UNI_112353` and `MQC_CAS_UNI_115735` |
+| Both are in the document register | The register check, in both directions |
+| **The two were edited together** | **Nothing here. A gate step compares the paths a pull request touched** |
+
 ## 8. Cross-Platform Rules
 
 The harness is verified on Ubuntu and Windows (A18). These are not style preferences: each one names a defect that occurs on exactly one platform and is silent on the other.

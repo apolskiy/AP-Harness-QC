@@ -752,13 +752,17 @@ class TestMQCRecordingEconomy:
         request = adapter.compose_request(minimal_case)
         stored = adapter.normalize_response(claude_response(), minimal_case.case_id)
 
-        # OBSERVATION 0 IS RECORDED; 1 IS NOT.
+        # OBSERVATION 0 IS RECORDED; 1 IS NOT. **The recording carries its
+        # request**, because a recording without one is itself a gap and would
+        # be dispatched to fill it, which is the one thing this case is about
+        # not happening (design section 7.13.2).
         record_fixture(
             tmp_path,
             FixtureKey(minimal_case.case_id, "claude", 0),
             hash_request(request),
             stored.as_mapping(),
             stored.resolved_model,
+            request,
         )
 
         dispatched: list[int] = []

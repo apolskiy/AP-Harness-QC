@@ -4,7 +4,7 @@
 
 Specified by ``cmn_verdict_and_cli.md`` section 10.28.
 
-**Split from ``pytest_support.py`` on 2026-10-07**, which the probe took to 919
+**Split from ``pytest_support.py`` on 2026-10-07**, which the cascade took to 919
 lines against the nine-hundred-line runway ceiling. The subject is one: a case
 whose result others presuppose is marked ``base``, its dependents are ordered
 after it, and what happens to them when it does not hold.
@@ -13,7 +13,7 @@ after it, and what happens to them when it does not hold.
 ``case_identifier`` and ``item_priority`` are used by the cascade and owned by
 neither it nor this module's subject.
 
-**Replay probes and live skips** (section 10.28.2.1): a dependent of a failed
+**Only a gap-filling live run dispatches** (section 10.28.2.3): a dependent of a failed
 foundation may carry its own defect rather than a second report of the
 foundation's, and nothing can tell which without running it.
 """
@@ -206,6 +206,32 @@ def record_from_report(item: pytest.Item, report: Any) -> None:
         record_base_outcome(item, report.passed)
     elif report.when == "setup" and not report.passed:
         record_base_outcome(item, False)
+
+def inquest_dependency(item: Any) -> str:
+    """Return the foundation whose failure this case is under inquest for.
+
+    **This is what the marker is for.** It records *how the case was run*,
+    which is why it carries the activity's word rather than the outcome's.
+    `enforce_dependencies` set it from 2026-10-07 and nothing read it, so the
+    `unattributed` outcome existed in the registry and was produced by nothing:
+    a registry entry nothing emits reads as a shipped mechanism
+    (design section 10.28.2.2).
+
+    Args:
+        item (Any): The test that ran, or None where the caller holds none.
+
+    Returns:
+        str: The foundation's identifier, or an empty string where the case was
+        not dispatched despite one. **Empty is the ordinary case**, so a caller
+        can ask without knowing whether the cascade was involved.
+    """
+    if item is None or not hasattr(item, "iter_markers"):
+        return ""
+    for marker in item.iter_markers(name="inquest"):
+        if marker.args:
+            return str(marker.args[0])
+    return ""
+
 
 def declared_dependencies(item: pytest.Item) -> list[str]:
     """Return the identifiers a test declares it depends on.
@@ -432,10 +458,12 @@ def arrange_dependencies(items: list[pytest.Item]) -> None:
         )
     items[:] = order_by_dependency(items)
 
-def probes_dependents(item: pytest.Item) -> bool:
-    """Report whether this run measures a dependent of a failed foundation.
+def opens_an_inquest(item: pytest.Item) -> bool:
+    """Report whether this run opens an inquest into a failed foundation.
 
-    **Replay probes and live skips** (design section 10.28.2.1). The dependent
+    **An inquest is the activity** (section 10.28.2.4): the dependent is
+    dispatched although its foundation failed, measured and recorded, and what
+    it returns is `unattributed`. **Only a gap-filling live run opens one**. The dependent
     may carry its own defect rather than a second report of the foundation's,
     and nothing can tell which without running it; replay runs it free, and a
     live run would spend quota on what the next replay gives away.
@@ -444,19 +472,26 @@ def probes_dependents(item: pytest.Item) -> bool:
         item (pytest.Item): The test about to run, for its invocation.
 
     Returns:
-        bool: True in replay mode. **False where the mode is unset**, so a
-        caller that never configured one is treated as spending.
+        bool: True only for a live gap-filling run. **False everywhere else**,
+        including replay, so CI reports pass, fail and skip and nothing else.
     """
-    # AN ITEM WITHOUT A CONFIG HAS NO MODE, which is the unset case the
-    # docstring names: treated as spending, so a caller that configured
-    # nothing never probes.
+    # AN ITEM WITHOUT A CONFIG HAS NO MODE, so a caller that configured nothing
+    # never dispatches: the unset case is treated as spending.
     config = getattr(item, "config", None)
     if config is None:
         return False
-    return str(config.getoption("--mode", "") or "") == "replay"
+    # LIVE AND FILLING GAPS, WHICH IS THE RECORDING RUN. Replay used to do this
+    # and the CI bands are replay, so CI was emitting the one outcome that must
+    # not count (design section 10.28.2.3). A dependent with no recording skips
+    # in CI because its foundation failed and skips on replay because there is
+    # nothing to replay, so this run is the only thing that can measure it.
+    return (
+        str(config.getoption("--mode", "") or "") == "live"
+        and bool(config.getoption("--fill-gaps", False))
+    )
 
 def enforce_dependencies(item: pytest.Item) -> None:
-    """Skip or probe a test whose foundation did not hold.
+    """Skip a test whose foundation did not hold, or dispatch it unattributed.
 
     **Skipped, never failed.** A dependent that did not run produced no
     measurement, and recording a failure would assert something about a model
@@ -464,7 +499,7 @@ def enforce_dependencies(item: pytest.Item) -> None:
     excludes from the skip denominator so one foundational failure does not
     also breach the skip ceiling.
 
-    **In replay it is probed rather than skipped**: executed, recorded, and
+    **In a gap-filling run it is dispatched rather than skipped**: recorded, and
     counted in no denominator, because its failure may be its own and fixing
     the foundation would not fix it (design section 10.28.2.1). The marker is
     left on the item for the reporting hook, which is what keeps the result
@@ -488,15 +523,16 @@ def enforce_dependencies(item: pytest.Item) -> None:
         # an ordering accident as a missing case (design section 10.28.6).
         if _BASE_OUTCOMES.get(identifier, False):
             continue
-        if probes_dependents(item):
-            # MEASURED, AND COUNTED NOWHERE. The marker tells the reporting
-            # hook to record this as `probe`, which the outcome registry
-            # declares false in all four denominators, so one behaviour
-            # cannot be reported twice.
-            item.add_marker(pytest.mark.probe(identifier))
+        if opens_an_inquest(item):
+            # MEASURED, AND COUNTED NOWHERE. The marker is read by
+            # `inquest_dependency`, which the recording path calls so the
+            # observation carries the outcome: the previous comment said the
+            # reporting hook read it and no hook did, so no observation ever
+            # carried it (design section 10.28.2.2).
+            item.add_marker(pytest.mark.inquest(identifier))
             logger.info(
-                "%s %s did not hold, so %s is probed and counted in no "
-                "denominator",
+                "%s %s did not hold, so %s is dispatched unattributed and "
+                "counted in no denominator",
                 _UNMET, identifier, item.name,
             )
             continue

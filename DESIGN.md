@@ -228,9 +228,9 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 93 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 262 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 264 cases | **Implemented** |
 | `docs/design/harness_ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
-| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 115 cases | **Implemented** |
+| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 121 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 110 cases | **Implemented** |
 
 `harness_ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.
@@ -1013,15 +1013,18 @@ captured understated the bill by roughly five times.
 
 **What closing the first row taught, which outlived the gap.** Writing the twelve
 cases found that two whole attack families matched no vector at all and had
-looked screened on an incidental match (`tier1_ingestion.md` section 7.3). The
-check that would have caught it — a case declaring the vector it is *about* —
-is recorded in `harness_open_questions.md` section 2.4.1 and not built.
+looked screened on an incidental match (`tier1_ingestion.md` section 7.3).
+The check that would have caught it, a case declaring the vector it is
+*about*, was settled on 2026-10-01 and **is built**: all 21 security rules
+declare their vectors as a mapping and name a `primary`, specified in
+`model_evaluation_test_plan.md` section 9.10.3.1.
 
-**The reverse inventory check is still not built, deliberately.** An inventory
-row without an implementation is the *normal* state while a family is being
+**The reverse inventory check reports and never gates.** An inventory row
+without an implementation is the *normal* state while a family is being
 authored, so a hard failure would block the authoring order this project
-requires. The right shape is a report rather than a gate, which is why it sits in
-`harness_open_questions.md` section 2.1 as a question for the project owner.
+requires. Settled on 2026-10-01 and built as a report: `MQC_CMN_UNI_112325`
+reads the harness inventories and `MQC_CAS_UNI_115405` the consumer's,
+specified in `cmn_verdict_and_cli.md` section 10.19.1.
 
 **What the third row's closure changed.** A4.1 settled three observations per
 case, so a fixture is no longer a single sample presented as a characterisation.

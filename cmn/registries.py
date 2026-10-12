@@ -89,6 +89,7 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     "QC_HARNESS_GATEWAY_FAILURE",
     "QC_HARNESS_ENGINE_UNREACHABLE",
     "QC_HARNESS_REQUEST_REJECTED",
+    "QC_HARNESS_REQUEST_REFUSED",
     "QC_HARNESS_PARSER_ERROR",
     "QC_HARNESS_AUTH_ERROR",
     "QC_HARNESS_PREFLIGHT_FAILURE",
@@ -131,6 +132,7 @@ _ADAPTER_ERROR_CODES: Final[frozenset[str]] = frozenset({
     "QC_HARNESS_GATEWAY_FAILURE",
     "QC_HARNESS_ENGINE_UNREACHABLE",
     "QC_HARNESS_REQUEST_REJECTED",
+    "QC_HARNESS_REQUEST_REFUSED",
     "QC_HARNESS_AUTH_ERROR",
     "QC_HARNESS_PARSER_ERROR",
     "QC_HARNESS_VERSION_UNAVAILABLE",
@@ -298,6 +300,7 @@ _LLM_CODES: Final[frozenset[str]] = frozenset({
     "QC_LLM_RUBRIC_FAILURE",
     "QC_LLM_HALLUCINATION",
     "QC_LLM_OVER_DISCLOSURE",
+    "QC_LLM_OVER_REFUSAL",
     "QC_LLM_SOURCE_ALTERATION",
     "QC_LLM_UNSOURCED_CLAIM",
     "QC_LLM_TOOL_VIOLATION",
@@ -358,7 +361,7 @@ def is_registered_sec_code(taxonomy_code: str) -> bool:
     return taxonomy_code in _SEC_CODES
 
 
-# CRITICALITY, FROM MOST SERIOUS TO LEAST. `harness_test_taxonomy.md` section 6.4.
+# CRITICALITY, FROM MOST SERIOUS TO LEAST. `harness_test_taxonomy.md` section 6.5.
 #
 # THE COMMENT ABOVE `_LLM_CODES` HAS ALWAYS SAID severity drives fix
 # prioritisation, and nothing implemented it. The consequence was concrete: a
@@ -403,6 +406,10 @@ _CRITICALITY: Final[dict[str, int]] = {
     "QC_LLM_CONTEXT_OMISSION": 6,
     "QC_LLM_AMBIGUITY_UNHANDLED": 6,
     "QC_LLM_OVER_CLARIFICATION": 6,
+    # Refusing a benign task outright is the strongest form of not
+    # following it: over-clarification asks instead of answering, and
+    # this declines to answer at all.
+    "QC_LLM_OVER_REFUSAL": 6,
     # 7. THE SHAPE WAS WRONG, which is mechanically detectable and cheap to fix.
     "QC_LLM_SCHEMA_VIOLATION": 7,
     "QC_LLM_FORMAT_VIOLATION": 7,
@@ -718,7 +725,14 @@ _STATUS_CODES: Final[dict[int, str]] = {
     # OURS, AND ANTICIPATED.
     400: "QC_HARNESS_REQUEST_REJECTED",
     401: "QC_HARNESS_AUTH_ERROR",
-    403: "QC_HARNESS_AUTH_ERROR",
+    # THE REQUEST WAS REFUSED, AND THAT IS NOT AN AUTHENTICATION FAILURE. 401
+    # is about the caller and 403 about this request, so one ends the run and
+    # the other ends the case. grok returned 403 with the body "I'm sorry, I
+    # can't help with that request" to a requirement-matching case, and
+    # mapping it to the auth code aborted a recording run on a balance that
+    # was intact: the same mistake the 402 row below already avoids
+    # (design section 8.6.7).
+    403: "QC_HARNESS_REQUEST_REFUSED",
     404: "QC_HARNESS_VERSION_UNAVAILABLE",
     # THE BALANCE IS EMPTY, and that is not an authentication failure. Gemini
     # returns this when prepay credits reach zero, at which point every key on

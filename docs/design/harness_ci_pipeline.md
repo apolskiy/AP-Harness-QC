@@ -189,7 +189,7 @@ Each declares `needs` on its predecessor, so a precondition failure leaves the n
 
 **What this repository owes instead is proof that the instrument works**, and that is `MQC_CMN_SYS_122000` to `122002` inside Gate 3: the whole chain on a synthetic corpus, from the ingestion join through replay dispatch and the dual pass to a computed verdict, asserting it reaches **both** a green and a red. A harness that cannot report red about a failing model cannot be trusted when it reports green.
 
-**`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and is recorded in `harness_open_questions.md` section 2.7, because what a harness-only live run should measure is a question about quota rather than about structure.
+**`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and and what a harness-only live run should measure was settled on 2026-10-01: the same ladder, fired weekly or on a version change, specified in section 2.0.2 below.
 
 **Section 3.1.1 below describes the three-step graded job as the consumer runs it**, and its requirement of three separate JUnit files is a requirement on that pipeline.
 
@@ -1062,7 +1062,7 @@ the thing it controls becomes reachable.
 |---|---|
 | Measured cost of a recording run | **Six cents** for the `SEC` family, 2026-09-28 |
 | A full graded run for one engine | Cents, including the judge |
-| The account's monthly limit | **$20 per provider**, recorded in `harness_open_questions.md` section 1.1 |
+| The account's monthly limit | **$20 per provider**, recorded in `harness_open_questions.md` section 1 |
 | The ceiling | $2.00, which is roughly thirty times the measured cost and a tenth of the monthly limit |
 
 **The figure is a backstop, not a budget.** It exists to stop a loop, a

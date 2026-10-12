@@ -48,7 +48,8 @@ _ERROR_CLASSES: Final[tuple[tuple[type, str], ...]] = (
     (openai.RateLimitError, "QC_HARNESS_RATE_LIMIT"),
     (openai.APITimeoutError, "QC_HARNESS_CANDIDATE_TIMEOUT"),
     (openai.AuthenticationError, "QC_HARNESS_AUTH_ERROR"),
-    (openai.PermissionDeniedError, "QC_HARNESS_AUTH_ERROR"),
+    # 403 ENDS THE CASE, NOT THE RUN. Design section 8.6.7.
+    (openai.PermissionDeniedError, "QC_HARNESS_REQUEST_REFUSED"),
     (openai.BadRequestError, "QC_HARNESS_REQUEST_REJECTED"),
     (openai.NotFoundError, "QC_HARNESS_VERSION_UNAVAILABLE"),
     # THE PROVIDER REPORTING ITSELF BUSY, retryable and deliberately not a
@@ -100,6 +101,27 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
     DEFAULT_MODEL = ""
     BASE_URL: Optional[str] = None
     API_KEY_ENV: str = "OPENAI_API_KEY"
+    REPRODUCTION_PACKAGE = "openai"
+    REPRODUCTION_CALL = "client.chat.completions.create"
+
+    @classmethod
+    def reproduction_setup(cls) -> tuple[str, ...]:
+        """Return the lines that construct a client for this protocol.
+
+        **One declaration for every engine speaking this protocol**, built from
+        the base URL and the variable each already declares. Two identical
+        constants on two adapters was the duplication this replaces.
+
+        Returns:
+            tuple[str, ...]: The import and the construction, carrying the base
+            URL where the engine declares one.
+        """
+        constructed = (
+            f'client = openai.OpenAI(base_url="{cls.BASE_URL}")'
+            if getattr(cls, "BASE_URL", "")
+            else "client = openai.OpenAI()"
+        )
+        return ("import openai", f"{constructed}  # reads {cls.API_KEY_ENV}")
 
     def client_options(self) -> dict[str, Any]:
         """Return the constructor arguments this engine's client needs.

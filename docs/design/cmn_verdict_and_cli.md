@@ -93,7 +93,7 @@ Each metric uses a different denominator, and the distribution one is load-beari
 | Metric | Denominator | Excluded |
 |---|---|---|
 | Priority distribution | Unique (task × rubric) case definitions | `SEC` layer entirely |
-| Pass rate (V2) | Executions, **including a skip the model caused** | A skip whose cause was ours or the network's, a dispensed quarantine entry, probes |
+| Pass rate (V2) | Executions, **including a skip the model caused** | A skip whose cause was ours or the network's, a dispensed quarantine entry, an unattributed result |
 | Skip rate (**diagnostic only**) | Observations | `unsupported` pairs, `dependency` skips |
 
 **What the pass-rate denominator changed to, 2026-10-08.** It excluded every quarantined case and every skip. It now excludes neither: a quarantined case and a cascaded skip did not pass, and a rate stated over what happened to run is the "selective passing rate" the band floor was corrected for the day before. The exclusions that remain are the three a declaration or an attribution earns, and `harness_test_taxonomy.md` section 7.4.1 holds the table.
@@ -2421,6 +2421,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
 | `112347` | P | `a_case_announces_its_node_identifier_before_running` |
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
+| `112352` | N | `an_unresolved_or_duplicated_citation_is_reported` |
+| `112353` | N | `a_readme_without_a_changelog_is_reported` |
 | `112020` | P | `security_layer_excluded_from_distribution_ceiling` |
 | `112021` | N | `precondition_failure_blocks_graded_evaluation` |
 | `112022` | N | `precondition_skip_is_a_failure` |
@@ -2633,12 +2635,14 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112336` | P | `a_ledger_names_every_step_and_the_phase_it_stopped_at` |
 | `112337` | B | `a_rule_without_a_rubric_reports_its_judge_steps_inapplicable` |
 | `112338` | N | `a_quarantined_case_reaching_dispatch_is_reported` |
-| `112339` | P | `a_dependent_of_a_failure_is_probed_in_replay` |
-| `112340` | B | `a_probe_is_counted_in_no_denominator` |
+| ~~`112339`~~ | | ~~`a_dependent_of_a_failure_is_probed_in_replay`~~. **Retired 2026-10-11**, section 10.28.2.3. Replay no longer probes: CI reports pass, fail and skip only, and the mechanism moved out of CI rather than being excluded from its denominators |
+| ~~`112340`~~ | | ~~`a_probe_is_counted_in_no_denominator`~~. **Retired 2026-10-11**, section 10.28.2.2. It asserted the registry entry and not that anything produced it, and nothing did |
+| `112350` | N | `a_dependent_of_a_failure_skips_outside_an_inquest` |
+| `112351` | P | `an_inquest_records_a_dependent_as_unattributed` |
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 262 cases, 145 negative, 89 positive, 28 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 264 cases, 148 negative, 89 positive, 27 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3775,28 +3779,162 @@ live run spends, and what it would buy can be had free on the next replay.
 | Mode | A dependent of a failed foundation |
 |---|---|
 | `replay` | **Probed**: executed, recorded, counted nowhere |
-| `live` | **Skipped**, as before, carrying `QC_HARNESS_DEPENDENCY_UNMET` |
+| `live` | **Skipped**, carrying `QC_HARNESS_DEPENDENCY_UNMET` |
+
+**Superseded 2026-10-11.** The table above is what this section decided and is
+no longer what happens: CI reports pass, fail and skip only, and the mechanism
+moved out of CI rather than being excluded from its denominators. Sections
+10.28.2.2 and 10.28.2.3 carry the current rule and why this one was wrong. It is
+kept rather than rewritten because the reasoning it records is still the
+reasoning a reader needs in order to follow the correction.
 
 **This is the project owner's decision over two alternatives**: probing live
 behind a flag, and probing live always. Both were rejected on cost, the second
 flatly and the first because a flag nobody passes is a feature nobody has.
 
+#### 10.28.2.2 The word was two concepts, and one of them was never wired
+
+Added 2026-10-11 at the project owner's instruction, who asked what a probe is
+and found two answers.
+
+**`probe` named two things in shipped code.** The older is a pre-test question
+and the newer was this section's mechanism, and they are near-opposites:
+
+| | `execution/preflight.py`, `probe-model-version-nightly.yml` | This section, from 2026-10-07 |
+|---|---|---|
+| Asks | Has the model version changed, is the engine reachable | Does this case pass, its foundation having failed |
+| Tests anything | **No.** It decides whether running is worth it | **Yes**, the case's own behaviour |
+| On failure | Nothing is dispatched | The case is recorded and attributed to nothing |
+
+`testing-standards.md` holds that a concept gets one word and a second one is
+drift. **The older keeps it**, by the rule the identifier rebinding followed on
+2026-10-10, so this section's outcome is **`unattributed`**: measured, and not
+attributable while its premise is broken.
+
+###### And it was never wired, which the two cases guarding it could not see
+
+`enforce_dependencies` added `pytest.mark.probe(identifier)` with a comment
+saying the marker told the reporting hook to record the outcome. **No hook read
+it.** `_measured_fields` recorded `pass` or `fail` with no branch for it, so a
+dependent that ran in replay entered **every** denominator, which is the exact
+opposite of what this section specified.
+
+| Case | Asserted | Did not assert |
+|---|---|---|
+| `112339` | The predicate returns true in replay, false live | That anything is recorded |
+| `112340` | The outcome is registered and counts nowhere | That any observation ever carries it |
+
+Both passed throughout. **A registry entry nothing produces reads as a shipped
+mechanism**, which is the third kind of hole `testing-standards.md` names and
+the one this project finds most often.
+
+#### 10.28.2.3 So CI reports pass, fail and skip, and nothing else
+
+**The project owner's rule: the only pass, fail and skip acceptable for
+statistics are CI's.** An unattributed result is not a statistic, so CI must not
+produce one.
+
+That inverts the decision above. It had replay probing because replay is free,
+and the CI bands are replay, so CI was producing exactly the results that must
+not count.
+
+| Where | A dependent whose foundation failed |
+|---|---|
+| **CI**, any mode | **Skipped**, carrying `QC_HARNESS_DEPENDENCY_UNMET` |
+| An inquest, outside CI | **Dispatched, recorded, `unattributed`** |
+
+**So the mechanism moves out of the statistics entirely rather than being
+excluded from them.** Four flags saying "count this nowhere" are a weaker
+guarantee than never emitting it where counting happens: the flags were right
+and unread for four days.
+
+###### Which is also the only way the recording can happen
+
+A dependent with no recording skips in CI because its foundation failed, and
+skips on replay because there is nothing to replay. **It is permanently
+unmeasurable** unless something dispatches it, and an inquest is that
+something: `--fill-gaps` means "dispatch what has no recording", which a
+dependent with no recording is.
+
+Claude's seven security cases were exactly this. `154100` and `154103` fail
+live, the seven that depend on them could not be recorded, and the blocking
+band could never answer for them.
+
+###### A fixed foundation makes its dependents' recordings stale
+
+**The owner's rule: re-record when the bugs are fixed.** A recording taken while
+a foundation was failing was taken against a model that has since changed, and
+`FixtureKey` already carries the model identity for exactly this reason
+(section 10.28.2.1's closing note on `depends_on` declaring a result rather than
+data flow).
+
+**So a resolved finding invalidates the recordings made beneath it.** That is a
+corpus obligation rather than a verdict rule: the register says when a finding
+resolved, and the recordings taken before that date against the same foundation
+are the ones to retake.
+
 ##### It fits the outcome registry rather than extending the machinery
 
 `cmn/layers.py` registers every outcome with its treatment in all four
 denominators and **refuses a registration that omits one**, which is exactly
-the extension point this needs: `probe` declares false in all four. No
+the extension point this needs: `unattributed` declares false in all four. No
 denominator learns a special case, and the refusal guarantees a later outcome
 cannot be added without deciding what it counts toward.
 
-##### Why probing is safe, checked rather than assumed
+##### Why dispatching is safe, checked rather than assumed
 
 `depends_on` declares a **result** presupposition, not data flow: the carry file
 moves outcomes and never responses. Fifty-eight dependencies were read and
-**none consults its foundation's output**, so a probed dependent has everything
-it needs. A dependent written to read a foundation's response would produce a
-meaningless red when probed, and `framework-rules.md` already forbids that
+**none consults its foundation's output**, so a dispatched dependent has
+everything it needs. A dependent written to read a foundation's response would
+produce a meaningless red, and `framework-rules.md` already forbids that
 coupling.
+
+#### 10.28.2.4 The activity is an inquest, and the outcome is what it returns
+
+Corrected 2026-10-11 by the project owner, who observed that `probe` is right
+for asking a model its version and whether it answers at all, and wrong for
+this, which "is more of an inquest or examination and recording".
+
+**Section 10.28.2.2 found two concepts and there were three.** The first pass
+renamed the outcome and left the activity with no name of its own, described
+throughout by its result as "dispatching unattributed".
+
+| Concept | Word | What it is |
+|---|---|---|
+| The pre-test question | `probe` | Has the version moved, is the engine reachable. Decides whether running is worth it and measures nothing |
+| **The activity** | **`inquest`** | A gap-filling live run dispatches a dependent although its foundation failed, measures it and records the fixture |
+| The outcome | `unattributed` | What an inquest returns: measured, and not attributable while its premise is broken |
+
+**Naming a thing after its result is the shape that hid the first collision.**
+`probe` described an activity and the registry entry described an outcome, and
+because one word covered both, the question "does anything produce this?" could
+not be put. An activity named `dispatches_unattributed` repeats the mistake at a
+smaller scale: it says what comes out and not what is done.
+
+**`examination` was rejected and `inquest` chosen on the collision test**, which
+is the same test that rejected `dataset` and `collection`. To examine is
+ordinary prose used throughout these documents, so a reader could not tell the
+registered term from the everyday verb. `inquest` appears nowhere in either
+repository, nowhere in pytest's vocabulary and nowhere in Python's, and it means
+an inquiry opened because something failed, which is precisely the trigger.
+
+##### What carries the name
+
+| Surface | Before | After |
+|---|---|---|
+| The predicate | `dispatches_unattributed` | `opens_an_inquest` |
+| The marker reader | `unattributed_dependency` | `inquest_dependency` |
+| The pytest marker | `unattributed` | `inquest` |
+| The registered outcome | `unattributed` | **Unchanged** |
+| The transformation | `attributed_observations` | **Unchanged** |
+
+**The outcome keeps its name and so does the transformation**, because both are
+about attribution rather than about the activity. `attributed_observations`
+answers "what is this result worth", and the answer is `unattributed` whenever
+an inquest produced it. The marker records **how the case was run**, which is
+why it is the surface that takes the activity's word.
+
 
 #### 10.28.3 Declared by marker, resolved by identifier
 
