@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **588 cases, all passing**. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **589 cases, all passing**. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 283, none uncovered, none untraced |
+| Requirements traced | 284, none uncovered, none untraced |
 | Numbered steps | Seven per observation, each an action and a verification, in the JUnit `<failure>` and `<system-out>` and in Allure |
 | Dependents of a failure | **Skipped**, carrying `QC_HARNESS_DEPENDENCY_UNMET`. An **inquest**, opened by a gap-filling live run, dispatches them instead, records the response and returns `unattributed`, counted in no denominator |
 | Quarantine | Skips before the request is formed, so it saves the run's cost and never buys a pass |

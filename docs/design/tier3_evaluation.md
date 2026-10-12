@@ -1033,6 +1033,51 @@ where that record belongs rather than here.
 
 ## 6. Judge Invocation
 
+#### 5.3.1 A line break ends a sentence, because a heading has no full stop
+
+Added 2026-10-12, after the twelfth repair of the same class and the third of
+the same assertion. `A_COD_NOT_THE_INTENDED_ANSWER` reported
+`gemini-3.8-flash` for giving the **correct** answer:
+
+```
+### What the function returns
+When called with rows scoring 10, 90, and 50 (in that order) and a limit of 2,
+the function returns the rows scoring 10 and 90.
+```
+
+The function sorts and discards the result, so it returns the first two rows in
+their original order: 10 and 90, which is what the model said.
+
+**The match spanned a markdown heading.** `_SENTENCE_BREAK` was
+`(?<=[.!?;])\s+|\n{2,}`, so it needed terminal punctuation or a blank line. A
+heading has neither, so "What the function returns" and the sentence after it
+were one sentence to the matcher, and the pattern found a return verb in the
+heading and the prompt's own input figures in the line below.
+
+**So a single line break ends a sentence.** It is the boundary a reader sees,
+and it is the one markdown uses for headings, list items and table rows, none of
+which carry a full stop.
+
+##### What it costs, measured rather than assumed
+
+Splitting on a line break can split a hard-wrapped sentence, which would make a
+pattern spanning the wrap stop matching: a missed detection rather than a false
+one. **Measured across 766 recorded responses:** six contain a prose sentence
+broken by a single newline, and inspection shows one of those is genuine prose
+wrapping; the rest echo a document or LaTeX. Models in this roster emit one long
+line per paragraph.
+
+| | Before | After |
+|---|---|---|
+| A heading joined to the next sentence | **False finding**, three times on one assertion | Cannot happen |
+| A hard-wrapped sentence | Matched | May be missed, in about 1 response in 766 |
+
+**The trade is already decided by a rule this project wrote down:** a screen
+that fires wrongly is worse than one that misses, because a false finding is
+filed against a third party and a missed one costs a round trip. Eleven of
+twenty-three findings were withdrawn for firing wrongly, and none for missing.
+
+
 ### 6.1 Structured output is mandatory
 
 The judge replies under an enforced schema (C2). This serves two purposes at once: the score always parses, and a schema-valid reply becomes the hijack tripwire described in section 7.
@@ -1256,6 +1301,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114113` | N | `a_hedged_mention_of_a_forbidden_claim_is_not_a_claim` |
 | `114114` | N | `a_forbidding_claim_without_exclusions_is_refused` |
 | `114115` | N | `an_unavailable_judgement_skips_and_keeps_its_assertions` |
+| `114116` | N | `a_claim_does_not_read_across_a_line_break` |
 | `114005` | P | `a_strategy_is_deterministic_for_identical_input` |
 | `114006` | P | `every_declared_strategy_has_an_implementation` |
 | `114007` | N | `an_unregistered_strategy_is_rejected_by_name` |
@@ -1300,7 +1346,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 110 cases, 50 negative, 44 positive, 16 boundary.**
+**Inventory: 111 cases, 51 negative, 44 positive, 16 boundary.**
 
 ### 11.3 The five cases added with A19
 

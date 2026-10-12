@@ -29,6 +29,22 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A line break ends a sentence, so a heading stops joining the next one, 2026-10-12
+
+**Fixed.** `_SENTENCE_BREAK` required terminal punctuation or a blank line, so a
+markdown heading joined the sentence below it: a claim assertion found a return
+verb in "What the function returns" and the prompt's own figures in the line
+after, and reported a model for giving the correct answer. The third false
+finding from one assertion and the twelfth of its class.
+
+A single line break now ends a sentence, which can split a hard-wrapped one and
+miss a match. Measured across 766 recorded responses: six contain a prose
+sentence broken by a single newline and one of those is genuine wrapping, against
+a rule already on the record that a screen firing wrongly is worse than one that
+misses.
+
+**Changed.** README figures: 589 cases, 284 requirements traced.
+
 ### A README change carries a changelog entry, 2026-10-12
 
 **Added.** `cmn.document_standards.changelog_problems` reports a repository

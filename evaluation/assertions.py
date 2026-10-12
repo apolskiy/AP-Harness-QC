@@ -91,7 +91,16 @@ def _check_regex(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
 # negation and hedging operate over. The pattern keeps the terminator out of
 # the split so an abbreviation inside a sentence does not end it: a following
 # space or line break is required. Design section 5.3.
-_SENTENCE_BREAK: Final[re.Pattern[str]] = re.compile(r"(?<=[.!?;])\s+|\n{2,}")
+#
+# A SINGLE LINE BREAK ENDS ONE, since 2026-10-12. It required a blank line
+# before, so a markdown heading joined the sentence below it: "What the
+# function returns" carried a return verb and the next line carried the
+# prompt's own figures, and the assertion reported a correct answer as a
+# hallucination for the third time. A heading, a list item and a table row
+# have no full stop (design section 5.3.1).
+_SENTENCE_BREAK: Final[re.Pattern[str]] = re.compile(
+    r"(?<=[.!?;])\s+|\n+"
+)
 
 
 def _check_claim(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:

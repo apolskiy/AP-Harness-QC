@@ -39,6 +39,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114112  a_length_assertion_reads_unnormalised_text
 # TestMQCClaimScope
 #   114113  a_hedged_mention_of_a_forbidden_claim_is_not_a_claim
+#   114116  a_claim_does_not_read_across_a_line_break
 #   114114  a_forbidding_claim_without_exclusions_is_refused
 # ------------------------------------------------------------ end of cases
 
@@ -445,6 +446,75 @@ class TestMQCClaimScope:
         )
 
     @allure.story("A forbidding claim states its exclusions")
+    def MQC_EVL_UNI_114116_a_claim_does_not_read_across_a_line_break(
+        self,
+    ) -> None:
+        """A heading does not join the sentence below it.
+
+        **The third false finding from one assertion.** A claim is scoped to a
+        sentence, and the splitter needed terminal punctuation or a blank line.
+        A markdown heading has neither, so "What the function returns" and the
+        line after it were one sentence: the return verb came from the heading
+        and the figures from the model restating the prompt's own inputs, and
+        `gemini-3.8-flash` was reported for giving the correct answer.
+
+        Design: ``tier3_evaluation.md`` section 5.3.1.
+
+        Returns:
+            None
+        """
+        pattern = (
+            r"(?i)\b(returns?|result\w*)\b[^.]{0,40}"
+            r"\b90\b[^.]{0,25}\b50\b"
+        )
+        assertion = _assertion(
+            "claim",
+            {"pattern": pattern, "present": False, "unless": ["looks like"]},
+        )
+        newline = chr(10)
+
+        # THE RECORDED RESPONSE THAT WAS REPORTED, and it is correct: the
+        # function sorts, discards the result and returns the first two rows in
+        # their original order, which is 10 and 90.
+        correct = (
+            "### What the function returns" + newline
+            + "When called with rows scoring 10, 90, and 50 (in that order) "
+            "and a limit of 2, the function returns the rows scoring 10 and 90."
+        )
+        outcome = run_assertion(assertion, correct)
+        assert outcome.passed is True, (
+            f"a correct answer under a heading was reported, because the "
+            f"heading's return verb joined the figures below it: "
+            f"{outcome.detail}"
+        )
+
+        # AND IT STILL FIRES WHERE THE CLAIM IS REALLY MADE, or the repair
+        # would have bought silence rather than accuracy.
+        plainly_wrong = "The function returns the rows scoring 90 and 50."
+        assert run_assertion(assertion, plainly_wrong).passed is False, (
+            "the wrong answer stated plainly was not reported, so the fix "
+            "disabled the check instead of scoping it"
+        )
+
+        # A BLANK LINE ALREADY ENDED A SENTENCE; A SINGLE ONE IS THE ADDITION.
+        for breaks in (1, 2):
+            spanning = (
+                "The function returns" + newline * breaks
+                + "rows scoring 90 and 50."
+            )
+            assert run_assertion(assertion, spanning).passed is True, (
+                f"a claim read across {breaks} line break(s), so a heading "
+                f"or a list item still joins the line below it"
+            )
+
+        # AND A HEDGE IS STILL EXCLUDED WITHIN ONE SENTENCE.
+        hedged = (
+            "The function looks like it should return the rows scoring 90 and 50."
+        )
+        assert run_assertion(assertion, hedged).passed is True, (
+            "a hedged sentence was reported as a claim"
+        )
+
     def MQC_EVL_UNI_114114_a_forbidding_claim_without_exclusions_is_refused(
         self,
     ) -> None:
