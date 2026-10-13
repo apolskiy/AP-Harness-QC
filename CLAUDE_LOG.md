@@ -10891,3 +10891,32 @@ version of the same thing.
 where it loads its corpus, because the harness owns no corpus; `graded_support`
 came to exactly 900 lines doing it, and the five comment lines moved to the
 design with a one-line pointer, which is where reasoning belongs anyway.
+
+---
+
+### 2026-10-13 - The Threshold Domain, And Four Boundaries Nobody Pinned
+* **Phase:** Implementation, after an audit of threshold coverage the project owner asked for.
+* **User Prompt Summary:** Test negative, zero, below threshold, at the threshold, above it and beyond 100 percent, so the harness breaks on an invalid value rather than evaluating against it; re-examine design, test design, RTM and implemented cases, and expand where needed. Clarified afterwards: both ceilings and floors, zero as a ceiling here would put the floor below zero, an out-of-range value should produce an error rather than a prompt back, **valid ranges are the higher priority** with invalid ranges as additional scenarios, and refusal belongs at construction.
+* **What Was Measured First:**
+  * `Thresholds` had no `__post_init__` and `thresholds_from` does `Thresholds(**declared)` over whatever a stored artifact carried. Against a suite at a 50 percent pass rate: `pass_floor` of `0.0` and `-1.0` each returned **green at exit 0** with no breach recorded; `1.5` and `100.0` returned red; `'ninety'` raised `TypeError` part-way through evaluating the pass rate.
+  * The numeric values are the worse half. An exception stops the run and names itself; a run that reports an ordinary green against a floor nobody could meet does not.
+* **The Valid-Range Gap, Which Was The Point:**
+  * Three comparisons are in use. `pass_floor` is `rate >= floor`, the three share ceilings are `share > ceiling`, and `inconsistency_ceiling` is `rate >= ceiling`, so "at the value" passes for four thresholds and breaches for one.
+  * Four were pinned only on one side: **V8 had no case at all**, and V7, V9 and `distribution_minimum` were exercised only beyond their boundary. A drift from `>` to `>=` in any of them would have left the suite green.
+* **Key Decisions Made:**
+  * Refusal at construction rather than at the loader, because the defaults, a configuration load, `thresholds_from` and a tool building one by hand all arrive there.
+  * Zero refused for ceilings as well as floors, per the owner: a ceiling of zero leaves no band, and the rule it reaches for is V1, which decides per observation and names the case rather than reporting a percentage.
+  * `True` refused although it subclasses `int`, because a `pass_floor` of `True` is a floor of 1.0 and certainly not what was meant.
+  * A field registered in neither set is refused rather than skipped, so a threshold added later cannot be unchecked by default. That default is how this was needed in the first place.
+  * The two retired fields are validated with the rest: nothing reads them, but both are still emitted into `effective_thresholds` as part of the standard a run claims to have applied.
+* **Injection Verification:**
+  * `share > ceiling` changed to `share >= ceiling`: `112052`, `112053` and `112054` all report it.
+  * `definitions < minimum` changed to `definitions <= minimum`: `112055` reports it.
+  * `0 < value <= 1` relaxed to `0 <= value <= 1`: `112056` reports it.
+  * File restored after each, suite back to green.
+* **Code Quality & Compliance Audit:**
+  * `cmn/verdict.py` reached 1008 lines with the hook attached, past the thousand-line hard ceiling. The domain moved to `cmn/threshold_domain.py`, which is its own subject, and three attribute docstrings carrying the reasoning for a decision became pointers to the design sections that already hold it. 996 lines.
+  * The suite caught `_population` as support code in a collected module; it moved to `tests/cmn/verdict_support.py` as `distribution_suite`, beside `graded` and `passing_suite`.
+  * 764 unit, 24 system, pylint exit 0.
+* **AI Output Summary & Action Items:**
+  * Design sections 8.1, 8.2 and 10.38; requirements `MQC_REQ_HAR_CMN_0156` and `0157`; `cmn/threshold_domain.py`; `tests/cmn/mqc_uni_thresholds.py` with `112052` through `112059`; README 599 cases, 288 requirements.

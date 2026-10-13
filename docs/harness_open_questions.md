@@ -113,6 +113,8 @@ because a second copy drifts.
 | Is a `curl` the right reproduction for a recorded call? | 2026-10-12, no: the recording holds SDK arguments, and one provider's stored field has no wire form | `consumer_ci.md` section 9.5.3.1 |
 | Is a provider refusing a benign request our failure or the model's? | 2026-10-12, the model's, when the run answered other requests | `tier2_execution.md` section 8.6.7 |
 | Does a README change require a changelog entry? | 2026-10-12, yes, in the same change | `code-style.md` section 7.4 |
+| Should a threshold outside its domain be clamped, defaulted or refused? | 2026-10-13, refused at construction, because a run reporting a result against a substituted standard is the worse failure | `cmn_verdict_and_cli.md` section 8.1 |
+| Is zero an acceptable ceiling? | 2026-10-13, no: it leaves no band, and the rule it reaches for is V1 | `cmn_verdict_and_cli.md` section 8.1 |
 
 ---
 
@@ -124,6 +126,7 @@ Recorded so the absence is on the record. None needs a decision.
 |---|---|
 | A re-record needing fewer observations than the previous run leaves the surplus behind | Pruned by hand three times on 2026-10-12. Nothing prunes at the point of recording |
 | `environment_marker` is read by nothing | Section 2.8 decides which way it goes |
+| A ceiling means `>` for V7 to V9 and `>=` for the inconsistency condition | Both are intended and now tabulated, so neither is derivable from the word: `cmn_verdict_and_cli.md` section 8.2 |
 
 ## 3. Things I changed that deserve a second opinion
 

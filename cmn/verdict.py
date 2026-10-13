@@ -42,6 +42,7 @@ from cmn.quarantine import (
     excluded_bands,
 )
 from cmn.observations import Observation
+from cmn.threshold_domain import check_domain
 
 logger = logging.getLogger(__name__)
 
@@ -67,26 +68,16 @@ class Thresholds:
 
     Attributes:
         pass_floor (float): Minimum overall pass rate (V2).
-        skip_ceiling (float): **Retired 2026-10-08 and read by nothing.** A
-            skip has no ceiling: it counts as a failure in the pass rate, so
-            the floor governs it and a second budget for the same quantity
-            contradicted that floor. Kept so a configuration naming it still
-            loads.
+        skip_ceiling (float): **Retired 2026-10-08 and read by nothing**,
+            kept so a configuration naming it still loads. Design:
+            ``harness_test_taxonomy.md`` section 7.4.1.0.
         priority_skip_ceiling (float): **Retired 2026-10-08 with V4 and read
-            by nothing.** V1 already fails a run on any blocking-band
-            observation that does not pass, and a counted skip does not pass.
-            Kept so a stored configuration naming it still loads.
-        inconsistency_ceiling (float): Maximum share of measured cases whose
-            repeat observations disagree, before the run is unsound
-            (a `RUN_UNSOUND` condition, not a numbered verdict rule).
-            **0.20 as of 2026-10-01**, decided once three corpora had been
-            recorded. It was 0.10, matched to ``priority_skip_ceiling`` rather
-            than derived, and the owner's judgement is that a suite carrying a
-            fifth of its cases as wobbling has still measured something.
-            **A statement about the run, not about a case**: whether one case's
-            observations disagree stays binary, because a majority would discard
-            the finding the repeats exist to produce (design sections 4.9.1 and
-            4.9.2.1).
+            by nothing**, kept on the same terms and for the same reason.
+        inconsistency_ceiling (float): The share of measured cases whose
+            repeat observations disagree at which the run is unsound, which is
+            a `RUN_UNSOUND` condition rather than a numbered verdict rule.
+            **0.20 as of 2026-10-01**, and a statement about the run rather
+            than about a case. Design sections 4.9.1 and 4.9.2.1.
         p0_share_ceiling (float): Maximum share of case definitions at P0.
         p1_share_ceiling (float): Maximum share at P1.
         combined_share_ceiling (float): Maximum share at P0 and P1 together.
@@ -107,6 +98,19 @@ class Thresholds:
     combined_share_ceiling: float = 0.30
     distribution_minimum: int = _DISTRIBUTION_MINIMUM
     quarantine_window_days: int = QUARANTINE_WINDOW_DAYS
+
+    def __post_init__(self) -> None:
+        """Refuse a threshold outside its domain, at construction.
+
+        Design: section 8.1, which records why here and not in the loader.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: Naming the field and the value it was given.
+        """
+        check_domain(self)
 
 
 

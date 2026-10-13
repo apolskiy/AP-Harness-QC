@@ -29,6 +29,42 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A threshold is refused outside its domain, and four boundaries are pinned, 2026-10-13
+
+**Fixed.** `Thresholds` validated nothing. Measured against a suite at a pass
+rate of 50 percent, a `pass_floor` of `0` or `-1` turned the run **green at exit
+0** with no breach recorded; `100.0`, the slip for someone meaning ninety
+percent, turned it red; and the string `'ninety'` broke the run part-way through
+evaluating it. All four arrived through `thresholds_from`, which rebuilds the
+standard from whatever a stored artifact carried.
+
+Every rate must now lie in `0 < x <= 1` and both population counts must be whole
+and at least one, checked in `Thresholds.__post_init__` so the defaults, a
+configuration load, the artifact loader and a tool building one by hand all pass
+through it. **Zero is refused for the ceilings too**: it leaves no band, and the
+rule somebody reaches for with it is V1, which decides per observation and names
+the case.
+
+**Added.** `cmn/threshold_domain.py`, holding the two field sets and the two
+predicates. A field in neither set is refused rather than skipped, so a
+threshold added later cannot be unchecked by default.
+
+**Added.** `tests/cmn/mqc_uni_thresholds.py`, eight cases in two groups.
+`112052` to `112055` state each live threshold **at exactly its own value**,
+which four of the seven lacked: V8 had no case of any kind, and V7, V9 and
+`distribution_minimum` were exercised only on the far side of their boundary, so
+a comparison drifting from `>` to `>=` would have left the suite green. Verified
+by injecting that exact drift: all four report it. `112056` to `112059` cover
+the invalid range, including the loader path.
+
+**Added.** Design sections 8.1 and 8.2. The second tabulates which side of each
+threshold its own value falls on, because three comparisons are in use and they
+do not agree: `pass_floor` and the three share ceilings pass at their value, the
+inconsistency ceiling breaches at its, and nothing in the words "floor" and
+"ceiling" settles it.
+
+**Changed.** README figures: 599 cases, 288 requirements traced.
+
 ### A line break ends a sentence, so a heading stops joining the next one, 2026-10-12
 
 **Fixed.** `_SENTENCE_BREAK` required terminal punctuation or a blank line, so a

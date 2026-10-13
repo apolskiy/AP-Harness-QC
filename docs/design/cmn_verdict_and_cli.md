@@ -2402,6 +2402,104 @@ yields no rate and that a dependency skip stays out of the denominator.
 
 Credentials are never in configuration. They are read from the environment at runtime and redacted from every log and artifact.
 
+### 8.1 A threshold is a proportion, and nothing checked that it was
+
+`Thresholds` is a frozen dataclass with no `__post_init__`, and
+`thresholds_from` builds one with `Thresholds(**declared)` over whatever
+`effective_thresholds` a stored artifact happened to carry. Measured on
+2026-10-13 against a two-observation suite at a pass rate of 50 percent:
+
+| `pass_floor` supplied | Accepted? | What the run then reported |
+|---|---|---|
+| `0.90`, the default | yes | red, exit 1 |
+| `0.0` | **yes** | **green, exit 0** |
+| `-1.0` | **yes** | **green, exit 0** |
+| `1.5` | yes | red, exit 1 |
+| `100.0` | yes | red, exit 1 |
+| `'ninety'` | **yes** | **`TypeError` part-way through evaluation** |
+
+**The numbers are the dangerous row, not the string.** A `TypeError` stops the
+run and names itself, which is a bad outcome that announces itself. `0.0` and
+`-1.0` turn every run green at exit 0, with no breach recorded and an artifact
+that reads as an ordinary pass; `100.0`, the obvious slip for someone who meant
+ninety percent, turns every run red for ever. A gate that cannot fail and a gate
+that cannot pass are both no gate, and neither of them says so.
+
+**The domain.** A rate is a share of a population, so it lives in the unit
+interval; the two counts are populations, so they are whole and at least one.
+
+| Field | Domain | Refuses |
+|---|---|---|
+| `pass_floor` | `0 < x <= 1` | `-1`, `0`, `1.5`, `100`, `'ninety'` |
+| `skip_ceiling`, `priority_skip_ceiling` | `0 < x <= 1` | as above |
+| `inconsistency_ceiling` | `0 < x <= 1` | as above |
+| `p0_share_ceiling`, `p1_share_ceiling`, `combined_share_ceiling` | `0 < x <= 1` | as above |
+| `distribution_minimum` | integer `>= 1` | `0`, `-5`, `2.5`, `'thirty'` |
+| `quarantine_window_days` | integer `>= 1` | as above |
+
+**Zero is refused for the ceilings too**, which is not how a ceiling usually
+reads and is the one row worth arguing. Decided by the project owner on
+2026-10-13: a ceiling of zero leaves no band, because the only share at or under
+it is none at all, so the floor it implies sits below zero. And the rule somebody
+reaching for it actually wants already exists: "no P0 case may fail" is V1, which
+decides it per observation and names the one that failed, where a share ceiling
+of zero would report a percentage. A share ceiling exists to tolerate a
+proportion, and one that tolerates nothing is a different rule wearing a
+ceiling's name.
+
+**One is permitted at both ends.** `pass_floor = 1.0` is a real standard, a
+suite that must be perfect, and a share ceiling of `1.0` is the off switch for a
+distribution rule somebody wants computed and recorded but not enforced.
+
+**Refusal happens at construction**, decided by the owner the same day, because
+that is the one point every path arrives at: the defaults, a configuration load,
+`thresholds_from` over a stored artifact, and a tool or test building one by
+hand. A check in the loader would leave the other three. It raises `ValueError`
+naming the field and the value it was handed, so the message identifies the edit
+that caused it rather than the comparison that tripped over it later.
+
+**Validation is not a return value and not a log line.** The harness must break
+on an impossible standard rather than proceed under a substituted one: clamping
+`1.5` to `1.0`, or falling back to the default, would produce a run whose
+artifact claims a standard nobody configured. That is the credential-shaped
+failure of §8 applied to thresholds, and the owner's instruction on 2026-10-13
+was an error, not a prompt back.
+
+**The retired fields are validated with the rest.** `skip_ceiling` and
+`priority_skip_ceiling` are read by nothing since 2026-10-08, but they are still
+emitted into `effective_thresholds` as part of the standard a run claims to have
+applied, and whoever reads that artifact cannot tell which fields were live.
+Their defaults are in range, so no stored configuration is broken by this.
+
+### 8.2 Which side of a threshold its own value falls on
+
+Three comparisons are in use across the seven live thresholds and they do not
+all include the boundary. Nothing about the words "floor" and "ceiling" settles
+which, so the table is the statement.
+
+| Threshold | Comparison | At exactly the value | Pinned by |
+|---|---|---|---|
+| `pass_floor` (V2) | `rate >= floor` | **green** | `112004`, and `112005` below it |
+| `p0_share_ceiling` (V7) | `share > ceiling` | **green** | `112052`, and `112027` above it |
+| `p1_share_ceiling` (V8) | `share > ceiling` | **green** | `112053`, both sides |
+| `combined_share_ceiling` (V9) | `share > ceiling` | **green** | `112054`, and `112028` above it |
+| `inconsistency_ceiling` | `rate >= ceiling` | **`RUN_UNSOUND`** | `112034`, and below it in the same case |
+| `distribution_minimum` | `definitions < minimum` | **a verdict is returned** | `112055`, and `112026` below it |
+| `quarantine_window_days` | §4.6.2 | **still current** | `112012` |
+
+**The inconsistency ceiling is the one that excludes its own value, and that is
+deliberate.** §4.9.2.1 records the owner's phrasing, that verdicts disagreeing
+*at least* a tenth of the time are not reliable verdicts, so the rate that
+equals the ceiling is already the unreliable one. V7 to V9 read the other way
+because §4.3's table states them as a share **above** the ceiling. Both
+readings are intended. Neither is derivable from the name.
+
+**Four rows were unpinned until 2026-10-13.** V8 had no case at all; V7, V9 and
+`distribution_minimum` were exercised only on the far side of their boundary. A
+comparison that drifted from `>` to `>=` in any of the four would have left the
+suite green, which is the failure these cases exist to catch and the reason the
+valid range matters more here than the invalid one.
+
 ---
 
 ## 9. Extensibility
@@ -2474,6 +2572,14 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112026` | B | `distribution_check_returns_no_verdict_below_thirty_cases` |
 | `112027` | N | `red_when_p0_share_exceeds_ten_percent` |
 | `112028` | N | `red_when_combined_p0_p1_exceeds_thirty_percent` |
+| `112052` | B | `p0_share_at_exactly_the_ceiling_is_permitted` (V7, 10.38) |
+| `112053` | B | `p1_share_decides_on_both_sides_of_its_ceiling` (V8, 10.38) |
+| `112054` | B | `combined_share_at_exactly_the_ceiling_is_permitted` (V9, 10.38) |
+| `112055` | B | `distribution_returns_a_verdict_at_exactly_the_minimum` (10.38) |
+| `112056` | N | `a_rate_outside_the_unit_interval_is_refused` (8.1) |
+| `112057` | N | `a_non_numeric_threshold_is_refused` (8.1) |
+| `112058` | N | `a_population_count_below_one_is_refused` (8.1) |
+| `112059` | N | `a_stored_artifact_carrying_an_impossible_threshold_refuses` (8.1) |
 | `112100` | P | `demotion_orders_single_match_before_multiple` |
 | `112101` | P | `security_cases_are_never_demoted` |
 | `112300` | N | `rtm_row_with_no_test_is_a_coverage_gap` (T2) |
@@ -2684,7 +2790,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 265 cases, 148 negative, 90 positive, 27 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 273 cases, 152 negative, 90 positive, 31 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -2936,6 +3042,36 @@ permissive, because the verdict tool recomputes from stored artifacts and
 configures no engine; `judge_channel_from_roster` refuses a roster naming
 nothing, which is the site that actually needs one. Reporting the cause beats
 reporting a true consequence three layers away.
+
+### 10.38 The threshold domain, and the four boundaries nobody pinned
+
+Eight cases added 2026-10-13, in two groups of different weight.
+
+**The valid range is the group that matters**, and it is where the gap was. A
+threshold is tested AT its own value or it is not tested; four of the seven
+live thresholds were exercised only on one side. `112052` to `112055` put each
+of them exactly on its boundary and assert the side §8.2 says it falls on. V8
+had no case of any kind, so `112053` carries both sides.
+
+**The invalid range is the additional scenario.** `112056` to `112059` assert
+that an impossible standard is refused rather than applied: a rate at `-1`, `0`,
+above `1` and far above `1`; a value that is not a number at all; a population
+count at `0` and below; and the same refusal arriving through
+`thresholds_from`, which is the path a stored artifact takes and the only one in
+the shipped code that passes a value somebody else wrote.
+
+**Why `112059` is separate from `112056`.** They assert the same domain through
+different doors. `112056` constructs directly, which is what a tool or a test
+does; `112059` goes through the artifact loader, which is what a replayed run
+does, and that is the path where the value was never typed by anybody present.
+A refusal that held only at the first door would be the §7.6.2 defect again: a
+guard read in one place and set in none.
+
+**What they do not assert.** None of them checks a message's wording beyond the
+field name and the value, because the point is that the run stops, and a
+message assertion would make a reworded error a failing test.
+
+---
 
 ## 11. Test Inventory: `MQC_CMN_SYS_`
 

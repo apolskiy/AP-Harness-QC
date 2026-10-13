@@ -60,6 +60,44 @@ def passing_suite(count: int = 10) -> list[Observation]:
     ]
 
 
+def distribution_suite(at_zero: int, at_one: int, total: int) -> list[Observation]:
+    """Build a passing suite with an exact priority distribution.
+
+    **The denominator is chosen by the caller** so a share lands on a ceiling
+    rather than near it, which is what the boundary cases in
+    ``mqc_uni_thresholds.py`` need and what section 8.2 of
+    ``cmn_verdict_and_cli.md`` tabulates.
+
+    Args:
+        at_zero (int): How many case definitions sit at P0.
+        at_one (int): How many sit at P1.
+        total (int): How many case definitions there are in all.
+
+    Returns:
+        list[Observation]: A passing precondition followed by ``total``
+        passing graded observations, one per case definition.
+
+    Raises:
+        ValueError: When the two bands together exceed the total.
+    """
+    if at_zero + at_one > total:
+        raise ValueError(
+            f"{at_zero} at P0 and {at_one} at P1 exceed a total of {total}"
+        )
+    built = [Observation("MQC_TASK_pre::MQC_RULE_pre", "UNI", "pass")]
+    built += [
+        graded(f"MQC_TASK_z{index}::MQC_RULE_r", priority=0) for index in range(at_zero)
+    ]
+    built += [
+        graded(f"MQC_TASK_o{index}::MQC_RULE_r", priority=1) for index in range(at_one)
+    ]
+    built += [
+        graded(f"MQC_TASK_t{index}::MQC_RULE_r", priority=3)
+        for index in range(total - at_zero - at_one)
+    ]
+    return built
+
+
 def gated_artifact(**overrides: Any) -> dict:
     """Build a gated artifact over a valid base.
 
