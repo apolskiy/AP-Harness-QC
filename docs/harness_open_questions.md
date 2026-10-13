@@ -59,10 +59,25 @@ credential at all.
 
 ## 2. Decisions I have deferred rather than made
 
-**Empty as of 2026-10-01.** The project owner settled the last five in one pass,
-and section 2A says where each answer now lives. The heading stays because the
-next deferral belongs here and a reader looking for one should find the place
-it goes, not its absence.
+**One open as of 2026-10-12.** Section 2A says where every settled answer now
+lives, and a closed question is removed from here rather than left to be argued
+again.
+
+### 2.8 Delete `environment_marker`, or make its claim true?
+
+It returns the pytest marker name "so `pytest.ini` and the checks read one
+value", and nothing calls it: the module uses `_MARKER` directly and the ini
+file carries the literal. **An ini file cannot call a function**, so the claim
+as written is unachievable rather than merely unenforced.
+
+| Option | Costs |
+|---|---|
+| Delete the accessor | One line of exported API with no caller, and the module keeps its private constant |
+| Keep it and add a parity case | The ini and the module are compared rather than shared, which catches a renamed marker |
+
+**Open because it is a judgement about what the accessor is for**, not about
+whether the scope mechanism works: `112344` and `112345` cover that, and it is
+used.
 
 **The numbering has gaps, and they are retired rather than reused.**
 Ten questions were settled and removed; section 2A lists them. A number
@@ -93,8 +108,22 @@ because a second copy drifts.
 | Where do the credentials live, and which secret is where? | 2026-10-05, **deliberately not recorded in a tracked document** | Nowhere. The properties are asserted by code, per section 1 |
 | Is `--max-spend` wired into anything? | 2026-10-04, into every leg that can dispatch | `harness_ci_pipeline.md`, and the `max_spend` input on each |
 | What is the known-good state to compare against? | 2026-10-05, the README figures, which are recomputed and checked | `README.md`, by `MQC_CMN_UNI_112323` |
+| What is the activity that measures a dependent of a failed foundation called? | 2026-10-11, an inquest, and `unattributed` is what it returns | `cmn_verdict_and_cli.md` section 10.28.2.4 |
+| Should a fixture store the request or only its hash? | 2026-10-11, store it; re-record rather than derive | `tier2_execution.md` sections 7.13 and 7.13.2 |
+| Is a `curl` the right reproduction for a recorded call? | 2026-10-12, no: the recording holds SDK arguments, and one provider's stored field has no wire form | `consumer_ci.md` section 9.5.3.1 |
+| Is a provider refusing a benign request our failure or the model's? | 2026-10-12, the model's, when the run answered other requests | `tier2_execution.md` section 8.6.7 |
+| Does a README change require a changelog entry? | 2026-10-12, yes, in the same change | `code-style.md` section 7.4 |
 
 ---
+
+## 2B. Known gaps, which are work rather than questions
+
+Recorded so the absence is on the record. None needs a decision.
+
+| Gap | Where it bites |
+|---|---|
+| A re-record needing fewer observations than the previous run leaves the surplus behind | Pruned by hand three times on 2026-10-12. Nothing prunes at the point of recording |
+| `environment_marker` is read by nothing | Section 2.8 decides which way it goes |
 
 ## 3. Things I changed that deserve a second opinion
 

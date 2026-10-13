@@ -37,6 +37,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113613  a_stored_request_disagreeing_with_its_hash_is_stale
 #   113614  a_fixture_carrying_a_credential_shaped_value_is_reported
 #   113615  a_recording_without_a_request_is_a_gap_not_a_stale_fixture
+#   113616  recording_retires_a_pair_answering_another_request
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -54,6 +55,7 @@ from execution.replay import (
     hash_request,
     load_fixture,
     record_fixture,
+    retire_stale_siblings,
     stored_observation_count,
 )
 
@@ -512,3 +514,72 @@ class TestMQCStoredRequest:
             "the gap condition cannot be expressed, so the re-record has no "
             "mechanism to select what it must refresh"
         )
+
+    def MQC_EXE_UNI_113616_recording_retires_a_pair_answering_another_request(
+        self, tmp_path: Path
+    ) -> None:
+        """A pair answers one request, so the write retires the rest.
+
+        **Pruned by hand three times in one day.** The previous run escalated
+        to five observations, the re-record agreed at three, and observations 3
+        and 4 survived answering a question the corpus no longer asks. Nothing
+        read them until an escalation did, and then it read two runs as one
+        population: one such pair held two observations showing a
+        miscomputation the engine no longer makes, under a case that passed.
+
+        Design: ``tier2_execution.md`` section 7.14.
+
+        Returns:
+            None
+        """
+        pair = FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=0)
+        old_request = {"prompt": "The question as it was.", "model": "gemini-flash"}
+        old_hash = hash_request(old_request)
+
+        # FIVE OBSERVATIONS OF THE OLD QUESTION, as an escalation leaves.
+        for index in range(5):
+            record_fixture(
+                tmp_path,
+                FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=index),
+                old_hash, {"text": f"old {index}"}, "gemini-flash", old_request,
+            )
+        assert len(list(pair.as_path(tmp_path).parent.glob("*.json"))) == 5
+
+        # THE QUESTION MOVES AND THE RE-RECORD AGREES AT THREE.
+        new_request = {"prompt": "The question as it is now.", "model": "gemini-flash"}
+        new_hash = hash_request(new_request)
+        for index in range(3):
+            record_fixture(
+                tmp_path,
+                FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=index),
+                new_hash, {"text": f"new {index}"}, "gemini-flash", new_request,
+            )
+
+        remaining = sorted(
+            path.stem for path in pair.as_path(tmp_path).parent.glob("*.json")
+        )
+        assert remaining == ["0", "1", "2"], (
+            f"the pair kept {remaining}, so observations answering the old "
+            f"question survive and an escalation would read two runs as one "
+            f"population"
+        )
+
+        # AND EVERY SURVIVOR ANSWERS THE CURRENT QUESTION.
+        for index in range(3):
+            stored = load_fixture(
+                tmp_path,
+                FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=index),
+                new_hash,
+            )
+            assert stored.request == new_request, stored.request
+
+        # RECORDING THE SAME QUESTION AGAIN RETIRES NOTHING, which is the
+        # ordinary case: a pair already answering this request is not stale.
+        assert retire_stale_siblings(pair.as_path(tmp_path).parent, new_hash) == 0
+
+        # AN UNREADABLE SIBLING IS LEFT ALONE. `load_fixture` reports it, and
+        # removing a file we cannot read would destroy evidence.
+        broken = pair.as_path(tmp_path).parent / "7.json"
+        broken.write_text("{ not json", encoding="utf-8")
+        assert retire_stale_siblings(pair.as_path(tmp_path).parent, new_hash) == 0
+        assert broken.is_file()

@@ -95,6 +95,42 @@ def rule_set_digest(rule_sets: Iterable[Any]) -> str:
     return f"sha256:{sha256(payload.encode(_ENCODING)).hexdigest()}"
 
 
+def record_rule_set_hash(config: Any, rule_sets: Iterable[Any]) -> str:
+    """Record the digest of the rules this run loaded, on the run's config.
+
+    **This is the guard `_GUARDED` names first, and nothing populated it.**
+    `Provenance` reads ``config.mqc_rule_set_hash`` and that attribute was set
+    nowhere, so every carried record held an empty digest and every comparison
+    matched: a corpus edited between two band executions carried its outcomes
+    across unchallenged, which is precisely the case a commit reference cannot
+    see and this field exists for.
+
+    **The caller supplies the rules because the harness owns no corpus.** The
+    consumer loads its own and calls this once, which is the
+    one-implementation-two-callers arrangement the encoding, annotation and
+    naming rules already use.
+
+    **Idempotent, and it never overwrites a value already set.** A run that
+    recorded a digest and then loaded a second corpus would otherwise report
+    the second as though the first had never been measured.
+
+    Args:
+        config (Any): The pytest config the provenance is read from.
+        rule_sets (Iterable): The loaded rule records.
+
+    Returns:
+        str: The digest now in force, which is the existing one where this run
+        already recorded it.
+    """
+    existing = str(getattr(config, "mqc_rule_set_hash", "") or "")
+    if existing:
+        return existing
+    digest = rule_set_digest(rule_sets)
+    setattr(config, "mqc_rule_set_hash", digest)
+    logger.info("Rules loaded for this run digest to %s", digest)
+    return digest
+
+
 def _rubric_summary(rubric: Any) -> dict[str, Any]:
     """Return the parts of a rubric that change what a judge is asked.
 

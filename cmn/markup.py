@@ -34,6 +34,22 @@ logger = logging.getLogger(__name__)
 # multiplication sign or italic emphasis, and only the third should go.
 MARKUP_MARKERS: Final[tuple[str, ...]] = ("```", "`", "**")
 
+# TYPOGRAPHIC PUNCTUATION, FOLDED TO ITS ASCII FORM. A hedge list is
+# written with a straight apostrophe and a model writes a curly one, so a
+# refusal spelled with a typographic apostrophe never matched the hedge
+# that excludes it: a finding withdrawn in October for exactly that
+# reason came back. Five hedge terms across three assertions carry a
+# straight apostrophe and 21 of 762 recorded responses use the curly one.
+# Same class as the backtick below, so the same remedy in the same place
+# (``tier3_evaluation.md`` section 5.3.2).
+TYPOGRAPHIC_FOLDS: Final[tuple[tuple[str, str], ...]] = (
+    (chr(8216), chr(39)),
+    (chr(8217), chr(39)),
+    (chr(8242), chr(39)),
+    (chr(8220), chr(34)),
+    (chr(8221), chr(34)),
+)
+
 
 def normalise_markup(text: str) -> str:
     """Return text with inline markup removed, for matching rather than display.
@@ -58,10 +74,13 @@ def normalise_markup(text: str) -> str:
         text (str): The text as recorded.
 
     Returns:
-        str: The same text without code fences, backticks or bold markers.
+        str: The same text without code fences, backticks or bold markers, and
+        with typographic quotes and apostrophes folded to their ASCII forms.
         **Lengths change**, so a check that counts anything should read the raw
         text instead.
     """
     for marker in MARKUP_MARKERS:
         text = text.replace(marker, "")
+    for typographic, ascii_form in TYPOGRAPHIC_FOLDS:
+        text = text.replace(typographic, ascii_form)
     return text

@@ -26,6 +26,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112401  a_dependent_of_a_passing_base_case_runs_normally
 #   112402  a_dependency_naming_no_collected_case_is_reported
 #   112405  a_dependent_collected_before_its_base_is_reordered
+#   112354  the_rule_set_hash_is_populated_not_only_compared
 # TestMQCHomoglyphVector
 #   112403  a_mixed_script_word_is_a_homoglyph_and_one_script_is_not
 # TestMQCPriorityBands
@@ -45,11 +46,17 @@ import os
 import re
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from cmn.prerequisites import Provenance, read_outcomes, write_outcomes
+from cmn.prerequisites import (
+    Provenance,
+    read_outcomes,
+    record_rule_set_hash,
+    write_outcomes,
+)
 
 from cmn.vectors import (
     HOMOGLYPH_VECTOR,
@@ -497,6 +504,73 @@ class TestMQCDependencyCascade:
         )
         assert "the middle link executed" not in output
         assert "the last link executed" not in output
+
+    def MQC_CMN_UNI_112354_the_rule_set_hash_is_populated_not_only_compared(
+        self, tmp_path: Path
+    ) -> None:
+        """Something puts a digest in the field the carry guard reads.
+
+        **`_GUARDED` names this field first and nothing set it.** `Provenance`
+        reads ``config.mqc_rule_set_hash``, that attribute was assigned nowhere
+        in the repository, and `rule_set_digest` was called by nothing. So every
+        carried record held an empty digest and every comparison matched: an
+        uncommitted corpus edit between two band executions carried its
+        outcomes across unchallenged, which is the one case a commit reference
+        cannot see and this field exists for.
+
+        **The comparison was never the gap.** A differing hash was already
+        proved to be refused, against values a test supplied. A case asserting
+        a mechanism's logic does not assert that anything feeds it.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.6.2.
+
+        Returns:
+            None
+        """
+        rules = [
+            SimpleNamespace(rule_id="MQC_RULE_a", assertions=("one",)),
+            SimpleNamespace(rule_id="MQC_RULE_b", assertions=("two",)),
+        ]
+        config = SimpleNamespace()
+
+        digest = record_rule_set_hash(config, rules)
+        assert digest, "the recorder produced no digest"
+        assert config.mqc_rule_set_hash == digest, (
+            "the digest was computed and not recorded, so a run's provenance "
+            "still reads an empty string"
+        )
+
+        # A DIFFERENT CORPUS GIVES A DIFFERENT DIGEST, or the guard would match
+        # anything the way the empty string did.
+        moved = SimpleNamespace()
+        other = record_rule_set_hash(
+            moved, [SimpleNamespace(rule_id="MQC_RULE_a", assertions=("three",))]
+        )
+        assert other != digest, (
+            "two different rule sets digest identically, so an edited corpus "
+            "still carries its outcomes across"
+        )
+
+        # IT NEVER OVERWRITES. A run that loaded a second corpus must not
+        # report the second as though the first had never been measured.
+        again = record_rule_set_hash(config, [SimpleNamespace(rule_id="MQC_RULE_z")])
+        assert again == digest, "the recorder overwrote a digest already in force"
+
+        # AND THE GUARD NOW HAS SOMETHING TO COMPARE. Written with the digest
+        # and read back against an empty one, the record is refused; before the
+        # wire both sides were empty and every record was admitted.
+        carried = tmp_path / "carry.json"
+        write_outcomes(
+            carried,
+            Provenance(rule_set_hash=digest, engine="claude", mode="replay"),
+            {"MQC_EVL_SEC_154100_x": True},
+        )
+        with pytest.raises(ValueError) as raised:
+            read_outcomes(
+                carried,
+                Provenance(rule_set_hash="", engine="claude", mode="replay"),
+            )
+        assert "rule_set_hash" in str(raised.value), raised.value
 
 class TestMQCHomoglyphVector:
     """Confusable letters, which writing the security corpus found missing."""

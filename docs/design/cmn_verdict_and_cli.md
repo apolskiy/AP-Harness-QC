@@ -1822,6 +1822,47 @@ Added 2026-10-03 at the project owner's instruction: **after a fix, the set wort
 
 A fix to a model's injection handling does not map to a module, a layer or a file. It maps to the behaviour that was fixed, and the two registers naming behaviour are the family (what the model was asked to do) and the requirement (what it must do).
 
+#### 7.6.2 The primary guard was read in one place and set in none
+
+Added 2026-10-12, found by surveying public callables that no case names and no
+production code reaches. Two of 464 survived that filter, and this is the one
+that mattered.
+
+**`_GUARDED` lists `rule_set_hash` first and its comment says why:** "a commit
+reference cannot see an uncommitted edit, and corpus edits between executions
+are normal working". So `code_ref` and `case_ref` cover a committed change and
+this field is the only thing covering the case that actually happens.
+
+**It was always the empty string.** `Provenance` reads
+`config.mqc_rule_set_hash`; that attribute was set nowhere in the repository.
+`rule_set_digest` existed to compute it, carefully reasoned about hashing parsed
+records rather than file bytes, and was called by nothing.
+
+| | Before | After |
+|---|---|---|
+| A commit between band executions | Caught by `code_ref` and `case_ref` | Unchanged |
+| **An uncommitted corpus edit** | **Carried across unchallenged** | Refused: the digest moved |
+| What the comparison did | Matched `""` against `""` | Compares real digests |
+
+**So the mechanism was complete except for the wire.** The field, the digest
+function, the guarded list, the mismatch code and the case asserting that a
+differing hash is refused all existed; what did not exist was anything putting
+a value in. That is the fourth instance of this shape found in two days, after
+the cascade marker, the retained request and the declared `structured_output`.
+
+##### The consumer records it, because the harness owns no corpus
+
+`record_rule_set_hash(config, rule_sets)` is the harness's, and the consumer
+calls it with its own rules where it builds a dispatch plan. **Idempotent and
+never overwriting**, so a run that loaded a second corpus does not report the
+second as though the first had never been measured.
+
+**Asserting the comparison was never the gap.** `MQC_CMN_UNI_112317` already
+proved a differing hash is refused, which is why the hole survived: the
+comparison was tested against values a test supplied, and nothing asked where a
+real run's value came from. A case asserting a mechanism's logic does not
+assert that anything feeds it.
+
 #### 7.7.1 Three flags, one mechanism
 
 | Flag | Selects | Resolved through |
@@ -2423,6 +2464,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
 | `112352` | N | `an_unresolved_or_duplicated_citation_is_reported` |
 | `112353` | N | `a_readme_without_a_changelog_is_reported` |
+| `112354` | P | `the_rule_set_hash_is_populated_not_only_compared` |
 | `112020` | P | `security_layer_excluded_from_distribution_ceiling` |
 | `112021` | N | `precondition_failure_blocks_graded_evaluation` |
 | `112022` | N | `precondition_skip_is_a_failure` |
@@ -2642,7 +2684,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 264 cases, 148 negative, 89 positive, 27 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 265 cases, 148 negative, 90 positive, 27 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

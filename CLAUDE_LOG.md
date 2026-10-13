@@ -10820,3 +10820,74 @@ order rather than by a test.
 ### State
 
 721 unit and 24 system passing, pylint exit 0.
+
+## 2026-10-12: The primary carry guard, read in one place and set in none
+
+The completeness survey the project owner asked for found the three gap classes
+already gated, and a fourth that nothing watches.
+
+| Gap class | Gated by | State |
+|---|---|---|
+| Designed but not implemented | `112325` | Clean: 627 rows, 627 built |
+| Implemented but not traced | T1 | Clean |
+| Traced but not implemented | T3 | Clean |
+| **A public callable no case asserts and nothing calls** | **Nothing** | Two of 464 |
+
+### The survey, and the two proxy errors it took to trust it
+
+Of 464 public callables in the harness, 65 are named by no case. **Sixty of
+those are reached by production code**, so they are exercised through a covered
+path and naming them would prove nothing extra. Two survived both filters.
+
+Two corrections were needed before the number meant anything. A harness
+function asserted only by the case repository is covered, so both suites have
+to be searched: `missing_recordings` is named by `MQC_CAS_UNI_115721` and by no
+harness case. And a property is reached as `obj.name` without parentheses, so a
+call-shaped search reported `counts_in_latency` as an orphan while
+`latency_statistics` uses it. **The first survey said 73 and the third said 2.**
+
+### What the survivor was
+
+`Provenance.rule_set_hash` is the field `_GUARDED` lists first, and its comment
+says exactly why: "a commit reference cannot see an uncommitted edit, and
+corpus edits between executions are normal working". So `code_ref` and
+`case_ref` cover a committed change, and this field is the only thing covering
+the case that actually happens.
+
+**It was always the empty string.** The field reads
+`config.mqc_rule_set_hash`; nothing in the repository assigned that attribute.
+`rule_set_digest` existed to compute it, with careful reasoning about hashing
+parsed records rather than file bytes so a reworded comment is not a different
+corpus, and it was called by nothing.
+
+| | Before | After |
+|---|---|---|
+| A commit between band executions | Caught by the commit refs | Unchanged |
+| **An uncommitted corpus edit** | **Carried across unchallenged** | Refused |
+| What the comparison did | `""` against `""` | Real digests |
+
+### Why it survived, which is the part worth keeping
+
+**The comparison was asserted and the population was not.** A case already
+proved a differing hash is refused, against two values the test supplied. That
+reads as coverage and is not: it establishes that the mechanism works given
+input, and says nothing about whether anything provides input.
+
+This is the fourth instance of that shape in two days, after the cascade
+marker, the retained request and the declared `structured_output`. The common
+signature is a complete mechanism with no wire, and the common reason it hides
+is a case that exercises the logic with constructed values.
+
+### The second survivor, not yet fixed
+
+`environment_marker()` returns the marker name "so `pytest.ini` and the checks
+read one value", and nothing calls it: its callers hardcode the string. The
+claim in the docstring is false rather than unenforced, which is a smaller
+version of the same thing.
+
+### State
+
+723 unit and 24 system passing, pylint exit 0. The consumer records the digest
+where it loads its corpus, because the harness owns no corpus; `graded_support`
+came to exactly 900 lines doing it, and the five comment lines moved to the
+design with a one-line pointer, which is where reasoning belongs anyway.

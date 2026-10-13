@@ -1196,6 +1196,47 @@ on a value shaped like a credential, which is the same arrangement
 credential-shaped key: a redaction nothing checks is a redaction that lapses the
 first time an adapter composes a field differently.
 
+### 7.14 Recording an observation retires its pair's stale siblings
+
+Added 2026-10-12, after pruning the same thing by hand three times in one day.
+
+**A pair answers one request.** The fixture key is the pair and the observation
+index, and the request is composed from the task and the engine, so every
+observation under a pair must carry the same hash. Section 4.9.2.1 reads the
+pair as one population: three observations, escalating to five on a
+disagreement.
+
+**A re-record that needs fewer observations leaves the surplus behind.** The
+previous run escalated to five, the new one agrees at three, and observations 3
+and 4 survive answering the question the corpus no longer asks:
+
+| | Observations 0 to 2 | Observations 3 and 4 |
+|---|---|---|
+| After a re-record that agreed | The new request | **The old one** |
+| What reads them | Nothing, until an escalation does | An escalation, which then reads both runs as one population |
+
+**It was silent every time.** The case passed, because only three observations
+were needed; the pair-consistency check reported it, but only once something
+asked. On 2026-10-12 one such pair held two observations showing a
+miscomputation the engine no longer makes, under a case that was passing.
+
+#### So the write does it, where the hash is already in hand
+
+`record_fixture` removes any observation in the pair whose stored hash differs
+from the one being written. **It is the only place that knows both**, which is
+the same argument section 10.28.2.2 makes about the attribution belonging where
+the item and the observations meet.
+
+**Removal rather than refusal**, because the remedy for a stale fixture is
+already re-recording and this *is* the re-record: refusing would stop a run
+that is doing the right thing. **Only in the recording path**, since replay
+writes nothing.
+
+**A pair mid-recording is not a mixed pair.** The first observation of a new
+request retires the old ones immediately, so a run interrupted after one
+observation leaves a short pair rather than a mixed one, and a short pair is a
+gap the next run fills.
+
 ### 8.1 What a dispatch returns
 
 A dispatch produces an outcome rather than a response, because a skipped case is a result the run has to carry forward and an exception is not.
@@ -1831,6 +1872,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113613` | N | `a_stored_request_disagreeing_with_its_hash_is_stale` |
 | `113614` | N | `a_fixture_carrying_a_credential_shaped_value_is_reported` |
 | `113615` | P | `a_recording_without_a_request_is_a_gap_not_a_stale_fixture` |
+| `113616` | P | `recording_retires_a_pair_answering_another_request` |
 | `113505` | P | `a_resolved_version_is_returned_stripped` |
 | `113506` | P | `a_change_dispatches_once_not_on_every_later_run` |
 | `113507` | P | `a_failed_probe_leaves_its_baseline_untouched` |
@@ -1913,7 +1955,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 121 cases, 50 negative, 62 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 122 cases, 50 negative, 63 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

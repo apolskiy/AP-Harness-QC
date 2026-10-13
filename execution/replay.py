@@ -293,8 +293,51 @@ def record_fixture(
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding=_ENCODING, newline="\n"
     )
+    retired = retire_stale_siblings(path.parent, request_hash)
+    if retired:
+        logger.info(
+            "Retired %d observation(s) of %s answering a superseded request",
+            retired, key.case_id,
+        )
     logger.info("Recorded %s observation %d", key.case_id, key.observation_index)
     return path
+
+
+def retire_stale_siblings(pair: Path, request_hash: str) -> int:
+    """Remove observations in one pair that answer a different request.
+
+    **A pair answers one request** (design section 7.14). The key is the pair
+    and the observation index, and the request is composed from the task and
+    the engine, so an observation carrying a different hash was recorded
+    against a question the corpus no longer asks.
+
+    **A re-record that needs fewer observations leaves the surplus behind.**
+    The previous run escalated to five, the new one agrees at three, and
+    observations 3 and 4 survive. Nothing reads them until an escalation does,
+    and then it reads two runs as one population.
+
+    Args:
+        pair (Path): The directory holding one pair's observations.
+        request_hash (str): The hash just recorded, which the pair must match.
+
+    Returns:
+        int: How many were removed. **Zero is the ordinary case**, because a
+        pair that was already answering this request has nothing stale in it.
+    """
+    retired = 0
+    for sibling in sorted(pair.glob("*.json")):
+        try:
+            stored = json.loads(sibling.read_text(encoding=_ENCODING))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            # UNREADABLE IS NOT THIS FUNCTION'S FINDING. `load_fixture`
+            # reports it, and removing a file we cannot read would destroy
+            # evidence rather than tidy it.
+            continue
+        if str(stored.get("request_hash", "")) == request_hash:
+            continue
+        sibling.unlink()
+        retired += 1
+    return retired
 
 
 def fixture_credential_problems(root: Path) -> list[str]:

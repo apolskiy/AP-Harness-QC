@@ -55,6 +55,55 @@ historyless: a figure that moves there records neither when nor why.
 
 **Changed.** README figures: 588 cases, 283 requirements traced.
 
+### Recording retires a pair's stale siblings, and a hedge sees a curly apostrophe, 2026-10-12
+
+**Fixed.** A re-record needing fewer observations than the run before it left
+the surplus behind, answering a question the corpus no longer asks. Pruned by
+hand three times in one day: the pair-consistency check reported it, but only
+once something read those observations, and a case could pass while two of its
+five answers came from an older run. `record_fixture` now removes every
+observation in the pair whose stored hash differs from the one being written,
+which is the only place that knows both. Specified in `tier2_execution.md`
+section 7.14.
+
+**Fixed.** `normalise_markup` folds typographic quotes and apostrophes to their
+ASCII forms at match time. A hedge list excluding "can't" never matched a model
+that wrote "can" with a curly apostrophe, so a refusal read as an assertion and
+a finding withdrawn in October for exactly that reason came back. Five hedge
+terms across three assertions carry a straight apostrophe and 21 of 762
+recorded responses use the curly one. Same class as the backtick that function
+already folded, and the same remedy in the same place.
+
+**Changed.** `harness_open_questions.md` records five more settled decisions and
+one open question, and closed questions are removed rather than left to be
+argued twice. The case repository has its own `docs/model_open_questions.md`,
+named in its register.
+
+**Changed.** README figures: 591 cases, 286 requirements traced.
+
+### The primary carry guard was never populated, 2026-10-12
+
+**Fixed.** `Provenance.rule_set_hash` is the field `_GUARDED` names first,
+because a commit reference cannot see an uncommitted edit and corpus edits
+between band executions are normal working. It read
+`config.mqc_rule_set_hash`, nothing in the repository assigned that attribute,
+and `rule_set_digest` was called by nothing: every carried record held an empty
+digest and every comparison matched, so an edited corpus carried its outcomes
+across unchallenged. `record_rule_set_hash` populates it, idempotently, and the
+consumer calls it with its own rules because the harness owns no corpus.
+
+**Found by survey, not by a failure.** Of 464 public callables, 65 are named by
+no case; 60 of those are reached by production code and so exercised through a
+covered path. Two survived both filters, and this was one. The other,
+`environment_marker`, claims to be the single source of a marker name that its
+callers hardcode.
+
+**The comparison was already asserted**, against values a test supplied, which
+is why the hole survived. A case asserting a mechanism's logic does not assert
+that anything feeds it.
+
+**Changed.** README figures: 590 cases, 285 requirements traced.
+
 ### A refused request is the model's bug, not our credential's, 2026-10-12
 
 **Fixed.** HTTP 403 was mapped to `QC_HARNESS_AUTH_ERROR` alongside 401, and the
