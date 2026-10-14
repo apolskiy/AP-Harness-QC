@@ -10920,3 +10920,76 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   * 764 unit, 24 system, pylint exit 0.
 * **AI Output Summary & Action Items:**
   * Design sections 8.1, 8.2 and 10.38; requirements `MQC_REQ_HAR_CMN_0156` and `0157`; `cmn/threshold_domain.py`; `tests/cmn/mqc_uni_thresholds.py` with `112052` through `112059`; README 599 cases, 288 requirements.
+
+---
+
+### 2026-10-13 - The Marker Registry, And The Copy That Broke Deselection Silently
+* **Phase:** Implementation, closing the last open question in `harness_open_questions.md` section 2.
+* **User Prompt Summary:** "let's finish the environment_marker and continue."
+* **The Question, And Why The Stated Options Were Both Incomplete:**
+  * 2.8 asked whether to delete `environment_marker` or add a parity case. It returns the marker name "so `pytest.ini` and the checks read one value", an ini cannot call a function, and nothing called it.
+  * **The duplication was fourfold, not twofold.** The name is in `_MARKER`, in `mark_environment`'s written-out `pytest.mark.environment`, in this repository's `pytest.ini`, and in the consumer's, which registers the whole layer registry deliberately.
+* **Key Decisions Made:**
+  * Keep the accessor and give it a caller. The accessor was not the defect; the unchecked copies were, and deleting it would have left them.
+  * `--strict-markers` in both repositories, measured first: both collect cleanly, 788 and 186. An applied-but-unregistered marker is a collection error rather than a warning, which closes both rename directions for a marker the suite applies.
+  * A case for the direction strict markers cannot see: a marker registered and never applied. Four are, here, because this repository owns no graded case.
+  * The cross-repository half declares the `paired` scope, so a clone on its own asserts what it can see rather than failing.
+* **The Defect The Verification Found:**
+  * Renaming `_MARKER` was expected to produce a collection error. It produced an ordinary test failure, and that gap was the finding: `mark_environment` applied a written-out name while the hook read the constant.
+  * **The failure it carried was silent.** The marker stayed applied and registered, the hook looked for a name no case carried, and every scoped case would have run where its scope was absent. The only visible symptom is a precondition failing on a runner for a reason that reads as unrelated, which is exactly what section 7.5.1 exists to remove.
+  * Design, RTM row and `112358` were written before the fix, per `testing-standards.md`.
+* **Injection Verification:**
+  * `_MARKER` renamed, with the fix: exit 2, collection refused. Without the fix: exit 1, `112358` reports it. Both sides run, which is the proof the case is not vacuous against correct code.
+  * The ini entry renamed: exit 2, collection refused.
+  * The two registries disagreeing on one name: `112355` reports it.
+  * A marker registered as a bare word: `112355` reports it.
+  * Every file restored after each run; both suites back to green.
+* **And The Citation Check Caught This Session's Own Prose:** the new taxonomy subsection cited `harness_open_questions.md` section 2.8 after 2.8 had been retired, which `code-style.md` section 7.3 forbids explicitly. The citation moved to 2A, where the answer went.
+* **Code Quality & Compliance Audit:** 768 unit, 24 system, pylint exit 0.
+* **AI Output Summary & Action Items:** `harness_test_taxonomy.md` 7.5.1 gained two subsections; `MQC_REQ_HAR_CMN_0158`; `registered_markers`; cases `112355` through `112358`; `--strict-markers`; README 603 cases, 289 requirements. **Section 2 of the open questions now carries none.**
+
+---
+
+### 2026-10-13 - A Mutation Suite, Because Five Mechanisms Were Built And Never Read
+* **Phase:** Implementation, on the project owner's instruction that the mutation run become a suite of the harness.
+* **User Prompt Summary:** Re-iterate design, RTM, documentation and implementation over the threshold work; evaluate whether existing cases test what they claim, so there are no false positives and false negatives are minimised. Then: the mutation run can be a test suite for the harness. Then three corrections about what a threshold is, below.
+* **Why It Was Needed:** the per-fix injection rule covers the defect somebody was already looking at. What it does not cover has happened five times: the cascade marker, the retained request, the `rule_set_hash` guard, `environment_marker`, and `Thresholds` accepting a `pass_floor` of `-1`. Each was found by a person looking at something else.
+* **Key Decisions Made:**
+  * A registered layer rather than a side tool, per the owner. `graded=False`, `distribution_exempt=True`, **`blocking=False`**: a survivor is a statement about coverage, not about what a run measured, so it must not spend provider quota by stopping the graded layers. It still fails its own job.
+  * The report is the survivor set against a declaration, never a kill rate. A percentage invites being raised by deleting an awkward mutation point.
+  * Equivalent mutants are declared as findings about the **code**, because an unreachable branch is dead code wearing a condition and no case can kill it.
+  * Two modules audited, not six, and the absence recorded as a gap rather than left silent.
+* **The Static Scan First, And What It Was Worth:** 789 case callables parsed. Zero constant-only assertions and zero swallowed assertions, which are the two classes a parse can judge. The two noisy categories were artefacts: graded cases assert inside `graded_support`, and several modules reach production through local helpers. **The scan could not answer the question**, which is why the mutation run exists.
+* **Two Defects In The Instrument, Both Before It Was Trusted:**
+  * The first pilot reported **ten of ten killed** while pytest collected nothing: two paths were passed as one argument, no path matched, pytest exited 5, and exit-not-zero was read as a kill. It now refuses without a control proving the unmutated run collects and passes, and the control is printed.
+  * A background run stopped at its time limit left `cmn/layers.py` holding a 300-line unparsed mutant of a 430-line module, because the restore never ran. The original is written to a sibling backup before the first mutation now, and a run finding one restores it and refuses to continue. The worktree was repaired from the index and both gates re-run before anything else proceeded.
+* **The First Pass:** `cmn/verdict.py`, 88 points, 11 survivors, 1455 seconds. Six were `frozen=True`; one was `green` disagreeing with an exit code; two were the `score_spread` boundary; two are equivalent. `cmn/threshold_domain.py`, 10 points, 3 survivors, every one a permitted extreme the design states and no case reached.
+* **Three Corrections From The Project Owner, In Order:**
+  * The floor is the band's rule, not a suite-wide dial, and the P0, P1 and P2-P4 rules are settled. I had restated them inside a section about threshold values; the restatement was removed and replaced with a pointer, which is what `code-style.md` section 3.1 already requires.
+  * Differentiate a **case's** threshold, which may not have been checked properly, from a **suite's**, which worked through numerous CI runs. Recorded as a table in section 8.1.
+  * A threshold inside an LLM-evaluated case tests instruction following and is **a different layer with a much stricter set of rules**: the figure is reproduced as stated and a rounding fails unless the prompt granted the tolerance. It lives in the case repository and is cited, never restated.
+* **Injection Verification:** `MQC_CMN_MUT_162001` reports zero survivors in `threshold_domain.py` where three stood, which is the audit verifying its own finding closed. `112359`, `112360`, `112361` and `112362` were each written before the behaviour they assert was relied on, and the frozen case additionally asserts the declaration names exactly the records that need it.
+* **Code Quality & Compliance Audit:** 772 unit, 24 system, pylint exit 0. Pylint scored 10.00/10 at exit 20 part-way through, which is why the gate is the exit status.
+* **AI Output Summary & Action Items:** taxonomy section 15; `cmn_verdict_and_cli.md` sections 8.1 and 13; `framework-rules.md` 4.2 and Gate 8; `testing-standards.md` layer row and the bulk-injection rule; `tools/mutation_audit.py`; `config/mutation_survivors.yaml`; `cmn.code_standards.unfrozen_records`; cases `112355`-`112362` and `162000`-`162001`; requirements `0158`-`0162`. **Four modules remain unaudited and are recorded as a gap.**
+
+---
+
+### 2026-10-13 - The Pass Mark, Recorded As A Decision And Given A Switch
+* **Phase:** Implementation, after a Phase 0 the project owner had to insist on.
+* **User Prompt Summary:** Keep 3.0 as the passing grade and record it explicitly, so whoever changes it documents their reasons. Then: state that it can be switched to fail, that the harness is customizable, that which mark is right is a product requirement, and add a binary CLI parameter defaulting to pass.
+* **What Was Found:**
+  * The mark was declared `3.0` in all 38 rubrics and justified in no document. **36 of 479 recorded judgements passed on a minimum of exactly 3.0.**
+  * Flipping `>=` to `>` in `aggregation.py` was caught by **none of 772 cases**. The nearest case used 3.1 and called it marginal, which `framework-rules.md` section 3.2 forbids: a boundary is stated at its value.
+  * The level-3 anchors describe defective work, one of them *"all four present, one count misread"*, which is the argument for a higher mark and is now on the record.
+* **The Experiment, Run Before Deciding:** levels 2 and 4 were authored for the three ambiguity criteria and the 9 claude judgements re-judged on the paid key. **Every score identical**, with the request hash differing so the arm demonstrably took effect. Corpus, fixtures and judgements restored afterwards. The caveat is recorded: ambiguity had no 3s, so it was the weakest available test.
+* **Key Decisions Made:**
+  * Keep 3.0, and say in the design that **this harness was designed to pass a 3.0 judgement grade**, so a change is a change of intent.
+  * The number lives in the corpus and the comparison in the harness, so **which mark is right is a product requirement** a consumer sets per rubric without touching the harness.
+  * `--at-pass-mark pass|fail`, default `pass`. It can only tighten, which is why it does not contradict the A2 concern about configurable thresholds.
+* **Three Errors Of Mine, Each Caught By The Project's Own Checks:**
+  * I diagnosed the absent level-2 and level-4 anchors as a defect and recommended authoring 82 of them. They are deliberate: `isolation.py` tells the judge what 2 and 4 mean, which `tier3_evaluation.md` section 1091 states. I should have read the instruction builder first.
+  * I cited `harness_extensibility_standard.md` **section 436**, which is a line number. The citation check reported it immediately; the section is 14.
+  * I claimed the 4.0 flip could not be sized without spending, having grepped `data/fixtures/` when the fixtures are in `tests/fixtures/`. The project owner corrected it and 481 stored judgements made the measurement free.
+* **Injection Verification:** `>=` to `>` caught by `114010` alone; the flag ignored, caught by `114011` alone. Restored, both green.
+* **Code Quality & Compliance Audit:** 774 unit, 24 system, pylint exit 0.
+* **AI Output Summary & Action Items:** `tier3_evaluation.md` section 9 gained the pass-mark decision and the flag; `DESIGN.md` section 5 two rows; README the anchor paragraph; `--at-pass-mark` registered in `cmn/options.py` and declared in `flag_coverage.yaml`; cases `114010` and `114011`; requirements `MQC_REQ_HAR_EVL_0063` and `0064`.

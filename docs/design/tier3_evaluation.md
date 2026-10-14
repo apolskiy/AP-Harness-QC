@@ -1192,6 +1192,135 @@ Criterion scores combine through a registered strategy naming its `scale_id`. St
 
 **Scores are recorded for passes as well as failures.** A pass at 3.1 against a 3.0 threshold is a materially different signal from a pass at 4.8, and that distinction disappears if only failures carry scores.
 
+#### The pass mark is 3.0, inclusive, and that is a decision rather than a default
+
+Recorded 2026-10-13 at the project owner's instruction. **The value was in
+every rubric and in no document**, so a reader asking why 3.0 found the number
+repeated 38 times and no reason behind it once.
+
+| | |
+|---|---|
+| The mark | **3.0**, the middle anchored level |
+| The comparison | `value >= threshold`, so a score **equal** to the mark passes |
+| Where the value lives | The corpus, one `threshold` per rubric. The harness supplies the comparison and never the number |
+| What rests on it | **36 of 479 recorded judgements passed on a minimum score of exactly 3.0** and would fail at any higher mark |
+
+**3.0 can be switched to fail, and the harness is customizable so that it
+can be.** The mark is a value in the corpus and the comparison is inclusive, so
+setting the mark above 3.0 makes a 3 fail and nothing in the harness objects.
+
+**Which mark is right is a product requirement, not a harness property.** A
+consumer whose product demands high precision sets a higher mark in its own
+rubrics and changes nothing here; a consumer for whom partial credit is the
+point keeps 3.0. That separation is why the number lives in the corpus and the
+comparison lives in the harness, and it is the same boundary B8 draws for
+engines: the policy is an entry, never a module.
+
+**It is per rubric, not per suite.** Nothing requires one mark across a corpus,
+so a consumer may hold its grounding rubrics to 4.0 and leave the rest at 3.0
+if that is what its product asks for. This repository ships no rubric at all,
+so it ships no mark; the 38 that exist are the case repository's.
+
+**What this harness was designed to do is pass a 3.0 judgement grade.** That
+is the sentence a reader needs, because it says the behaviour is intended
+rather than incidental: a change to it is a change of intent, not the
+correction of a defect.
+
+**Changing it is a decision somebody records here.** Not a configuration edit:
+the mark decides every graded pass in the suite, 36 stored results depend on
+this exact value, and raising it re-grades work already measured. Whoever
+changes it states the reason in this section, and `harness_extensibility_standard.md`
+section 14 is why that matters in the other direction too: a threshold nobody
+has to justify is a threshold that gets loosened until a failing run goes green.
+
+**The argument against 3.0 is on the record and was not taken.** On a
+five-point judge scale a 3 is conventionally read as neutral or mediocre, and
+the level-3 anchors here describe exactly that: one says *"all four present,
+one count misread"*. Measured against the recorded judgements, moving to 4.0
+would flip 36 results, concentrated in `requirement_match` at 17.1 percent. The
+owner's decision is to keep 3.0 and keep the existing design; this paragraph
+exists so the next reader inherits the argument rather than rediscovering it.
+
+**It is held by a case, not by this paragraph.** `MQC_EVL_UNI_114010` states a
+score at exactly the mark. Before it, flipping the comparison from `>=` to `>`
+was caught by none of 772 cases, so the behaviour every recorded result was
+produced under was guarded by nothing.
+
+##### Extending a criterion to five anchors: measured, and declined for now
+
+Settled 2026-10-13 by the project owner: **do not extend, and leave the
+mechanism in place.** G3 permits anchors at 2 and 4, so a criterion may carry
+them whenever the distinction earns the re-judge. None does today.
+
+**Two arms were run against recorded responses, with the candidate replayed so
+only the judge instruction differed.**
+
+| Family | Re-judged | Scores moved | Verdicts flipped |
+|---|---|---|---|
+| `ambiguity_discrimination`, 3 criteria | 9 | **0** | 0 |
+| `requirement_match`, 10 criteria | 92 | **11** | **3** |
+
+**The first arm proved nothing and the second is why.** Ambiguity's responses
+all scored 4 or 5 already, so there was no room for an intermediate level to
+change anything. `requirement_match` holds 22 of the corpus's level-3 scores
+and is where the question could be answered.
+
+**It can change verdicts on recorded work.** Three claude judgements of
+`mat_experience_derived` moved 3.0 to 2.0, consistently across all three
+observations: pass to fail. The judge also awarded **2 for the first time
+anywhere**, three times, where 479 baseline judgements contained none.
+
+**And the confound is the finding.** Nine of the eleven moves are one
+criterion, `C_MAT_DERIVED_DISCLOSURE`, which moved in every engine while
+almost nothing else moved at all. That is not a five-level scale discovering
+resolution: it is the authored text re-setting that criterion's standard.
+**Authoring an anchor sets a standard rather than documenting one**, and the
+judge applies what it is given.
+
+**So extension is a per-criterion act, never a sweep.** Each one costs a
+re-judge of every rule that uses it, changes what that criterion means, and
+needs the moved scores read before the result is trusted. The three claude
+flips were left unexamined, and whether 2.0 or 3.0 is the right score for
+those responses is an open question rather than a settled one.
+
+##### `--at-pass-mark`, which moves the boundary without moving the mark
+
+Added 2026-10-13 at the project owner's instruction.
+
+**Two values, and the default is the behaviour that already shipped.**
+
+| `--at-pass-mark` | A score equal to the mark | Comparison |
+|---|---|---|
+| absent, or `pass` | **passes** | `value >= threshold` |
+| `fail` | **fails** | `value > threshold` |
+
+**It can only tighten.** There is no value that admits a score the default
+would have rejected, which is what separates it from the configurable
+threshold `harness_extensibility_standard.md` section 14 warns about: a flag
+that cannot loosen cannot be used to walk a failing run to green.
+
+**Why a flag rather than editing the mark.** A consumer can already write
+`threshold: 3.1` in a rubric and get the same verdict, and for a permanent
+policy that is the better place: the number belongs to the corpus. The flag
+answers a different question, which is **running one unchanged corpus under
+both standards and comparing**. Editing 38 rubrics to ask that question, and
+editing them back, is how a corpus acquires changes nobody meant to keep.
+
+**And it costs no recordings.** The rubric threshold is not part of the judge
+instruction, so neither the mark nor this flag changes the judge request hash:
+the same stored judgements are re-read under either setting. That is not true
+of the anchors, which are rendered into the instruction, and the difference is
+why this switch is cheap and authoring a level-4 anchor is not.
+
+**It is recorded in the artifact**, because `cli_flags` is already emitted
+into result metadata. A stored verdict that did not say which boundary it was
+judged under would be uninterpretable, which is the same reason
+`effective_thresholds` is emitted beside it.
+
+**It is run-level, not per family.** A corpus wanting different boundaries for
+different families expresses that through the per-rubric mark, which is where
+a per-family decision belongs.
+
 ---
 
 ## 9. Calibration
@@ -1264,6 +1393,8 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114001` | N | `scores_of_differing_scale_id_are_not_combined` |
 | `114002` | P | `score_recorded_on_pass_as_well_as_failure` |
 | `114003` | B | `aggregation_handles_single_criterion` |
+| `114010` | B | `a_score_at_the_pass_mark_exactly_passes` |
+| `114011` | B | `at_pass_mark_fail_rejects_a_score_on_the_mark` |
 | `114004` | B | `aggregation_handles_empty_after_filtering` |
 | `114200` | P | `calibration_exact_match_passes` |
 | `114201` | B | `calibration_one_level_deviation_passes_and_records` |
@@ -1346,7 +1477,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 111 cases, 51 negative, 44 positive, 16 boundary.**
+**Inventory: 113 cases, 51 negative, 44 positive, 18 boundary.**
 
 ### 11.3 The five cases added with A19
 

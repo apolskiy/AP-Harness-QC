@@ -104,6 +104,20 @@ _OPTIONS: Final[tuple[Option, ...]] = (
     # The quadrant this exists for is replay candidate with a live judge, which
     # isolates judge drift on real cases and cannot be expressed otherwise.
     # tier3_evaluation.md section 5A.5.
+    # PASS BY DEFAULT, which is the behaviour that shipped: a score equal to
+    # the rubric mark passes. `fail` makes the boundary exclusive instead.
+    #
+    # IT CAN ONLY TIGHTEN. No value admits a score the default would reject,
+    # so it is not the configurable threshold `harness_extensibility_standard.md`
+    # section 14 warns about. tier3_evaluation.md section 9.
+    Option(
+        name="at-pass-mark",
+        default="pass",
+        choices=("pass", "fail"),
+        help_text=(
+            "Whether a score equal to the rubric pass mark passes or fails"
+        ),
+    ),
     Option(
         name="judge-mode",
         default="",

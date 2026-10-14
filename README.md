@@ -23,10 +23,10 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **599 cases, all passing**. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`) — tests **of this harness** | **611 cases, all passing**. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Seven, written and linted |
-| Requirements traced | 288, none uncovered, none untraced |
+| Requirements traced | 295, none uncovered, none untraced |
 | Numbered steps | Seven per observation, each an action and a verification, in the JUnit `<failure>` and `<system-out>` and in Allure |
 | Dependents of a failure | **Skipped**, carrying `QC_HARNESS_DEPENDENCY_UNMET`. An **inquest**, opened by a gap-filling live run, dispatches them instead, records the response and returns `unattributed`, counted in no denominator |
 | Quarantine | Skips before the request is formed, so it saves the run's cost and never buys a pass |
@@ -132,6 +132,13 @@ English assumptions. Recorded as B11.
 
 macOS is not claimed. CI verifies Ubuntu and Windows; the two risk axes are each
 covered individually and only their combination is untested. Recorded as A18.
+
+The rubric scale is five points with three anchors. Levels 1, 3 and 5 each
+carry an anchor and an exemplar; **2 and 4 are defined to the judge in the
+instruction text rather than anchored**, because the anchors are rendered into
+that instruction and changing them invalidates every recorded judgement for the
+rule. A criterion may carry all five where the distinction earns the re-judge.
+A deliberate decision, not an omission: `DESIGN.md` section 5.
 
 ## Where To Start
 

@@ -21,6 +21,11 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112344  a_precondition_that_skipped_fails_the_run
 # TestMQCEnvironmentScope
 #   112345  a_case_whose_environment_scope_is_absent_is_deselected
+# TestMQCMarkerRegistry
+#   112355  a_marker_registry_disagreeing_with_the_code_is_reported
+#   112356  an_unreadable_marker_registry_is_refused
+#   112357  a_registry_with_no_markers_is_refused
+#   112358  the_marker_applied_is_the_marker_read
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -28,6 +33,8 @@ from pathlib import Path
 import pytest
 
 from cmn.environments import (
+    environment_marker,
+    registered_markers,
     deselect_unavailable_environments,
     is_precondition,
     mark_environment,
@@ -46,6 +53,11 @@ from tests.cmn.environment_doubles import (
 )
 
 pytestmark = pytest.mark.unit
+
+# THE REPOSITORY ROOT, and nothing above it is read except the sibling a
+# `paired` case names, which `code-style.md` section 8.0 permits only as a
+# declared scope.
+_ROOT = Path(__file__).resolve().parents[2]
 
 
 class TestMQCPreconditionSkips:
@@ -178,3 +190,116 @@ class TestMQCEnvironmentScope:
         assert deselect_unavailable_environments(quiet, kept, root) == 0
         assert not quiet.hook.deselected
         assert kept == [plain, present]
+
+
+class TestMQCMarkerRegistry:
+    """The marker name is in three files, and these compare them.
+
+    Designed in ``docs/design/harness_test_taxonomy.md`` section 7.5.1, which
+    records why comparing is the only option an ini file leaves.
+    """
+
+    @mark_environment("paired", sibling="AP-Model-QC")
+    def MQC_CMN_UNI_112355_a_marker_registry_disagreeing_with_the_code_is_reported(
+        self,
+    ) -> None:
+        """The registration, the code that applies it, and the other copy.
+
+        **Three assertions, and the third is the one nothing else can make.**
+        `--strict-markers` already fails collection when an applied marker is
+        unregistered, which covers a rename in either direction for a marker
+        this suite applies. It is silent about `evaluator`, `tool`, `sec` and
+        `priority`, which are registered here and applied by the consumer
+        because this repository owns no graded case.
+
+        **The sibling half declares the `paired` scope** and is deselected
+        where the case repository is not checked out beside this one, so a
+        clone on its own asserts what it can see rather than failing.
+
+        Returns:
+            None
+        """
+        here = registered_markers(_ROOT / "pytest.ini")
+
+        # THE SCOPE MARKER THE CODE READS IS THE ONE THE INI REGISTERS, which
+        # is the claim `environment_marker` made and could not keep alone.
+        assert environment_marker() in here, (
+            f"the code applies {environment_marker()!r} and pytest.ini "
+            f"registers {sorted(here)}, so the scope mechanism is unregistered"
+        )
+
+        # EVERY ENTRY CARRIES A DESCRIPTION. A bare word registers the name and
+        # tells a reader of `--markers` nothing, which is how a marker nobody
+        # understands survives.
+        bare = sorted(name for name, text in here.items() if not text)
+        assert not bare, f"{len(bare)} marker(s) registered with no description: {bare}"
+
+        # AND THE TWO REPOSITORIES REGISTER THE SAME NAMES. The consumer
+        # declares the whole registry deliberately, so a registry copied once
+        # and edited once is the drift neither pytest nor either suite sees.
+        sibling = registered_markers(_ROOT.parent / "AP-Model-QC" / "pytest.ini")
+        assert set(here) == set(sibling), (
+            f"the two marker registries disagree: only here "
+            f"{sorted(set(here) - set(sibling))}, only there "
+            f"{sorted(set(sibling) - set(here))}"
+        )
+
+    def MQC_CMN_UNI_112356_an_unreadable_marker_registry_is_refused(self) -> None:
+        """A comparison against nothing would assert nothing.
+
+        An absent file and one registering no markers both make the case above
+        vacuous while it still passes, which is the failure mode the project
+        has corrected often enough to check for rather than reason about.
+
+        Returns:
+            None
+        """
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            registered_markers(_ROOT / "no_such_pytest.ini")
+
+    def MQC_CMN_UNI_112357_a_registry_with_no_markers_is_refused(
+        self, tmp_path: Path
+    ) -> None:
+        """An ini carrying a `pytest` section and no marker block.
+
+        Args:
+            tmp_path (Path): Where the empty configuration is written.
+
+        Returns:
+            None
+        """
+        empty = tmp_path / "pytest.ini"
+        empty.write_text("[pytest]\naddopts = -v\n", encoding="utf-8")
+
+        with pytest.raises(ValueError, match="registers no markers"):
+            registered_markers(empty)
+
+        # AND A REAL ONE IS READ, so the refusal above is about the content
+        # rather than about the reader.
+        assert "unit" in registered_markers(_ROOT / "pytest.ini")
+
+    def MQC_CMN_UNI_112358_the_marker_applied_is_the_marker_read(self) -> None:
+        """The deselection hook looks for the name a case actually carries.
+
+        **The module held two copies and they agreed, so nothing showed.**
+        `mark_environment` wrote the name out and the hook read ``_MARKER``;
+        renaming the constant left the marker applied and registered, and the
+        hook looked for a name no case carried, so **every scoped case ran
+        where its scope was absent** with no warning.
+
+        Design: ``harness_test_taxonomy.md`` section 7.5.1.
+
+        Returns:
+            None
+        """
+        applied = mark_environment("local")
+
+        assert applied.name == environment_marker(), (
+            f"cases carry {applied.name!r} and the deselection hook looks for "
+            f"{environment_marker()!r}, so no scope is ever read"
+        )
+
+        # AND THE SCOPE SURVIVES THE ROUND TRIP, so the assertion above is
+        # about one name rather than about an empty marker.
+        assert applied.args == ("local",)
+        assert applied.kwargs == {"sibling": ""}

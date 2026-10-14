@@ -31,6 +31,7 @@ Currently registered layers:
 | `MQC_EVAL_` | `evaluator` | 131000-139999, by module | LLM-as-a-Judge rubric scoring and golden-rule enforcement. |
 | `MQC_TOOL_` | `tool` | 141000-149999, by module | Tool-use compliance: required tools invoked, forbidden tools avoided. |
 | `MQC_SEC_` | `sec` | 151000-159999, by module | Model security behaviour: injection resistance, prompt leakage, tool coercion. **Own suite; exempt from priority distribution ceilings.** |
+| `MQC_MUT_` | `mutation` | 161000-169999, by module | **Mutation audit of this suite.** One production operator or constant is changed and the suite runs: a change no case notices is a **survivor**, and a survivor names behaviour nothing asserts. Ungraded, and **not blocking**, because a survivor is a fact about coverage rather than about what a run measured. Costs minutes per module, so it is its own job and not collected by default. `harness_test_taxonomy.md` section 15. |
 
 `<MODULE>` is `ING`, `EXE`, `EVL` or `CMN`. Meanings, module and priority definitions, the outcome model and the failure taxonomy are normative in `docs/design/harness_test_taxonomy.md`. This file holds the machine-enforced patterns only.
 
@@ -169,6 +170,25 @@ The last row is the one that depends on discipline rather than machinery, which
 is why the injection result belongs in `CLAUDE_LOG.md` alongside the fix: a
 claim that a case was verified is worth what the record of the verification is
 worth.
+
+#### The injection also runs in bulk, and that is a suite
+
+Added 2026-10-13 at the project owner's instruction. The rule above is right
+and it is manual, so it covers the defect somebody was already looking at.
+**What it does not cover has happened five times**: something is built, nothing
+reads it, and a case claims the area is covered.
+
+So the same injection runs systematically. The `MUT` layer changes one
+production operator or constant at a time and runs the suite; a change no case
+notices is a survivor, and every survivor is either a missing case or a finding
+about the production code. `harness_test_taxonomy.md` section 15 carries the
+mechanism, the control it refuses to run without, and why a kill rate is not
+the number to report.
+
+**It does not replace the per-fix injection.** A mutation audit says the suite
+would notice *a* change on that line; it does not say the case you just wrote
+guards the defect you just fixed. Both are kept.
+
 
 ### A Test Module Lists The Cases It Holds
 

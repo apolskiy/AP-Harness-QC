@@ -24,6 +24,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112035  a_score_moving_inside_the_band_is_recorded_not_gated
 #   112036  any_failure_earns_two_further_observations
 #   112335  a_case_whose_recordings_disagree_on_the_request_is_reported
+# TestMQCScoreSpread
+#   112361  score_spread_needs_two_scores_exactly
 # ------------------------------------------------------------ end of cases
 
 import json
@@ -40,6 +42,7 @@ from cmn.verdict import (
     score_spread,
     verdict,
 )
+from tests.cmn.verdict_support import scored_observations
 
 pytestmark = pytest.mark.unit
 
@@ -370,3 +373,53 @@ class TestMQCObservationConsistency:
         assert not divergent_recordings(tmp_path), (
             "a case holding one recording was reported as disagreeing"
         )
+
+
+class TestMQCScoreSpread:
+    """What a spread of zero claims, and how many samples it takes.
+
+    Beside `112035`, which holds that a score moving inside the band is
+    recorded rather than gated: the same subject from the other end.
+    """
+
+    def MQC_CMN_UNI_112361_score_spread_needs_two_scores_exactly(self) -> None:
+        """One observation cannot establish that the judge agreed with itself.
+
+        So a case with one score is **absent** from the spread rather than
+        present as zero. Zero is a measurement saying the judge was
+        consistent, and one sample cannot make it.
+
+        The boundary is stated in `score_spread`'s own docstring and two
+        mutations of it survived the whole suite, which is how this case came
+        to exist (``harness_test_taxonomy.md`` section 15.8).
+
+        Returns:
+            None
+        """
+        assert not score_spread([])
+
+        single = score_spread(scored_observations("MQC_CASE_one", [4.0]))
+        assert "MQC_CASE_one" not in single, (
+            "a case with one score carries a spread, which claims consistency "
+            "from a single sample"
+        )
+
+        # AT EXACTLY TWO IT APPEARS, which is the boundary this case is for.
+        pair = score_spread(scored_observations("MQC_CASE_two", [4.0, 4.0]))
+        assert pair == {"MQC_CASE_two": 0.0}, (
+            f"two equal scores gave {pair}, so agreement cannot be "
+            f"distinguished from too little data"
+        )
+
+        assert score_spread(scored_observations("MQC_CASE_wide", [2.0, 5.0])) == {
+            "MQC_CASE_wide": 3.0
+        }
+        assert score_spread(scored_observations("MQC_CASE_three", [2.0, 5.0, 3.0])) == {
+            "MQC_CASE_three": 3.0
+        }
+
+        # AND A SKIP CARRIES NO SCORE INTO THE RANGE, so two observations of
+        # which one skipped is still one sample.
+        mixed = scored_observations("MQC_CASE_skip", [4.0])
+        mixed.append(Observation("MQC_CASE_skip", "EVAL", "skip", priority=2))
+        assert "MQC_CASE_skip" not in score_spread(mixed)

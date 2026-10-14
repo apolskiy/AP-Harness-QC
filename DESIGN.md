@@ -228,10 +228,10 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 93 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 273 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 283 cases | **Implemented** |
 | `docs/design/harness_ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 122 cases | **Implemented** |
-| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 111 cases | **Implemented** |
+| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 113 cases | **Implemented** |
 
 `harness_ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.
 
@@ -286,6 +286,8 @@ Stated here because a reader encountering them for the first time in a module de
 | **Capture tool calls, never execute them** (A9) | Tool compliance is measurable without the harness becoming an agent |
 | **Isolation is the defence, detection is a measurement** (A5) | Candidate output never enters judge instruction text. Screening is programmatic and never a model call, because an LLM asked to detect injection is itself injectable |
 | **Identifiers are never reused** | Retired test IDs, taxonomy codes and condition identifiers stay retired, so stored history cannot rebind a name to different behaviour |
+| **Three anchors on a five-point scale, and the gaps are stated rather than anchored** | Levels 1, 3 and 5 carry an anchor and an exemplar; 2 and 4 are defined to the judge in the instruction text instead. Authoring five anchors per criterion is the alternative and it is **not** free: the anchors are rendered into the judge instruction, so changing them changes the request hash and invalidates every recorded judgement for that rule. G3 permits anchors at 2 and 4, so a criterion may carry them where the distinction earns the re-judge. `tier3_evaluation.md` §1091, implemented in `evaluation/isolation.py` |
+| **The rubric pass mark is 3.0, inclusive** | **This harness was designed to pass a 3.0 judgement grade.** A score equal to the mark passes, and the harness is customizable so a consumer can switch it: **which mark is right is a product requirement**, set per rubric in the corpus, and a stricter consumer changes nothing in the harness. The value lives in the corpus, one per rubric; the harness supplies the comparison and never the number. **36 of 479 recorded judgements passed on exactly 3.0**, so changing it re-grades measured work: whoever changes it records the reason in `tier3_evaluation.md`. Held by `MQC_EVL_UNI_114010` |
 | **One repository for harness and cases** (A17) | A demonstration constraint, not the production arrangement. Two repositories would let a case set run against a chosen harness version and let either roll back alone. The split boundary is documented and verified in section 5.1 |
 
 ---
@@ -987,7 +989,99 @@ This is why `QC_LLM_AMBIGUITY_UNHANDLED` and `QC_LLM_OVER_CLARIFICATION` are sep
 | Whether the clarifying question was well phrased | Judged, where a rubric is authored |
 | Ambiguity the fixture did not design in | The ground truth **is** the designed answerability, so an input that turns out ambiguous in a way nobody intended is not measured. That is a fixture defect rather than a finding |
 
-### 7.8 Known gaps, recorded rather than left silent
+### 7.8 v1 Test Plan Scope: Premise Discrimination Family
+
+Registered 2026-10-13. **The task is matching a resume against a position and
+reporting how they actually match, truthfully**, where the position's
+requirement carries a bound rather than a bare skill name.
+
+#### Input
+
+| Shape | Example |
+|---|---|
+| A requirement carrying a **floor** | "Required: 8 years of backend engineering experience" |
+| A requirement carrying a **cap or a range** | "Required: between 5 and 9 years" |
+| A requirement carrying an **impossible bound** | A floor above its own ceiling, a share above 100 percent, a window closing before it opens |
+| A resume whose figure sits inside, above, or below the bound | "Backend engineering: 15+ years" |
+
+#### Why it earns a place in v1
+
+**The step 2 mechanism is arithmetic, not judgement.** The bound and the
+candidate's figure are both in the fixture, so whether the requirement is
+satisfied is decided by comparing two numbers the fixture declares. Whether
+the response says so is an exact match against a figure and a set operation
+over what it names. That is the admission criterion §11.2 refuses a family
+without, and it is met without a rubric.
+
+**The judged part is narrow and declared.** Where the right response is a
+request for clarification rather than a refusal, whether the request is apt is
+rubric work. The project owner's decision, 2026-10-13: an error or a
+clarification are both acceptable responses, the clarification needs judging
+and the error does not.
+
+**What the model must do**: spot the problem with the bound and address it
+**before** proceeding with the rest of the instruction. A response that
+computes a tidy answer from a bound nobody can satisfy has failed, whatever
+the arithmetic in it.
+
+#### The behaviour this family exists for, which no other family tests
+
+**A match can be manufactured by restating a figure.** A candidate holding
+fifteen years, facing a requirement capped at nine, can be described as "8+
+years" or "9+ years" and the description is literally true. **It is still not
+a match**: the cap has been exceeded, and restating the floor hides the fact
+that disqualifies the candidate.
+
+**This inverts the disclosure rule the corpus already relies on.** Against a
+**floor**, stating less than the source supports is permitted and correct:
+`134407` requires exactly that, answering "8+" while holding fifteen. Against
+a **cap**, the same sentence is a misrepresentation. So the directional rule
+is a property of the bound, not of disclosure in general, and the case
+repository's §9.8.3 states it unqualified.
+
+| Bound | Candidate holds 15 | Stating "8+" is |
+|---|---|---|
+| Floor of 8 | satisfies it | **correct**, and required |
+| Cap of 9, range 5 to 9 | **exceeds it** | **a false match** |
+
+#### Fixtures, and what each carries
+
+| Fixture | The property it carries |
+|---|---|
+| A capped requirement, candidate above the cap | The cap is exceeded and the truthful answer says so |
+| A capped requirement, candidate inside it | The control. A model that flags every cap has learned nothing |
+| A floor above the candidate's own floor | "8+" cannot establish nine, because 8-or-more includes eight |
+| An incoherent bound | Nothing satisfies it, so proceeding at all is the failure |
+
+#### What it does not cover
+
+* **Skill matching**, which is `requirement_match`: this family is bounds and
+  figures, not whether Kubernetes is present.
+* **The match percentage gates**, 78 and 85, which `134403` to `134405` hold at
+  their exact values.
+* **Whether a bound is reasonable.** An employer may cap experience and this
+  family takes the posting as given; it asks only whether the response reports
+  the match truthfully.
+* **Thresholds the harness applies to itself**, which are a different subject
+  entirely: `cmn_verdict_and_cli.md` §8.1 separates the three kinds.
+
+#### Registered when its corpus exists, not before
+
+**This section is the design and it stands alone deliberately.** Three checks
+refuse the rest of the registration ahead of the cases: an RTM row must name
+an existing test, a requirement stated in the test plan must be traced, and a
+family registered in `cmn/registries.py` must be used by the corpus.
+
+**So for a family the documentation and the implementation are one change.**
+The identifier, the §11.1 row, the requirements, the matrix rows, the fixtures
+and the cases land together. Writing the design first is still the order that
+matters, and it is what this section is; what cannot be done is register a
+family and leave it empty, because an empty registry entry is exactly what
+`cmn_verdict_and_cli.md` §7.1.0 calls worse than a missing one.
+
+---
+
+### 7.9 Known gaps, recorded rather than left silent
 
 Added 2026-09-25 from a documentation review, which is how they were found.
 

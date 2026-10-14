@@ -73,6 +73,12 @@ _LAYERS: Final[dict[str, LayerProperties]] = {
     "EVAL": LayerProperties("EVAL", "evaluator", True, False, False, (130000, 139999)),
     "TOOL": LayerProperties("TOOL", "tool", True, False, False, (140000, 149999)),
     "SEC": LayerProperties("SEC", "sec", True, True, False, (150000, 159999)),
+    # AUDITS THE SUITE RATHER THAN THE MODEL, so ungraded, and deliberately
+    # NOT blocking: a surviving mutant says some behaviour is unasserted,
+    # which is a fact about coverage rather than about what this run
+    # measured. Taxonomy section 15.6.
+    "MUT": LayerProperties("MUT", "mutation", False, True, False,
+                           (160000, 169999)),
 }
 
 

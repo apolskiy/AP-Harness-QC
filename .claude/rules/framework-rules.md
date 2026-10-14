@@ -14,6 +14,7 @@ All pull requests and code additions must pass a multi-stage automated verificat
 5. **Gate 5 - Tool-Use Compliance**: Execution of `MQC_<MODULE>_TOOL_#####` tests via `pytest -m tool`. Verifies the model invoked the tools it was instructed to use and avoided those it was forbidden. Tier 2 captures tool-call intent without executing it.
 6. **Gate 6 - Model Security Suite** (graded): Execution of `MQC_<MODULE>_SEC_#####` tests via `pytest -m sec`. Injection resistance, prompt leakage and tool coercion. Runs as its own suite and is exempt from the priority distribution ceilings, so security coverage never competes with functional coverage for a budget.
 7. **Gate 7 - Artifact Publication**: Upload JUnit XML and Allure raw results as stably-named GitHub Actions artifacts. This is the entire integration surface. A downstream collector pulls these read-only; this repository neither writes to a consumer nor blocks on one. No bespoke telemetry file is generated. See `testing-standards.md` section 5.
+8. **Gate 8 - Mutation Audit** (ungraded, non-blocking, scheduled): Execution of `MQC_<MODULE>_MUT_#####` tests via `pytest -m mutation tests/mutation`. One production operator or constant is changed at a time and the suite re-run; a change no case notices is a **survivor**, and every accepted survivor is declared in `config/mutation_survivors.yaml` with its kind, its reason and an expiry. **Not in the pull-request sequence**: it costs minutes per module, and a survivor is a statement about coverage rather than about what a run measured, so it never blocks the graded layers. It does fail its own job. `harness_test_taxonomy.md` section 15.
 
 ## 2. Module Separation Rules
 
@@ -122,3 +123,58 @@ Every failure carries a code, attached to the assertion message and to the Allur
 **`docs/design/harness_test_taxonomy.md` section 6 is the single registry of codes.** This file states the families and their meaning; it deliberately does **not** restate the code list.
 
 Two registries drift, and this file previously carried a stale copy naming two families when four existed. A code is registered in one place, and `MQC_CMN_UNI_112200` through `112202` verify that every emitted and referenced code is registered there.
+
+### 4.2 A registry that must exist twice is compared, never trusted
+
+Added 2026-10-13 at the project owner's instruction, after a layer registration
+put a marker in one repository's `pytest.ini` and not the other's.
+
+**4.1 is the rule and this is the exception it needs.** A code, a priority
+definition or a layer property is registered once and imported, and the harness
+owns it. **Some registries cannot be one file**: pytest reads `pytest.ini` from
+the repository it runs in, so the marker registry genuinely exists in both
+checkouts and no import can collapse them.
+
+**Where duplication is forced, the copies are compared by a case.** Not
+reviewed, not restated carefully: compared, from one implementation called with
+each root, which is the arrangement the encoding, annotation, header, naming and
+citation rules already use.
+
+| Forced duplicate | Compared by | Reads |
+|---|---|---|
+| The pytest marker registry | `MQC_CMN_UNI_112355`, `MQC_CAS_UNI_115741` | `cmn.environments.registered_markers` |
+
+**The comparison runs in both directions.** Only-here and only-there are both
+drift, and naming which side an entry is missing from is what makes the failure
+actionable. The cross-repository half declares the `paired` environment scope,
+so a clone on its own asserts what it can see rather than failing
+(`harness_test_taxonomy.md` section 7.5.1).
+
+#### Why the usual mechanisms do not cover it
+
+**`--strict-markers` is not enough, and it is the obvious answer.** It fails
+collection when a marker is applied and not registered, which closes both
+directions of a rename for a marker the suite actually applies. It is **silent
+about a marker registered and never applied**, and that is where the drift
+lives: the case repository registers the whole layer registry deliberately, and
+four of those markers are applied only by cases it has not written yet. A typo
+in one of them breaks nothing until the first case arrives.
+
+**This is `cmn_verdict_and_cli.md` section 7.1.0's defect in a second file**: a
+registry entry nothing reads. The copy that is never exercised is the copy that
+rots, which is the opposite of where attention goes.
+
+#### It caught its first drift the day it was written
+
+Registering the `MUT` layer added `mutation` to the harness `pytest.ini` and
+`112355` failed on the same run, naming the marker and the side it was missing
+from. That is the whole value of the rule: the registration was four edits and
+the fifth was the one a person forgets.
+
+#### Adding a forced duplicate means adding a row
+
+A new registry that has to exist in both repositories is entered in the table
+above and in the comparison, in the same change that creates the second copy.
+**A duplicate nobody declared is a duplicate nobody compares**, and the project
+has corrected that shape often enough to stop writing new instances of it.
+

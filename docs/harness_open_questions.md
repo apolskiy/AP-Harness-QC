@@ -59,25 +59,14 @@ credential at all.
 
 ## 2. Decisions I have deferred rather than made
 
-**One open as of 2026-10-12.** Section 2A says where every settled answer now
-lives, and a closed question is removed from here rather than left to be argued
-again.
+**None open as of 2026-10-13.** Section 2A says where every settled answer
+now lives, and a closed question is removed from here rather than left to be
+argued again.
 
-### 2.8 Delete `environment_marker`, or make its claim true?
-
-It returns the pytest marker name "so `pytest.ini` and the checks read one
-value", and nothing calls it: the module uses `_MARKER` directly and the ini
-file carries the literal. **An ini file cannot call a function**, so the claim
-as written is unachievable rather than merely unenforced.
-
-| Option | Costs |
-|---|---|
-| Delete the accessor | One line of exported API with no caller, and the module keeps its private constant |
-| Keep it and add a parity case | The ini and the module are compared rather than shared, which catches a renamed marker |
-
-**Open because it is a judgement about what the accessor is for**, not about
-whether the scope mechanism works: `112344` and `112345` cover that, and it is
-used.
+**An empty section is the honest state and is kept rather than deleted.**
+Deleting it would say this project never defers a decision, which is false and
+is the opposite of what this document is for: the next open question gets a
+number here, continuing the sequence rather than restarting it.
 
 **The numbering has gaps, and they are retired rather than reused.**
 Ten questions were settled and removed; section 2A lists them. A number
@@ -115,6 +104,7 @@ because a second copy drifts.
 | Does a README change require a changelog entry? | 2026-10-12, yes, in the same change | `code-style.md` section 7.4 |
 | Should a threshold outside its domain be clamped, defaulted or refused? | 2026-10-13, refused at construction, because a run reporting a result against a substituted standard is the worse failure | `cmn_verdict_and_cli.md` section 8.1 |
 | Is zero an acceptable ceiling? | 2026-10-13, no: it leaves no band, and the rule it reaches for is V1 | `cmn_verdict_and_cli.md` section 8.1 |
+| Delete `environment_marker`, or make its claim true? | 2026-10-13, keep it and compare: strict markers for an applied marker, a case for the registry the consumer copies | `harness_test_taxonomy.md` section 7.5.1 |
 
 ---
 
@@ -124,8 +114,9 @@ Recorded so the absence is on the record. None needs a decision.
 
 | Gap | Where it bites |
 |---|---|
+| The mutation audit covers two modules of six | `config/mutation_survivors.yaml` and `cmn_verdict_and_cli.md` section 13. `layers.py`, `environments.py`, `band_summary.py` and `registries.py` are unaudited, and the first run on `layers.py` was stopped at a time limit |
+| Two equivalent mutants in `cmn/verdict.py` are findings about the code | One branch is unreachable given its predecessors and one adds a rule to a breach list nobody reads. Declared with expiries rather than fixed |
 | A re-record needing fewer observations than the previous run leaves the surplus behind | Pruned by hand three times on 2026-10-12. Nothing prunes at the point of recording |
-| `environment_marker` is read by nothing | Section 2.8 decides which way it goes |
 | A ceiling means `>` for V7 to V9 and `>=` for the inconsistency condition | Both are intended and now tabulated, so neither is derivable from the word: `cmn_verdict_and_cli.md` section 8.2 |
 
 ## 3. Things I changed that deserve a second opinion

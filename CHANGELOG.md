@@ -29,6 +29,139 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The rubric pass mark is recorded as a decision, and gains a switch, 2026-10-13
+
+**The mark was in every rubric and in no document.** All 38 declare `3.0` and
+nothing said why, so a reader found the number repeated and the reason
+nowhere. **36 of 479 recorded judgements passed on a minimum score of exactly
+3.0** and would fail at any higher mark, concentrated in `mat_at_floor` (11),
+`mat_experience_stated` (5) and `cod_aggregate_from_table` (5).
+
+**Decided by the project owner: keep 3.0.** Recorded in
+`tier3_evaluation.md` section 9 and `DESIGN.md` section 5, with the argument
+against it on the record rather than rediscovered later: on a five-point judge
+scale a 3 reads as mediocre, and the level-3 anchors here say so, one of them
+describing *"all four present, one count misread"*. Moving to 4.0 would flip
+those 36 results, 17.1 percent of `requirement_match`.
+
+**This harness was designed to pass a 3.0 judgement grade**, and the design now
+says that in those words, so a change to it is a change of intent rather than
+the correction of a defect.
+
+**Added.** `--at-pass-mark pass|fail`, defaulting to `pass`. `fail` makes the
+mark exclusive, so a score equal to it fails. **It can only tighten**: no value
+admits a score the default rejects, which is what separates it from the
+configurable threshold `harness_extensibility_standard.md` section 14 warns
+about. The mark itself stays in the corpus, and the switch costs no recordings
+because the mark never reaches the judge.
+
+**Fixed.** Nothing held the boundary. Flipping `>=` to `>` in
+`aggregation.py`, so every score of exactly 3.0 failed, was caught by **none of
+772 cases**: the nearest used 3.1 and called it marginal, which is near the
+boundary rather than at it. `MQC_EVL_UNI_114010` states it at the mark and
+`114011` covers the switch; both verified by injection, each caught by itself
+alone.
+
+**Measured, and it changed nothing.** Anchoring levels 2 and 4 for the three
+ambiguity criteria and re-judging produced **identical scores on all 9**, with
+the request hash confirming the five-anchor instruction reached the judge. The
+caveat is that ambiguity had no 3s to begin with, so it was the family least
+likely to move. The three-anchor design stands and is now stated in the README
+and `DESIGN.md` rather than only in `isolation.py`.
+
+**Changed.** README figures: 611 cases, 295 requirements traced.
+
+### A mutation suite, and the nine gaps it found in its first pass, 2026-10-13
+
+**Added at the project owner's instruction**, "mutation run can be a test suite
+for the harness. To make sure harness works."
+
+**`MUT` is a registered layer**, marker `mutation`, block `161000-169999`.
+Ungraded, and **not blocking**: a surviving mutant says some behaviour is
+unasserted, which is a fact about coverage rather than about what a run
+measured. It is Gate 8, on the schedule, because a full pass costs minutes per
+module and a precondition that takes minutes is not a precondition.
+
+**What it does.** One production operator or constant is changed and the suite
+re-runs. A change nothing fails on is a **survivor**, and every accepted
+survivor is declared in `config/mutation_survivors.yaml` with its kind, its
+reason and an expiry. The list shrinks and never grows, and a declaration that
+no longer survives fails the case too.
+
+**The first pass: `cmn/verdict.py`, 88 points, 11 survivors.** Nine were
+missing cases and are now closed; two are equivalent mutants recorded as
+findings about the code rather than the tests.
+
+| Found | Closed by |
+|---|---|
+| `frozen=True` becoming `frozen=False` on six records, with no case noticing. **The `Thresholds` domain check runs in `__post_init__`, so an unfrozen record takes an assignment that skips it** | `112359`, and `cmn.code_standards.unfrozen_records`. Seventy-eight of eighty-one records are frozen; the three that are not are declared accumulators |
+| `green=False` becoming `green=True` in the exit-3 precondition verdict | `112360`, asserted over every red path rather than the one the mutation found |
+| The `score_spread` boundary, stated in its own docstring and asserted nowhere | `112361` |
+| **A `pass_floor` of exactly `1.0` being refused**, which section 8.1 says is permitted | `112362`, the permitted extreme of every rate and both counts |
+
+**That last one is why the suite exists.** The design stated the boundary and
+the suite never reached it, on the same day the valid range was called the
+higher priority. `MQC_CMN_MUT_162001` now reports zero survivors in
+`threshold_domain.py`, which is the gap closing measured by the thing that
+found it.
+
+**Two defects in the instrument itself, both caught before it was trusted.**
+The first version passed two test paths as one argument, so pytest matched
+nothing, exited 5, and **ten of ten mutants were reported killed** against a
+run that collected zero cases. It now refuses to start without a control
+proving the unmutated suite collects and passes. The second: a run stopped at
+its time limit left `cmn/layers.py` holding a 300-line unparsed mutant of a
+430-line module, so the original is written to a sibling backup first and a run
+finding one restores it and refuses to continue.
+
+**Three kinds of threshold are now distinguished in section 8.1**, at the
+owner's instruction: a threshold's own domain, which was the unchecked one; a
+suite's threshold, settled across numerous CI runs and not re-opened; and the
+threshold a graded case measures, which is a stricter layer living in the case
+repository. Nothing here changes a rule of the second or third kind.
+
+**Changed.** README figures: 609 cases, 293 requirements traced.
+
+### The marker name is held to one value, and a silent deselection failure is closed, 2026-10-13
+
+**Fixed, and the serious half was not the one the question asked about.**
+`mark_environment` returned `pytest.mark.environment(...)` with the name
+written out, while the deselection hook read the `_MARKER` constant. The two
+agreed, so nothing showed. Renaming the constant alone left the marker applied
+and registered, so pytest was content, and the hook looked for a name no case
+carried: **every scoped case would have run where its scope was absent**, with
+no warning and no error. The marker is built from `_MARKER` now.
+
+**Found by the injection that was verifying something else.** The rename was
+expected to produce a collection error and produced an ordinary test failure,
+and the gap between those two answers was the defect. That is the exercise
+working rather than failing, which `testing-standards.md` already says of the
+other outcome.
+
+**Added.** `--strict-markers` in `addopts`, in both repositories. An applied
+marker that is not registered was a `PytestUnknownMarkWarning` on a passing
+run, and a warning is not a test result; it is a collection error now.
+
+**Added.** `cmn.environments.registered_markers`, which parses an ini's marker
+block with the parser pytest uses, and refuses an absent file or one
+registering nothing, either of which would make a comparison vacuous while it
+passed.
+
+**Settled.** Open question 2.8 asked whether `environment_marker` should be
+deleted or made true. It is kept and now has a caller. Deleting it was the
+weaker option: the accessor was never the defect, the four unchecked copies of
+the name were, and deleting it would have left them. Section 2 of
+`harness_open_questions.md` now carries no open question.
+
+**Added.** `112355` through `112358`, and `MQC_REQ_HAR_CMN_0158`. `112355`
+declares the `paired` scope and compares the two repositories' registries,
+which is the direction strict markers cannot see: `evaluator`, `tool`, `sec`
+and `priority` are registered here and applied by the consumer, because this
+repository owns no graded case. Verified by injecting four drifts; each is
+reported, two as a collection error and two as a case failure.
+
+**Changed.** README figures: 603 cases, 289 requirements traced.
+
 ### A threshold is refused outside its domain, and four boundaries are pinned, 2026-10-13
 
 **Fixed.** `Thresholds` validated nothing. Measured against a suite at a pass

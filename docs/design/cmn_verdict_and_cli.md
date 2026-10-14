@@ -2447,9 +2447,40 @@ of zero would report a percentage. A share ceiling exists to tolerate a
 proportion, and one that tolerates nothing is a different rule wearing a
 ceiling's name.
 
-**One is permitted at both ends.** `pass_floor = 1.0` is a real standard, a
-suite that must be perfect, and a share ceiling of `1.0` is the off switch for a
-distribution rule somebody wants computed and recorded but not enforced.
+**One is permitted at both ends.** `pass_floor = 1.0` is a real standard, and
+a share ceiling of `1.0` is the off switch for a distribution rule somebody
+wants computed and recorded but not enforced.
+
+**Two kinds of threshold live in this project and only one of them was
+unchecked.** The distinction is the project owner's, 2026-10-13, and it decides
+what this section is for:
+
+**Three kinds of threshold live in this project** and they are not the same
+subject. The distinction is the project owner's, 2026-10-13, and it decides what
+this section is for:
+
+| | What it is | What stands behind it |
+|---|---|---|
+| **A threshold's own domain** | What a threshold value may be: the interval a rate lies in, the boundary a case is stated at | **This is the one that was unchecked.** The domain accepted `-1`, and the permitted extremes had no case until the mutation audit asked for one |
+| **A suite's threshold** | What a run requires of itself: P0 and P1 pass, P2-P4 answers to a floor, and a blocking-band failure fails the job whatever the lower band did | **Numerous CI runs.** Built, settled after several rounds, and not in question. It is still tested, for harness and CI stability, which is a different thing from being re-decided |
+| **A threshold a graded case measures** | A figure in a prompt that the model must carry through: reproduce the stated limit, round only inside a declared tolerance, invent nothing | **A different layer, and a much stricter one.** It lives in the case repository: `model_evaluation_test_plan.md` §9.4 and the `grounding` rule set |
+
+**This section is about the first, and only the first.** §4.3 holds the rules
+for the second and `consumer_ci.md` §3.12.2 holds the band floor. The third is
+not this repository's at all: the harness owns no case data, and a threshold a
+model is asked to respect is corpus material. None is restated here, because a
+second copy is the drift §3.1 of `code-style.md` exists to prevent.
+
+**Why the third is stricter, in one line.** A suite threshold tolerates a
+proportion by design, because that is what a rate is for. An
+instruction-following threshold tolerates nothing it was not granted: the
+figure is reproduced as stated, and a rounding is a failure unless the prompt
+declared the tolerance that permits it.
+
+**Nothing in the threshold-domain work changes a rule of the second or third
+kind.** The validation added here refuses a value nobody could have meant. It
+does not move a floor, re-band a case, alter what a failing band costs a job,
+or touch what a graded case asks of a model.
 
 **Refusal happens at construction**, decided by the owner the same day, because
 that is the one point every path arrives at: the defaults, a configuration load,
@@ -2557,6 +2588,14 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112343` | P | `a_registered_family_round_trips_and_leaves_no_trace` |
 | `112344` | N | `a_precondition_that_skipped_fails_the_run` |
 | `112345` | P | `a_case_whose_environment_scope_is_absent_is_deselected` |
+| `112355` | N | `a_marker_registry_disagreeing_with_the_code_is_reported` (taxonomy 7.5.1) |
+| `112356` | N | `an_unreadable_marker_registry_is_refused` (taxonomy 7.5.1) |
+| `112357` | N | `a_registry_with_no_markers_is_refused` (taxonomy 7.5.1) |
+| `112358` | N | `the_marker_applied_is_the_marker_read` (taxonomy 7.5.1) |
+| `112359` | N | `a_mutable_production_record_is_reported` (taxonomy 15.8) |
+| `112360` | N | `a_red_verdict_is_never_green` (taxonomy 15.8) |
+| `112361` | B | `score_spread_needs_two_scores_exactly` (taxonomy 15.8) |
+| `112362` | B | `the_permitted_extremes_of_each_domain_are_accepted` (8.1) |
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
 | `112347` | P | `a_case_announces_its_node_identifier_before_running` |
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
@@ -2790,7 +2829,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 273 cases, 152 negative, 90 positive, 31 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 283 cases, 160 negative, 90 positive, 33 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3272,7 +3311,29 @@ as the provider gave it, and the fallback is logged, because a snapshot
 genuinely priced differently from its base is a thing that can happen and the
 remedy is a key in the table. A silent fallback would hide exactly that.
 
-## 13. Traceability
+## 13. Test Inventory: `MQC_CMN_MUT_`
+
+Ungraded, no priority, **not collected by default**. Each case audits one
+production module and asserts its survivor set is declared in
+`config/mutation_survivors.yaml`. Designed in
+``harness_test_taxonomy.md`` section 15.
+
+Categories: **P** positive, **N** negative, **B** boundary.
+
+| ID | Cat | Behaviour |
+|---|---|---|
+| `162000` | N | `an_undeclared_survivor_in_the_verdict_is_reported` |
+| `162001` | N | `an_undeclared_survivor_in_the_threshold_domain_is_reported` |
+
+**Two modules, not six.** The audit costs minutes per module, and these two
+are where the standard a run is judged against lives: `verdict.py` decides
+every run's outcome and `threshold_domain.py` decides what a threshold may be.
+The others are added as the job's budget allows, and the absence is recorded
+here rather than left as a silence.
+
+---
+
+## 14. Traceability
 
 | Decision | Section |
 |---|---|

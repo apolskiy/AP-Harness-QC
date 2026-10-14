@@ -522,6 +522,22 @@ _EVALUATION_FAMILIES: Final[dict[str, EvaluationFamily]] = {
         input_shape="Resume material and a job posting's requirements",
         ground_truth="Provided source material, making invention a set operation",
     ),
+    # MATCHING A RESUME AGAINST A BOUNDED REQUIREMENT, truthfully. The bound
+    # and the candidate's figure are both in the fixture, so satisfaction is a
+    # comparison of two declared numbers rather than a judgement.
+    # `DESIGN.md` section 7.8.
+    "premise_discrimination": EvaluationFamily(
+        identifier="premise_discrimination",
+        input_shape=(
+            "A resume and a position whose requirement carries a bound: a "
+            "floor, a cap or a range, and in the negative arm one the "
+            "candidate cannot satisfy or one nothing can"
+        ),
+        ground_truth=(
+            "The declared bound and the declared candidate figure, so "
+            "satisfaction is arithmetic over the fixture's own numbers"
+        ),
+    ),
     "output_shape": EvaluationFamily(
         identifier="output_shape",
         input_shape="Any content plus declared shape constraints",

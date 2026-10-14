@@ -20,6 +20,7 @@
 # by injection, per `testing-standards.md`.
 flags:
   # --- exercised by harness cases -----------------------------------------
+  "--at-pass-mark": {owner: harness}
   "--engine": {owner: harness}
   "--fill-gaps": {owner: harness}
   "--judge-mode": {owner: harness}

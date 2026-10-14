@@ -272,6 +272,7 @@ def evaluate_observation(
     binding: Optional[JudgeBinding] = None,
     *,
     judge_on_failure: bool = False,
+    at_pass_mark: str = "pass",
 ) -> EvaluationResult:
     """Evaluate one candidate observation against one rule set.
 
@@ -279,6 +280,8 @@ def evaluate_observation(
         context (ObservationContext): The observation and what judges it.
         binding (Optional[JudgeBinding]): Who judges, and whose output. An
             absent or unbound judge is recorded as a skip with its reason.
+        at_pass_mark (str): Whether a score equal to the rubric mark
+            passes. ``pass`` by default, which is the behaviour that shipped.
         judge_on_failure (bool): Whether to judge a case whose assertions
             failed at ``violation`` severity.
 
@@ -387,7 +390,8 @@ def evaluate_observation(
         )
 
     return _judge_and_aggregate(
-        context, bound, progress, judge_on_failure=judge_on_failure
+        context, bound, progress, judge_on_failure=judge_on_failure,
+        at_pass_mark=at_pass_mark,
     )
 
 
@@ -436,6 +440,7 @@ def _judge_and_aggregate(
     progress: _Progress,
     *,
     judge_on_failure: bool,
+    at_pass_mark: str = "pass",
 ) -> EvaluationResult:
     """Run steps 4 through 6 for a case that reached the judge.
 
@@ -443,6 +448,8 @@ def _judge_and_aggregate(
         context (ObservationContext): The observation.
         binding (JudgeBinding): Who judges, and whose output.
         progress (_Progress): What the earlier steps accumulated.
+        judge_on_failure (bool): Whether the flag was in force.
+        at_pass_mark (str): Whether a score equal to the rubric mark passes.
         judge_on_failure (bool): Whether the flag was in force.
 
     Returns:
@@ -516,6 +523,7 @@ def _judge_and_aggregate(
     score = aggregate(
         rubric.aggregation, reply.scores, threshold=rubric.threshold,
         parameters=dict(getattr(rubric, "aggregation_params", None) or {}),
+        at_pass_mark=at_pass_mark,
     )
     if score.passed is False:
         progress.codes.append("QC_LLM_RUBRIC_FAILURE")

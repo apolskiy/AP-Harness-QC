@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Production changes the suite does not notice, and why each is accepted.
+#
+# THE RULE IS `docs/design/harness_test_taxonomy.md` SECTION 15. One operator
+# or constant is changed and the suite runs: a change nothing fails on is a
+# survivor, and a survivor names behaviour nothing asserts.
+#
+# A GAP IS A DECLARED ABSENCE, NOT AN EXEMPTION, exactly as
+# `module_runway.yaml`, `flag_coverage.yaml` and `support_extraction.yaml` are:
+# each entry carries a reason and an expiry, because a list with no expiry is
+# where unproven things go to be forgotten. An expired entry fails the run.
+#
+# THE LIST SHRINKS AND NEVER GROWS. An undeclared survivor fails the case, and
+# a declared entry that no longer survives fails it too: a declaration
+# describing a gap that has been closed is a claim about the suite that is no
+# longer true.
+#
+# `kind` SAYS WHICH KIND OF FINDING AN ENTRY IS, because a reader who cannot
+# tell will write a test that asserts nothing:
+#   missing_case - behaviour nothing asserts. A case is owed and the expiry
+#                  says when.
+#   equivalent   - the change cannot alter any observable result, so no case
+#                  can kill it. **A finding about the production code**, not
+#                  about the tests: an unreachable branch is dead code wearing
+#                  a condition. Section 15.3.
+survivors:
+  cmn/verdict.py:
+    accepted:
+      - mutation: "line 732: False to True"
+        kind: equivalent
+        reason: >-
+          The V2 pass-floor rule returns no breach when there is no rate to
+          compare. A run with no rate has no executions, so V5 has already
+          fired and the verdict is red either way; flipping this adds a V2 to
+          `breached_rules` on a run nobody reads that list from. Recorded
+          rather than asserted because the assertion would pin a breach list
+          on a path whose only reader is this file.
+        expires_on: 2026-12-31
+      - mutation: "line 837: True to False"
+        kind: equivalent
+        reason: >-
+          The third `_NOTHING_MEASURED` branch, on an empty skip denominator.
+          Every population reaching it with no skippable observations has
+          already failed the two branches above it, so the condition is not
+          independently reachable. **That is a finding about the code**: the
+          branch is unreachable given its predecessors and section 15.3 says
+          so rather than a case pretending to cover it.
+        expires_on: 2026-12-31

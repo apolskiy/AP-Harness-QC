@@ -98,6 +98,22 @@ def distribution_suite(at_zero: int, at_one: int, total: int) -> list[Observatio
     return built
 
 
+def scored_observations(case_id: str, scores: list[float]) -> list[Observation]:
+    """Build one case's judged observations.
+
+    Args:
+        case_id (str): The case every observation belongs to.
+        scores (list[float]): One score per observation.
+
+    Returns:
+        list[Observation]: The observations, all passing.
+    """
+    return [
+        Observation(case_id, "EVAL", "pass", priority=2, score=score)
+        for score in scores
+    ]
+
+
 def gated_artifact(**overrides: Any) -> dict:
     """Build a gated artifact over a valid base.
 

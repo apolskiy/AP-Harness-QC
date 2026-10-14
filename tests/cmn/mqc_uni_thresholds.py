@@ -30,6 +30,7 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112056  a_rate_outside_the_unit_interval_is_refused
 #   112057  a_non_numeric_threshold_is_refused
 #   112058  a_population_count_below_one_is_refused
+#   112362  the_permitted_extremes_of_each_domain_are_accepted
 #   112059  a_stored_artifact_carrying_an_impossible_threshold_refuses
 # ------------------------------------------------------------ end of cases
 
@@ -40,7 +41,12 @@ import pytest
 from cmn.threshold_domain import COUNT_FIELDS, RATE_FIELDS, check_domain
 from cmn.verdict import Thresholds, VerdictConfig, evaluate_distribution, verdict
 from cmn.verdict_tool import thresholds_from
-from tests.cmn.verdict_support import TODAY, distribution_suite, gated_artifact
+from tests.cmn.verdict_support import (
+    TODAY,
+    distribution_suite,
+    gated_artifact,
+    graded,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -257,6 +263,60 @@ class TestMQCThresholdDomain:
         assert declared == RATE_FIELDS | COUNT_FIELDS, (
             f"these thresholds declare no domain: "
             f"{sorted(declared - (RATE_FIELDS | COUNT_FIELDS))}"
+        )
+
+    def MQC_CMN_UNI_112362_the_permitted_extremes_of_each_domain_are_accepted(
+        self,
+    ) -> None:
+        """The valid end of every domain, which the invalid cases do not reach.
+
+        **Section 8.1 states both extremes and nothing asserted either.**
+        Narrowing the rate check to `0 < x < 1`, so a `pass_floor` of exactly
+        `1.0` is refused, survived all 768 cases; so did narrowing the count
+        check so a `distribution_minimum` of `1` is refused. The design said it
+        and the suite did not reach it, which is the whole shape this case
+        exists to close.
+
+        **A floor of 1.0 is a real standard**, and a ceiling of 1.0 is the
+        off switch for a distribution rule somebody wants computed and recorded
+        but not enforced. This asserts that the value is accepted and then
+        applied; what the bands require of a run is settled in section 4.3.
+
+        Returns:
+            None
+        """
+        # EVERY RATE ACCEPTS ITS UPPER EXTREME.
+        for field_name in sorted(RATE_FIELDS):
+            built = Thresholds(**{field_name: 1.0})
+            assert getattr(built, field_name) == 1.0, (
+                f"{field_name} refused 1.0, so the domain excludes the value "
+                f"section 8.1 says it permits"
+            )
+
+        # AND ITS SMALLEST MEANINGFUL ONE, just above the excluded zero.
+        for field_name in sorted(RATE_FIELDS):
+            assert getattr(Thresholds(**{field_name: 0.01}), field_name) == 0.01
+
+        # EVERY COUNT ACCEPTS ONE, the lower extreme its domain states.
+        for field_name in sorted(COUNT_FIELDS):
+            assert getattr(Thresholds(**{field_name: 1}), field_name) == 1, (
+                f"{field_name} refused 1, so the domain excludes the smallest "
+                f"population it is defined over"
+            )
+
+        # AND A FLOOR OF 1.0 DECIDES, rather than being accepted and inert.
+        # P3 throughout, so no blocking-band rule is involved.
+        perfect = VerdictConfig(thresholds=Thresholds(pass_floor=1.0))
+        clean = distribution_suite(at_zero=0, at_one=0, total=10)
+        assert verdict(clean, perfect, TODAY).green
+
+        blemished = list(clean)
+        blemished.append(
+            graded("MQC_TASK_one::MQC_RULE_r", outcome="fail", priority=3)
+        )
+        assert not verdict(blemished, perfect, TODAY).green, (
+            "a floor of 1.0 passed a population carrying a failure, so the "
+            "standard was accepted and then not applied"
         )
 
     def MQC_CMN_UNI_112059_a_stored_artifact_carrying_an_impossible_threshold_refuses(

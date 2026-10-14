@@ -1178,6 +1178,98 @@ is the thing being prevented rather than a side effect of preventing it.
 make a skip acceptable: it is a way to say a case was never this run's to
 measure. Anything that reaches execution and skips exits 3.
 
+##### The marker name lived in four places, and three mechanisms hold it to one
+
+Settled 2026-10-13. The question was whether `environment_marker` should be
+deleted or made true; `harness_open_questions.md` section 2A records that it
+was asked, and the number it carried is retired rather than reused.
+
+**The accessor claimed something an ini file cannot do.** It returns the marker
+name "so `pytest.ini` and the checks read one value", and nothing called it:
+`cmn/environments.py` used its private constant directly and each `pytest.ini`
+carried the literal. An ini file cannot call a function, so sharing was never
+available and the claim was unachievable rather than merely unenforced.
+
+**And the duplication is threefold, not twofold**, which the question
+understated. `environment` is written in `cmn/environments.py`, in this
+repository's `pytest.ini`, and in the case repository's, which registers the
+whole layer registry deliberately so the graded markers land there as cases are
+written.
+
+| Where | Why it is there | Now |
+|---|---|---|
+| `_MARKER`, read by the deselection hook | The name the hook looks for | The one value |
+| `pytest.mark.environment`, applied by `mark_environment` | The name a case carries | **Derived from `_MARKER`** |
+| `pytest.ini`, here | Registration, so applying it is not a warning | Compared |
+| `pytest.ini`, the consumer | The same registration for the cases that carry scopes | Compared |
+
+**So the answer is to compare rather than to share, and in two layers**, because
+each catches what the other cannot.
+
+**First, pytest enforces registration.** `--strict-markers` is in `addopts` in
+both repositories as of 2026-10-13, so a marker applied and not registered is a
+**collection error** rather than a `PytestUnknownMarkWarning`. That closes both
+drift directions for a marker the suite actually applies: rename the constant
+and the old name is unregistered; rename the ini entry and the applied name is.
+Both were previously a warning on a passing run, which `code-style.md` section
+7.1 already says is not a test result.
+
+**Second, a case compares the registries.** Strict markers is silent about a
+registered marker nothing applies, and four of them are: `evaluator`, `tool`,
+`sec` and `priority` are registered here and applied by the consumer, because
+this repository owns no graded case. A typo in one of those breaks the consumer
+and nothing here notices, which is `cmn_verdict_and_cli.md` section 7.1.0's
+defect exactly: a registry entry nothing reads.
+
+So `registered_markers` parses an ini's marker block and the comparison runs in
+both directions:
+
+| Asserted | Catches |
+|---|---|
+| The ini registers `environment_marker()` | A rename on either side of the scope mechanism |
+| The two repositories register the same names | A registry copied once and edited once |
+| Every name is registered with a description | An entry added as a bare word, which registers nothing useful |
+
+**`environment_marker` is kept, and now has a caller**, which is the whole of
+what was wrong with it. Deleting it was the other option and it was the weaker
+one: the accessor is not the defect, the three unchecked copies were, and
+deleting the accessor would have left them.
+
+**The cross-repository half declares the `paired` scope** and is deselected
+where the sibling checkout is absent, the same arrangement the citation check
+uses (`code-style.md` section 7.3). The harness names no consumer, so the case
+names the directory it needs rather than the repository.
+
+###### The fourth copy, and the silent failure it carried
+
+**Found 2026-10-13 by the injection verifying the case above**, which is the
+exercise working rather than the exercise failing: renaming `_MARKER` was
+expected to produce a collection error and produced an ordinary test failure
+instead, and the gap between those two answers was the defect.
+
+**The module applied one literal and read another.** `mark_environment`
+returned `pytest.mark.environment(...)` with the name written out, while the
+deselection hook looked for `_MARKER`. They agreed, so nothing showed.
+
+**Renaming the constant alone broke deselection in silence.** The marker
+`environment` was still applied and still registered, so pytest was content;
+the hook looked for a name no case carried, found none, and **every scoped
+case ran where its scope was absent**. No warning, no error, and the only
+visible symptom is a precondition failing on a runner for a reason that reads
+as unrelated, which is the failure section 7.5.1 was written to remove.
+
+**It is derived now.** `mark_environment` builds the marker from `_MARKER`, so
+the same rename makes the applied name unregistered and `--strict-markers`
+refuses collection: the loud answer the injection expected. One value, read and
+applied, which is what `environment_marker` claimed about a file it could not
+reach and was not true inside the module either.
+
+| Rename | Before | Now |
+|---|---|---|
+| `_MARKER` | Deselection stops, silently | Collection error |
+| The ini entry | Collection error | Collection error |
+| One ini only | Nothing | `112355` fails |
+
 ### 7.6 Harness failure halts execution, conditionally (A11.4)
 
 | Case | Response |
@@ -1504,6 +1596,7 @@ Families apply to graded cases only. A precondition tests the harness, which has
 | `tool_compliance` | A task declaring available tools, some required and some forbidden | The captured tool-call trace, which either contains the forbidden tool or does not | `DESIGN.md` §7.5 |
 | `source_fidelity` | One source carrying exact figures, and a question answerable from it alone | The source itself: an exact match on a stated figure, and a designed fabrication target so an absent claim is a set operation | `DESIGN.md` §7.6 |
 | `ambiguity_discrimination` | An ablation pair of requests, one genuinely ambiguous and one fully specified | **The designed answerability of the input**, which is a fact about the fixture rather than a property of the response | `DESIGN.md` §7.7 |
+| `premise_discrimination` | A resume and a position whose requirement carries a **bound**: a floor, a cap or a range, and in the negative arm one the candidate cannot satisfy or one nothing can | **The declared bound and the declared candidate figure**, so satisfaction is arithmetic over the fixture's own numbers | `DESIGN.md` §7.8 |
 
 **The middle column is the admission criterion, not a description.** The first two families were chosen because they supply ground truth for a property that would otherwise be judged: provided source material makes fabrication checkable, and a parser makes falsehood checkable. A family that can only be graded by rubric adds cases without adding confidence, because it measures a judge as much as a candidate.
 
@@ -2094,6 +2187,178 @@ file, which is the finished state rather than an empty registry nobody reads.
 support module is an interface, and `_graded` imported by another module says
 the opposite of what is true. The rename is what makes the extraction an
 interface rather than a file move.
+
+## 15. The Mutation Suite: `MUT`, Which Tests The Tests
+
+Registered 2026-10-13 at the project owner's instruction: "mutation run can be
+a test suite for the harness. To make sure harness works."
+
+### 15.1 Why a layer, and what it is for
+
+**A case that passes against correct code proves nothing on its own.**
+`testing-standards.md` already answers that per fix: inject the defect the case
+guards, confirm the case reports it, restore. That rule is right and it is
+manual, so it covers the defect somebody was already looking at and nothing
+else.
+
+**The thing it does not cover has now happened five times.** Something is
+built, nothing reads it, and a case claims the area is covered: the cascade
+marker, the retained request, the `rule_set_hash` carry guard, the
+`environment_marker` accessor, and `Thresholds` accepting a `pass_floor` of
+`-1`. Each was found by a person looking at something else.
+
+**So the injection runs in bulk.** One operator or constant in a production
+module is changed, the suite runs, and the change is **killed** if some case
+fails or a **survivor** if none does. A survivor names behaviour nothing
+asserts.
+
+**The first run found the hole one level down from the last one.** Yesterday's
+`Thresholds` validation refuses a rate outside `0 < x <= 1`, and section 8.1 of
+`cmn_verdict_and_cli.md` states that one is permitted at both ends. Narrowing
+the check to `0 < x < 1`, so a `pass_floor` of exactly `1.0` is refused,
+survived the whole suite. The design said it and nothing reached it.
+
+### 15.2 What a case asserts
+
+**One case per production module, and it asserts the survivor set is declared.**
+Not a kill rate: a percentage invites being raised by deleting an awkward
+mutation point, and it answers no question anybody has. The question is whether
+every survivor is one somebody decided to accept.
+
+```
+config/mutation_survivors.yaml       the declared survivors, with reasons
+tests/mutation/mqc_mut_<module>.py   one case per module audited
+```
+
+**A declared survivor carries a reason and an expiry**, which is the shape
+`module_runway.yaml`, `flag_coverage.yaml` and `support_extraction.yaml`
+already have, and for the reason that file states: a list with no expiry is
+where unproven things go to be forgotten. **The list shrinks and never grows.**
+
+**An undeclared survivor fails the case. A declared one that no longer
+survives fails it too**, because an entry describing a gap that has been closed
+is a claim about the suite that is no longer true.
+
+### 15.3 Equivalent mutants are a finding about the code
+
+Some changes cannot alter any observable result: a branch unreachable given the
+branches above it, a constant consumed only by a log line. Those are
+**equivalent mutants**, and a suite cannot kill them because there is nothing
+to observe.
+
+**They are recorded as findings about the production code, not the tests.** An
+unreachable branch is dead code wearing a condition, and a constant nothing
+observes is a value nothing depends on. Either is worth knowing; neither is a
+missing case. The declaration says which kind an entry is, because a reader who
+cannot tell will write a test that asserts nothing.
+
+### 15.4 The control, and why the run refuses without it
+
+**The mutator rewrites the module from its syntax tree, which strips every
+comment.** Two cases read source as text rather than importing it:
+`112502` checks the SPDX header and `112331` checks the module runway. Both
+fail on the reformatting alone, so against the full suite **every mutant would
+be killed by the comment loss** and the audit would report a perfect score
+while measuring nothing.
+
+| | |
+|---|---|
+| Deselected | `112502` and `112331`, **measured rather than guessed**: the suite was run against an unparsed module and these are what failed |
+| The control | The unparsed module, nothing changed, must pass **and must have collected cases** |
+| Without it | The run refuses and says so |
+
+**This is not a hypothetical.** The first version of the mutator passed two
+test paths as one argument, so pytest matched nothing, collected zero items and
+exited 5; exit-not-zero was read as a kill and the tool reported **ten of ten
+killed**. A verification tool needs the verification it performs, and the
+control is that.
+
+### 15.5 A killed run leaves a mutant on disk, and recovers from it
+
+**The mutator edits production code in place**, because a module has to be
+importable at the path the suite imports it from. A background run was stopped
+at its time limit part-way through `cmn/layers.py` and the restore never ran:
+the worktree was left holding a 300-line unparsed mutant of a 430-line module,
+and the suite would have reported results about that.
+
+So the original is written to a sibling `.mutation-backup` before the first
+mutation, and **a run that finds a backup already there restores from it and
+refuses to start**, naming what it did. The next run is a deliberate act by
+somebody who has seen that message, not an accident that compounds.
+
+### 15.6 Ungraded, and deliberately not blocking
+
+| Property | Value | Why |
+|---|---|---|
+| `graded` | **False** | It audits our own suite, so a failure is an instrument defect and never a model finding |
+| `distribution_exempt` | **True** | It carries no priority, so there is no budget for it to compete in |
+| `blocking` | **False** | **A survivor does not invalidate a measurement.** It says some behaviour is unasserted; the harness still ran and what it measured is still what it measured |
+| `id_block` | `160000-169999` | The sixth layer digit, per section 3.2.1 |
+
+**The blocking decision is the one worth arguing.** `UNI` and `SYS` block
+because a harness whose own tests fail produces results that are suspect. A
+surviving mutant is a different statement: it says the suite would not have
+noticed a particular change, which is a fact about coverage rather than about
+this run's output. Blocking the graded layers on it would spend provider quota
+to punish a documentation gap.
+
+**It still fails its own run.** Not blocking is not the same as not gating:
+the suite exits non-zero on an undeclared survivor, and the scheduled job that
+runs it goes red.
+
+### 15.7 It is its own job because of what it costs
+
+Measured 2026-10-13 against `cmn/verdict.py`: 88 mutation points, 1455 seconds,
+roughly 16 seconds each, because each one is a fresh pytest process over 766
+cases. A kill stops early and a survivor costs a full run.
+
+| Suite | Cost | Runs |
+|---|---|---|
+| `UNI` | 22 seconds, 768 cases | Every pull request |
+| `MUT` | Minutes per module | On the schedule, and on demand |
+
+**So it is a gate step of its own**, beside the live suite rather than inside
+Gate 2, for the same reason: a precondition that takes minutes stops being a
+precondition. `harness_ci_pipeline.md` carries the job.
+
+### 15.8 What the first pass found
+
+`cmn/verdict.py`, 88 points, 11 survivors, and the classes matter more than
+the count:
+
+| Survivors | Unasserted |
+|---|---|
+| Six `@dataclass(frozen=True)` becoming `frozen=False` | Immutability of every verdict record. **The `Thresholds` validation is only a guarantee because the record is frozen**: unfrozen, an assignment after construction skips `__post_init__` entirely |
+| `green=False` in the exit-3 precondition verdict | That a precondition failure is not green. Cases assert the exit code and none asserts `green` on that path |
+| `len(scores) < 2` and its constant | The `score_spread` boundary, which its own docstring states: none rather than zero, because one observation cannot establish agreement |
+| `not population.skippable` | Whether that branch is reachable independently of the two above it |
+| `rate is None` returning a V2 breach | A spurious rule in `breached_rules` on a run that is already red |
+
+**Seventy-eight of eighty-one production records are frozen** and the three
+that are not are accumulators by design: `DispatchSession`, `_AttemptTally` and
+`_Progress`. That makes the rule checkable rather than a matter of review, so
+it is checked as a `UNI` case and not left to this suite.
+
+**None of the eleven changed a suite rule, and the audit is not for that.**
+What a run requires of itself, the blocking bands and the lower band's floor,
+has been exercised by numerous CI runs and is settled; this layer asks whether
+a **case** would notice a change in the code it claims to cover. The one
+finding that touched the verdict's output was `green` disagreeing with an exit
+code already decided, which is a reporting defect rather than a gating one:
+the rule that produced the exit 3 was correct and remains untouched.
+`cmn_verdict_and_cli.md` section 8.1 carries the same distinction.
+
+### 15.9 Where the cases are inventoried
+
+**In `cmn_verdict_and_cli.md` section 13, not here.** Four design documents
+carry inventories, one per module, and `MQC_CMN_UNI_112303` reads exactly those
+four: a row in this document would be a row nothing checks, which is the shape
+section 15.1 exists to catch.
+
+This section designs the layer. The module's own design document inventories
+the cases, as it does for `UNI`, `SYS` and cost.
+
+---
 
 ## 14. Every Subprocess A Case Spawns Carries A Timeout
 

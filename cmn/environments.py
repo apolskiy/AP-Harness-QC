@@ -16,6 +16,7 @@ that already knew it and nothing here depends on a consumer existing.
 
 import logging
 import os
+from configparser import ConfigParser
 from pathlib import Path
 from typing import Any, Final, Optional
 
@@ -227,10 +228,57 @@ def is_precondition(nodeid: str) -> bool:
 def environment_marker() -> str:
     """Return the marker name a case declares its scope with.
 
+    **Compared against an ini rather than shared with one.** An ini file cannot
+    call a function, so `registered_markers` reads the registration and a case
+    asserts the two agree. Design: ``harness_test_taxonomy.md`` section 7.5.1.
+
     Returns:
-        str: ``environment``, so ``pytest.ini`` and the checks read one value.
+        str: ``environment``.
     """
     return _MARKER
+
+
+def registered_markers(ini_path: Path) -> dict[str, str]:
+    """Return each marker a pytest configuration registers, and its description.
+
+    **Parsed with the same parser pytest uses**, so a continuation line or a
+    comment inside the block is read the way pytest reads it rather than the
+    way a regex would guess.
+
+    Args:
+        ini_path (Path): The ``pytest.ini`` to read.
+
+    Returns:
+        dict[str, str]: Marker name to description, the description empty where
+        the entry carries none.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the file is absent or
+            registers no markers at all, either of which would make a
+            comparison against it silently vacuous.
+    """
+    if not ini_path.is_file():
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: no pytest configuration at {ini_path}"
+        )
+    parsed = ConfigParser(allow_no_value=True)
+    parsed.read_string(ini_path.read_text(encoding="utf-8"))
+    declared = parsed.get("pytest", "markers", fallback="")
+
+    registered: dict[str, str] = {}
+    for line in declared.splitlines():
+        entry = line.strip()
+        if not entry or entry.startswith("#"):
+            continue
+        name, _, description = entry.partition(":")
+        registered[name.strip()] = description.strip()
+
+    if not registered:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: {ini_path} registers no markers, so "
+            f"comparing a registry against it would assert nothing"
+        )
+    return registered
 
 
 def mark_environment(*scopes: str, sibling: str = "") -> Any:
@@ -255,4 +303,8 @@ def mark_environment(*scopes: str, sibling: str = "") -> Any:
                 f"QC_HARNESS_PARSER_ERROR: environment scope {scope!r} is not "
                 f"registered; one of {', '.join(sorted(_ENVIRONMENT_SCOPES))}"
             )
-    return pytest.mark.environment(*scopes, sibling=sibling)
+    # BUILT FROM THE NAME THE HOOK READS, not written out beside it. The
+    # two literals agreed, so renaming the constant left the marker applied
+    # and registered while the hook looked for a name no case carried, and
+    # every scoped case ran where its scope was absent. Section 7.5.1.
+    return getattr(pytest.mark, _MARKER)(*scopes, sibling=sibling)

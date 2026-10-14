@@ -204,12 +204,45 @@ def strategy_scale(strategy: str) -> str:
     return scale
 
 
+# WHICH SIDE OF THE MARK ITS OWN VALUE FALLS ON. Inclusive by default, which
+# is what every recorded judgement was produced under: 36 of 479 passed on a
+# score of exactly the mark. tier3_evaluation.md section 9.
+_EXCLUSIVE: Final[str] = "fail"
+
+
+def _clears(value: float, threshold: float, at_pass_mark: str) -> bool:
+    """Report whether a score clears the mark under the chosen boundary.
+
+    Args:
+        value (float): The aggregate score.
+        threshold (float): The rubric's pass mark.
+        at_pass_mark (str): ``pass`` for an inclusive mark, ``fail`` for an
+            exclusive one.
+
+    Returns:
+        bool: Whether the score passes.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` on any other value, so a
+            typo tightens nothing silently.
+    """
+    if at_pass_mark == "pass":
+        return value >= threshold
+    if at_pass_mark == _EXCLUSIVE:
+        return value > threshold
+    raise ValueError(
+        f"QC_HARNESS_PARSER_ERROR: at_pass_mark is {at_pass_mark!r}, which is "
+        f"neither 'pass' nor 'fail', so the boundary is undefined"
+    )
+
+
 def aggregate(
     strategy: str,
     scores: list[CriterionScore],
     *,
     threshold: Optional[float] = None,
     parameters: Optional[dict[str, Any]] = None,
+    at_pass_mark: str = "pass",
 ) -> AggregateScore:
     """Combine criterion scores through a registered strategy.
 
@@ -218,6 +251,10 @@ def aggregate(
         scores (list): The criterion scores, possibly empty after filtering.
         threshold (Optional[float]): The rubric's passing threshold.
         parameters (Optional[dict]): Strategy parameters from the rubric.
+        at_pass_mark (str): Whether a score equal to the threshold passes.
+            ``pass``, the default and the behaviour that shipped, or ``fail``
+            to make the boundary exclusive. **It can only tighten**: no value
+            admits a score the default rejects. Design section 9.
 
     Returns:
         AggregateScore: The result, carrying its scale. **An empty set yields
@@ -242,7 +279,8 @@ def aggregate(
         scale_id=scale,
         strategy=strategy,
         criterion_count=len(scores),
-        passed=None if threshold is None else value >= threshold,
+        passed=None if threshold is None else _clears(value, threshold,
+                                                      at_pass_mark),
     )
 
 

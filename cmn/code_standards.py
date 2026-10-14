@@ -521,11 +521,101 @@ def flag_coverage_problems(
     return problems
 
 
+# THE RECORDS THAT ACCUMULATE, and are therefore mutable on purpose. Three of
+# eighty-one, each one a tally a caller adds to as a run proceeds rather than a
+# value somebody computed once. Named here with a reason, which is what makes
+# the rule checkable instead of a matter of review.
+_MUTABLE_BY_DESIGN: Final[dict[str, str]] = {
+    "DispatchSession": "accumulates the outcomes a run measured, per engine",
+    "_AttemptTally": "counts attempts and failures as dispatch proceeds",
+    "_Progress": "counts cases as the evaluation pipeline advances",
+}
+
+
+def _is_dataclass_decorator(node: ast.expr) -> bool:
+    """Report whether a decorator is the ``dataclass`` decorator.
+
+    Args:
+        node (ast.expr): The decorator expression, called or bare.
+
+    Returns:
+        bool: True for ``@dataclass`` and ``@dataclass(...)`` alike.
+    """
+    named = node.func if isinstance(node, ast.Call) else node
+    return getattr(named, "attr", getattr(named, "id", "")) == "dataclass"
+
+
+def _declares_frozen(node: ast.expr) -> bool:
+    """Report whether a dataclass decorator sets ``frozen=True``.
+
+    Args:
+        node (ast.expr): The decorator expression.
+
+    Returns:
+        bool: True only for a literal ``True``. A computed value is refused,
+        because a record's immutability must be readable from the decorator.
+    """
+    if not isinstance(node, ast.Call):
+        return False
+    for keyword in node.keywords:
+        if keyword.arg == "frozen":
+            return (isinstance(keyword.value, ast.Constant)
+                    and keyword.value.value is True)
+    return False
+
+
+def unfrozen_records(root: Path) -> list[str]:
+    """Report every production dataclass that is neither frozen nor declared.
+
+    **A validated value must not be replaceable after construction.** The
+    domain check on ``Thresholds`` runs in ``__post_init__``, so an unfrozen
+    record accepts an assignment that skips it and the run is judged against a
+    standard nothing validated.
+
+    Design: ``harness_test_taxonomy.md`` section 15.8, which records the
+    mutation audit that found this.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per record, naming the file, the line and the
+        class. Empty when every record is frozen or declared an accumulator.
+    """
+    problems: list[str] = []
+    for source in python_sources(root):
+        # A DOUBLE IS NOT A PRODUCTION RECORD, and the exclusion reads the
+        # path rather than the path relative to the root: given `tests/` as a
+        # root, a relative check stops matching and the walk reaches every
+        # double underneath it.
+        if "tests" in source.parts:
+            continue
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            decorators = [entry for entry in node.decorator_list
+                          if _is_dataclass_decorator(entry)]
+            if not decorators:
+                continue
+            if any(_declares_frozen(entry) for entry in decorators):
+                continue
+            if node.name in _MUTABLE_BY_DESIGN:
+                continue
+            problems.append(
+                f"{source.relative_to(root).as_posix()}:{node.lineno} "
+                f"{node.name} is a mutable production record; freeze it, or "
+                f"declare it in _MUTABLE_BY_DESIGN with the reason it "
+                f"accumulates"
+            )
+    return problems
+
+
 # THE POSITIONAL SCHEME, as `harness_test_taxonomy.md` section 3.2.1 states it. Held
 # here rather than in the document alone, because a scheme nothing reads is the
 # state the hundred-slot partition was in when it broke in three places.
 _LAYER_DIGIT: Final[dict[str, str]] = {
-    "UNI": "1", "SYS": "2", "EVAL": "3", "TOOL": "4", "SEC": "5",
+    "UNI": "1", "SYS": "2", "EVAL": "3", "TOOL": "4", "SEC": "5", "MUT": "6",
 }
 _MODULE_DIGIT: Final[dict[str, str]] = {
     "ING": "1", "CMN": "2", "EXE": "3", "EVL": "4", "CAS": "5",

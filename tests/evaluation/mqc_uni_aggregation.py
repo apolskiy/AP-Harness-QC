@@ -27,6 +27,9 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114004  aggregation_handles_empty_after_filtering
 #   114006  every_declared_strategy_has_an_implementation
 #   114007  an_unregistered_strategy_is_rejected_by_name
+# TestMQCPassMark
+#   114010  a_score_at_the_pass_mark_exactly_passes
+#   114011  at_pass_mark_fail_rejects_a_score_on_the_mark
 # TestMQCScaleComparability
 #   114001  scores_of_differing_scale_id_are_not_combined
 #   114002  score_recorded_on_pass_as_well_as_failure
@@ -169,6 +172,104 @@ class TestMQCStrategyConformance:
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR") as caught:
             aggregate("geometric_mean", _scores(3.0))
         assert "geometric_mean" in str(caught.value)
+
+
+class TestMQCPassMark:
+    """A score at the mark, which is where a comparison drifts unnoticed."""
+
+    def MQC_EVL_UNI_114010_a_score_at_the_pass_mark_exactly_passes(self) -> None:
+        """The mark is inclusive, so a 3.0 against a 3.0 threshold passes.
+
+        **This harness was designed to pass a 3.0 judgement grade**, and
+        `tier3_evaluation.md` section 9 records that as a decision rather than
+        a default: 36 of 479 recorded judgements passed on a minimum of exactly
+        3.0 and would fail at any higher mark.
+
+        **Nothing held it until this case.** Flipping `>=` to `>` in
+        `aggregation.py` was caught by none of 772 cases, because the nearest
+        case used 3.1 and called it marginal. That is near the boundary rather
+        than at it, which `framework-rules.md` section 3.2 prohibits for
+        exactly this reason.
+
+        Returns:
+            None
+        """
+        at_the_mark = aggregate("unweighted_mean", _scores(3.0, 3.0), threshold=3.0)
+
+        assert at_the_mark.passed is True, (
+            "a score equal to the pass mark failed, so the comparison excludes "
+            "its own boundary and the mark is not the mark the design states"
+        )
+        assert at_the_mark.value == 3.0
+
+        # AND JUST BELOW IT DOES NOT, so this states an inclusive boundary
+        # rather than asserting that everything passes.
+        below = aggregate("unweighted_mean", _scores(2.9, 2.9), threshold=3.0)
+        assert below.passed is False
+
+        # THE MARK IS A PARAMETER, NOT A CONSTANT. The harness supplies the
+        # comparison and the corpus supplies the number, so a mark set above
+        # 3.0 makes the same score fail. The switch is available by design.
+        raised = aggregate("unweighted_mean", _scores(3.0, 3.0), threshold=4.0)
+        assert raised.passed is False, (
+            "the pass mark was ignored, so a corpus could not tighten its own "
+            "standard even deliberately"
+        )
+
+
+    def MQC_EVL_UNI_114011_at_pass_mark_fail_rejects_a_score_on_the_mark(
+        self,
+    ) -> None:
+        """The boundary moves without the mark moving, under `--at-pass-mark`.
+
+        **`pass` is the default and the behaviour that shipped**, so a run
+        that names nothing is judged exactly as every recorded result was.
+        `fail` makes the mark exclusive, which is the stricter reading a
+        consumer's product requirements may call for.
+
+        **It can only tighten.** A score above the mark passes under either
+        setting, so no value admits a result the default would reject. That is
+        what separates it from the configurable threshold
+        `harness_extensibility_standard.md` section 14 warns about.
+
+        Design: section 9.
+
+        Returns:
+            None
+        """
+        on_the_mark = _scores(3.0, 3.0)
+
+        assert aggregate(
+            "unweighted_mean", on_the_mark, threshold=3.0
+        ).passed is True, "the default stopped being inclusive"
+
+        assert aggregate(
+            "unweighted_mean", on_the_mark, threshold=3.0, at_pass_mark="pass"
+        ).passed is True
+
+        assert aggregate(
+            "unweighted_mean", on_the_mark, threshold=3.0, at_pass_mark="fail"
+        ).passed is False, (
+            "at_pass_mark=fail accepted a score on the mark, so the switch "
+            "the design offers does nothing"
+        )
+
+        # ABOVE THE MARK PASSES UNDER EITHER, which is what makes this a
+        # tightening switch rather than a second threshold.
+        for setting in ("pass", "fail"):
+            clear = aggregate(
+                "unweighted_mean", _scores(3.5, 3.5), threshold=3.0,
+                at_pass_mark=setting,
+            )
+            assert clear.passed is True, f"{setting} rejected a clear pass"
+
+        # AND A TYPO REFUSES, so a misspelling cannot silently leave the
+        # boundary where it was while a reader believes it moved.
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            aggregate(
+                "unweighted_mean", on_the_mark, threshold=3.0,
+                at_pass_mark="strict",
+            )
 
 
 class TestMQCScaleComparability:
