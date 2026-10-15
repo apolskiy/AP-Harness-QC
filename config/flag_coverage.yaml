@@ -71,7 +71,7 @@ flags:
   # recorded, named openai in the metadata. The harness resolver implemented
   # the documented precedence correctly and was reached with an empty first
   # term. Design `consumer_ci.md` section 4.13 and harness
-  # `tier3_evaluation.md` section 5A.3.
+  # `tier3_evaluation.md` section 5A.7.
   "--judge-engine": {owner: consumer}
   "--extra-columns": {owner: harness}
   # CLOSED 2026-10-03 by MQC_CMN_UNI_112042. The gap said nothing passed it on

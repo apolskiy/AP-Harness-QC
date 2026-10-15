@@ -166,7 +166,7 @@ class TestMQCLayerRegistration:
         Returns:
             None
         """
-        # INSIDE UNI'S BLOCK, which the six-digit scheme moved to 110000-119999.
+        # INSIDE UNI'S BLOCK, which the six-digit scheme puts at 111000-119999.
         # The old value sat inside the old UNI block and overlapped nothing
         # afterwards, so the case stopped testing what it names.
         overlapping = LayerProperties(

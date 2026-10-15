@@ -14,7 +14,7 @@ All pull requests and code additions must pass a multi-stage automated verificat
 5. **Gate 5 - Tool-Use Compliance**: Execution of `MQC_<MODULE>_TOOL_######` tests via `pytest -m tool`. Verifies the model invoked the tools it was instructed to use and avoided those it was forbidden. Tier 2 captures tool-call intent without executing it.
 6. **Gate 6 - Model Security Suite** (graded): Execution of `MQC_<MODULE>_SEC_######` tests via `pytest -m sec`. Injection resistance, prompt leakage and tool coercion. Runs as its own suite and is exempt from the priority distribution ceilings, so security coverage never competes with functional coverage for a budget.
 7. **Gate 7 - Artifact Publication**: Upload JUnit XML and Allure raw results as stably-named GitHub Actions artifacts. This is the entire integration surface. A downstream collector pulls these read-only; this repository neither writes to a consumer nor blocks on one. No bespoke telemetry file is generated. See `testing-standards.md` section 5.
-8. **Gate 8 - Mutation Audit** (ungraded, non-blocking, scheduled): Execution of `MQC_<MODULE>_MUT_######` tests via `pytest -m mutation tests/mutation`. One production operator or constant is changed at a time and the suite re-run; a change no case notices is a **survivor**, and every accepted survivor is declared in `config/mutation_survivors.yaml` with its kind, its reason and an expiry. **Not in the pull-request sequence**: it costs minutes per module, and a survivor is a statement about coverage rather than about what a run measured, so it never blocks the graded layers. It does fail its own job. `harness_test_taxonomy.md` section 15.
+8. **Gate 8 - Mutation Audit** (ungraded, non-blocking, on a harness update): Execution of `MQC_<MODULE>_MUT_######` tests via `pytest -m mutation tests/mutation`. One production operator or constant is changed at a time and the suite re-run; a change no case notices is a **survivor**, and every accepted survivor is declared in `config/mutation_survivors.yaml` with its kind, its reason and an expiry. **Not in the pull-request sequence**: it runs in `audit-mutation-on-change.yml` on a push to `main` changing the harness, because it costs minutes per module, and a survivor is a statement about coverage rather than about what a run measured, so it never blocks the graded layers. It does fail its own job. `harness_test_taxonomy.md` section 15.
 
 ## 2. Module Separation Rules
 
@@ -60,6 +60,7 @@ Four modules. Each exposes a stable interface; crossing a boundary means satisfy
 | `EVAL` | `evaluator` | Yes | Priority gate and the 90% pass floor |
 | `TOOL` | `tool` | Yes | As above |
 | `SEC` | `sec` | Yes | Own suite, exempt from distribution ceilings |
+| `MUT` | `mutation` | No, an audit of the suite | Every survivor declared; never blocks, and fails its own job (Gate 8) |
 
 Preconditions test **the harness**; a failure there is **not a model
 finding**. Graded layers test **the model**; a failure there is a finding about

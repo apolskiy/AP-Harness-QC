@@ -36,18 +36,23 @@ _ENCODING: Final[str] = "utf-8"
 # whitespace straight after the number misses every top-level section and
 # reports each citation of one as dangling. The first draft did exactly that:
 # 91 of 97 reports were false, which would have buried the 6 real ones.
+#
+# EVERY SEGMENT MAY CARRY A LETTER, since 2026-10-15. `5A.3` was read as `5A`
+# followed by text, so it was no section at all: two such headings in one
+# document went unreported and a citation of one resolved to its parent.
+_SEGMENTS: Final[str] = r"\d+[A-Z]?(?:\.\d+[A-Z]?)*"
 _HEADING: Final[re.Pattern] = re.compile(
-    r"^#{1,6}\s+(\d+(?:\.\d+)*[A-Z]?)\.?\s", re.MULTILINE
+    rf"^#{{1,6}}\s+({_SEGMENTS})\.?\s", re.MULTILINE
 )
 
 # A CITATION. A markdown document's name, optionally in backticks, then
 # `section` or `sections`, then one or more numbers joined by `and` or a comma.
 _CITATION: Final[re.Pattern] = re.compile(
     r"`?([A-Za-z0-9_\-]+\.md)`?\s+sections?\s+"
-    r"(\d+(?:\.\d+)*[A-Z]?(?:\s*(?:,|and)\s*\d+(?:\.\d+)*[A-Z]?)*)"
+    rf"({_SEGMENTS}(?:\s*(?:,|and)\s*{_SEGMENTS})*)"
 )
 
-_NUMBER: Final[re.Pattern] = re.compile(r"\d+(?:\.\d+)*[A-Z]?")
+_NUMBER: Final[re.Pattern] = re.compile(_SEGMENTS)
 
 # RECORDS OF WHAT WAS TRUE WHEN WRITTEN. A progress log cites the sections that
 # existed then, and rewriting it to agree with a later correction is the one

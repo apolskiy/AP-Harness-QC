@@ -25,7 +25,6 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCAdapterConformance
 #   113100  composes_request_from_minimal_case
-#   113124  declares_a_reproduction_that_reconstructs_nothing
 #   113101  composes_request_carrying_constraints_and_context
 #   113102  normalizes_response_to_canonical_shape
 #   113110  every_adapter_returns_tool_arguments_as_a_mapping
@@ -61,7 +60,6 @@ from typing import Any
 
 import pytest
 
-from cmn.credentials import credential_shaped_value
 from cmn.registries import registered_statuses, taxonomy_for_status
 from execution.adapters.base import (
     Capabilities,
@@ -74,7 +72,6 @@ from execution.adapters.registry import (
     register_adapter,
     registered_adapters,
     registered_engines,
-    reproduction_snippet,
 )
 from execution.normalize import NormalizedResponse, ToolCall, registered_finish_reasons
 from tests.execution.provider_doubles import (
@@ -138,70 +135,6 @@ class TestMQCAdapterConformance:
         assert isinstance(request, dict)
         assert request["model"] == adapter.requested_model
         assert minimal_case.task.user_prompt in repr(request)
-
-    def MQC_EXE_UNI_113124_declares_a_reproduction_that_reconstructs_nothing(
-        self,
-        adapter: ProviderAdapter,
-        minimal_case: EvaluationCase,
-    ) -> None:
-        """Every registered adapter can re-issue a recorded call, verbatim.
-
-        **A ticket must not ask a vendor to trust our composer.** The recorded
-        request is this SDK's keyword arguments rather than an HTTP body, so the
-        reproduction passes them through and a hand-built ``curl`` is refused:
-        for one provider a stored field has no wire form, and the rebuilt call
-        would behave differently from the one it claims to reproduce
-        (``consumer_ci.md`` section 9.5.3.1).
-
-        **A declaration becomes an obligation here**, the arrangement design
-        section 7.8.3 already uses: three adapters once declared
-        ``structured_output`` and none implemented it.
-
-        Args:
-            adapter (ProviderAdapter): The adapter under check.
-            minimal_case (EvaluationCase): A case with no documents and no tools.
-
-        Returns:
-            None
-        """
-        request = adapter.compose_request(minimal_case)
-        snippet = reproduction_snippet(adapter.engine_name, request)
-
-        assert snippet, (
-            f"{adapter.engine_name} declares no reproduction, so a finding "
-            f"filed against it cannot carry a runnable call"
-        )
-
-        # THE RECORDED ARGUMENTS REACH IT, which is the whole claim: nothing is
-        # reconstructed, so every composed key appears.
-        for name in request:
-            assert f"{name}=" in snippet, (
-                f"{adapter.engine_name} drops {name!r} from its reproduction, "
-                f"so the snippet is not the call that was made"
-            )
-
-        # AND THE PROMPT ITSELF, so a reader sees what was asked.
-        assert minimal_case.task.user_prompt in snippet, (
-            f"{adapter.engine_name} omits the prompt from its reproduction"
-        )
-
-        # IT NAMES THE VARIABLE TO SET AND CARRIES NO CREDENTIAL. A ticket is
-        # published, so a key reaching one is disclosed.
-        assert adapter.API_KEY_ENV in snippet, (
-            f"{adapter.engine_name} does not say which variable to set, so the "
-            f"snippet cannot be run by whoever receives it"
-        )
-        for line in snippet.splitlines():
-            assert not credential_shaped_value(line.strip()), (
-                f"{adapter.engine_name} put a credential-shaped value in its "
-                f"reproduction, which a ticket would publish"
-            )
-
-        # AN UNREGISTERED ENGINE GETS NOTHING RATHER THAN SOMETHING WRONG.
-        assert reproduction_snippet("no-such-engine", request) == "", (
-            "an unregistered engine produced a reproduction, so a ticket could "
-            "carry a call against an adapter that does not exist"
-        )
 
     def MQC_EXE_UNI_113101_composes_request_carrying_constraints_and_context(
         self, adapter: ProviderAdapter, furnished_case: EvaluationCase

@@ -65,6 +65,10 @@ _ERROR_CLASSES: Final[tuple[tuple[type, str], ...]] = (
     (openai.APIConnectionError, "QC_HARNESS_ENGINE_UNREACHABLE"),
 )
 
+# WHERE THE SDK SENDS A REQUEST WHEN NO BASE URL IS GIVEN. Only a `curl`
+# reproduction reads it: the SDK applies it itself on every real call.
+_SDK_DEFAULT_BASE_URL: Final[str] = "https://api.openai.com/v1"
+
 # This provider's finish reasons, mapped into the canonical vocabulary. The
 # superseded spelling is kept alongside the current one because an older
 # deployment still emits it, and dropping it would record a successful tool call
@@ -113,15 +117,32 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
         constants on two adapters was the duplication this replaces.
 
         Returns:
-            tuple[str, ...]: The import and the construction, carrying the base
-            URL where the engine declares one.
+            tuple[str, ...]: The import and the construction. Where the engine
+            declares a base URL the client takes it and the engine's variable by
+            name, because the OpenAI client reads ``OPENAI_API_KEY`` alone
+            (``consumer_ci.md`` section 9.5.3.1).
         """
-        constructed = (
-            f'client = openai.OpenAI(base_url="{cls.BASE_URL}")'
-            if getattr(cls, "BASE_URL", "")
-            else "client = openai.OpenAI()"
+        if not getattr(cls, "BASE_URL", ""):
+            return ("import openai", f"client = openai.OpenAI()  # reads {cls.API_KEY_ENV}")
+        return (
+            "import os",
+            "import openai",
+            f'client = openai.OpenAI(base_url="{cls.BASE_URL}", '
+            f'api_key=os.environ["{cls.API_KEY_ENV}"])',
         )
-        return ("import openai", f"{constructed}  # reads {cls.API_KEY_ENV}")
+
+    @classmethod
+    def reproduction_endpoint(cls) -> str:
+        """Return the chat completions endpoint this engine's requests go to.
+
+        **The recorded request is this protocol's wire body**, so it can be
+        posted unchanged. The base URL is the engine's own, or the SDK's
+        default where it declares none.
+
+        Returns:
+            str: The full endpoint URL.
+        """
+        return f"{cls.BASE_URL or _SDK_DEFAULT_BASE_URL}/chat/completions"
 
     def client_options(self) -> dict[str, Any]:
         """Return the constructor arguments this engine's client needs.

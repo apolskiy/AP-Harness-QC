@@ -4,7 +4,7 @@ SPDX-License-Identifier: Apache-2.0
 -->
 # AP-Harness-QC: Design Overview
 
-> **Status:** current as of 2026-09-28. **Phase 3: the harness is implemented across all four modules and seven CI workflows, the graded model evaluations are written, and the security family is recorded and passing against a paid tier.** What remains unrecorded is the `EVAL` and `TOOL` corpus, which section 7.8 carries as a known gap. The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_112303`, `112305` and `112306` rather than by intention.
+> **Status:** current as of 2026-10-15. **Phase 3: the harness is implemented across all four modules and eight CI workflows, the graded model evaluations are written, and every graded case is recorded live against all four engines.** The 3-phase workflow in `.claude/skills/skill-rules.md` forbade code before a closed Phase 0 register and an approved Phase 2 design, and that order is now enforced mechanically by `MQC_CMN_UNI_112303`, `112305` and `112306` rather than by intention.
 >
 > **Purpose:** the referential basis for every other design document. It states what the system is, which document holds which decision, and where the boundaries between them fall. It does not restate their contents.
 
@@ -227,11 +227,11 @@ Read these before any other document; the rest assume them.
 
 | Document | Covers | Status |
 |---|---|---|
-| `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 93 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 288 cases | **Implemented** |
-| `docs/design/harness_ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
-| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 122 cases | **Implemented** |
-| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 113 cases | **Implemented** |
+| `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 94 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 309 cases | **Implemented** |
+| `docs/design/harness_ci_pipeline.md` | The eight workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
+| `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 126 cases | **Implemented** |
+| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 114 cases | **Implemented** |
 
 `harness_ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.
 
@@ -434,42 +434,32 @@ These appear independently in several documents. Named here so the repetition re
 
 ## 7. Current State
 
-**Measured 2026-09-28, not recalled.** Every number below was counted from a
-collection run rather than remembered, which is the correction this table
-needed: it previously read "Implementation code: None" while 584 harness cases
-passed against it, and **understating what exists misleads a reader exactly as
-much as overstating it**.
+**Measured 2026-10-15, not recalled.** Every number below was counted from a
+collection run or a register rather than remembered, which is the correction
+this table needed: it once read "Implementation code: None" while 584 harness
+cases passed against it, and **understating what exists misleads a reader
+exactly as much as overstating it**.
 
 | | |
 |---|---|
 | Phase 0 | Closed. No open items |
 | Phase 1 | Complete for every tier |
 | Phase 2 | **Complete.** Four module designs, two test plans and two matrices |
-| Phase 3 | **Underway.** The design is implemented, the corpus is authored, and **every graded family is recorded against `gemini-3.8-flash`**. `openai` and `claude` are unrecorded, so nothing here says anything about them: an empty log is an absence of measurement rather than of defects |
-| Implementation code | 47 modules, roughly 16,200 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
-| Harness cases | **639**: 616 precondition (`UNI`) and 23 system (`SYS`), across `ING`, `EXE`, `EVL` and `CMN` |
-| Case-repository preconditions | **58** (`CAS_UNI`), guarding the corpus, the excerpts, the pin and how the harness is located |
-| Model evaluation cases | **69, inventory and suite agreeing**: 40 `EVAL`, 8 `TOOL`, 21 `SEC` |
-| Requirements traced | 225 harness, 90 model, both directions checked by `MQC_CMN_UNI_112313`. **These two figures are checked by nothing** and had drifted by eight and six when read on 2026-10-02. `112323` checks the README's equivalent figures and `112314` the per-design case counts, so what is uncovered is this summary table rather than the counts themselves. Recorded as a known gap, expiring 2026-10-31 |
-| Recorded fixtures | **815 candidate responses and 420 judgements** across four engines, three observations per case per A4.1 and five where one disagreement escalated. **The figure read 195 and 108 until 2026-10-05**, from when one engine was partly recorded: it is stated here and checked nowhere, which is why it drifted. The corpus replays offline with no credential, which is what makes a graded gate free |
-| Graded result | **2 findings about `gemini-3.8-flash`**, reproducing identically on both platforms: a sourced figure overstated on instruction conflict, 3 of 3; and a silent-zero defect identified in 1 of 3. Triaged from eight failures, the other six being defects in the suite itself |
+| Phase 3 | **Underway.** The design is implemented, the corpus is authored, and **every graded case is recorded live against all four engines**: gemini, openai, claude and grok, re-recorded on 2026-10-15 |
+| Implementation code | 67 modules, roughly 23,700 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
+| Harness cases | **643**: 613 precondition (`UNI`), 24 system (`SYS`) and 6 mutation audits (`MUT`), across `ING`, `EXE`, `EVL` and `CMN`. 840 executions with their parameters, all passing |
+| Case-repository preconditions | **130** (`CAS_UNI`), guarding the corpus, the excerpts, the pin, the findings registers and the ticket pages |
+| Model evaluation cases | **74, inventory and suite agreeing**: 45 `EVAL`, 8 `TOOL`, 21 `SEC` |
+| Requirements traced | 314 harness, 145 model, both directions checked by `MQC_CMN_UNI_112313`, and each requirement read the same in its plan and its matrix by `112382`. **These two figures are checked by nothing here**; `112323` checks the README's equivalents |
+| Recorded fixtures | **948 candidate responses and 544 judgements** across four engines, three observations per case per A4.1 and five where one disagreement escalated. Stated here and checked nowhere; the case repository's README carries the checked copy |
+| Graded result | **11 open findings**: openai 7, claude 3, grok 1, gemini 0. Ten reproduced on the latest run; one awaits measurement behind a failed foundation. The case repository's `config/findings/` holds each, and `reports/tickets/` the page it is filed from |
 | Consumer gate topology | **One job per priority band per platform**, so a red names its own remedy. `AP-Model-QC` `consumer_ci.md` section 3.12 |
 
-**What is not done.** Recording. A4.1 raised the corpus from 54 responses to
-162, of which 8 exist, and those 8 are the first of three samples each rather
-than complete cases. **They are incomplete, not wrong**: a fixture recorded
-before the decision is still a valid observation zero. The corpus is authored and the pipeline is verified against it in
-replay; **what remains is spending the quota to record what the models
-actually say.**
-
-**The 66 and the suite now agree**, the twelve unwritten security cases having
-been written on 2026-09-26.
-
-**The reverse check is still absent and still matters.** `MQC_CMN_UNI_112303`
-checks that every collected case has an inventory row; nothing checks that every
-inventory row has a case, which is why twelve designed cases, nine of them P0,
-reported nothing at all for as long as they did. Section 7.4 keeps it on the
-record: closing one instance is not the same as closing the class.
+**Both directions are checked.** `MQC_CMN_UNI_112303` checks that every
+collected case has an inventory row, and `112325` that every inventory row names
+a case some repository implements, with `MQC_CAS_UNI_115405` doing the same for
+the case repository. The second was absent while twelve designed cases, nine of
+them P0, reported nothing at all; section 7.4 keeps that on the record.
 
 **Scope is organised by family.** A family is a task type with its own input shape and its own source of ground truth, registered in `harness_test_taxonomy.md` §11 and carried on every graded result. Three are registered for v1, below. The set is expected to grow, and §11.2 states the four steps that admit a new one.
 
@@ -1032,12 +1022,22 @@ that the assertion and the rubric had stopped describing the same behaviour:
 the rubric calls "does not fall within the required range" an acceptable
 answer and the assertion refused it.
 
-**So what is asserted is what the fixture declares.** The bound is 5 and 9 and
-the candidate's figure is 15, so the assertion is that the response names
-them; `requirement_match` has always done it this way, asserting 78, 85 and
-100 rather than the words around them. **Whether naming them amounts to
-reporting the breach is a reading of prose, and the rubric is the only
-instrument here that reads.**
+**So what was asserted next was what the fixture declares.** The bound is 5
+and 9 and the candidate's figure is 15, so the assertion was that the response
+names them, the way `requirement_match` asserts 78, 85 and 100 rather than the
+words around them. **Whether naming them amounts to reporting the breach is a
+reading of prose, and the rubric is the only instrument here that reads.**
+
+**The figure checks went too, on 2026-10-15.** The rubric's own level 3
+exemplar, "does not fall within the required range, so this is not a match",
+reports the no match correctly and names neither figure, and both checks
+refused it. Naming the figures is how a good answer explains itself, which is
+the rubric's to grade. The project owner's rule, `AP-Model-QC`
+`model_evaluation_test_plan.md` section 8.9.1: **a check gates the behaviour a
+case is named for, and the rubric grades the explanation.** What still gates
+here is the restated floor, a true sentence that manufactures a match, which is
+the behaviour this family exists for. `requirement_match`'s percentages stay
+asserted because there the figure is the answer, not the explanation of one.
 
 **This is the `QC_LLM_*` boundary, not a style preference.** An assertion
 failure is a finding about a model. A vocabulary assertion produces findings
@@ -1123,12 +1123,12 @@ the record rather than a silence. These were silent.
 | Gap | Size | Why it was invisible |
 |---|---|---|
 | ~~Security cases `154109` to `154302` designed and unwritten~~ | **Closed 2026-09-26** | Twelve corpus pairs and twelve cases written. Writing them found that two attack families had no vector at all (`tier1_ingestion.md` section 7.3) |
-| No recorded response for any `EVAL` or `TOOL` case | 48 cases | Expected, and now the only recording gap: the `SEC` family was completed 2026-09-28 at a measured cost of six cents. These two spend judge quota as well as candidate quota, which is the difference |
+| ~~No recorded response for any `EVAL` or `TOOL` case~~ | **Closed 2026-10-05** | All four engines recorded, `gemini` and `openai` first and `claude` and `grok` on 2026-10-04 and 2026-10-05. `AP-Model-QC` `CLAUDE_LOG.md` carries each recording |
 | ~~Repeat observations are never dispatched~~ | **Closed 2026-09-25** | A4.1 decided three; every graded case now observes three times and the consistency check reads the result |
 
-**Only the middle row is still open**, and it is open by plan rather than by
-oversight: recording an `EVAL` or `TOOL` response costs quota, and the evaluator
-family spends it on the judge as well as the candidate.
+**All three rows are closed.** The middle one was open by plan rather than by
+oversight while recording cost quota nobody had approved; it closed once the
+spend was, and the measured cost was cents per engine.
 
 **What the security recording established, which the estimate could not.**
 Thinking runs at **six to seven times** the visible output on this model and

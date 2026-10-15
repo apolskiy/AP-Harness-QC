@@ -309,11 +309,10 @@ class ConfiguredAdapter(ProviderAdapter):
     DEFAULT_MODEL: str = ""
 
     # HOW A RECORDED CALL IS RE-ISSUED. Declared rather than derived, because
-    # the stored request is this SDK's keyword arguments and not an HTTP body:
-    # `curl` would mean reconstructing each provider's wire format, and for one
-    # provider a stored field has no wire form at all, so the reconstruction
-    # would run with different behaviour than the call it claims to reproduce
-    # (`consumer_ci.md` section 9.5.3).
+    # the stored request is this SDK's keyword arguments and not always an HTTP
+    # body: for one provider a stored field has no wire form at all. Only an
+    # adapter whose recording is the wire body declares an endpoint, and only
+    # that one gets a `curl` (`consumer_ci.md` section 9.5.3.1).
     #
     # EMPTY BY DEFAULT, so an adapter that declares nothing produces no
     # reproduction rather than a wrong one.
@@ -335,6 +334,20 @@ class ConfiguredAdapter(ProviderAdapter):
             Empty where the adapter declares no reproduction.
         """
         return ()
+
+    @classmethod
+    def reproduction_endpoint(cls) -> str:
+        """Return the URL a recorded request is posted to unchanged, if any.
+
+        Declared only where the recorded request is the wire body, so a
+        ``curl`` posting it re-issues the call exactly (``consumer_ci.md``
+        section 9.5.3.1).
+
+        Returns:
+            str: The endpoint, or an empty string where the recording is not
+            the wire body and no ``curl`` is offered.
+        """
+        return ""
 
     def __init__(self, model: Optional[str] = None) -> None:
         """Record which model this adapter requests.

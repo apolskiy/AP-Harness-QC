@@ -31,6 +31,7 @@ marker, per ``framework-rules.md`` section 3.3.
 #
 # TestMQCRefusedRequest
 #   113125  a_refused_request_ends_the_case_not_the_run
+#   113128  refusals_in_a_run_that_answered_do_not_trip_the_breaker
 # ------------------------------------------------------------ end of cases
 
 from dataclasses import replace
@@ -161,3 +162,40 @@ class TestMQCRefusedRequest:
         assert code_criticality("QC_LLM_OVER_REFUSAL") < code_criticality(
             "QC_LLM_INCONSISTENT"
         ), "an over-refusal ranks no higher than disagreeing with itself"
+
+    def MQC_EXE_UNI_113128_refusals_in_a_run_that_answered_do_not_trip_the_breaker(
+        self,
+    ) -> None:
+        """Once the run has measured an outcome, a refusal resets the streak.
+
+        Five observations of one refused case, in a run that had answered other
+        requests, tripped the breaker and errored the case. A refusal in a run
+        that has measured nothing still counts, which ``113125`` asserts.
+
+        Design: ``tier2_execution.md`` section 8.6.7.
+
+        Returns:
+            None
+        """
+        refused = DispatchOutcome(
+            case_id="MQC_TASK_a::MQC_RULE_a", engine="grok", mode="live",
+            duration_ms=1, duration_kind="measured", attempts=1,
+            rate_limit_encounters=0, response=None,
+            taxonomy_code="QC_HARNESS_REQUEST_REFUSED",
+        )
+        session = DispatchSession(breaker_threshold=3)
+        session.measured_outcomes = 122
+        # BOTH ATTRIBUTIONS, because the breaker sees the code after
+        # `attributed_refusal`: a benign task's refusal arrives as the model's.
+        for code in ("QC_LLM_OVER_REFUSAL",) * 5 + ("QC_HARNESS_REQUEST_REFUSED",) * 5:
+            session.note_outcome(replace(refused, taxonomy_code=code))
+        assert session.consecutive_failures == 0, (
+            f"{session.consecutive_failures} refusals counted toward the breaker in a "
+            f"run that had answered, so one refused case ends the run"
+        )
+
+        # A TRANSPORT FAILURE STILL COUNTS, answered run or not.
+        for _ in range(2):
+            session.note_outcome(replace(refused, taxonomy_code="QC_HARNESS_PROVIDER_UNAVAILABLE"))
+        with pytest.raises(CircuitBreakerTripped):
+            session.note_outcome(replace(refused, taxonomy_code="QC_HARNESS_PROVIDER_UNAVAILABLE"))

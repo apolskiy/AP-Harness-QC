@@ -62,7 +62,9 @@ _QUARANTINE_SKIP: Final[str] = "QC_HARNESS_QUARANTINED"
 # catch-all: unrecognised and named is informative, unrecognised and grouped is
 # how the vague phrase happened.
 _SKIP_CAUSES: Final[dict[str, str]] = {
-    "QC_HARNESS_DEPENDENCY_UNMET": "blocked by a failure in a higher priority band",
+    "QC_HARNESS_DEPENDENCY_UNMET": (
+        "blocked by a prerequisite at the same or a higher priority that did not hold"
+    ),
     "QC_HARNESS_QUARANTINED": "a known failure in quarantine, not dispatched",
     "QC_HARNESS_FIXTURE_MISSING": "no recorded response for this engine",
     "QC_HARNESS_FIXTURE_STALE": "the recorded response no longer answers this request",

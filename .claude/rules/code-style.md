@@ -262,7 +262,7 @@ drift a single registry exists to prevent, applied to output.
 | Why the rule is drawn where it is, what was rejected | The design document |
 
 **The exception is a failure and a debug line.** Where the line explains a
-failure, the why is the point: "4 skipped behind a higher band failure" names
+failure, the why is the point: "4 skipped behind a prerequisite that did not hold" names
 the cause because the cause decides the remedy. Debug output is for a reader
 who has already asked why.
 
@@ -279,14 +279,14 @@ code segment to open. Specified in `harness_test_taxonomy.md` section 8.3.1.
 its cause:
 
 ```
-Band P0: 15 total, 12 executed, 9 passed, 3 failed, 3 skipped behind a higher band failure
+Band P0: 15 total, 12 executed, 9 passed, 3 failed, 3 skipped behind a prerequisite that did not hold
 ```
 
 **"Not measured" is not a state.** A case that did not run was skipped, and
 naming it anything else leaves a reader with no outcome to act on.
 
 **A skip names its kind, because the kinds take different remedies.** Three
-exist: behind a higher band failure, as a known failure in quarantine, and for
+exist: behind a prerequisite that did not hold, as a known failure in quarantine, and for
 a reason of ours. Collapsing two of them into one phrase is the same defect as
 "not measured" at a smaller scale: the count stays right and the reader acts on
 the wrong thing.

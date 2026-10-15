@@ -697,3 +697,75 @@ def cases_for_index_values(
             f"report green"
         )
     return found
+
+
+# THE TABLES THAT STATE A REQUIREMENT, named by the title of their second
+# column. A plan also lists identifiers in coverage tables whose second column
+# is a dimension, and those are not statements (`cmn_verdict_and_cli.md`
+# section 10.17.1).
+_STATEMENT_COLUMNS: Final[frozenset[str]] = frozenset({"Requirement", "States", "Statement"})
+
+
+def _cells(line: str) -> list[str]:
+    """Return a Markdown table row's cells, stripped.
+
+    Args:
+        line (str): The row.
+
+    Returns:
+        list[str]: Its cells.
+    """
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def planned_statements(plan: Path) -> dict[str, str]:
+    """Return each requirement's statement as a test plan's statement tables give it.
+
+    Args:
+        plan (Path): The test plan.
+
+    Returns:
+        dict[str, str]: Requirement identifier to statement, backticks removed.
+        The first statement table to state an identifier wins.
+    """
+    stated: dict[str, str] = {}
+    header: list[str] = []
+    for line in plan.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("|"):
+            header = []
+            continue
+        if not header:
+            header = _cells(line)
+            continue
+        cells = _cells(line)
+        if len(header) < 2 or header[1] not in _STATEMENT_COLUMNS or len(cells) < 2:
+            continue
+        identifier = cells[0].replace("`", "")
+        if identifier.startswith("MQC_REQ_"):
+            stated.setdefault(identifier, cells[1].replace("`", "").strip())
+    return stated
+
+
+def statement_problems(plan: Path, matrix: Path) -> list[str]:
+    """Report every requirement whose statement differs between plan and matrix.
+
+    Args:
+        plan (Path): The test plan.
+        matrix (Path): The requirements traceability matrix.
+
+    Returns:
+        list[str]: One entry per requirement both state differently, naming
+        both texts. Empty when they agree.
+    """
+    stated = planned_statements(plan)
+    with open(matrix, encoding="utf-8", newline="") as handle:
+        traced = {
+            row["requirement_id"]: row["requirement_text"].replace("`", "").strip()
+            for row in csv.DictReader(handle)
+        }
+    return [
+        f"{identifier}: the plan states {stated[identifier]!r} and the matrix "
+        f"{traced[identifier]!r}"
+        for identifier in sorted(set(stated) & set(traced))
+        if stated[identifier] != traced[identifier]
+    ]

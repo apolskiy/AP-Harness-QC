@@ -27,12 +27,16 @@ left unparsed passes the control gate trivially, since unparsing is idempotent
 
 import argparse
 import ast
+import ctypes
 import hashlib
+import json
 import logging
+import os
 import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final, Optional
 
@@ -76,6 +80,17 @@ _NOTHING_COLLECTED: Final[int] = 5
 # WHERE THE REAL FILE WAITS while a mutant is in place. A kill between the write
 # and the restore leaves the mutant on disk and only this says what was there.
 _BACKUP_SUFFIX: Final[str] = ".mutation-backup"
+
+# WHO HOLDS A MODULE NOW, beside the backup, which says only that someone did.
+# Section 15.11.
+_LOCK_SUFFIX: Final[str] = ".mutation-lock"
+
+# WINDOWS PROCESS QUERY, used because the POSIX liveness signal terminates a
+# process there. The access right, the error for a process we may not open,
+# and the exit code a running process reports.
+_QUERY_LIMITED_INFORMATION: Final[int] = 0x1000
+_ACCESS_DENIED: Final[int] = 5
+_STILL_ACTIVE: Final[int] = 259
 
 # WHERE THE BASELINE IS DECLARED. Read from the root rather than passed, for
 # the same reason the backup suffix is a constant: it is a property of the
@@ -261,6 +276,107 @@ def recover(module: Path) -> Optional[str]:
     )
 
 
+def process_alive(pid: int) -> bool:
+    """Report whether a process is running, without signalling it.
+
+    Args:
+        pid (int): The process identifier.
+
+    Returns:
+        bool: True when the process exists. **On Windows the process is opened
+        for a query and its exit code read**, because there the POSIX liveness
+        signal terminates the process it names (section 15.11).
+    """
+    if pid <= 0:
+        return False
+    if sys.platform == "win32":
+        return _windows_process_alive(pid)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _windows_process_alive(pid: int) -> bool:
+    """Report whether a Windows process is running, by querying its exit code.
+
+    Args:
+        pid (int): The process identifier.
+
+    Returns:
+        bool: True when the process exists. A process that may not be opened
+        exists; one that cannot be found has exited.
+    """
+    kernel = getattr(ctypes, "WinDLL")("kernel32", use_last_error=True)
+    # A HANDLE IS POINTER-WIDE, and ctypes returns a C int unless told
+    # otherwise, which truncates it on a 64-bit process.
+    kernel.OpenProcess.restype = ctypes.c_void_p
+    kernel.OpenProcess.argtypes = (ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong)
+    kernel.GetExitCodeProcess.argtypes = (ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong))
+    kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
+    handle = kernel.OpenProcess(_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return ctypes.get_last_error() == _ACCESS_DENIED
+    try:
+        code = ctypes.c_ulong()
+        if not kernel.GetExitCodeProcess(handle, ctypes.byref(code)):
+            return True
+        return code.value == _STILL_ACTIVE
+    finally:
+        kernel.CloseHandle(handle)
+
+
+def acquire_lock(module: Path) -> None:
+    """Hold a module for this audit, refusing one a running audit holds.
+
+    Args:
+        module (Path): The module about to be mutated.
+
+    Returns:
+        None
+
+    Raises:
+        MutationRefusal: With ``QC_HARNESS_AUDIT_REFUSED`` when the lock names a
+            process that is still running. A lock naming one that has exited
+            is cleared and logged, and the backup then decides as it always did.
+    """
+    lock = module.with_suffix(module.suffix + _LOCK_SUFFIX)
+    if lock.is_file():
+        try:
+            held = json.loads(lock.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            held = {}
+        pid = int(held.get("pid") or 0)
+        if process_alive(pid):
+            raise MutationRefusal(
+                f"QC_HARNESS_AUDIT_REFUSED: an audit by process {pid}, started "
+                f"{held.get('started', 'at an unrecorded time')}, holds {module.name}"
+            )
+        logger.warning(
+            "Cleared the lock on %s left by process %d, which has exited", module.name, pid
+        )
+    lock.write_text(
+        json.dumps({"pid": os.getpid(),
+                    "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}),
+        encoding="utf-8", newline="\n",
+    )
+
+
+def release_lock(module: Path) -> None:
+    """Release this audit's hold on a module.
+
+    Args:
+        module (Path): The module the audit held.
+
+    Returns:
+        None
+    """
+    module.with_suffix(module.suffix + _LOCK_SUFFIX).unlink(missing_ok=True)
+
+
 def run_targets(
     root: Path, targets: list[str], *, stop_early: bool
 ) -> subprocess.CompletedProcess:
@@ -282,6 +398,9 @@ def run_targets(
     return subprocess.run(
         command, cwd=root, capture_output=True, text=True, check=False,
         timeout=_RUN_TIMEOUT_SEC,
+        # NO INHERITED INPUT. A background session has none to duplicate,
+        # and the run failed to start there (section 15.5.1).
+        stdin=subprocess.DEVNULL,
     )
 
 
@@ -347,6 +466,32 @@ def survivors(
             collected nothing part-way through. **A refusal is a skip**, per
             section 15.2.1: none of those says anything about the survivors.
     """
+    # THE LOCK COMES FIRST, before even the recovery, because a live audit's
+    # backup is indistinguishable from a dead one's (section 15.11).
+    acquire_lock(module)
+    try:
+        return _survivors_held(root, module, targets, limit=limit)
+    finally:
+        release_lock(module)
+
+
+def _survivors_held(
+    root: Path, module: Path, targets: list[str], *, limit: int = 0
+) -> list[MutationPoint]:
+    """Return every change the suite failed to notice, the lock already held.
+
+    Args:
+        root (Path): The repository root.
+        module (Path): The production module to mutate.
+        targets (list[str]): The pytest arguments naming what to run.
+        limit (int): Stop after this many points, or zero for all of them.
+
+    Returns:
+        list[MutationPoint]: The survivors, in walk order.
+
+    Raises:
+        MutationRefusal: As :func:`survivors` describes.
+    """
     recovered = recover(module)
     if recovered is not None:
         raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {recovered}")
@@ -367,13 +512,7 @@ def survivors(
     backup = module.with_suffix(module.suffix + _BACKUP_SUFFIX)
     backup.write_text(original, encoding="utf-8", newline="\n")
 
-    try:
-        refusal = control_problem(root, module, targets, original)
-    finally:
-        module.write_text(original, encoding="utf-8", newline="\n")
-    if refusal is not None:
-        backup.unlink(missing_ok=True)
-        raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {refusal}")
+    _run_control(root, module, targets, original)
 
     points = mutation_points(original)
     if limit:
@@ -406,6 +545,38 @@ def survivors(
         module.write_text(original, encoding="utf-8", newline="\n")
         backup.unlink(missing_ok=True)
     return survived
+
+
+def _run_control(root: Path, module: Path, targets: list[str], original: str) -> None:
+    """Run the control with the module's backup on disk, and restore after it.
+
+    Args:
+        root (Path): The repository root.
+        module (Path): The module under audit, whose backup already exists.
+        targets (list[str]): The pytest arguments.
+        original (str): The baseline the restore writes.
+
+    Returns:
+        None. The backup stays for the mutations when the control passed, and
+        is removed when it refused or raised, once the restore has written
+        (``harness_test_taxonomy.md`` section 15.5.1).
+
+    Raises:
+        MutationRefusal: With ``QC_HARNESS_AUDIT_REFUSED`` when the control
+            did not pass.
+    """
+    backup = module.with_suffix(module.suffix + _BACKUP_SUFFIX)
+    completed = False
+    try:
+        refusal = control_problem(root, module, targets, original)
+        completed = True
+    finally:
+        module.write_text(original, encoding="utf-8", newline="\n")
+        if not completed:
+            backup.unlink(missing_ok=True)
+    if refusal is not None:
+        backup.unlink(missing_ok=True)
+        raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {refusal}")
 
 
 def declared_survivors(path: Path) -> dict[str, dict[str, Any]]:

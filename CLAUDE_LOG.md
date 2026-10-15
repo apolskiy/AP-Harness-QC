@@ -11239,3 +11239,82 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   the second mechanism behind the `MQC_REQ_` marker.
 * **Code Quality & Compliance Audit:** 803 unit and system, pylint exit 0.
   `AP-Model-QC`: 119 preconditions, pylint exit 0.
+
+## 2026-10-15: Gate 8 completed, every engine re-recorded, and the gaps closed
+
+* **Requirements & Design Choices:** The project owner asked for the design,
+  documents, RTM and implementation of every unfinished case to be finished,
+  the MUT family included; for live recording where a case needed it; for the
+  harness job to go green; for every case to be checked against what it claims
+  to test; and for current findings to be written up as vendor tickets in the
+  format "test case name (number), prompt that caused the problem, response,
+  expected response, actual curl or another way of manually testing the
+  request". For an inconsistency the ticket carries every request and
+  response.
+* **Rulings Recorded:** A check gates the behaviour a case is named for and the
+  rubric grades the explanation (approved per case, recorded in
+  `AP-Model-QC`). A settlement leaving the seller owing the buyer after a
+  discount and a coupon is a defect. Rounding within 3% is not rounded up, and a
+  second case covers 5%. A nine-year ceiling against a fifteen-year statement
+  is not a match.
+* **Gate 8:** taxonomy section 3 became the full layer registry, with Graded,
+  Distribution exempt and Blocking columns, an `MUT` row, and blocks starting
+  at module digit 1 (`cmn/layers.py` corrected to `1L1000`). The audit now
+  covers six modules, and `config/mutation_survivors.yaml` declares the four
+  new ones from their final digests. Section 15.11's lock is built:
+  `process_alive`, a typed Windows probe, `acquire_lock` and `release_lock`.
+  `audit-mutation-on-change.yml` runs the audit on a push to `main` that
+  changes the harness. Cases: `112368` to `112382`, `111332`, `112377` and
+  `112378` for the lock, `112379` for the workflow, and MUT `162002` to
+  `162005`. Requirements: CMN_0169 to CMN_0175.
+* **Fixed, Each With A Case That Failed First:**
+
+  | Defect | Case |
+  |---|---|
+  | A reproduction rendered booleans as JSON and was not Python | `113126` |
+  | No `curl` for an engine whose recording is the wire body | `113127` |
+  | The breaker counted a refusal, in a run that had answered, as a provider failure | `113128` |
+  | A judge the provider never answered was recorded as an unusable reply | `114117` |
+  | A section number like `5A.3` was invisible to the citation reader | `112381` |
+  | Ten requirements read differently in the plan and the matrix | `112382` |
+  | **grok's SDK snippet named `XAI_API_KEY` in a comment and built a client reading `OPENAI_API_KEY`** | `113129` |
+
+  The last was found reading the first grok ticket. `113129` runs the setup
+  lines with only the engine's own variable set, and before the fix it raised
+  the OpenAI client's own error. A client on a declared base URL now takes the
+  variable by name.
+* **Documents:** tier3's duplicate `5A.3` was renumbered to `5A.7` and its
+  citations moved. DESIGN section 7 was rewritten from a measurement of
+  2026-10-15, replacing one from 2026-09-28 that still called openai and
+  claude unrecorded. Its paragraph saying the inventory had no reverse check
+  was also stale: `112325` is that check. The README said seven workflows in
+  two places and eight in a third; all three now say eight.
+* **Where I Was Wrong:**
+  * **Two heredoc slips after the rule was restated that morning**: one
+    `python - <<'EOF'` patch to a scratch script, and a `sed` whose pattern
+    carried a backslash, which ate a `\Z`. Every later edit went through a
+    script file or Edit.
+  * **The workflow was written before its case.** `112379` came second, which
+    reverses the order this project holds itself to.
+  * **The breaker fix first missed the attributed code.** It reset on
+    `REQUEST_REFUSED` alone, and the refusal a run attributes is
+    `QC_LLM_OVER_REFUSAL`.
+  * **Two inventory citations were wrong** (section 13 for 10, and 4.19 for 4),
+    and `_ranked_codes` was first written in a case module, which `115711`'s
+    harness twin reports as support code.
+  * **Earlier in the work, a live-run proposal misread the credential
+    instruction**, which allowed `.env` keys by variable name only, as
+    something that needed asking about.
+* **The Final Mutation Run Crashed, And Found Two Defects:** run as a
+  background task, `162002`'s control failed to start pytest with
+  `WinError 6`, because the run inherited a standard input the session did not
+  have. The restore ran, but the backup stayed, so `162000` and `162001`
+  refused a module that was not mutated: three of six cases lost to one crash.
+  Every audit run now reads `DEVNULL`, and a control that raises removes its
+  backup once the restore has written (`112383`, `112384`, CMN_0176 and
+  CMN_0177, taxonomy section 15.5.1). Both cases failed before the fix. The
+  control step moved into `_run_control`, which keeps `_survivors_held` within
+  pylint's local-variable limit.
+* **Code Quality & Compliance Audit:** 840 unit and system cases passed,
+  pylint exit 0. The mutation audit, rerun on a fresh copy from a background
+  session, passed 6 of 6 with exit 0 in 72 minutes.

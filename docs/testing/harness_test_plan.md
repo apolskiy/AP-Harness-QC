@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 # Harness Test Plan
 
 > **Parent:** `DESIGN.md` section 3.3.
-> **Status:** Phase 2 test design document, awaiting review before Phase 3.
+> **Status:** Implemented, and traced both ways in `rtm_harness.csv`.
 > **Subject:** the **harness**, meaning the precondition layers `UNI` and `SYS`.
 > **Peer:** `model_evaluation_test_plan.md` in `AP-Model-QC`, which specifies the graded layers, assumes this harness complete, and consumes it as a pinned dependency.
 
@@ -151,7 +151,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_ING_0010` | A priority is unassignable without a registered matched condition, and cannot exceed its ceiling | G6 |
 | `MQC_REQ_HAR_ING_0011` | Every rubric reference resolves | R1 |
 | `MQC_REQ_HAR_ING_0012` | Every check references a constraint that was sent | R2 |
-| `MQC_REQ_HAR_ING_0013` | Every constraint sent is referenced by at least one check | R3 |
+| `MQC_REQ_HAR_ING_0013` | Every constraint sent is referenced by at least one check among the rules the task names | R3 |
 | `MQC_REQ_HAR_ING_0014` | Tool expectations name only tools that were offered | R4 |
 | `MQC_REQ_HAR_ING_0028` | Required and forbidden tool sets stay disjoint after the join | R5 |
 | `MQC_REQ_HAR_ING_0029` | A failure classification is declared as data, and registries report their contents | Tier 1 section 13.5 |
@@ -197,11 +197,11 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EXE_0018` | A fixture path is built from identifiers that are valid on every supported platform | Tier 2 section 7.2.1 |
 | `MQC_REQ_HAR_EXE_0019` | A value that cannot be read is reported, and a detector's own failure changes nothing | Tier 2 section 10.1.2 |
 | `MQC_REQ_HAR_EXE_0020` | Every registered adapter is enrolled in the conformance battery, and one engine name maps to one adapter | Tier 2 section 3.2 |
-| `MQC_REQ_HAR_EXE_0021` | Each adapter absorbs its provider response conventions so the canonical shape is identical across providers | Tier 2 section 10.1.3 |
+| `MQC_REQ_HAR_EXE_0021` | Each adapter absorbs its provider response conventions so the canonical shape is identical across providers, and an adapter normalising a refusal records the provider's own word for it | Tier 2 section 10.1.3 |
 | `MQC_REQ_HAR_EXE_0022` | Provider-side agentic execution is disabled explicitly, not left to a default | Tier 2 section 3.3 |
 | `MQC_REQ_HAR_EXE_0043` | The Anthropic request states its effort level rather than inheriting an API default, so a provider-side default change cannot move a recorded observation | tier2_execution.md section 5A.1 |
 | `MQC_REQ_HAR_EXE_0044` | The composed Anthropic request carries no field the model rejects: no disabled or budgeted thinking, no forced tool choice, no computer use tool and no sampling parameters | tier2_execution.md section 5A |
-| `MQC_REQ_HAR_EXE_0053` | A judgement is stored and replayed like a candidate observation, keyed by judge engine, stale when the request or the judge model moved, and never falling back to a live call when absent | tier2_execution.md section 7.4 |
+| `MQC_REQ_HAR_EXE_0053` | A judgement is stored and replayed like a candidate observation, keyed by candidate engine and judge engine together, stale when the request or the judge model moved, and never falling back to a live call when absent | tier2_execution.md section 7.4 |
 
 ### 3.3 Evaluation, `MQC_HAR_EVL_*`
 
@@ -288,7 +288,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0058` | A branch that has not been succeeded goes silent, then warned, then red, so the date is a ceiling rather than a label | harness_ci_pipeline.md section 3C.6.3 |
 | `MQC_REQ_HAR_CMN_0059` | Everything reaches main through a stabilization branch, and main is merged into nothing | harness_ci_pipeline.md sections 3C.6.2 and 3C.6.5 |
 | `MQC_REQ_HAR_CMN_0060` | A broken observation blocks the run with no tolerated proportion, and the run exits 3 rather than reporting a model | cmn_verdict_and_cli.md section 10.24.1 |
-| `MQC_REQ_HAR_CMN_0061` | A skip is treated by its reason: unfinished work blocks, an outage is counted against a ceiling, a cascade is excluded | cmn_verdict_and_cli.md section 10.24.2 |
+| `MQC_REQ_HAR_CMN_0061` | A skip is treated by its reason: unfinished work blocks the run, a cause of ours or the network's leaves the pass rate, and everything else is counted as the failure it is | cmn_verdict_and_cli.md section 10.24.2 |
 | `MQC_REQ_HAR_EVL_0030` | Tier 3 checks captured tool calls against the rule set's tool expectation and the offered set, as conjunctive gates | tier3_evaluation.md section 5B |
 | `MQC_REQ_HAR_CMN_0062` | An integration branch may name its cycle with a bare stamp, and every working branch must still name the work it holds | harness_ci_pipeline.md section 3C.6.1 |
 | `MQC_REQ_HAR_EVL_0031` | A declared adversarial case is graded by its assertions, which decide the verdict because no judge is invoked for one | tier3_evaluation.md section 4C |
@@ -301,7 +301,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0067` | A requirement register that has consumed 80 percent of its range is reported, so widening is decided with notice | harness_test_plan.md section 2.1 |
 | `MQC_REQ_HAR_CMN_0068` | No requirement register token is also a module code or layer token, and no identifier is both a requirement and a case | harness_test_plan.md section 2.2 |
 | `MQC_REQ_HAR_CMN_0069` | Every registry's membership is asserted, so a member added or removed is a deliberate change rather than a silent one | cmn_verdict_and_cli.md section 10.33 |
-| `MQC_REQ_HAR_CMN_0070` | A .env file is loaded into the environment without overwriting what is already set, and a malformed line is refused rather than skipped | cmn_verdict_and_cli.md section 10.34 |
+| `MQC_REQ_HAR_CMN_0070` | A local .env is loaded without overwriting what is already set, and a line that is not an assignment is skipped with its number named | cmn_verdict_and_cli.md section 10.34 |
 | `MQC_REQ_HAR_CMN_0071` | No credential file reaches a CI runner: the loader is inert there and no workflow reads one | cmn_verdict_and_cli.md section 10.34.3 |
 | `MQC_REQ_HAR_EXE_0054` | A missing or stale fixture is converted by dispatch into a skip carrying its taxonomy code, never propagated as an error | tier2_execution.md section 7.6 |
 | `MQC_REQ_HAR_EXE_0055` | A provider connection is released once the response is captured, and retained only when the invocation asks for it | tier2_execution.md section 7.7 |
@@ -371,13 +371,16 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EXE_0132` | HTTP 403 is reported as a refused request rather than an authentication failure and ends the case rather than the run, because 401 is about the caller and 403 about the request | tier2_execution.md section 8.6.7 |
 | `MQC_REQ_HAR_EXE_0133` | A provider refusing a task that declares no adversarial content, in a run where it answered other requests, is recorded as a model over-refusal rather than as our own infrastructure failure | tier2_execution.md section 8.6.7 |
 | `MQC_REQ_HAR_EXE_0134` | Recording an observation removes every observation in that pair whose stored hash differs, so a re-record needing fewer observations than the run before it cannot leave answers to a superseded request behind | tier2_execution.md section 7.14 |
+| `MQC_REQ_HAR_EXE_0135` | A recorded call's reproduction is Python whose call arguments evaluate to the recorded request, so a ticket's snippet runs and re-issues the call that was made | consumer_ci.md section 9.5.3.1 |
+| `MQC_REQ_HAR_EXE_0136` | An engine whose recorded request is the wire body also reproduces as a curl posting it unchanged to the engine's own endpoint, in a quoted heredoc naming the credential variable, and an engine whose recording is not the wire body offers none | consumer_ci.md section 9.5.3.1 |
+| `MQC_REQ_HAR_EXE_0137` | An OpenAI-protocol engine on its own base URL reproduces with a client that takes that URL and the engine's credential variable by name, so the snippet runs with only that variable set | consumer_ci.md section 9.5.3.1 |
 | `MQC_REQ_HAR_CMN_0092` | Every registered execution flag is named by at least one case, or is a declared coverage gap carrying a reason and an expiry that fails the run once it lapses | cmn_verdict_and_cli.md section 7.1.0 |
-| `MQC_REQ_HAR_CMN_0093` | A run selects the priority bands named by --priority and no others, refuses a malformed band rather than selecting everything, and carries the foundations a band rests on only when --with-prerequisites asks for them | cmn_verdict_and_cli.md sections 7.5 and 7.5.1 |
+| `MQC_REQ_HAR_CMN_0093` | A run selects the priority bands named by --priority and no others, refuses a malformed band rather than selecting everything, and carries the foundations a band rests on only when --with-prerequisites asks for them, and refuses --with-prerequisites under a selection it cannot widen | cmn_verdict_and_cli.md sections 7.5 and 7.5.1 |
 | `MQC_REQ_HAR_CMN_0094` | Base outcomes established by one band execution are carried to the next without re-running the cases, so a dependent resolves against a foundation it did not collect and still skips when that foundation did not hold | cmn_verdict_and_cli.md section 7.6 |
 | `MQC_REQ_HAR_CMN_0095` | A carried outcome record is admitted only when the rules, harness commit, corpus commit, engine, mode and platform match the current run, and a mismatch refuses naming the field that moved | cmn_verdict_and_cli.md section 7.6.1 |
-| `MQC_REQ_HAR_CMN_0096` | The consumer regression replays the consumer's graded layers and fails only on harness-attributable outcomes, so a finding about the model under test does not turn a harness regression red | harness_ci_pipeline.md sections 3B.3 and 3B.3.1 |
+| `MQC_REQ_HAR_CMN_0096` | The consumer regression replays the consumer's graded layers and fails only on harness-attributable outcomes, so a finding about the model under test does not turn a harness regression red, and every script a workflow step runs resolves in the layout that step executes in | harness_ci_pipeline.md sections 3B.3 and 3B.3.1 |
 | `MQC_REQ_HAR_CMN_0097` | Every inventory row in a design document names a case the suite implements, reported so an unbuilt design is visible rather than forgotten | cmn_verdict_and_cli.md section 10.19.1 |
-| `MQC_REQ_HAR_CMN_0098` | A case whose first observations show exactly one disagreement earns two further observations, so the recorded disagreement rate is a fifth or three fifths rather than an unrefined third, and a case that agreed is never asked again | cmn_verdict_and_cli.md sections 4.9.2.1 and 4.9.2.2 |
+| `MQC_REQ_HAR_CMN_0098` | A case whose first observations include any failure earns two further observations, so a reported failure rate rests on five observations rather than three and reads as a fifth rather than a third | cmn_verdict_and_cli.md sections 4.9.2.1 and 4.9.2.2 |
 | `MQC_REQ_HAR_CMN_0099` | A run given an output directory writes both mandated artifacts there, deriving each destination the caller did not name, so an explicit pytest flag redirects one artifact without suppressing the other | cmn_verdict_and_cli.md section 7.1.0.2 |
 | `MQC_REQ_HAR_CMN_0100` | A five-digit case identifier is bound by exactly one test callable across the suite, so an accidental duplicate is reported rather than collapsing into a set | cmn_verdict_and_cli.md section 10.10.1 |
 | `MQC_REQ_HAR_CMN_0101` | Every workflow invocation emits both JUnit XML and Allure raw results, so a diagnostic or regression run produces the reporting evidence the downstream artifact contract requires and not half of it | cmn_verdict_and_cli.md section 7.1.0.3 |
@@ -416,8 +419,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0135` | An observation records every numbered step as a verifiable action and a verification, each carrying its outcome, so a failure names the step and the phase it stopped at and the steps that never ran are visible | harness_test_taxonomy.md section 8 |
 | `MQC_REQ_HAR_CMN_0136` | A rule authoring no rubric reports its judge steps as not applicable rather than as an early stop, so a suite decided by its assertions is not read as having halted short | harness_test_taxonomy.md section 8 |
 | `MQC_REQ_HAR_CMN_0137` | A quarantined case is skipped before a request is formed, so a case already known to fail spends no provider quota while it is being fixed | cmn_verdict_and_cli.md section 4.6.12 |
-| `MQC_REQ_HAR_CMN_0138` | A dependent whose foundation failed is executed and recorded in replay mode and skipped in live mode, so a dependent carrying its own defect is visible on the first run without spending provider quota | cmn_verdict_and_cli.md section 10.28.2.1 |
-| `MQC_REQ_HAR_CMN_0139` | A probed dependent is counted in no pass rate, skip rate, distribution or verdict, so measuring it cannot report one behaviour twice | cmn_verdict_and_cli.md section 10.28.2.1 |
+| `MQC_REQ_HAR_CMN_0138` | Superseded by MQC_REQ_HAR_CMN_0151 on 2026-10-11. It required a dependent of a failed foundation to be executed in replay and skipped live, and replay is where CI runs, so it required CI to produce a result that counts in no denominator | cmn_verdict_and_cli.md section 10.28.2.1 |
+| `MQC_REQ_HAR_CMN_0139` | An unattributed observation is counted in no pass rate, skip rate, distribution or verdict, so an inquest cannot report one behaviour twice | cmn_verdict_and_cli.md section 10.28.2.1 |
 | `MQC_REQ_HAR_CMN_0140` | A skipped case records its own observation and enters the pass-rate denominator without entering the numerator, so a rate is stated over what was selected rather than over whatever happened to run | cmn_verdict_and_cli.md section 4.6.13 |
 | `MQC_REQ_HAR_CMN_0141` | A release blocking band passes a failing case only where the quarantine entry records the tracker reference in which product management announced the decision, and the pass names the case, the band and the reference | cmn_verdict_and_cli.md section 4.6.13 |
 | `MQC_REQ_HAR_CMN_0142` | A skip is counted as a failure in the pass rate unless its cause was ours, the network's or a declared capability gap; an unattributed skip is counted, and a recorded release dispensation is the one thing that excuses one | harness_test_taxonomy.md section 7.4.1 |
@@ -446,6 +449,15 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0166` | The manifest is read and written through the harness, so a declaration is recorded by the audit rather than hand-edited, and writing one preserves the reasons and expiries the other entries carry | harness_test_taxonomy.md section 15.2.2 |
 | `MQC_REQ_HAR_CMN_0167` | Every engine list a workflow writes, as a choice input or a matrix dimension, names exactly the rostered engines, checked by one implementation run against each repository | harness_ci_pipeline.md section 8.5 |
 | `MQC_REQ_HAR_CMN_0168` | A workflow that lets the engine be chosen from a list and can run live assigns the credential variable of every rostered engine from its secret, checked by one implementation run against each repository | harness_ci_pipeline.md section 8.5.4 |
+| `MQC_REQ_HAR_CMN_0169` | Every code registry that mirrors a taxonomy table, the layers, the outcomes, the priority conditions and the criticality ranks, agrees with that table in both directions | harness_test_taxonomy.md sections 3, 4.1.0, 6.5 and 7.4.0 |
+| `MQC_REQ_HAR_CMN_0170` | A band summary's totals sum its bands, every skip reason pytest reports is read whatever its shape, and a precondition skip is named only when one occurred and never beyond the skips | cmn_verdict_and_cli.md sections 7.11.2 and 7.11.3 |
+| `MQC_REQ_HAR_CMN_0171` | A runner is recognised by its own variables, each deselection is counted in the line that reports it, and a marker block is read the way pytest reads it | harness_test_taxonomy.md section 7.5.1 |
+| `MQC_REQ_HAR_CMN_0172` | One mutation audit holds a module at a time: a lock naming a running process refuses a second audit and names it, and a lock left by a process that has exited is cleared, the liveness asked of the operating system without signalling the process | harness_test_taxonomy.md section 15.11 |
+| `MQC_REQ_HAR_CMN_0173` | The mutation audit runs on a push to main changing any audited module, the suite, the audit or its manifest, references no credential, and turns its job red when an audit refused | harness_ci_pipeline.md section 5A |
+| `MQC_REQ_HAR_CMN_0174` | Every code the harness registers has a row in the taxonomy's section 6 tables, so the single registry lists every code the code can emit | harness_test_taxonomy.md section 6 |
+| `MQC_REQ_HAR_CMN_0175` | Every requirement the harness plan states reads the same in the plan and in rtm_harness.csv, backticks aside, so a reader of either is told what was decided last | cmn_verdict_and_cli.md section 10.17.1 |
+| `MQC_REQ_HAR_CMN_0176` | Every pytest run the mutation audit starts reads no standard input, so an audit started from a session without one runs | harness_test_taxonomy.md section 15.5.1 |
+| `MQC_REQ_HAR_CMN_0177` | A mutation control that raises restores its module and then removes the backup, so a later audit does not refuse a module that is not mutated | harness_test_taxonomy.md section 15.5.1 |
 | `MQC_REQ_HAR_CMN_0044` | A run states how many cases its own selection executed, passed, failed and skipped, with the pass rate over what executed and every skip named on its own line against its own case with the registered code and what that code means, so a band job is read for its band rather than for a count of what it declined to run | cmn_verdict_and_cli.md section 7.11 |
 | `MQC_REQ_HAR_CMN_0043` | A module at nine hundred lines or more is reported unless it is declared with a reason and an expiry, so the next subject added starts a module of its own and the thousand-line ceiling is never reached by an unrelated edit | code-style.md section 5.1 |
 | `MQC_REQ_HAR_CMN_0027` | Every registered model and security code carries a criticality rank, and a finding is named by the most critical code that fired rather than the first one emitted, so a security compromise is not catalogued as a consistency observation | harness_test_taxonomy.md section 6.5 |
@@ -454,6 +466,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EVL_0024` | The task-substitution vector screens an instructed substitution and not a described one, so a model contrasting an outcome with the expected one is not aborted on an ordinary case and reported as inconsistent | tier3_evaluation.md section 5.2 |
 | `MQC_REQ_HAR_EVL_0063` | A judged score equal to the rubric pass mark passes, and a score below it does not, so the mark is inclusive as the design states | tier3_evaluation.md section 9 |
 | `MQC_REQ_HAR_EVL_0064` | A run may decide whether a score equal to the rubric pass mark passes or fails, defaulting to pass, and the choice reaches the artifact | tier3_evaluation.md section 9 |
+| `MQC_REQ_HAR_EVL_0065` | A judge the provider could not answer is recorded as an unavailable judgement carrying the provider's code, never as a reply the model is charged for | tier3_evaluation.md section 6.5.1 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---

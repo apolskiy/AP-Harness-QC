@@ -18,7 +18,7 @@ Before generating proposals, architecture designs, or code, you MUST review and 
 1b. `.claude/logs/PROMPT_LOG.md` (**not tracked**): Verbatim prompts and working notes. Never put raw prompts in `CLAUDE_LOG.md`.
 2. `.claude/skills/skill-rules.md`: Workflow governance, the 4-phase execution pipeline (Phase 0 through Phase 3), Git safety, and logging rules.
 3. `.claude/rules/code-style.md`: Variable rules (>= 3 chars, zero single-letter variables), Google docstrings, Python typing, documentation prose rules, and 10.00/10 Pylint compliance.
-4. `.claude/rules/framework-rules.md`: Module separation across `ING`, `EXE`, `EVL` and `CMN`, the seven CI quality gates, test case types, and the four failure taxonomy families.
+4. `.claude/rules/framework-rules.md`: Module separation across `ING`, `EXE`, `EVL` and `CMN`, the eight CI quality gates, test case types, and the four failure taxonomy families.
 5. `.claude/rules/testing-standards.md`: Test naming (`MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>`), the inventory principle, change-scoped selection, pytest discovery, Allure and JUnit artifacts, and the downstream artifact contract.
 6. `.claude/worktrees/worktree-rules.md`: Worktree isolation, branch boundaries, and environment safety.
 7. `docs/harness_document_register.md`: **Every tracked document in this repository and what it holds. Read this before any documentation work and work through it on any review**: it is the only complete list, it is checked against the repository both ways by `MQC_CMN_UNI_112255`, and `DESIGN.md` section 3 is a reading order rather than an inventory. `harness_test_taxonomy.md` section 12 records what happened without it.
@@ -34,7 +34,7 @@ Governance states the rules; design documents state the specifications implement
 * `docs/design/harness_extensibility_standard.md`: how the system absorbs a new provider, layer or test type.
 * `docs/design/harness_phase0_project_ambiguities.md`: every project-level decision, with what was rejected and why.
 * `docs/design/tier1_ingestion.md`, `tier2_execution.md`, `tier3_evaluation.md`, `cmn_verdict_and_cli.md`: module specifications.
-* `docs/design/harness_ci_pipeline.md`: the four workflows and the credential boundary.
+* `docs/design/harness_ci_pipeline.md`: the eight workflows and the credential boundary.
 * `docs/testing/harness_test_plan.md` and `rtm_harness.csv`: the requirements the preconditions satisfy, traced both ways.
 
 **Documents that live in `AP-Model-QC` and are referenced from here**: `model_evaluation_test_plan.md` and `rtm_model.csv`. They are never copied into this repository, and `harness_test_taxonomy.md` is never copied out of it: `framework-rules.md` section 4.1 forbids a second registry.

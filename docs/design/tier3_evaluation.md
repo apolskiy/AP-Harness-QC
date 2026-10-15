@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 # Tier 3: Evaluator Agent API, Design
 
 > **Parent:** `DESIGN.md` section 3.2. Read the normative references in section 3.1 first.
-> **Status:** Phase 2 design document, awaiting review before Phase 3. Thereafter it is a **living specification**: where implementation improves on it, it is amended in the same change as the code.
+> **Status:** Implemented. A **living specification**: where implementation improves on it, it is amended in the same change as the code.
 > **Subject:** the harness. Model evaluations are specified in the test plan, which assumes this complete.
 > **Phase 1:** discharged by the project-level Phase 0. Tier 3 raised no fresh ambiguity beyond the decisions already recorded there.
 > **Contract:** per A12 this is a specification implementation is evaluated against. Where it is silent, the implementation must ask rather than choose.
@@ -431,7 +431,7 @@ Precedence, highest first:
 
 | Source | Use |
 |---|---|
-| `--judge-engine` | One run, without editing a file. **Inert until 2026-10-02**, section 5A.3 |
+| `--judge-engine` | One run, without editing a file. **Inert until 2026-10-02**, section 5A.7 |
 | `judge.engine` in `engines.yaml` | The project's standing choice |
 | The built-in fallback, `gemini` | An unconfigured clone still runs |
 
@@ -649,7 +649,7 @@ to move together is not a guard.
 is the configuration that crashed.
 
 
-#### 5A.3 The precedence is implemented here and was unreachable from the caller
+### 5A.7 The precedence is implemented here and was unreachable from the caller
 
 Added 2026-10-02, reading `--judge-engine` the way section 7.1.0.2 of
 `cmn_verdict_and_cli.md` read `--out-dir`: against the claim it serves rather
@@ -1159,6 +1159,26 @@ judge pass over the affected cases rather than an edit. Until then the band
 reports the skip, and `cmn/band_summary.py` counts it against the total pass
 rate: a skip is not a non-event.
 
+#### 6.5.1 A judge the provider could not answer is unavailable, not unusable
+
+Added 2026-10-15, after gemini was reported `QC_LLM_INCONSISTENT` on `134502`
+in a live run where every judged observation passed. **The fifth was not
+judged at all**: the provider was unavailable, the channel raised the
+`ValueError` it raises for every judging failure, and the branch for a reply
+that arrived and could not be parsed recorded it as `judge_reply_unusable` with
+`QC_HARNESS_PARSER_ERROR`. The case repository counts only
+`judgement_unavailable` as unmeasured, so a provider outage became a model
+failure and the ratio became a finding.
+
+| What happened | Reason | Code |
+|---|---|---|
+| A reply arrived and could not be parsed | `judge_reply_unusable` | `QC_HARNESS_PARSER_ERROR` |
+| **No reply arrived**: the channel's error carries a provider code | **`judgement_unavailable`** | **The provider code it carries** |
+
+**The channel already said which**, by leading its message with the code the
+adapter mapped; the pipeline discarded it. `MQC_EVL_UNI_114117` asserts both
+rows.
+
 ## 7. Judge Reply Validation
 
 The judge is a model, so its output is checked like any other.
@@ -1433,6 +1453,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114114` | N | `a_forbidding_claim_without_exclusions_is_refused` |
 | `114115` | N | `an_unavailable_judgement_skips_and_keeps_its_assertions` |
 | `114116` | N | `a_claim_does_not_read_across_a_line_break` |
+| `114117` | N | `a_judge_the_provider_could_not_answer_is_unavailable` |
 | `114005` | P | `a_strategy_is_deterministic_for_identical_input` |
 | `114006` | P | `every_declared_strategy_has_an_implementation` |
 | `114007` | N | `an_unregistered_strategy_is_rejected_by_name` |
@@ -1477,7 +1498,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 113 cases, 51 negative, 44 positive, 18 boundary.**
+**Inventory: 114 cases, 52 negative, 44 positive, 18 boundary.**
 
 ### 11.3 The five cases added with A19
 

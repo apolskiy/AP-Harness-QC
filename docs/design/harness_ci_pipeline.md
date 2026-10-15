@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 # CI Pipeline Design
 
 > **Parent:** `DESIGN.md` section 3.2.
-> **Status:** Phase 2 design document, awaiting review before Phase 3.
+> **Status:** Implemented. A living specification, amended in the same change as the workflows it specifies.
 > **Subject:** the GitHub Actions workflows: their triggers, jobs, secrets, artifacts and failure semantics.
 > **Not in scope:** the CLI contract, specified in `cmn_verdict_and_cli.md` section 7; the gate sequence, normative in `framework-rules.md` section 1; selection rules, normative in `testing-standards.md` section 3.
 
@@ -19,11 +19,12 @@ That last point is the reason this is a design document rather than a configurat
 
 ---
 
-## 2. Seven Workflows
+## 2. Eight Workflows
 
 Extended 2026-09-23. Four covered the gate, the probe, the live run and
 diagnosis. Three more cover regression and failure triage, which the split and
-the change-scoping rule between them made necessary.
+the change-scoping rule between them made necessary. The eighth, added
+2026-10-15, runs Gate 8, the mutation audit (section 5A).
 
 | File | Starts on | Credentials | Emits durable record |
 |---|---|---|---|
@@ -33,6 +34,7 @@ the change-scoping rule between them made necessary.
 | `probe-model-version-nightly.yml` | Manual dispatch. **Schedule withdrawn**, see 2.0.1 | Read-only model metadata | No |
 | `evaluate-live-weekly.yml` | Manual dispatch. **Schedule withdrawn**, see 2.0.1 | Provider API keys | Yes |
 | `diagnose-on-demand.yml` | Manual dispatch only | Optional | **No** |
+| `audit-mutation-on-change.yml` | A push to `main` changing the harness or its suite, or manual dispatch | None | No |
 | `debug-failures-on-demand.yml` | Manual dispatch only | Optional | **No** |
 
 ### 2.0 Why the gate is not already all of this
@@ -57,6 +59,7 @@ selection does.
 | Did `main` break anyone who pins us? | `regress-consumers-on-merge.yml` |
 | Why did these particular tests fail? | `debug-failures-on-demand.yml` |
 | Was it our harness or the model? | `diagnose-on-demand.yml` |
+| Would the suite notice if this code were wrong? | `audit-mutation-on-change.yml` |
 
 **Four files became seven rather than four files gaining flags**, on the naming
 rule in section 2.1: a reader's first question about a run is why it happened,
@@ -94,8 +97,8 @@ file at the trigger it replaced.
 
 | Part | Values in use | Rule |
 |---|---|---|
-| Verb | `gate`, `probe`, `evaluate`, `diagnose` | What this workflow is for. One word |
-| Subject | `model-version`, `live` | Present only where the verb does not identify the workflow by itself |
+| Verb | `gate`, `regress`, `probe`, `evaluate`, `diagnose`, `debug`, `audit` | What this workflow is for. One word |
+| Subject | `model-version`, `live`, `harness`, `consumers`, `failures`, `mutation` | Present only where the verb does not identify the workflow by itself |
 | Cadence | `on-change`, `nightly`, `weekly`, `on-demand` | The unconditional trigger, not the secondary ones |
 
 **A name like `ci.yml` describes every workflow in this directory and therefore none of them.** All four are continuous integration. The question a reader actually has is what a file runs and when it fires, and a filename is where that answer costs nothing to provide.
@@ -829,6 +832,29 @@ Three observations per case, per A4, against the consumer's graded corpus, which
 Exhausted backoff **skips** rather than fails, per `MQC_REQ_HAR_EXE_0010`. The goal is measuring a model, not load-testing a provider.
 
 ---
+
+## 5A. `audit-mutation-on-change.yml`: Gate 8, Which Tests The Tests
+
+Added 2026-10-15. Specified by `harness_test_taxonomy.md` section 15; this
+section states only the job.
+
+| | |
+|---|---|
+| Starts on | A push to `main` touching `cmn/`, `ingestion/`, `execution/`, `evaluation/`, `tests/`, `tools/mutation_audit.py` or `config/mutation_survivors.yaml`, and manual dispatch. **No schedule** until `main` is stable, section 2.0.1 |
+| Runs | `pytest -m mutation tests/mutation`, Ubuntu only: platform coverage is the gate's question, not this one's |
+| Credentials | None. It mutates our code and runs our suite; nothing reaches a provider |
+| Blocks | Nothing. **No required status**: a survivor is a fact about coverage, taxonomy section 15.6 |
+| Red when | A survivor is undeclared, a declaration no longer survives, **or an audit refused**, taxonomy section 15.7.1 |
+| Concurrency | One per ref, superseded runs cancelled: an audit of a commit `main` has moved past answers nothing |
+| Record | An artifact outside the collector's pattern, so a coverage audit never reads as a measurement |
+
+**A refusal is a skip at the case and red at the job.** The edit that
+triggered the run usually invalidates the edited module's digest, so this is
+the ordinary path and the summary says which module to re-measure and
+re-declare rather than leaving a green job over audits that did not run.
+
+**Not in the pull-request sequence**, for the cost taxonomy section 15.7
+measured: minutes per module against seconds for every precondition.
 
 ## 6. `diagnose-on-demand.yml`: Runnable, Never Counted, Never Silent
 

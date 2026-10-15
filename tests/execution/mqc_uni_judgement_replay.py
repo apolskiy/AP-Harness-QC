@@ -636,9 +636,9 @@ class TestMQCJudgeFailureContainment:
         `ValueError`, so a busy provider that the candidate path handles as a
         retryable skip crashed a judged case outright.
 
-        **Raised as a ValueError carrying the code**, because that is what the
-        pipeline already records as `judge_reply_unusable`: a harness event on
-        the judge path is a skip with a code, as it is everywhere else.
+        **Raised as a ValueError led by the code**, which the pipeline reads
+        to record `judgement_unavailable`, a skip (``tier3_evaluation.md``
+        section 6.5.1, asserted by ``114117``).
 
         Args:
             monkeypatch (Any): pytest's patcher.

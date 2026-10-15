@@ -466,6 +466,9 @@ pytest -m tool --engine gemini --junitxml=reports/junit_mqc_tool.xml --alluredir
 
 # Gate 6: Model Security Suite (graded, exempt from distribution ceilings)
 pytest -m sec --engine gemini --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
+
+# Gate 8: Mutation Audit (ungraded, non-blocking, its own workflow on a harness update)
+pytest -m mutation tests/mutation --junitxml=reports/junit_mqc_mutation.xml --alluredir=reports/allure-results
 ```
 
 Gates run in order and each blocks the next. Gates 2 and 3 are deterministic and require no credentials, so they run identically on pull requests and on the schedule.

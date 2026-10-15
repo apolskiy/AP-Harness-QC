@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 # CMN: Verdict Computation, CLI and Configuration, Design
 
 > **Parent:** `DESIGN.md` section 3.2. Read the normative references in section 3.1 first.
-> **Status:** Phase 2 design document, awaiting review before Phase 3. Thereafter it is a **living specification**: where implementation improves on it, it is amended in the same change as the code.
+> **Status:** Implemented. A **living specification**: where implementation improves on it, it is amended in the same change as the code.
 > **Subject:** the **harness**. This module decides every run's outcome, so an error here misreports every result the project produces.
 > **Authority:** decisions trace to `harness_phase0_project_ambiguities.md` and `harness_test_taxonomy.md` §7.
 > **Phase 1:** discharged by the project-level Phase 0. This module raised no fresh ambiguity beyond the decisions already recorded there.
@@ -127,8 +127,10 @@ reference.
 * **A quarantined case is not dispatched**, which is what it is for: a case
   already known to fail buys nothing by being asked again, and asking spends
   provider quota on a result somebody already holds (section 4.6.12).
-* Quarantined cases are excluded from the pass-rate denominator, never deleted
-  from the suite.
+* Quarantined cases **stay in the pass-rate denominator, counted as failures**
+  (`harness_test_taxonomy.md` section 7.4.1), and are never deleted from the
+  suite. Quarantine saves the cost of asking again, not the count of a failure
+  already found.
 * They are listed in the report.
 * **An expired entry fails the run (V5).** Without expiry, quarantine becomes
   where failures go to be forgotten and the 90% floor stops meaning anything,
@@ -2201,7 +2203,7 @@ three kinds and each is cleared by a different act:
 
 | The line says | The remedy |
 |---|---|
-| `skipped behind a higher band failure` | Fix the foundation. These clear themselves |
+| `skipped behind a prerequisite that did not hold` | Fix the foundation. These clear themselves |
 | `skipped as a known failure in quarantine` | Fix the finding, or record a release decision |
 | `skipped for a reason of ours` | A fixture, a budget or a provider: ours to repair |
 
@@ -2321,7 +2323,7 @@ honest, rather than folded into a catch-all.
 
 | Code | What the line says |
 |---|---|
-| `QC_HARNESS_DEPENDENCY_UNMET` | blocked by a failure in a higher priority band |
+| `QC_HARNESS_DEPENDENCY_UNMET` | blocked by a prerequisite at the same or a higher priority that did not hold |
 | `QC_HARNESS_QUARANTINED` | a known failure in quarantine, not dispatched |
 | `QC_HARNESS_FIXTURE_MISSING` | no recorded response for this engine |
 | `QC_HARNESS_FIXTURE_STALE` | the recorded response no longer answers this request |
@@ -2330,7 +2332,7 @@ honest, rather than folded into a catch-all.
 | Anything else registered | the code itself, uninterpreted |
 
 **The three phrases this replaces** named a remedy class rather than a cause:
-behind a higher band failure, a known failure in quarantine, and for a reason of
+behind a prerequisite that did not hold, a known failure in quarantine, and for a reason of
 ours. The first two were right because each mapped to exactly one code. The
 third covered nineteen.
 
@@ -2601,6 +2603,23 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112365` | P | `a_declared_digest_is_written_without_losing_the_reasons` (taxonomy 15.2.2) |
 | `112366` | N | `a_workflow_engine_list_off_the_roster_is_reported` (CI pipeline 8.5) |
 | `112367` | N | `a_live_workflow_missing_an_engine_key_is_reported` (CI pipeline 8.5.4) |
+| `112368` | N | `a_layer_or_outcome_disagreeing_with_its_table_is_reported` (taxonomy 3, 7.4.0) |
+| `112369` | N | `a_priority_condition_disagreeing_with_its_table_is_reported` (taxonomy 4.1.0) |
+| `112370` | N | `a_criticality_rank_disagreeing_with_its_table_is_reported` (taxonomy 6.5) |
+| `112371` | B | `a_layer_block_touching_another_at_its_bound_is_refused` (taxonomy 3.2.1) |
+| `112372` | N | `a_band_table_total_disagreeing_with_its_bands_is_reported` (7.11.3) |
+| `112373` | P | `a_skip_reason_is_read_whatever_shape_pytest_gives_it` (7.11.2) |
+| `112374` | B | `a_precondition_skip_line_appears_only_when_one_skipped` (7.11.2) |
+| `112375` | P | `a_runner_is_recognised_and_each_deselection_counted` (taxonomy 7.5.1) |
+| `112376` | P | `a_marker_block_is_read_the_way_pytest_reads_it` (taxonomy 7.5.1) |
+| `112377` | N | `an_audit_refuses_a_module_a_live_audit_holds` (taxonomy 15.11) |
+| `112378` | P | `a_lock_left_by_a_dead_audit_is_cleared` (taxonomy 15.11) |
+| `112379` | N | `the_mutation_audit_runs_on_a_harness_update` (CI pipeline 5A) |
+| `112380` | N | `a_registered_code_absent_from_the_taxonomy_is_reported` (taxonomy 6) |
+| `112381` | N | `a_section_number_with_an_inner_letter_is_read_whole` (code-style 7.3) |
+| `112382` | N | `a_requirement_stated_two_ways_is_reported` (10.17.1) |
+| `112383` | N | `an_audit_run_reads_no_standard_input` (taxonomy 15.5.1) |
+| `112384` | N | `a_control_that_raises_leaves_no_backup` (taxonomy 15.5.1) |
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
 | `112347` | P | `a_case_announces_its_node_identifier_before_running` |
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
@@ -2834,7 +2853,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 288 cases, 164 negative, 91 positive, 33 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 309 cases, 179 negative, 95 positive, 35 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3329,12 +3348,19 @@ Categories: **P** positive, **N** negative, **B** boundary.
 |---|---|---|
 | `162000` | N | `an_undeclared_survivor_in_the_verdict_is_reported` |
 | `162001` | N | `an_undeclared_survivor_in_the_threshold_domain_is_reported` |
+| `162002` | N | `an_undeclared_survivor_in_the_layer_registry_is_reported` |
+| `162003` | N | `an_undeclared_survivor_in_the_code_registry_is_reported` |
+| `162004` | N | `an_undeclared_survivor_in_the_band_summary_is_reported` |
+| `162005` | N | `an_undeclared_survivor_in_environment_scopes_is_reported` |
 
-**Two modules, not six.** The audit costs minutes per module, and these two
-are where the standard a run is judged against lives: `verdict.py` decides
-every run's outcome and `threshold_domain.py` decides what a threshold may be.
-The others are added as the job's budget allows, and the absence is recorded
-here rather than left as a silence.
+**Six modules, completed 2026-10-15.** `verdict.py` and `threshold_domain.py`
+hold the standard a run is judged against; `layers.py` and `registries.py` hold
+what every layer, outcome, condition and code means; `band_summary.py` states
+the counts a reader acts on; `environments.py` decides which cases run where.
+The first audit of the last four found 109 survivors. Most were registry
+values no case compared with the table they mirror, closed by
+`112368` to `112370` and `112380`; the rest were behaviour closed by `112371`
+to `112376` and `111332`, and what remains is declared, each with its kind.
 
 ---
 
@@ -3645,6 +3671,22 @@ less than is true.
 compares them. The pattern is now frequent enough to be worth naming directly:
 **whenever this project writes a fact in two places, the pair needs a check, and
 the check is always cheap.**
+
+#### 10.17.1 A requirement says the same thing in the plan and the matrix
+
+Added 2026-10-15. **`112229` checks that a requirement is stated, not what it
+states.** Eleven harness requirements read one way in the plan and another in
+the matrix, and in every case the matrix carried the later decision: `0138`
+superseded, `0139` describing the renamed `unattributed` outcome, `0098`
+escalating on any failure. A reader of the plan was told what was decided
+before.
+
+**The statement is read from the statement tables only**, named by their
+header, because each plan also lists requirement identifiers in coverage tables
+whose second column is a dimension rather than a statement. Backticks are
+ignored, since the plan formats a flag and the matrix cannot.
+`cmn.traceability.statement_problems` compares them, and `MQC_CMN_UNI_112382`
+and `MQC_CAS_UNI_115748` call it with each repository's pair.
 
 
 ### 10.18 Probing the judge

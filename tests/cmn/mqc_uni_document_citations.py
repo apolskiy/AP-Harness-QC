@@ -25,6 +25,7 @@ marker, per ``framework-rules.md`` section 3.3.
 #
 # TestMQCDocumentCitations
 #   112352  an_unresolved_or_duplicated_citation_is_reported
+#   112381  a_section_number_with_an_inner_letter_is_read_whole
 #   112353  a_readme_without_a_changelog_is_reported
 # ------------------------------------------------------------ end of cases
 
@@ -130,6 +131,45 @@ class TestMQCDocumentCitations:
             f"{len(duplicate_sections(_ROOT))} document(s) number a section "
             f"twice, so two citations of one number mean different things: "
             f"{duplicate_sections(_ROOT)}"
+        )
+
+    def MQC_CMN_UNI_112381_a_section_number_with_an_inner_letter_is_read_whole(
+        self, tmp_path: Path
+    ) -> None:
+        """A number like ``5A.3`` is one section, cited and numbered whole.
+
+        Read as ``5A`` followed by text, such a heading was no section at all,
+        so two of them were never reported as a duplicate and a citation of
+        one resolved to ``5A``.
+
+        Design: ``code-style.md`` section 7.3.
+
+        Args:
+            tmp_path (Path): Where the constructed documents are written.
+
+        Returns:
+            None
+        """
+        probe = tmp_path / "docs"
+        probe.mkdir()
+        (probe / "target_doc.md").write_text(
+            "## 5A. Judging\n\n### 5A.3 Absent\n\n#### 5A.3 Precedence\n", encoding="utf-8"
+        )
+        assert document_sections(probe / "target_doc.md") == ["5A", "5A.3", "5A.3"], (
+            document_sections(probe / "target_doc.md")
+        )
+        assert any("numbers 5A.3 more than once" in entry
+                   for entry in duplicate_sections(tmp_path)), duplicate_sections(tmp_path)
+
+        (probe / "citing_doc.md").write_text(
+            "See `target_doc.md` section 5A.4 and `target_doc.md` section 5A.3.\n",
+            encoding="utf-8",
+        )
+        assert citations_in(probe / "citing_doc.md") == [
+            ("target_doc.md", "5A.4"), ("target_doc.md", "5A.3"),
+        ], citations_in(probe / "citing_doc.md")
+        assert any("section 5A.4" in entry for entry in unresolved_citations(tmp_path)), (
+            "a citation of a section that does not exist resolved to its parent"
         )
 
     def MQC_CMN_UNI_112353_a_readme_without_a_changelog_is_reported(

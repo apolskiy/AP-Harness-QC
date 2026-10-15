@@ -18,26 +18,52 @@ question was looking at the right file.
 #   112363  a_module_not_matching_its_declared_digest_is_refused
 #   112364  a_control_rewrite_leaves_a_recoverable_backup
 #   112365  a_declared_digest_is_written_without_losing_the_reasons
+# TestMQCMutationLock
+#   112377  an_audit_refuses_a_module_a_live_audit_holds
+#   112378  a_lock_left_by_a_dead_audit_is_cleared
+# TestMQCMutationCrash
+#   112383  an_audit_run_reads_no_standard_input
+#   112384  a_control_that_raises_leaves_no_backup
+# TestMQCMutationWorkflow
+#   112379  the_mutation_audit_runs_on_a_harness_update
 # ------------------------------------------------------------ end of cases
 
 import ast
+import os
+import subprocess
+import sys
 from pathlib import Path
+from typing import Any
 
 import allure
 import pytest
+import yaml
 
 from tests.cmn.mutation_tool_support import MODULE, SOURCE, write_manifest
+from tests.mutation.mutation_support import AUDITED
 from tools.mutation_audit import (
     _BACKUP_SUFFIX,
+    MutationRefusal,
+    acquire_lock,
     baseline_problem,
     control_problem,
     declare_digest,
     declared_survivors,
     module_digest,
+    process_alive,
     recover,
+    release_lock,
+    run_targets,
+    survivors,
 )
+from tools import mutation_audit
 
 pytestmark = pytest.mark.unit
+
+_WORKFLOW = (
+    Path(__file__).resolve().parents[2] / ".github" / "workflows"
+    / "audit-mutation-on-change.yml"
+)
 
 
 @allure.epic("AP-Harness-QC")
@@ -200,3 +226,183 @@ class TestMQCMutationBaseline:
         assert declared["cmn/other.py"]["digest"] == first
         assert "accepted" not in declared["cmn/other.py"]
         assert declared[MODULE]["digest"] == second, "the first entry moved"
+
+
+@allure.epic("AP-Harness-QC")
+@allure.feature("Cross-cutting")
+class TestMQCMutationLock:
+    """One audit at a time, and a dead one does not hold a module forever."""
+
+    @allure.story("A live audit holds the module")
+    def MQC_CMN_UNI_112377_an_audit_refuses_a_module_a_live_audit_holds(
+        self, tmp_path: Path
+    ) -> None:
+        """A lock naming a live process refuses the audit and names it.
+
+        This process is the live holder. On Windows the liveness check must not
+        signal it, or asking would terminate the test itself.
+
+        Design: ``harness_test_taxonomy.md`` section 15.11.
+
+        Args:
+            tmp_path (Path): Where the module and its lock are written.
+
+        Returns:
+            None
+        """
+        module = tmp_path / "held.py"
+        module.write_text("VALUE = 1\n", encoding="utf-8")
+        assert process_alive(os.getpid()), "this process reads as not running"
+
+        acquire_lock(module)
+        try:
+            with pytest.raises(MutationRefusal, match=str(os.getpid())):
+                acquire_lock(module)
+        finally:
+            release_lock(module)
+        assert not list(tmp_path.glob("*.mutation-lock")), "the lock outlived its audit"
+
+    @allure.story("A dead audit's lock is cleared")
+    def MQC_CMN_UNI_112378_a_lock_left_by_a_dead_audit_is_cleared(
+        self, tmp_path: Path
+    ) -> None:
+        """A lock whose process has exited is replaced, not obeyed.
+
+        Design: ``harness_test_taxonomy.md`` section 15.11.
+
+        Args:
+            tmp_path (Path): Where the module and its lock are written.
+
+        Returns:
+            None
+        """
+        finished = subprocess.run(
+            [sys.executable, "-c", "import os; print(os.getpid())"],
+            capture_output=True, text=True, check=True, timeout=60,
+            stdin=subprocess.DEVNULL,
+        )
+        dead = int(finished.stdout.strip())
+        assert not process_alive(dead), f"process {dead} exited and reads as running"
+
+        module = tmp_path / "abandoned.py"
+        module.write_text("VALUE = 1\n", encoding="utf-8")
+        lock = module.with_suffix(".py.mutation-lock")
+        lock.write_text(f'{{"pid": {dead}, "started": "2026-10-13T00:00:00"}}',
+                        encoding="utf-8")
+
+        acquire_lock(module)
+        try:
+            assert str(os.getpid()) in lock.read_text(encoding="utf-8"), (
+                "a dead audit's lock was not replaced by this one"
+            )
+        finally:
+            release_lock(module)
+
+
+@allure.epic("AP-Harness-QC")
+@allure.feature("Cross-cutting")
+class TestMQCMutationCrash:
+    """An audit runs without a terminal and leaves nothing behind when it crashes."""
+
+    @allure.story("No standard input")
+    def MQC_CMN_UNI_112383_an_audit_run_reads_no_standard_input(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Every pytest run the audit starts reads ``DEVNULL``.
+
+        Design: ``harness_test_taxonomy.md`` section 15.5.1.
+
+        Args:
+            tmp_path (Path): The directory the run is started in.
+            monkeypatch (pytest.MonkeyPatch): Replaces the process launcher.
+
+        Returns:
+            None
+        """
+        seen: list[dict[str, Any]] = []
+
+        def launched(command: list[str], **options: Any) -> subprocess.CompletedProcess:
+            seen.append(options)
+            return subprocess.CompletedProcess(command, 0, "1 passed", "")
+
+        monkeypatch.setattr(mutation_audit.subprocess, "run", launched)
+        run_targets(tmp_path, ["tests/x.py"], stop_early=True)
+
+        assert seen and seen[0].get("stdin") is subprocess.DEVNULL, (
+            "QC_HARNESS_PREFLIGHT_FAILURE: an audit run inherits the caller's "
+            "standard input, so a session without one cannot start it"
+        )
+
+    @allure.story("A crashed control leaves no backup")
+    def MQC_CMN_UNI_112384_a_control_that_raises_leaves_no_backup(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A control that raises restores the module and removes its backup.
+
+        Design: ``harness_test_taxonomy.md`` section 15.5.1.
+
+        Args:
+            tmp_path (Path): The repository root the audit works in.
+            monkeypatch (pytest.MonkeyPatch): Makes the control's run raise.
+
+        Returns:
+            None
+        """
+        module = tmp_path / MODULE
+        module.parent.mkdir(parents=True)
+        module.write_text(SOURCE, encoding="utf-8", newline="\n")
+        manifest = tmp_path / "config" / "mutation_survivors.yaml"
+        manifest.parent.mkdir()
+        write_manifest(manifest.parent, module_digest(SOURCE))
+
+        def crashed(*_: Any, **__: Any) -> subprocess.CompletedProcess:
+            raise OSError("the handle is invalid")
+
+        monkeypatch.setattr(mutation_audit, "run_targets", crashed)
+        with pytest.raises(OSError):
+            survivors(tmp_path, module, ["tests/x.py"])
+
+        assert module.read_text(encoding="utf-8") == SOURCE, "the module was not restored"
+        backup = module.with_suffix(module.suffix + _BACKUP_SUFFIX)
+        assert not backup.exists(), (
+            "QC_HARNESS_AUDIT_REFUSED: a control that raised left its backup, so "
+            "every later audit refuses a module that is not mutated"
+        )
+
+
+@allure.epic("AP-Harness-QC")
+@allure.feature("Cross-cutting")
+class TestMQCMutationWorkflow:
+    """Gate 8 runs when the harness changes, and says when it could not."""
+
+    @allure.story("Gate 8 runs on a harness update")
+    def MQC_CMN_UNI_112379_the_mutation_audit_runs_on_a_harness_update(self) -> None:
+        """The workflow fires on main for every audited module and reports refusals.
+
+        It runs the mutation marker, fires on a push to ``main`` whose paths
+        cover every audited module, the audit and its manifest, turns red when
+        an audit refused, and references no secret.
+
+        Design: ``harness_ci_pipeline.md`` section 5A, ``harness_test_taxonomy.md``
+        section 15.7.1.
+
+        Returns:
+            None
+        """
+        source = _WORKFLOW.read_text(encoding="utf-8")
+        workflow = yaml.safe_load(source)
+        # PyYAML reads the key `on` as the boolean True.
+        triggers = workflow.get("on", workflow.get(True)) or {}
+        push = triggers.get("push") or {}
+
+        assert "main" in (push.get("branches") or []), "the audit does not run on main"
+        paths = set(push.get("paths") or [])
+        needed = {f"{Path(module).parts[0]}/**" for module in AUDITED}
+        needed |= {"tools/mutation_audit.py", "config/mutation_survivors.yaml", "tests/**"}
+        assert needed <= paths, f"a change to {sorted(needed - paths)} does not trigger the audit"
+
+        assert "pytest -m mutation tests/mutation" in source, "the audit is not run"
+        assert "QC_HARNESS_AUDIT_REFUSED" in source and "exit 1" in source, (
+            "a refused audit leaves the job green, so an unmeasured change reads as measured"
+        )
+        assert "secrets." not in source, "an audit of our own code references a credential"

@@ -30,6 +30,7 @@ JUnit file resolves back to the inventory row without a lookup table.
 #   111322  distinguishes_missing_from_empty_in_emitted_code
 #   111323  non_ascii_content_survives_an_explicit_encoding_read
 #   111325  case_id_matching_a_windows_reserved_device_name_is_rejected
+#   111332  a_case_id_one_past_a_reserved_device_range_is_accepted
 # TestMQCGoldenRuleSchema
 #   111331  a_rule_set_naming_an_unregistered_family_is_reported
 #   111301  accepts_complete_golden_rule_payload
@@ -268,11 +269,15 @@ class TestMQCTaskSchema:
         sample_task_payload["user_prompt"] = original
         assert TaskDataSet.from_dict(sample_task_payload).user_prompt == original
 
-    @pytest.mark.parametrize("reserved", ["nul", "CON", "com1", "LPT9", "aux.json"])
+    @pytest.mark.parametrize(
+        "reserved", ["nul", "CON", "com1", "COM9", "lpt1", "LPT9", "aux.json"]
+    )
     def MQC_ING_UNI_111325_case_id_matching_a_windows_reserved_device_name_is_rejected(
         self, sample_task_payload: dict[str, Any], reserved: Any
     ) -> None:
         """An identifier that cannot become a directory on Windows is refused.
+
+        Both ends of each numbered range are included.
 
         Args:
             sample_task_payload (dict): Minimal valid payload.
@@ -284,6 +289,24 @@ class TestMQCTaskSchema:
         sample_task_payload["task_id"] = reserved
         with pytest.raises(ValueError, match="QC_DATA_IDENTIFIER_UNSAFE"):
             TaskDataSet.from_dict(sample_task_payload)
+
+    @pytest.mark.parametrize("ordinary", ["com10", "LPT10", "console", "nul_task"])
+    def MQC_ING_UNI_111332_a_case_id_one_past_a_reserved_device_range_is_accepted(
+        self, sample_task_payload: dict[str, Any], ordinary: Any
+    ) -> None:
+        """A name one past a numbered range, or only containing one, is accepted.
+
+        Design: ``tier1_ingestion.md`` section 13.3.
+
+        Args:
+            sample_task_payload (dict): Minimal valid payload.
+            ordinary (str): A name that is not a reserved device name.
+
+        Returns:
+            None
+        """
+        sample_task_payload["task_id"] = ordinary
+        assert TaskDataSet.from_dict(sample_task_payload).task_id == ordinary
 
 
 class TestMQCGoldenRuleSchema:

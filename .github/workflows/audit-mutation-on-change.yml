@@ -1,0 +1,98 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# Gate 8: which tests the tests.
+#
+# Specified by docs/design/harness_ci_pipeline.md section 5A and
+# docs/design/harness_test_taxonomy.md section 15.
+#
+# A HARNESS UPDATE IS THE EVENT AN AUDIT ANSWERS. A survivor describes code as
+# it stands, so this runs when that code, the suite, the audit or its manifest
+# changes on main, and on demand. NO SCHEDULE UNTIL MAIN IS STABLE, the rule
+# section 2.0.1 sets for every workflow.
+#
+# IT BLOCKS NOTHING AND IS NOT A REQUIRED CHECK. A survivor is a fact about
+# coverage rather than about what a run measured (taxonomy section 15.6). It
+# does go red: on an undeclared survivor, on a declaration that no longer
+# survives, and on an audit that refused (taxonomy section 15.7.1).
+name: audit-mutation-on-change
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cmn/**"
+      - "ingestion/**"
+      - "execution/**"
+      - "evaluation/**"
+      - "tests/**"
+      - "tools/mutation_audit.py"
+      - "config/mutation_survivors.yaml"
+  workflow_dispatch:
+
+run-name: "Mutation audit of ${{ github.sha }}"
+
+# AN AUDIT OF A COMMIT MAIN HAS MOVED PAST ANSWERS NOTHING, so a newer push
+# supersedes it. Unlike the live run, nothing here has spent anything.
+concurrency:
+  group: audit-mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  audit:
+    name: mutation audit
+    # UBUNTU ONLY. Platform coverage is the gate's question; this one asks
+    # whether a case would notice a change, which no platform alters.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+
+      - name: Gate 8, mutation audit
+        id: audit
+        run: pytest -m mutation tests/mutation --junitxml=reports/junit_mqc_mutation.xml --alluredir=reports/allure-results
+
+      # A REFUSAL IS A SKIP AT THE CASE AND RED AT THE JOB. The edit that
+      # triggered this run usually invalidates the edited module's digest, and
+      # a green job over audits that did not run would say the change was
+      # measured (taxonomy section 15.7.1).
+      - name: Report audits that refused
+        if: always()
+        shell: bash
+        run: |
+          refused=$(grep -o 'QC_HARNESS_AUDIT_REFUSED[^"&]*' reports/junit_mqc_mutation.xml || true)
+          {
+            echo "## Mutation audit"
+            echo ""
+            if [ -n "$refused" ]; then
+              echo "**Refused, so not measured.** Re-measure and re-declare each digest:"
+              echo ""
+              echo "$refused" | sed 's/^/- /'
+            else
+              echo "Every audited module was measured."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$refused" ]; then
+            exit 1
+          fi
+
+      # OUTSIDE THE COLLECTOR'S PATTERN, so a coverage audit never reads as a
+      # measurement of anything (section 5A).
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: mutation-audit-${{ github.sha }}
+          path: reports/
+          retention-days: 90

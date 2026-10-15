@@ -61,6 +61,12 @@ _DEFAULT_MAX_ATTEMPTS: Final[int] = 3
 _DEFAULT_BACKOFF_SEC: Final[float] = 2.0
 _DEFAULT_BREAKER_THRESHOLD: Final[int] = 5
 
+# A REFUSAL, under either attribution. Neither extends the breaker's streak
+# once the run has answered (design section 8.6.7).
+_REFUSALS: Final[frozenset[str]] = frozenset(
+    {"QC_HARNESS_REQUEST_REFUSED", "QC_LLM_OVER_REFUSAL"}
+)
+
 
 class CircuitBreakerTripped(RuntimeError):
     """The run aborted because the provider stopped answering usefully.
@@ -411,6 +417,16 @@ class DispatchSession:
                 f"QC_HARNESS_AUTH_ERROR: {outcome.engine} rejected our credentials at "
                 f"{outcome.case_id}, so every remaining case would fail identically"
             )
+
+        # A REFUSAL IN A RUN THAT HAS ANSWERED IS AN ANSWER about one request,
+        # so it resets the streak as a measurement does. In a run that has
+        # measured nothing it may be an entitlement the account lacks, and it
+        # counts (design section 8.6.7).
+        # The code is already attributed here, so a benign task's refusal
+        # arrives as the model's over-refusal and an attack's as ours.
+        if outcome.taxonomy_code in _REFUSALS and self.measured_outcomes:
+            self.consecutive_failures = 0
+            return
 
         self.consecutive_failures += 1
         if self.consecutive_failures >= self.breaker_threshold:

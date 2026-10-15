@@ -503,6 +503,21 @@ def _judge_and_aggregate(
             checks_ran=declared, rubric_authored=rubric_authored,
         )
     except ValueError as error:
+        # NO REPLY IS NOT A BAD REPLY. The channel leads its message with the
+        # code the adapter mapped; a provider code there means the judge was
+        # never reached, which is unavailable and a skip, not a reply we could
+        # not use (design section 6.5.1).
+        carried = str(error).split(":", 1)[0].strip()
+        if carried.startswith("QC_HARNESS_") and carried != "QC_HARNESS_PARSER_ERROR":
+            logger.warning("%s judge unreachable: %s", context.case_id, carried)
+            return EvaluationResult(
+                case_id=context.case_id, screen=progress.screen,
+                assertion_results=progress.results,
+                judge_skipped_reason="judgement_unavailable",
+                judge_on_failure=judge_on_failure,
+                taxonomy_codes=progress.codes + [carried],
+                checks_ran=declared, rubric_authored=rubric_authored,
+            )
         logger.warning("%s judgement unusable: %s", context.case_id, error)
         return EvaluationResult(
             case_id=context.case_id, screen=progress.screen,

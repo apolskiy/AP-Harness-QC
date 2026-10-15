@@ -391,7 +391,10 @@ class TestMQCBandSummary:
         for index, line in enumerate(named, 1):
             assert line.startswith(f"skipped {index} of 3: MQC_EVL_SEC_"), line
             assert "QC_HARNESS_DEPENDENCY_UNMET" in line, line
-            assert "blocked by a failure in a higher priority band" in line, line
+            assert (
+                "blocked by a prerequisite at the same or a higher priority that did not hold"
+                in line
+            ), line
 
         # NOTHING MEASURED YIELDS NO RATE. A zero denominator means the
         # question is unanswerable, which is never a hundred per cent.
@@ -465,7 +468,7 @@ class TestMQCBandSummary:
         for code, meaning in (
             ("QC_HARNESS_FIXTURE_MISSING", "no recorded response for this engine"),
             ("QC_HARNESS_DEPENDENCY_UNMET",
-             "blocked by a failure in a higher priority band"),
+             "blocked by a prerequisite at the same or a higher priority that did not hold"),
             ("QC_HARNESS_QUARANTINED", "a known failure in quarantine"),
         ):
             assert code in joined, code

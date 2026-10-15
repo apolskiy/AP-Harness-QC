@@ -300,9 +300,10 @@ class JudgeChannel:
             # the candidate path handles as a retryable skip crashed a judged
             # case outright (design section 8.5.5).
             #
-            # Raised as a ValueError because that is what the pipeline already
-            # records as `judge_reply_unusable`: a harness event on the judge
-            # path is a skip with a code, as it is everywhere else.
+            # Raised as a ValueError led by the mapped code, which the pipeline
+            # reads to record `judgement_unavailable`: a harness event on the
+            # judge path is a skip with a code, as it is everywhere else
+            # (tier3 section 6.5.1).
             code = self._adapter.map_error(error)
             logger.warning(
                 "%s judging %s: %s", code, request.case_id, type(error).__name__

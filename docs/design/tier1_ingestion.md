@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 # Tier 1: Ingestion API, Design
 
 > **Parent:** `DESIGN.md` section 3.2. Read the normative references in section 3.1 first.
-> **Status:** Phase 2 design document, awaiting review before Phase 3. Thereafter it is a **living specification**: where implementation improves on it, it is amended in the same change as the code.
+> **Status:** Implemented. A **living specification**: where implementation improves on it, it is amended in the same change as the code.
 > **Subject:** the **harness**. Model evaluations are specified in `AP-Model-QC`, in `docs/testing/model_evaluation_test_plan.md`, which assumes this harness complete.
 > **Authority:** decisions trace to `harness_phase0_project_ambiguities.md` (cited as A1-A13, B1-B10) and `harness_test_taxonomy.md`.
 > **Contract:** per A12 this document is a specification that implementation is evaluated against, not a description of intent. Where it is silent, the implementation must ask rather than choose.
@@ -869,6 +869,7 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111323` | P | `non_ascii_content_survives_an_explicit_encoding_read` |
 | `111324` | N | `case_ids_differing_only_by_letter_case_are_rejected` |
 | `111325` | N | `case_id_matching_a_windows_reserved_device_name_is_rejected` |
+| `111332` | B | `a_case_id_one_past_a_reserved_device_range_is_accepted` |
 | `111326` | N | `assertion_severity_is_declared_not_inferred` |
 | `111327` | N | `tool_definition_requires_a_parameters_schema` |
 | `111328` | B | `anchor_exemplar_is_optional_and_preserved` |
@@ -970,7 +971,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 93 cases, 51 negative, 31 positive, 11 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 94 cases, 51 negative, 31 positive, 12 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

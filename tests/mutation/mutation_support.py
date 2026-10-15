@@ -24,7 +24,10 @@ MANIFEST: Final[Path] = ROOT / "config/mutation_survivors.yaml"
 
 # EVERY MODULE THIS LAYER AUDITS, read by the setup gate in `conftest.py` so
 # it covers the whole class rather than whichever case runs first.
-AUDITED: Final[tuple[str, ...]] = ("cmn/verdict.py", "cmn/threshold_domain.py")
+AUDITED: Final[tuple[str, ...]] = (
+    "cmn/verdict.py", "cmn/threshold_domain.py", "cmn/layers.py", "cmn/registries.py",
+    "cmn/band_summary.py", "cmn/environments.py",
+)
 
 # THE TWO CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they fail
 # on the reformatting the mutator performs and would kill every mutant for the

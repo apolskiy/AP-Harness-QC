@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 # Tier 2: Execution API, Design
 
 > **Parent:** `DESIGN.md` section 3.2. Read the normative references in section 3.1 first.
-> **Status:** Phase 2 design document, awaiting review before Phase 3. Thereafter it is a **living specification**: where implementation improves on it, it is amended in the same change as the code.
+> **Status:** Implemented. A **living specification**: where implementation improves on it, it is amended in the same change as the code.
 > **Subject:** the harness. Model evaluations are specified in the test plan, which assumes this complete.
 > **Phase 1:** discharged by the project-level Phase 0. Tier 2 raised no fresh ambiguity beyond the decisions already recorded there.
 > **Contract:** per A12 this is a specification implementation is evaluated against. Where it is silent, the implementation must ask rather than choose.
@@ -1348,7 +1348,7 @@ the only thing the reader of an artifact actually needs from it:
 | `400` | `QC_HARNESS_REQUEST_REJECTED` | **Ours** | No | Fix how the request is composed |
 | `401` | `QC_HARNESS_AUTH_ERROR` | Ours | No | Fix the credential |
 | `402` | `QC_HARNESS_CREDIT_EXHAUSTED` | **Environmental** | No | Add credit. **The credential is valid**, which is why this is not the auth code |
-| `403` | `QC_HARNESS_AUTH_ERROR` | Ours | No | Fix the credential or its grants |
+| `403` | `QC_HARNESS_REQUEST_REFUSED` | **The model's**, when the run answered other requests (section 8.6.7) | No | Ends the case, never the run |
 | `404` | `QC_HARNESS_VERSION_UNAVAILABLE` | Ours | No | Fix the model name (A3.1) |
 | `429` | `QC_HARNESS_RATE_LIMIT` | **Neither** | **Conditional** | Widen `spacing_sec` for a per-minute rate; wait for the reset where the period is spent (section 8.6.4) |
 | `5xx` | `QC_HARNESS_PROVIDER_UNAVAILABLE` | **Theirs** | Yes | Wait |
@@ -1751,6 +1751,20 @@ eight years against a candidate summary stating fifteen, and an instruction to
 reproduce the stated figure unchanged. Nothing about it is adversarial, which is
 what makes the refusal a finding rather than a defence.
 
+##### A refusal in a run that has answered does not count toward the breaker
+
+Added 2026-10-15, when grok refused that same task on all five observations of
+a live run and **the circuit breaker tripped on the fifth**, erroring the case
+although 122 other requests had been answered. The breaker counted each
+refusal as a consecutive failure, which is the right reading only while the run
+has measured nothing: then a refusal may be an entitlement the account lacks,
+and every later request would fail the same way.
+
+**The same control decides both.** Once the run has measured an outcome, a
+refusal is an answer from a reachable provider about one request, so it resets
+the streak as a measurement does. In a run that has measured nothing it still
+counts, which `113125` asserts and `113128` asserts the other half of.
+
 #### 8.6.6 The session reports the models it served
 
 Added 2026-10-02. The resolved model reached `record_spend`, was priced with and
@@ -1917,6 +1931,10 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113123` | P | `every_interface_maps_a_status_through_one_table` |
 | `113124` | P | `declares_a_reproduction_that_reconstructs_nothing` |
 | `113125` | N | `a_refused_request_ends_the_case_not_the_run` |
+| `113126` | N | `a_reproduction_parses_back_to_the_recorded_arguments` |
+| `113127` | P | `a_wire_protocol_engine_also_reproduces_as_curl` |
+| `113128` | N | `refusals_in_a_run_that_answered_do_not_trip_the_breaker` |
+| `113129` | N | `a_client_on_another_base_url_is_given_its_own_key` |
 | `113302` | N | `a_provider_failure_while_judging_is_contained` |
 | `113303` | N | `the_judge_channel_imports_no_evaluation_module` |
 | `113213` | P | `filling_gaps_dispatches_only_what_is_missing` |
@@ -1956,7 +1974,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 122 cases, 50 negative, 63 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 126 cases, 53 negative, 64 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

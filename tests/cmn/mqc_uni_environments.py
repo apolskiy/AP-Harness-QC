@@ -26,11 +26,16 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112356  an_unreadable_marker_registry_is_refused
 #   112357  a_registry_with_no_markers_is_refused
 #   112358  the_marker_applied_is_the_marker_read
+#   112375  a_runner_is_recognised_and_each_deselection_counted
+#   112376  a_marker_block_is_read_the_way_pytest_reads_it
 # ------------------------------------------------------------ end of cases
 
+import logging
 from pathlib import Path
 
 import pytest
+
+from cmn.config import ci_markers
 
 from cmn.environments import (
     environment_marker,
@@ -42,6 +47,7 @@ from cmn.environments import (
     registered_environment_scopes,
     scope_available,
     unavailable_here,
+    under_ci,
 )
 
 from tests.cmn.environment_doubles import (
@@ -303,3 +309,57 @@ class TestMQCMarkerRegistry:
         # about one name rather than about an empty marker.
         assert applied.args == ("local",)
         assert applied.kwargs == {"sibling": ""}
+
+    def MQC_CMN_UNI_112375_a_runner_is_recognised_and_each_deselection_counted(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A runner variable makes this a runner, and the log counts each drop.
+
+        Two cases scoped to a developer's machine, collected on a runner, are
+        both deselected and the line says two.
+
+        Design: ``harness_test_taxonomy.md`` section 7.5.1.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): Sets and clears runner variables.
+            caplog (pytest.LogCaptureFixture): Captures the deselection line.
+
+        Returns:
+            None
+        """
+        for marker in ci_markers():
+            monkeypatch.delenv(marker, raising=False)
+        assert not under_ci(), "no runner variable is set and this reads as a runner"
+
+        monkeypatch.setenv(ci_markers()[0], "true")
+        assert under_ci(), f"{ci_markers()[0]} is set and this does not read as a runner"
+
+        items = [
+            Item("tests/cmn/m.py::T::MQC_CMN_UNI_112003_x", Marker("local")),
+            Item("tests/cmn/m.py::T::MQC_CMN_UNI_112004_x", Marker("local")),
+        ]
+        with caplog.at_level(logging.INFO, logger="cmn.environments"):
+            assert deselect_unavailable_environments(Config(), items, _ROOT) == 2
+        assert "2 case(s) deselected: this environment is not local" in caplog.text, (
+            caplog.text
+        )
+
+    def MQC_CMN_UNI_112376_a_marker_block_is_read_the_way_pytest_reads_it(
+        self, tmp_path: Path
+    ) -> None:
+        """A key with no value parses, and a blank line registers nothing.
+
+        Args:
+            tmp_path (Path): Where the configuration is written.
+
+        Returns:
+            None
+        """
+        ini = tmp_path / "pytest.ini"
+        ini.write_text(
+            "[pytest]\nconsider_namespace_packages\nmarkers =\n"
+            "    unit: unit preconditions\n\n    sec: security\n",
+            encoding="utf-8",
+        )
+
+        assert registered_markers(ini) == {"unit": "unit preconditions", "sec": "security"}

@@ -19,6 +19,7 @@ it wanted.
 
 import logging
 import json
+import pprint
 from typing import Any, Final, Iterator, Type
 
 from execution.adapters.base import ProviderAdapter
@@ -184,11 +185,10 @@ def reproduction_snippet(engine: str, request: dict[str, Any]) -> str:
     """Return a runnable snippet that re-issues one recorded call.
 
     **The stored request is this SDK's keyword arguments**, so the snippet
-    passes them through unchanged and nothing is reconstructed. That is the
-    whole reason it is a snippet rather than a ``curl``: for one provider a
-    stored field has no wire form at all, so a hand-built HTTP body would run
-    with different behaviour than the call it claims to reproduce
-    (``consumer_ci.md`` section 9.5.3).
+    passes them through unchanged as Python literals and nothing is
+    reconstructed. Every engine gets one; :func:`reproduction_curl` adds a
+    ``curl`` only where the recording is also the wire body
+    (``consumer_ci.md`` section 9.5.3.1).
 
     **No credential appears.** Every client reads its own environment variable,
     which is named in a comment so a reader knows what to set.
@@ -214,11 +214,48 @@ def reproduction_snippet(engine: str, request: dict[str, Any]) -> str:
     if not call or not setup:
         return ""
     package = getattr(adapter, "REPRODUCTION_PACKAGE", "")
+    # PYTHON LITERALS, NOT JSON. A recorded boolean rendered as JSON reads
+    # `true`, which is not Python, and gemini records one in every request.
     arguments = ",\n".join(
-        f"    {name}={json.dumps(value, indent=4, ensure_ascii=False)}"
+        f"    {name}=" + pprint.pformat(value, width=96).replace("\n", "\n    ")
         for name, value in sorted(request.items())
     )
     lines = [f"# pip install {package}"] if package else []
     lines.extend(setup)
     lines.extend(["", f"response = {call}(", arguments, ")", "print(response)"])
     return "\n".join(lines)
+
+
+def reproduction_curl(engine: str, request: dict[str, Any]) -> str:
+    """Return a ``curl`` posting one recorded request, where that is exact.
+
+    Offered only by an adapter whose recorded request is the wire body, which
+    is the OpenAI protocol. The body travels in a quoted heredoc, so an
+    apostrophe in a prompt cannot end the shell's quoting, and the credential
+    is the engine's own variable, named and never valued. Design:
+    ``consumer_ci.md`` section 9.5.3.1.
+
+    Args:
+        engine (str): The engine the call was made against.
+        request (dict): The composed request the recording stored.
+
+    Returns:
+        str: A bash command, or an empty string where the engine is
+        unregistered or its recording is not the wire body.
+    """
+    try:
+        adapter = adapter_for(engine)
+    except (KeyError, ValueError):
+        return ""
+    endpoint = adapter.reproduction_endpoint()
+    if not endpoint:
+        return ""
+    body = json.dumps(request, indent=2, ensure_ascii=False)
+    return "\n".join([
+        f"curl {endpoint} \\",
+        f'  -H "Authorization: Bearer ${adapter.API_KEY_ENV}" \\',
+        '  -H "Content-Type: application/json" \\',
+        "  --data-binary @- <<'JSON'",
+        body,
+        "JSON",
+    ])

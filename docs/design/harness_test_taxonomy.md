@@ -81,13 +81,24 @@ Enforced by `module-rgx` in `.pylintrc`, which also refuses `mqc_<component>.py`
 
 `<LAYER>` identifies what kind of thing is under test. It is an uppercase token of 3 to 5 characters. The registry is **extensible**; `.pylintrc` matches `MQC_[A-Z]{3,5}_` rather than an enumerated list, precisely so that adding a layer is never a lint failure on a correctly named test.
 
-| Layer | Marker | ID block | Under test | Failure means |
-|---|---|---|---|---|
-| `MQC_UNI_` | `unit` | 111000 to 119999, by module per 3.2.1 | Parsers, validators, helpers. No network. **Ungraded precondition.** | Our code is wrong |
-| `MQC_SYS_` | `system` | 121000 to 129999, by module per 3.2.1 | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode.** | Our code is wrong |
-| `MQC_EVAL_` | `evaluator` | 131000 to 139999, by module per 3.2.1 | LLM-as-a-Judge rubric scoring, golden-rule enforcement | The model is deficient |
-| `MQC_TOOL_` | `tool` | 141000 to 149999, by module per 3.2.1 | Tool-use compliance: required tools invoked, forbidden tools avoided (A9) | The model is deficient |
-| `MQC_SEC_` | `sec` | 151000 to 159999, by module per 3.2.1 | **Model security behaviour**: injection resistance, prompt leakage, tool coercion. **Own suite, exempt from distribution ceilings.** | The model is unsafe |
+| Layer | Marker | ID block | Graded | Distribution exempt | Blocking | Under test | Failure means |
+|---|---|---|---|---|---|---|---|
+| `MQC_UNI_` | `unit` | 111000 to 119999, by module per 3.2.1 | No | Yes | Yes | Parsers, validators, helpers. No network. **Ungraded precondition.** | Our code is wrong |
+| `MQC_SYS_` | `system` | 121000 to 129999, by module per 3.2.1 | No | Yes | Yes | Dispatch, adapter normalization, pipeline wiring. **Ungraded precondition, replay mode.** | Our code is wrong |
+| `MQC_EVAL_` | `evaluator` | 131000 to 139999, by module per 3.2.1 | Yes | No | No | LLM-as-a-Judge rubric scoring, golden-rule enforcement | The model is deficient |
+| `MQC_TOOL_` | `tool` | 141000 to 149999, by module per 3.2.1 | Yes | No | No | Tool-use compliance: required tools invoked, forbidden tools avoided (A9) | The model is deficient |
+| `MQC_SEC_` | `sec` | 151000 to 159999, by module per 3.2.1 | Yes | Yes | No | **Model security behaviour**: injection resistance, prompt leakage, tool coercion. **Own suite, exempt from distribution ceilings.** | The model is unsafe |
+| `MQC_MUT_` | `mutation` | 161000 to 169999, by module per 3.2.1 | No | Yes | No | **The suite itself**: a production change no case notices. Section 15 | A behaviour nothing asserts |
+
+**This table is the registry, and `cmn/layers.py` mirrors it.** Revised
+2026-10-15, when the mutation audit of `cmn/layers.py` found every value in the
+code copy unasserted: a block could shift by one or a layer stop blocking and
+no case noticed. The table gained the three columns the code carries and the
+`MUT` row it lacked, and **the blocks start at module digit 1**, as the
+positional scheme in 3.2.1 numbers modules; the code had them start at 0, a
+digit no module holds. `MQC_CMN_UNI_112368` compares the two in both
+directions, the arrangement `framework-rules.md` section 4.2 sets for a
+registry that has to exist twice.
 
 ### 3.0 Preconditions versus graded layers
 
@@ -667,7 +678,7 @@ that matters: what kind of failure this is.
 | 3 | It revealed more than permitted | `QC_LLM_OVER_DISCLOSURE` |
 | 4 | It used tools wrongly | `QC_LLM_TOOL_VIOLATION` |
 | 5 | It said something untrue about its material | `QC_LLM_HALLUCINATION`, `QC_LLM_SOURCE_ALTERATION`, `QC_LLM_UNSOURCED_CLAIM`, `QC_LLM_MATCH_MISCOMPUTED`, `QC_LLM_DEFECT_MISSED` |
-| 6 | It did not follow the instruction | `QC_LLM_INSTRUCTION_DRIFT`, `QC_LLM_CONTEXT_OMISSION`, `QC_LLM_AMBIGUITY_UNHANDLED`, `QC_LLM_OVER_CLARIFICATION` |
+| 6 | It did not follow the instruction | `QC_LLM_INSTRUCTION_DRIFT`, `QC_LLM_CONTEXT_OMISSION`, `QC_LLM_AMBIGUITY_UNHANDLED`, `QC_LLM_OVER_CLARIFICATION`, `QC_LLM_OVER_REFUSAL` |
 | 7 | The shape was wrong | `QC_LLM_SCHEMA_VIOLATION`, `QC_LLM_FORMAT_VIOLATION`, `QC_LLM_LENGTH_VIOLATION`, `QC_LLM_NO_OUTPUT` |
 | 8 | A judge scored it below threshold | `QC_LLM_RUBRIC_FAILURE` |
 | 9 | **It disagreed with itself** | `QC_LLM_INCONSISTENT` |
@@ -780,9 +791,11 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_QUARANTINED` | The case is quarantined, so it was skipped before a request was formed. **Never red and never a pass**: quarantine accepts a finding and saves the cost of measuring it again, and the blocking band counts the skip against the band it was selected into (`cmn_verdict_and_cli.md` section 4.6.12) |
 | `QC_HARNESS_QUARANTINE_UNCONFIRMED` | A quarantine entry carries no `quarantined_on` or no `observed_model`, so its expiry cannot be evaluated. **Never red**: the quarantine mechanism failed, not the model, and the entry is still honoured while unconfirmed (`cmn_verdict_and_cli.md` section 4.6.4) |
 | `QC_HARNESS_VERSION_UNAVAILABLE` | Resolved model version could not be obtained (A8) |
-| `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index |
+| `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
-| `QC_HARNESS_DEPENDENCY_UNMET` | A foundational test failed, so this case was never evaluated (4.1.1). Excluded from the skip-rate denominator. |
+| `QC_HARNESS_SELECTION_UNRESOLVED` | A `--tests-file` entry names no collected test. Reported as a skip with the reason `test not found`, and the rest of the run proceeds; a run where nothing resolves is refused instead (`cmn_verdict_and_cli.md` section 7.8.3) |
+| `QC_HARNESS_SUBPROCESS_TIMEOUT` | A nested process a case spawned did not finish within its bound. The case fails naming the command and the bound, rather than the job hanging until the runner cancels it (section 14) |
+| `QC_HARNESS_DEPENDENCY_UNMET` | A prerequisite at the same or a higher priority did not hold: a declared foundation failed or was itself skipped, or a higher band failed. The case was never evaluated (4.1.1). **A finding about the model one layer up, not about ours**, so it counts as a failure in the pass rate (7.4.1). A foundation less blocking than its dependent is refused at collection |
 | `QC_HARNESS_UPSTREAM_UNVERIFIED` | The pinned harness commit has no passing gate run, so the instrument was never established (`harness_ci_pipeline.md` section 3C.3). Distinct from `QC_HARNESS_DEPENDENCY_UNMET`: unmet is unavailable, unverified is available but not established |
 | `QC_HARNESS_BRANCH_NAME` | A branch name departs from the grammar in `harness_ci_pipeline.md` section 3C.6, or names a case that is not inventoried |
 | `QC_HARNESS_BRANCH_STALE` | A branch was cut from `main` past the staleness ceiling and has not been succeeded (3C.6.3) |
@@ -906,6 +919,21 @@ A vendor model update can only move the scheduled run, which gates nothing. No o
 * **Gate denominator:** skipped observations over total planned observations, excluding declared-unsupported pairs.
 * **Fully skipped cases**, all observations of one case skipped, are counted separately, having never been measured at all.
 * **Per-pair diagnostics:** skip rate is reported per (test × engine) pair as well as in aggregate. A case that always skips on one engine and never on another is a defect or a capability gap, not flakiness, and a global percentage buries it.
+
+#### 7.4.0 How each outcome is counted
+
+Added 2026-10-15. **This table is the registry, and `cmn/layers.py` mirrors
+it**; the mutation audit found every flag in the code copy unasserted, so a
+broken observation could have entered the pass rate and no case noticed.
+`MQC_CMN_UNI_112368` compares the two, as it does the layer table in section 3.
+
+| Outcome | In the pass-rate denominator | Counts as a pass | In the skip-rate numerator | In the distribution denominator |
+|---|---|---|---|---|
+| `pass` | Yes | Yes | No | Yes |
+| `fail` | Yes | No | No | Yes |
+| `broken` | No | No | No | Yes |
+| `skip` | Yes, then filtered by the reason, section 7.4.1 | No | Yes | Yes |
+| `unattributed` | No | No | No | No |
 
 ### 7.4.1 A skip is a non-pass, and its cause decides whether it is a failure
 
@@ -2313,6 +2341,24 @@ observes is a value nothing depends on. Either is worth knowing; neither is a
 missing case. The declaration says which kind an entry is, because a reader who
 cannot tell will write a test that asserts nothing.
 
+#### 15.3.1 An unobservable mutant is a second kind
+
+Added 2026-10-15, from the audit of `cmn/environments.py`. **Some changes are
+observable and not by a case.** The default root of a sibling lookup reads
+`parents[1]`; changing it to `parents[2]` is visible only by reading above the
+repository root, which `code-style.md` section 8.0 forbids a case to do, and on
+a runner the checkout repeats its own name, so both directories exist and the
+change is invisible there too.
+
+| Kind | Means | A case could kill it |
+|---|---|---|
+| `equivalent` | Nothing observable changes | No: there is nothing to observe |
+| `unobservable` | Something changes, and only where a case is not allowed to look | No: the rule that forbids the look is the reason |
+
+**Neither is a missing case, and the reason must name which.** An
+`unobservable` entry names the rule that puts the change out of reach, so a
+reader can tell a deliberate limit from an oversight.
+
 ### 15.4 The control, and why the run refuses without it
 
 **The mutator rewrites the module from its syntax tree, which strips every
@@ -2360,6 +2406,24 @@ cannot see.
 proves a restore round-tripped and says nothing about whether what it holds was
 ever right.
 
+#### 15.5.1 A control that raises restores and clears, and no run reads a terminal
+
+Added 2026-10-15, from the final audit of the day, run as a background task.
+
+**The control's subprocess raised before pytest started**: `WinError 6`, the
+handle is invalid, because the run inherited a standard input the background
+session did not have. The `finally` restored `cmn/layers.py` and **left its
+backup on disk**, since only a refusal removed it. Every later audit found that
+backup and refused, so one crash cost three of six cases, each reporting a
+module left mutated that was not.
+
+| Defect | Now |
+|---|---|
+| An audit run inherited the caller's standard input | Each run reads `DEVNULL`; pytest reads no input, and a session with none can start one |
+| An exception in the control left the backup | Once the restore has written the original, the backup is removed. A restore that itself fails keeps the backup, which is the case it exists for |
+
+`MQC_CMN_UNI_112383` and `112384` assert them.
+
 ### 15.6 Ungraded, and deliberately not blocking
 
 | Property | Value | Why |
@@ -2367,7 +2431,7 @@ ever right.
 | `graded` | **False** | It audits our own suite, so a failure is an instrument defect and never a model finding |
 | `distribution_exempt` | **True** | It carries no priority, so there is no budget for it to compete in |
 | `blocking` | **False** | **A survivor does not invalidate a measurement.** It says some behaviour is unasserted; the harness still ran and what it measured is still what it measured |
-| `id_block` | `160000-169999` | The sixth layer digit, per section 3.2.1 |
+| `id_block` | `161000-169999` | The sixth layer digit, module digits from 1, per sections 3 and 3.2.1 |
 
 **The blocking decision is the one worth arguing.** `UNI` and `SYS` block
 because a harness whose own tests fail produces results that are suspect. A
@@ -2389,11 +2453,28 @@ cases. A kill stops early and a survivor costs a full run.
 | Suite | Cost | Runs |
 |---|---|---|
 | `UNI` | 22 seconds, 768 cases | Every pull request |
-| `MUT` | Minutes per module | On the schedule, and on demand |
+| `MUT` | Minutes per module | **On a harness update**, and on demand |
 
 **So it is a gate step of its own**, beside the live suite rather than inside
 Gate 2, for the same reason: a precondition that takes minutes stops being a
-precondition. `harness_ci_pipeline.md` carries the job.
+precondition. `harness_ci_pipeline.md` section 5A carries the job.
+
+#### 15.7.1 It runs when the harness changes, and a refusal turns its job red
+
+Decided 2026-10-15. The project owner's direction: "ideally it would either be
+a scheduled job or job executed on harness update". **A harness update is the
+event an audit answers**, since a survivor describes code as it stands, so the
+job runs on a push to `main` touching production code, the suite, the audit or
+its manifest, and on demand. A schedule waits with the others until `main` is
+stable (`harness_ci_pipeline.md` section 2.0.1).
+
+**A change to an audited module invalidates its digest** (section 15.10), so
+the run that change triggers refuses that module, and a refusal is a skip.
+**The cases stay skips and the job goes red**: an audit that did not run on the
+change it was triggered by is the event worth seeing, and a green job over
+skipped audits would say the change was measured. The summary names each
+refused module and the line to re-declare. The per-case outcome is unchanged
+from section 15.2.1, because nothing about the survivors was measured.
 
 ### 15.8 What the first pass found
 
@@ -2474,7 +2555,7 @@ re-declared. That is accepted rather than regretted: Gate 8 is scheduled and
 non-blocking by section 15.6, so the friction lands on the one job that is
 allowed to be red without stopping anything.
 
-### 15.11 One audit at a time, which is designed and not yet built
+### 15.11 One audit at a time
 
 The second cause of the 2026-10-13 damage was **an abandoned run**. A
 background audit, still alive after twenty-five minutes, held `cmn/verdict.py`
@@ -2492,10 +2573,19 @@ time. An audit refuses to start while one is held by a **live** process and
 names the pid; a lock whose process is gone is a crash, which is the section
 15.5 path and recovers as it already does.
 
-**Deferred, and recorded as a gap rather than hidden as a plan.** Section 15.10
-makes the damage detectable, which is what makes deferring this safe: a second
-audit that reads a mutant as its baseline is refused by the digest rather than
-quietly measured. Tracked in `harness_open_questions.md` section 2B.
+**Built 2026-10-15.** The lock is written beside the backup before the
+baseline is read and removed when the audit ends, refusal included. A lock
+held by a live process refuses the audit and names the process; one whose
+process is gone is cleared and logged, and the backup path then decides as it
+always did. Section 15.10 still stands behind it: the digest refuses what a
+lock somehow misses.
+
+**Liveness is asked of the operating system without signalling.** On POSIX a
+signal 0 asks; on Windows the same call **terminates** the process it names,
+so there the process is opened for a query and its exit code read. This is
+the cross-platform rule of `code-style.md` section 8 in its sharpest form: the
+portable-looking call is the destructive one on one platform.
+`MQC_CMN_UNI_112377` and `112378` assert both outcomes.
 
 ---
 

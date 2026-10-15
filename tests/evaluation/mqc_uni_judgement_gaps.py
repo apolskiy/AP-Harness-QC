@@ -20,6 +20,7 @@ failures, that a `QC_HARNESS_*` event is a skip and never a failure.
 #
 # TestMQCJudgementAvailability
 #   114115  an_unavailable_judgement_skips_and_keeps_its_assertions
+#   114117  a_judge_the_provider_could_not_answer_is_unavailable
 # ------------------------------------------------------------ end of cases
 
 import pytest
@@ -107,3 +108,36 @@ class TestMQCJudgementAvailability:
                 "the assertion results were dropped with the judgement, so an "
                 "observation that failed an assertion now reports nothing"
             )
+
+    def MQC_EVL_UNI_114117_a_judge_the_provider_could_not_answer_is_unavailable(
+        self,
+        rules: GoldenRuleSet,
+    ) -> None:
+        """No reply is unavailable with the provider's code; a bad reply is unusable.
+
+        Design: ``tier3_evaluation.md`` section 6.5.1.
+
+        Args:
+            rules (GoldenRuleSet): The rule set.
+
+        Returns:
+            None
+        """
+        outage = evaluate_observation(
+            _context(rules, "It requires five years of Python.", produced_output=True),
+            refusing_judge(ValueError(
+                "QC_HARNESS_PROVIDER_UNAVAILABLE: the judge could not be reached for x"
+            )),
+        )
+        assert outage.judge_skipped_reason == "judgement_unavailable", (
+            f"a judge the provider never answered was recorded as "
+            f"{outage.judge_skipped_reason!r}, so the observation counts against the model"
+        )
+        assert "QC_HARNESS_PROVIDER_UNAVAILABLE" in outage.taxonomy_codes, outage.taxonomy_codes
+        assert "QC_HARNESS_PARSER_ERROR" not in outage.taxonomy_codes, outage.taxonomy_codes
+
+        garbled = evaluate_observation(
+            _context(rules, "It requires five years of Python.", produced_output=True),
+            refusing_judge(ValueError("QC_HARNESS_PARSER_ERROR: the reply was not JSON")),
+        )
+        assert garbled.judge_skipped_reason == "judge_reply_unusable", garbled.judge_skipped_reason

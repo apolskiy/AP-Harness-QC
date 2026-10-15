@@ -29,6 +29,52 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A crashed mutation control no longer blocks the audits after it, 2026-10-15
+
+**The final audit of the day failed to start its control run** from a
+background session: the run inherited a standard input the session did not
+have. The restore ran and the backup stayed, so the two audits after it refused
+a module that was not mutated. Every audit run now reads no input, and a
+control that raises removes its backup once the restore has written
+(`MQC_CMN_UNI_112383` and `112384`, taxonomy section 15.5.1). The README's
+figures moved: 643 cases, 314 requirements.
+
+### A grok reproduction reads grok's key, 2026-10-15
+
+**The SDK snippet for an engine on its own base URL named a variable its client
+never read.** grok's built `openai.OpenAI(base_url=...)` with a comment saying it
+read `XAI_API_KEY`, and the OpenAI client reads `OPENAI_API_KEY` alone, so a
+vendor running it would have been refused for the wrong key. The client now
+takes the engine's variable by name, and `MQC_EXE_UNI_113129` runs the setup
+with only that variable set. The README's figures moved: 641 cases, 312
+requirements, and the status line and layout table now say eight workflows,
+which the table above them already did.
+
+### Gate 8 is complete, and the registries are compared with their tables, 2026-10-15
+
+**The mutation audit covers six modules, has a workflow and holds a lock.**
+`cmn/layers.py`, `cmn/registries.py`, `cmn/band_summary.py` and
+`cmn/environments.py` joined `verdict.py` and `threshold_domain.py`; their first
+audit found 109 survivors, and what remains is declared, each with its kind.
+`audit-mutation-on-change.yml` runs the audit on a push to `main` changing the
+harness, and turns red when an audit refused. An audit refuses a module a
+running audit holds.
+
+**Most survivors were registry values nothing compared.** The layer, outcome,
+priority-condition and criticality registries are now each compared with the
+taxonomy table they mirror, and the comparison found layer ID blocks starting at
+module digit 0 against the positional scheme, a ranked code missing from the
+criticality table, and a registered code with no taxonomy row.
+
+**Fixed, each with a case that failed first:** a recorded call's reproduction
+rendered booleans as JSON and was not Python; the circuit breaker counted a
+refusal in a run that had answered as a provider failure; a judge the provider
+never answered was recorded as an unusable reply and charged to the model; a
+section number like `5A.3` was invisible to the citation reader; and ten
+requirements read differently in the test plan and the matrix. An OpenAI-protocol
+engine's ticket now carries a `curl`. The README's figures moved with it: 640
+cases inventoried, 311 requirements traced, eight workflows.
+
 ### A debug workflow that can run any engine live offers every engine's key, 2026-10-14
 
 **`debug-failures-on-demand.yml` and `diagnose-on-demand.yml` offered every
