@@ -228,7 +228,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 94 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 309 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 310 cases | **Implemented** |
 | `docs/design/harness_ci_pipeline.md` | The eight workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 126 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 114 cases | **Implemented** |
@@ -447,10 +447,10 @@ exactly as much as overstating it**.
 | Phase 2 | **Complete.** Four module designs, two test plans and two matrices |
 | Phase 3 | **Underway.** The design is implemented, the corpus is authored, and **every graded case is recorded live against all four engines**: gemini, openai, claude and grok, re-recorded on 2026-10-15 |
 | Implementation code | 67 modules, roughly 23,700 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
-| Harness cases | **643**: 613 precondition (`UNI`), 24 system (`SYS`) and 6 mutation audits (`MUT`), across `ING`, `EXE`, `EVL` and `CMN`. 840 executions with their parameters, all passing |
+| Harness cases | **644**: 614 precondition (`UNI`), 24 system (`SYS`) and 6 mutation audits (`MUT`), across `ING`, `EXE`, `EVL` and `CMN`. 841 executions with their parameters, all passing |
 | Case-repository preconditions | **130** (`CAS_UNI`), guarding the corpus, the excerpts, the pin, the findings registers and the ticket pages |
 | Model evaluation cases | **74, inventory and suite agreeing**: 45 `EVAL`, 8 `TOOL`, 21 `SEC` |
-| Requirements traced | 314 harness, 145 model, both directions checked by `MQC_CMN_UNI_112313`, and each requirement read the same in its plan and its matrix by `112382`. **These two figures are checked by nothing here**; `112323` checks the README's equivalents |
+| Requirements traced | 315 harness, 146 model, both directions checked by `MQC_CMN_UNI_112313`, and each requirement read the same in its plan and its matrix by `112382`. **These two figures are checked by nothing here**; `112323` checks the README's equivalents |
 | Recorded fixtures | **948 candidate responses and 544 judgements** across four engines, three observations per case per A4.1 and five where one disagreement escalated. Stated here and checked nowhere; the case repository's README carries the checked copy |
 | Graded result | **11 open findings**: openai 7, claude 3, grok 1, gemini 0. Ten reproduced on the latest run; one awaits measurement behind a failed foundation. The case repository's `config/findings/` holds each, and `reports/tickets/` the page it is filed from |
 | Consumer gate topology | **One job per priority band per platform**, so a red names its own remedy. `AP-Model-QC` `consumer_ci.md` section 3.12 |

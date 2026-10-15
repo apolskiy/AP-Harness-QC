@@ -37,6 +37,7 @@ is the rule section 1 of the verdict design states.
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Final, Optional
 
 logger = logging.getLogger(__name__)
@@ -172,6 +173,21 @@ def band_label(priority: str) -> str:
     return "Bands " + ",".join(f"P{band}" for band in bands)
 
 
+@dataclass(frozen=True)
+class Alarms:
+    """The counts printed only when nonzero, each a reason the run exits 3.
+
+    Attributes:
+        preconditions_skipped (int): Ungraded preconditions among the skips,
+            which no cause excuses.
+        broken (int): Cases that crashed rather than failed. They count in
+            the total and in no pass rate (``harness_test_taxonomy.md`` 5.1.1).
+    """
+
+    preconditions_skipped: int = 0
+    broken: int = 0
+
+
 def result_lines(
     *,
     passed: int,
@@ -179,7 +195,7 @@ def result_lines(
     skips: list[tuple[str, str]],
     priority: str = "",
     engine: str = "",
-    preconditions_skipped: int = 0,
+    alarms: Alarms = Alarms(),
 ) -> list[str]:
     """Return a band's result as a header and one labelled fact per line.
 
@@ -216,8 +232,8 @@ def result_lines(
         engine (str): The engine measured, for the header. **Absent is
             ordinary**: a precondition run measures no engine and the header
             says so by leaving it out rather than by naming a default.
-        preconditions_skipped (int): How many skips were ungraded
-            preconditions, named apart because no cause excuses one.
+        alarms (Alarms): The precondition skips and the broken cases, each
+            printed only when nonzero.
 
     Returns:
         list[str]: The header and the facts. **An empty selection yields
@@ -225,7 +241,7 @@ def result_lines(
         result.
     """
     skipped = len(skips)
-    selected = passed + failed + skipped
+    selected = passed + failed + alarms.broken + skipped
     if not selected:
         return []
 
@@ -247,7 +263,9 @@ def result_lines(
         f"failed: {failed}",
         f"skipped: {skipped}",
     ]
-    required = max(0, min(preconditions_skipped, skipped))
+    if alarms.broken:
+        lines.append(f"broken: {alarms.broken}, so the run exits 3")
+    required = max(0, min(alarms.preconditions_skipped, skipped))
     if required:
         lines.append(f"preconditions skipped: {required}, so the run exits 3")
     lines.extend(skip_detail_lines(skips))

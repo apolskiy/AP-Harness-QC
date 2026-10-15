@@ -607,6 +607,33 @@ This is the load-bearing rule of the whole model.
 
 A harness failure is an **aborted measurement**, not a test result. When the instrument breaks, the correct record is *"this was not measured"*, never *"this failed"*. Consequently `failed` denotes **only** a genuine model finding, and the harness axis and the model axis never describe the same outcome.
 
+#### 5.1.1 A crash is broken in every output, not only in Allure
+
+Added 2026-10-15 at the project owner's instruction, after the final mutation
+audit reported "1 failed" for an `OSError` raised before pytest started.
+
+**The table above held in Allure alone.** allure-pytest marks a non-assertion
+exception `broken` by itself; the console counts, the band summary and the exit
+code counted the same case as `failed`, which is the one word this section
+reserves for a model finding.
+
+| Output | Now |
+|---|---|
+| The log | `QC_HARNESS_UNANTICIPATED_EXCEPTION <node> raised <type>: <message>`, at error level |
+| The result block | `broken: <n>` beside the five counts, and taken out of `failed`; `executed` counts measured cases only, so a crash enters no pass rate |
+| The exit code | **3**, nothing trustworthy was measured, whatever else failed |
+| JUnit | Unchanged: pytest writes a `<failure>`, whose message opens with the exception type |
+
+**What counts.** The call phase failing with any exception other than an
+`AssertionError` or pytest's own deliberate outcomes (`pytest.fail`,
+`pytest.skip`), and any error in setup or teardown. A deliberate failure is a
+measurement; an exception nobody raised on purpose is not.
+
+**The line appears only when a case broke**, like the precondition-skip line:
+it is an alarm, and a row of zeroes would train a reader to skip it.
+
+`MQC_CMN_UNI_112385` asserts the classification, the line and the exit code.
+
 ### 5.2 Adjudication is the reviewer's role (A7.1)
 
 The suite records outcomes. It does not diagnose them. Determining whether a pattern across engines indicates a flaky test, a defect affecting one or several engines, or an environment that never initialised is the reviewer's call: human, or a downstream analysis over the accumulated record.
@@ -794,6 +821,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
 | `QC_HARNESS_SELECTION_UNRESOLVED` | A `--tests-file` entry names no collected test. Reported as a skip with the reason `test not found`, and the rest of the run proceeds; a run where nothing resolves is refused instead (`cmn_verdict_and_cli.md` section 7.8.3) |
+| `QC_HARNESS_UNANTICIPATED_EXCEPTION` | A case raised an exception that is not an assertion, or errored in setup or teardown. Recorded as broken, never failed, and the run exits 3 (section 5.1.1) |
 | `QC_HARNESS_SUBPROCESS_TIMEOUT` | A nested process a case spawned did not finish within its bound. The case fails naming the command and the bound, rather than the job hanging until the runner cancels it (section 14) |
 | `QC_HARNESS_DEPENDENCY_UNMET` | A prerequisite at the same or a higher priority did not hold: a declared foundation failed or was itself skipped, or a higher band failed. The case was never evaluated (4.1.1). **A finding about the model one layer up, not about ours**, so it counts as a failure in the pass rate (7.4.1). A foundation less blocking than its dependent is refused at collection |
 | `QC_HARNESS_UPSTREAM_UNVERIFIED` | The pinned harness commit has no passing gate run, so the instrument was never established (`harness_ci_pipeline.md` section 3C.3). Distinct from `QC_HARNESS_DEPENDENCY_UNMET`: unmet is unavailable, unverified is available but not established |

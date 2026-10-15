@@ -25,6 +25,7 @@ from types import SimpleNamespace
 import pytest
 
 from cmn.band_summary import (
+    Alarms,
     band_table,
     result_lines,
     skip_reasons_from,
@@ -107,7 +108,7 @@ class TestMQCBandArithmetic:
         )
 
         clamped = result_lines(passed=1, failed=0, skips=[("c", "r"), ("d", "r")],
-                               preconditions_skipped=5)
+                               alarms=Alarms(preconditions_skipped=5))
         assert "preconditions skipped: 2, so the run exits 3" in clamped, (
             "the precondition count exceeds the skips it is drawn from"
         )

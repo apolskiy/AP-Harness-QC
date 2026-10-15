@@ -282,6 +282,12 @@ its cause:
 Band P0: 15 total, 12 executed, 9 passed, 3 failed, 3 skipped behind a prerequisite that did not hold
 ```
 
+**A crash is not a failure, and the block says so.** A case that raised
+something other than an assertion adds `broken: <n>, so the run exits 3` and a
+`broken 1 of n:` line naming it, its code and its exception, and it leaves the
+`failed` count. Printed only when something broke, being an alarm
+(`harness_test_taxonomy.md` section 5.1.1).
+
 **"Not measured" is not a state.** A case that did not run was skipped, and
 naming it anything else leaves a reader with no outcome to act on.
 

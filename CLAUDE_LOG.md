@@ -11318,3 +11318,33 @@ design with a one-line pointer, which is where reasoning belongs anyway.
 * **Code Quality & Compliance Audit:** 840 unit and system cases passed,
   pylint exit 0. The mutation audit, rerun on a fresh copy from a background
   session, passed 6 of 6 with exit 0 in 72 minutes.
+
+## 2026-10-15: A crash is broken in every output, and the run exits 3
+
+* **Requirements & Design Choices:** The project owner asked whether the
+  harness can tell a crash from a test failure, then approved the change. The
+  taxonomy (section 5) already said an unexpected exception is `broken`, never
+  `failed`; only Allure did that. The console counts, the band summary and the
+  exit code counted the final mutation audit's `OSError` as "1 failed".
+* **What Changed:** `cmn/broken.py` marks a phase report broken when the call
+  raised anything other than an `AssertionError` or a deliberate
+  `pytest.fail`, or when setup or teardown failed. The result block takes the
+  case out of `failed`, adds `broken: <n>, so the run exits 3` and a
+  `broken 1 of n:` line naming the case, `QC_HARNESS_UNANTICIPATED_EXCEPTION`
+  and the exception. The session exits 3. Both repositories' `conftest.py` call
+  it. `result_lines` took its two exit-3 counts as a frozen `Alarms` record,
+  which keeps it within pylint's argument limit. Taxonomy section 5.1.1 and
+  6.2, code-style 7.1, CMN_0178, `MQC_CMN_UNI_112385`.
+* **Verified By Injection:** the case runs a real pytest session in a
+  subprocess, with a pass, an assertion failure, a `pytest.fail`, a crash and a
+  setup crash. It failed before the module existed, and with the
+  classification disabled.
+* **Mutation Declarations Moved:** `cmn/registries.py` and
+  `cmn/band_summary.py` are audited, so their digests were redeclared and the
+  declared survivor lines moved with the inserted code (446, 723, 800; 154,
+  335), found by a line diff against the staged copy.
+* **Where I Was Wrong:** A command started with a stray `python -`, which waits
+  on input. It hung a session twice and was stopped both times; neither run
+  applied its edits.
+* **Code Quality & Compliance Audit:** 841 unit and system cases passed,
+  pylint exit 0.

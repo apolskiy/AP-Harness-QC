@@ -29,6 +29,18 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A crash reads as broken everywhere, and the run exits 3, 2026-10-15
+
+**A crash was a failure in every output but Allure.** The final mutation audit
+reported an `OSError` as "1 failed", the word the taxonomy keeps for a model
+finding. At the project owner's instruction, a case raising anything other than
+an assertion or a deliberate `pytest.fail`, or erroring in setup or teardown, is
+now counted as `broken`, named with `QC_HARNESS_UNANTICIPATED_EXCEPTION` and its
+exception in the result block, and makes the run exit 3: nothing trustworthy
+was measured. Both repositories' sessions are wired the same way
+(`MQC_CMN_UNI_112385`, taxonomy section 5.1.1). The README's figures moved: 644
+cases, 315 requirements.
+
 ### A crashed mutation control no longer blocks the audits after it, 2026-10-15
 
 **The final audit of the day failed to start its control run** from a

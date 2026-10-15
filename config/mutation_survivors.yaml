@@ -63,22 +63,22 @@ survivors:
   cmn/layers.py:
     digest: f5f71a25cd486b2fb526e96e2ccb006aa1ce6c84e79e4b4cc4f343ccbcb3bb8e
   cmn/registries.py:
-    digest: 824bb0d0e199574fa320d7c4e64246221caedd870b4d8b6793daba30b212b5ad
+    digest: c65a095f75923eaaee9f2ce1902fece268dfc69d323226ba1cd9d3188b97c2a4
     accepted:
-      - mutation: "line 444: 1 to 2"
+      - mutation: "line 446: 1 to 2"
         kind: equivalent
         reason: >-
           An unranked code sorts after every ranked group at the last rank plus
           one or plus two alike; the design asks only that it sort last
           (taxonomy section 6.5), and unranked_codes is what fails on one.
         expires_on: 2026-12-31
-      - mutation: "line 721: 1 to 2"
+      - mutation: "line 723: 1 to 2"
         kind: equivalent
         reason: >-
           The stem is the first element of the split, and maxsplit 1 and 2
           give the same first element for every string.
         expires_on: 2026-12-31
-      - mutation: "line 798: Or to And"
+      - mutation: "line 800: Or to And"
         kind: equivalent
         reason: >-
           The two guards differ only for a status equal to True, which is 1,
@@ -86,15 +86,15 @@ survivors:
           returns None either way.
         expires_on: 2026-12-31
   cmn/band_summary.py:
-    digest: 67cf164ffd310a14082776ae2021b083cdf00e03466180aa9fa963ef27fe367e
+    digest: 797689824fe0350e06e3573478ae3b4eed8b8482452ecc9202e118fcf1b08f00
     accepted:
-      - mutation: "line 153: 1 to 2"
+      - mutation: "line 154: 1 to 2"
         kind: equivalent
         reason: >-
           The code is the first element of split(":", 1), and maxsplit 2 gives
           the same first element for every string.
         expires_on: 2026-12-31
-      - mutation: "line 317: 1 to 2"
+      - mutation: "line 335: 1 to 2"
         kind: equivalent
         reason: >-
           The case name is the last element of rsplit("::", 1), and maxsplit 2
