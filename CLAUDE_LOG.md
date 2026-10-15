@@ -11348,3 +11348,20 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   applied its edits.
 * **Code Quality & Compliance Audit:** 841 unit and system cases passed,
   pylint exit 0.
+
+## 2026-10-15: The mutation workflow failed actionlint on Ubuntu
+
+* **Found By:** run 38813811100, `lint (ubuntu-24.04)`, after the project owner
+  pushed. actionlint runs shellcheck on each `run:` block, and shellcheck's
+  SC2001 style rule reported `echo "$refused" | sed 's/^/- /'` in
+  `audit-mutation-on-change.yml` line 82. The Windows lint leg passed, which is
+  why only one platform went red.
+* **Fix:** the list prefix is a bash substitution,
+  `echo "- ${refused//$'\n'/$'\n'- }"`, which prints the same list. Verified by
+  running the line on two refusals and with shellcheck 0.11 and actionlint
+  1.7.12, both exiting 0 for all eight harness workflows. The case repository's
+  workflows were clean already.
+* **Where I Was Wrong:** the workflow was written and verified locally with
+  pytest and pylint only. The CI lint step runs actionlint as well, and nothing
+  local did, so the gate's own check was the first to see the file.
+  actionlint is now part of the local verification for any workflow change.

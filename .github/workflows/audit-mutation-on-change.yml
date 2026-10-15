@@ -79,7 +79,7 @@ jobs:
             if [ -n "$refused" ]; then
               echo "**Refused, so not measured.** Re-measure and re-declare each digest:"
               echo ""
-              echo "$refused" | sed 's/^/- /'
+              echo "- ${refused//$'\n'/$'\n'- }"
             else
               echo "Every audited module was measured."
             fi
