@@ -454,17 +454,21 @@ by a **pair** of refs, and the pairing has to be decided rather than assumed.
 | Repository | Branch | Holds |
 |---|---|---|
 | `AP-Harness-QC` | `main` | The harness the main regression runs on, and what test development is written against |
-| `AP-Harness-QC` | `stabilization` | Harness stabilization, and the extensions new cases need before they can exist |
-| `AP-Harness-QC` | Feature branches | One harness change each |
+| `AP-Harness-QC` | `stabilization-*` | One cycle's harness stabilization, and the extensions new cases need before they can exist |
+| `AP-Harness-QC` | `expand-*`, `extend-*`, `debug-*` | One unit of work each |
 | `AP-Model-QC` | `main` | Every case that works |
-| `AP-Model-QC` | `stabilization` | Cases being stabilized before they merge to `main` |
-| `AP-Model-QC` | Expansion branches | One coverage expansion each |
+| `AP-Model-QC` | `stabilization-*` | One cycle's cases being stabilized before they merge to `main` |
+| `AP-Model-QC` | `expand-*`, `extend-*`, `debug-*` | One unit of work each |
+
+Every branch other than `main` is dated and names its kind, section 3C.6.
 
 **The pairing follows from what each branch is for**, and only one pairing is
 non-obvious. A case expansion needing no new harness capability pairs with
 harness `main`, because that is what its cases run against once merged. A case
-expansion **requiring a harness extension** pairs with harness `stabilization`,
-because the capability it depends on exists nowhere else yet.
+expansion **requiring a harness extension** pairs with the harness branch
+carrying that capability, named by the entry the branch adds to the mapping
+when it is cut (section 3C.6.6), because the capability exists nowhere else
+yet.
 
 That second case is the one that matters, and it is why the pin cannot be a
 constant.
@@ -564,8 +568,8 @@ control flow.
 
 ### 3C.6 Every working branch is dated, and carries what it is for
 
-Added 2026-09-24, superseding the long-lived `stabilization` branch described
-above. **`main` is the master branch.** Every other branch is cut from it,
+Added 2026-09-24, superseding the long-lived `stabilization` branch this
+section first described. **`main` is the master branch.** Every other branch is cut from it,
 merged back into it, and deleted.
 
 ```
@@ -580,7 +584,7 @@ merged back into it, and deleted.
 
 ```
 extend-MQC-1234-09-24-2026
-expand-10428-09-24-2026
+expand-115005-09-24-2026
 stabilization-v1.2.0-09-24-2026
 ```
 
@@ -1074,7 +1078,7 @@ approaches it has gone wrong rather than done more work.
 | Flag | Why it spends |
 |---|---|
 | `--mode live` | Dispatches to the candidate |
-| `--judge-mode live` | Dispatches to the judge, **which is never replayed**: a bound judge is a live call whatever the candidate mode |
+| `--judge-mode live` | Dispatches to the judge whatever the candidate mode. A replayed judge loads a stored judgement and never dispatches (`tier2_execution.md` section 7.9) |
 | `--mode ${{ matrix.mode }}` | May be live on one leg of the matrix, so it is treated as spending |
 
 `MQC_CMN_UNI_112257` and `MQC_CAS_UNI_115418` report a step that can dispatch
@@ -1183,6 +1187,97 @@ step before the push, not in the pipeline.
 already a step in two workflows, so the fix is to use it locally and not to add
 a second checker.
 
+### 8.5 Every engine a workflow offers is an engine on the roster
+
+Added 2026-10-14, after grok was found missing from four workflows ten days
+after it was rostered.
+
+**grok was rostered on 2026-10-04** with an adapter, a price, a recording run,
+and a gate and weekly caller of its own in `AP-Model-QC`. Four workflows still
+offered three engines:
+
+| Workflow | Where the list sits |
+|---|---|
+| `debug-failures-on-demand.yml` | The `engine` choice input |
+| `diagnose-on-demand.yml` | The `engine` choice input |
+| `regress-harness-on-branch.yml` | The `engine` matrix |
+| `AP-Model-QC` `debug-cases-on-demand.yml` | The `engine` choice input |
+
+**This is `AP-Model-QC` `consumer_ci.md` section 4.19.3 one file further out.**
+That section found the case repository's target list was a hand-written copy of
+the roster and replaced it with a read. The workflows hold copies too, and a
+copy written in YAML is one no Python check was reading. A dispatch menu
+missing a rostered engine is quiet: the engine is simply not offered, and
+nothing says why.
+
+#### 8.5.1 The rule
+
+**An engine list written in a workflow names exactly the rostered engines.** A
+rostered engine missing from it is reported, and so is a name the roster does
+not carry, because a stale name left after a retirement is the same drift in
+the other direction.
+
+| Read | Where |
+|---|---|
+| A choice input named `engine` | Its `options`, under `workflow_dispatch` or `workflow_call` inputs |
+| A matrix dimension named `engine` | `strategy`, `matrix`, `engine`, when it is a list |
+
+**Order is not compared.** A dispatch menu carries no meaning in its order, and
+requiring the roster's order would report a reordering nobody needs to act on.
+
+**A free-text `engine` input is not a list** and is not read. The harness
+refuses an unrostered value at argument parsing (`MQC_CMN_UNI_112150`).
+
+#### 8.5.2 What it does not read yet
+
+**A matrix written as `include` entries is not read.** `evaluate-live-weekly.yml`
+is the only one, and its legs pair each engine with a mode: gemini live, openai
+and claude replay. **That pairing breaks the project owner's rule of
+2026-10-08**, that a graded case runs against live agents only and replay on
+both sides is for harness tests. Adding grok there is a decision about its
+mode, which belongs to the replay correction rather than to this one. It is an
+open item, and the check is widened when that workflow is redesigned.
+
+#### 8.5.3 Enforced, from one implementation
+
+`cmn.workflow_standards.engine_list_gaps` reports each list disagreeing with the
+roster it is given, naming the workflow, the list and the engines missing or
+extra. `MQC_CMN_UNI_112366` and `MQC_CAS_UNI_115743` call it with each root and
+the roster read from the installed harness, the one-implementation-two-callers
+arrangement section 8.2.2 already uses.
+
+#### 8.5.4 A workflow that can run any engine live offers every engine's key
+
+Added 2026-10-14, the same day and the same shape.
+
+**A key is offered to a step only by name.** A secret set on the repository or
+on the `live` environment reaches a step only through an assignment naming it in
+that workflow, so a secret that exists is not a secret a run can read.
+`debug-failures-on-demand.yml`, `diagnose-on-demand.yml` and `AP-Model-QC`
+`debug-cases-on-demand.yml` each offer every rostered engine and a live mode,
+and each assigned only the judge's key. A live debug run against openai,
+claude or grok would refuse at preflight, which is correct and reported as our
+configuration, and quiet enough to read as a skip nobody ordered.
+
+**`AP-Model-QC` `consumer_ci.md` section 4.19.3 already had this rule for one
+workflow**, `evaluate-engine.yml`, checked by `MQC_CAS_UNI_115710`. This widens
+it to every workflow the same reasoning applies to.
+
+| A workflow is checked when it | Read from |
+|---|---|
+| Lets the engine be chosen from a list | An `engine` choice input or matrix, as section 8.5.1 |
+| And can run live | A `mode` choice input offering `live` |
+
+**What is required is the assignment, not a mention**: `NAME` set from the
+secret of the same name, anywhere in the workflow. A name in a comment sets
+nothing. Which variable each engine needs comes from its adapter, so a caller
+passes the declared variables and the check knows no provider.
+
+`cmn.workflow_standards.unoffered_credentials` reports each workflow missing an
+assignment. `MQC_CMN_UNI_112367` and `MQC_CAS_UNI_115744` call it with each root
+and the variables the rostered adapters declare. **The value is never read**;
+what is checked is the wiring, which is the part a roster addition forgets.
+
 ---
 
 ## 9. Exit Codes To Job Status
@@ -1216,6 +1311,8 @@ Workflow files are configuration, not collected code, so `pytest.ini` never sees
 | Verdict gating on selection mode | `MQC_CMN_UNI_112123` through `112125` |
 | A full selection on a debug branch staying ungated | `MQC_CMN_UNI_112126` |
 | Notification transition detection | `MQC_CMN_UNI_112212` |
+| Engine lists matching the roster | `MQC_CMN_UNI_112366` (section 8.5) |
+| Every rostered engine's key offered where any engine can run live | `MQC_CMN_UNI_112367` (section 8.5.4) |
 | Workflow syntax | `actionlint` in the `lint` job |
 
 **The logic is tested in Python; the YAML is linted.** Putting decision logic in workflow expressions would move it somewhere no test can reach, which is why selection and gating live in `cmn/` and the workflows only call them.

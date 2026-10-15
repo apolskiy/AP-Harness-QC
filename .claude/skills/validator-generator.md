@@ -106,4 +106,4 @@ class GoldenRuleSet:
 4. No bare or broad exception handlers; every re-raise chains with `from error`.
 5. Logging uses lazy `%s` interpolation, not f-strings.
 6. `pylint --rcfile=.pylintrc ingestion/` reports 10.00/10.
-7. A matching `MQC_ING_UNI_#####` acceptance test and rejection test exist for the validator.
+7. A matching `MQC_ING_UNI_######` acceptance test and rejection test exist for the validator.

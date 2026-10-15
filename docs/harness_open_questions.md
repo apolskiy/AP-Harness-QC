@@ -118,6 +118,8 @@ Recorded so the absence is on the record. None needs a decision.
 | Two equivalent mutants in `cmn/verdict.py` are findings about the code | One branch is unreachable given its predecessors and one adds a rule to a breach list nobody reads. Declared with expiries rather than fixed |
 | A re-record needing fewer observations than the previous run leaves the surplus behind | Pruned by hand three times on 2026-10-12. Nothing prunes at the point of recording |
 | A ceiling means `>` for V7 to V9 and `>=` for the inconsistency condition | Both are intended and now tabulated, so neither is derivable from the word: `cmn_verdict_and_cli.md` section 8.2 |
+| Nothing detects a mutation audit already running, and nothing stops a second one starting beside it | `harness_test_taxonomy.md` section 15.11 designs the lock and it is not built. An abandoned run held `cmn/verdict.py` for twenty-five minutes on 2026-10-13 and rewrote it after each restore. **Deferred rather than hidden**: section 15.10's declared digest makes the damage refuse rather than be measured, which is what makes deferring it safe |
+| Nothing checks that an assertion matches a figure the fixture declares rather than a verdict's vocabulary | `DESIGN.md` section 7.8. Three assertions in `premise_discrimination` shipped as synonym lists and produced a false positive on the first recorded run. The rule is written and **review is the only thing enforcing it**: a pattern carrying no digit is not reliably wrong, so the obvious check would refuse legitimate assertions |
 
 ## 3. Things I changed that deserve a second opinion
 

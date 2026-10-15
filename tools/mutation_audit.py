@@ -14,13 +14,20 @@ than the tests. Section 15.3 draws that line and
 ``config/mutation_survivors.yaml`` records which kind each accepted entry is.
 
 **The module is edited in place**, because it has to be importable at the path
-the suite imports it from. The original is written to a sibling backup first,
-so a run killed between the write and the restore is recoverable by the next
-one (section 15.5).
+the suite imports it from. The original is written to a sibling backup before
+any rewrite, the control's unparse included, so a run killed at any point is
+recoverable by the next one (section 15.5).
+
+**The baseline is declared rather than discovered.** The module has to hash to
+the digest ``config/mutation_survivors.yaml`` declares for it, because a backup
+is self-consistent and will faithfully preserve damage: a module an earlier run
+left unparsed passes the control gate trivially, since unparsing is idempotent
+(section 15.10).
 """
 
 import argparse
 import ast
+import hashlib
 import logging
 import re
 import subprocess
@@ -32,6 +39,23 @@ from typing import Any, Final, Optional
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+class MutationRefusal(Exception):
+    """The audit declined to measure, which is not a measurement.
+
+    Every reason carries ``QC_HARNESS_AUDIT_REFUSED``: a backup from a killed
+    run, a baseline that is not the declared module, a control that did not
+    pass, a run that collected nothing. ``framework-rules.md`` section 4 gives
+    that family the outcome "skip or broken, never fail", so a caller reports
+    one as a skip.
+
+    Separate from :exc:`ValueError` because the two answer different
+    questions. A `ValueError` from this module means an argument was wrong; a
+    refusal means the arguments were fine and the repository was not.
+
+    Design: ``harness_test_taxonomy.md`` section 15.2.1.
+    """
 
 # COMPARISON COUNTERPARTS. The threshold hole lived here: a boundary that drifts
 # from `>` to `>=` changes which runs pass and nothing else about the code.
@@ -52,6 +76,11 @@ _NOTHING_COLLECTED: Final[int] = 5
 # WHERE THE REAL FILE WAITS while a mutant is in place. A kill between the write
 # and the restore leaves the mutant on disk and only this says what was there.
 _BACKUP_SUFFIX: Final[str] = ".mutation-backup"
+
+# WHERE THE BASELINE IS DECLARED. Read from the root rather than passed, for
+# the same reason the backup suffix is a constant: it is a property of the
+# project and not of a caller.
+_MANIFEST: Final[str] = "config/mutation_survivors.yaml"
 
 # EVERY SUBPROCESS CARRIES ONE, per taxonomy section 14. The unit suite takes
 # about 22 seconds, so this is a hang ceiling rather than a budget.
@@ -162,6 +191,51 @@ def _mutate(tree: ast.Module, point: MutationPoint) -> bool:
     return False
 
 
+def module_digest(text: str) -> str:
+    """Return the digest of a module's content, newlines normalized.
+
+    Args:
+        text (str): The module source.
+
+    Returns:
+        str: The hex SHA-256 of the content with newlines as LF, so a digest
+        does not depend on how the file was checked out.
+    """
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def baseline_problem(manifest: Path, module: str, text: str) -> Optional[str]:
+    """Report why this content may not serve as a baseline, or None.
+
+    Design: ``harness_test_taxonomy.md`` section 15.10.
+
+    Args:
+        manifest (Path): ``config/mutation_survivors.yaml``.
+        module (str): The module path, as the declaration keys it.
+        text (str): The content on disk.
+
+    Returns:
+        Optional[str]: The reason to refuse, or None when the content hashes
+        to the declared digest.
+    """
+    declared = (declared_survivors(manifest).get(module) or {}).get("digest")
+    found = module_digest(text)
+    if not declared:
+        return (
+            f"{module} declares no baseline digest, so nothing establishes "
+            f"that this content is the module the survivors were measured "
+            f"against. Add `digest: {found}` beside its `accepted` list"
+        )
+    if declared != found:
+        return (
+            f"{module} hashes to {found} and {manifest.name} declares "
+            f"{declared}. Either an earlier run left the module altered, or "
+            f"it was edited and the survivors need re-measuring against it"
+        )
+    return None
+
+
 def recover(module: Path) -> Optional[str]:
     """Restore a module from an abandoned backup, if one is there.
 
@@ -211,7 +285,9 @@ def run_targets(
     )
 
 
-def control_problem(root: Path, module: Path, targets: list[str]) -> Optional[str]:
+def control_problem(
+    root: Path, module: Path, targets: list[str], original: str
+) -> Optional[str]:
     """Report why the audit must not run, or None when it may.
 
     **Rewriting a module from its syntax tree strips every comment**, so a
@@ -224,17 +300,19 @@ def control_problem(root: Path, module: Path, targets: list[str]) -> Optional[st
         root (Path): The repository root.
         module (Path): The module to be mutated.
         targets (list[str]): The pytest arguments.
+        original (str): The baseline, which the caller has already backed up.
+            **Passed rather than read**, because reading it here put the
+            rewrite below outside the backup window (section 15.5).
 
     Returns:
         Optional[str]: The reason to refuse, or None.
     """
-    original = module.read_text(encoding="utf-8")
     module.write_text(ast.unparse(ast.parse(original)), encoding="utf-8",
                       newline="\n")
-    try:
-        control = run_targets(root, targets, stop_early=False)
-    finally:
-        module.write_text(original, encoding="utf-8", newline="\n")
+    # THE CALLER RESTORES, because the caller is what holds the backup. A
+    # restore here would leave the caller unable to tell a control that ran
+    # from one that never wrote anything.
+    control = run_targets(root, targets, stop_early=False)
 
     passed = _PASSED.search(control.stdout)
     collected = int(passed.group(1)) if passed else 0
@@ -263,21 +341,39 @@ def survivors(
         list[MutationPoint]: The survivors, in walk order.
 
     Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when a backup from a
-            killed run was found, or when the control did not pass, or when a
-            run collected nothing part-way through.
+        MutationRefusal: With ``QC_HARNESS_AUDIT_REFUSED`` when a backup
+            from a killed run was found, when the module does not hash to its
+            declared digest, when the control did not pass, or when a run
+            collected nothing part-way through. **A refusal is a skip**, per
+            section 15.2.1: none of those says anything about the survivors.
     """
     recovered = recover(module)
     if recovered is not None:
-        raise ValueError(f"QC_HARNESS_PARSER_ERROR: {recovered}")
+        raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {recovered}")
 
-    refusal = control_problem(root, module, targets)
-    if refusal is not None:
-        raise ValueError(f"QC_HARNESS_PARSER_ERROR: {refusal}")
-
+    # THE BASELINE IS CHECKED BEFORE ANYTHING IS WRITTEN, because every later
+    # step treats this content as authoritative: the backup copies it and the
+    # `finally` restores it. A damaged baseline that reaches those steps is
+    # preserved by them rather than caught (section 15.10).
     original = module.read_text(encoding="utf-8")
+    stale = baseline_problem(
+        root / _MANIFEST, module.relative_to(root).as_posix(), original
+    )
+    if stale is not None:
+        raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {stale}")
+
+    # THE BACKUP COMES BEFORE THE CONTROL, which rewrites the module too. It
+    # was written after, which left the longest window in the audit unguarded.
     backup = module.with_suffix(module.suffix + _BACKUP_SUFFIX)
     backup.write_text(original, encoding="utf-8", newline="\n")
+
+    try:
+        refusal = control_problem(root, module, targets, original)
+    finally:
+        module.write_text(original, encoding="utf-8", newline="\n")
+    if refusal is not None:
+        backup.unlink(missing_ok=True)
+        raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {refusal}")
 
     points = mutation_points(original)
     if limit:
@@ -298,8 +394,8 @@ def survivors(
 
             done = run_targets(root, targets, stop_early=True)
             if done.returncode == _NOTHING_COLLECTED:
-                raise ValueError(
-                    f"QC_HARNESS_PARSER_ERROR: pytest collected nothing at "
+                raise MutationRefusal(
+                    f"QC_HARNESS_AUDIT_REFUSED: pytest collected nothing at "
                     f"{point.describe()}, so no result from this run means "
                     f"anything"
                 )
@@ -326,6 +422,49 @@ def declared_survivors(path: Path) -> dict[str, dict[str, Any]]:
         return {}
     loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     return loaded.get("survivors") or {}
+
+
+def declare_digest(manifest: Path, module: str, digest: str) -> None:
+    """Record the baseline digest a module's survivors were measured against.
+
+    **Edited in place rather than re-serialized.** Dumping the parsed mapping
+    back would drop every comment, and the comments are the reasons section
+    15.2 requires each accepted survivor to carry.
+
+    Design: ``harness_test_taxonomy.md`` section 15.2.2.
+
+    Args:
+        manifest (Path): ``config/mutation_survivors.yaml``.
+        module (str): The module path, as the declaration keys it.
+        digest (str): The hex digest to declare.
+
+    Returns:
+        None
+    """
+    text = manifest.read_text(encoding="utf-8") if manifest.is_file() else ""
+    entry = f"  {module}:\n"
+    declared = (declared_survivors(manifest).get(module) or {}).get("digest")
+    if declared:
+        manifest.write_text(
+            text.replace(f"    digest: {declared}\n",
+                         f"    digest: {digest}\n", 1),
+            encoding="utf-8", newline="\n",
+        )
+        return
+    if entry in text:
+        manifest.write_text(
+            text.replace(entry, f"{entry}    digest: {digest}\n", 1),
+            encoding="utf-8", newline="\n",
+        )
+        return
+    # A MODULE WITH NO ENTRY AT ALL, which is an audited module that has
+    # accepted nothing. The digest alone is the correct statement, and
+    # `survivor_problems` reads an absent `accepted` as an empty list.
+    opener = "" if text.endswith("\n") or not text else "\n"
+    manifest.write_text(
+        f"{text}{opener}{entry}    digest: {digest}\n",
+        encoding="utf-8", newline="\n",
+    )
 
 
 def survivor_problems(
@@ -394,13 +533,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     try:
         found = survivors(root, root / parsed.module, parsed.target,
                           limit=parsed.limit)
-    except (ValueError, subprocess.TimeoutExpired) as error:
+    except (MutationRefusal, subprocess.TimeoutExpired) as error:
         logger.error("%s", error)
         return 4
 
     problems = survivor_problems(
         parsed.module.as_posix(), found,
-        declared_survivors(root / "config/mutation_survivors.yaml").get(
+        declared_survivors(root / _MANIFEST).get(
             parsed.module.as_posix(), {}
         ),
     )

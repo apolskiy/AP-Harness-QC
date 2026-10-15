@@ -43,7 +43,7 @@ on:
         required: false
         default: gemini
         type: choice
-        options: [gemini, openai, claude]
+        options: [gemini, openai, claude, grok]
       mode:
         description: "live or replay"
         required: false
@@ -126,7 +126,13 @@ jobs:
         id: run
         continue-on-error: true
         env:
+          # EVERY ROSTERED ENGINE'S KEY, because the engine is a choice and
+          # live is one of the modes. A secret reaches a step only by name.
+          # Harness `harness_ci_pipeline.md` section 8.5.4.
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
         shell: bash
         run: |
           passes=0

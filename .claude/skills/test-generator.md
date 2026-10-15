@@ -13,9 +13,9 @@ This skill produces Phase 3 output only. Do not invoke it before a test plan exi
 * **`MQC` prefix is mandatory on all three levels.** It is the project prefix, not a layer attribute, and no test type is exempt:
   * Module: `mqc_<component>.py`, under `tests/`.
   * Class: `TestMQC<Component>`.
-  * Callable: `MQC_<LAYER>_<5DIGIT_ID>_<behavior>`.
+  * Callable: `MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>`.
 * **`test_` prefix is prohibited at every level.** `.pylintrc` rejects it via negative lookahead. A `test_` name would not be collected by `pytest.ini`, so it would lint clean and never run.
-* **Layer token**: currently `UNI` / `SYS` / `EVAL`. If the plan calls for a layer not yet registered, stop and register it first (table row + `pytest.ini` marker + CI gate step) rather than inventing one inline.
+* **Layer token**: one registered in `../rules/testing-standards.md` section 1. If the plan calls for a layer not yet registered, stop and register it first (table row + `pytest.ini` marker + CI gate step) rather than inventing one inline.
 * **Variables**: minimum 3 characters everywhere, including `except ... as`, comprehension targets, and lambdas. Use `error` not `e`, `index` not `i`, `item` is acceptable at 4 characters.
 * **Typing**: every parameter and return annotated, including `-> None`.
 * **Docstrings**: Google style with typed `Args:` entries and a mandatory `Returns:` section.

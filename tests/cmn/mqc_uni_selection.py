@@ -615,8 +615,8 @@ class TestMQCSpendCeiling:
         until 2026-10-04 no workflow set a value, so a live leg ran unbounded.
         That was harmless only because no credential existed in Actions.
 
-        **A judged replay spends too.** The judge is never replayed, so
-        `--judge-mode live` is a live call whatever the candidate mode.
+        **A replayed candidate with a live judge spends too.**
+        `--judge-mode live` dispatches to the judge whatever the candidate mode.
 
         **Whole invocations, not lines.** A CI pytest call spans several lines
         with trailing backslashes, and a line-based reader reports a step that

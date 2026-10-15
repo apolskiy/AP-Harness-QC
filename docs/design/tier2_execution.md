@@ -835,10 +835,11 @@ judge fixtures were specified, and `resolve_judge_mode` has defaulted
 `--judge-mode` to `--mode` since section 5A.5. **Nothing joined them to a
 channel**, so `JudgeChannel.invoke` dispatched live whatever the run asked for.
 
-**That is not a missing feature, it is a quota leak.** `FixtureKey` keys the
-candidate only, so a bound judge is a live call whatever `--mode` says. A
-replay run that judged would spend provider quota on every pull request, which
-is precisely the hazard `consumer_ci.md` section 6.4 records as open.
+**That was not a missing feature, it was a quota leak.** `FixtureKey` keys
+the candidate only, so until the channel honoured the flag a bound judge was a
+live call whatever `--mode` said. A replay run that judged would have spent
+provider quota on every pull request, which is the hazard `consumer_ci.md`
+section 6.4 recorded as open until section 6.4.1 closed it.
 
 | `--mode` | `--judge-mode` | The channel |
 |---|---|---|

@@ -10993,3 +10993,249 @@ design with a one-line pointer, which is where reasoning belongs anyway.
 * **Injection Verification:** `>=` to `>` caught by `114010` alone; the flag ignored, caught by `114011` alone. Restored, both green.
 * **Code Quality & Compliance Audit:** 774 unit, 24 system, pylint exit 0.
 * **AI Output Summary & Action Items:** `tier3_evaluation.md` section 9 gained the pass-mark decision and the flag; `DESIGN.md` section 5 two rows; README the anchor paragraph; `--at-pass-mark` registered in `cmn/options.py` and declared in `flag_coverage.yaml`; cases `114010` and `114011`; requirements `MQC_REQ_HAR_EVL_0063` and `0064`.
+
+---
+
+## 2026-10-13: The audit was measuring a module that was not there
+
+* **Requirements & Design Choices:** The project owner's instruction: an
+  incongruity, an ambiguity or a judgement call is called out and fixed,
+  whoever made it, because a mistake left in place becomes a bug once the demo
+  is released. Design first, then documentation, then the matrix, then
+  implementation; a gap with everything else in place is an open item.
+* **What Was Found:** `cmn/verdict.py` sat in the worktree at 719 lines with
+  no SPDX header and no comments, against 996 committed, and three restores
+  from `git show HEAD:` were undone within seconds of each other. The cause
+  was an abandoned background run, alive twenty-five minutes, that nothing
+  detected and nothing prevented a second audit from starting beside.
+* **The Defect Under It:** `ast.unparse` is idempotent, so an already-stripped
+  module passes the control gate trivially. It was then read as `original`,
+  written to the backup as authoritative, and written back by the `finally`.
+  **The damage was self-perpetuating and `recover` reported success**, so the
+  mechanism built for crash safety preserved the damage and certified it.
+  `control_problem` also unparsed before any backup existed, leaving the
+  longest window in the audit, a full suite run, unguarded.
+* **Design Decisions:** The baseline is **declared rather than discovered**:
+  a `digest` per audited module in `config/mutation_survivors.yaml`, anchored
+  in the manifest rather than in `HEAD`, because a worktree legitimately
+  differs from `HEAD` during ordinary work. The project owner proposed the
+  hash; what it needed was an anchor outside the file, since a self-consistent
+  chain hashes the damage just as happily. It also couples a survivor
+  declaration to the module version it was measured against, which nothing did
+  before.
+* **Deferred, With The Reason:** A lock and a stray-run detector are designed
+  in section 15.11 and not built, at the project owner's direction. Section
+  15.10 is what makes deferring safe: a second audit reading a mutant as its
+  baseline is now refused rather than quietly measured.
+* **A Refusal Is Not A Measurement:** Both mutation cases reported `failed`
+  for a baseline they never got past. `framework-rules.md` section 4 has
+  always given `QC_HARNESS_*` the outcome "skip or broken, never fail", and
+  the layer was the one place that had been written as an exception without
+  anybody deciding to make one. The two free refusals now gate in a
+  `conftest.py` fixture; the control's refusal costs a full suite run and is
+  skipped where it is raised, which is a compromise and is recorded as one.
+* **A Code Belonging To Another Module:** All four refusal sites raised
+  `QC_HARNESS_PARSER_ERROR`, which the registry defines as "ingestion failed
+  to parse input files". `QC_HARNESS_AUDIT_REFUSED` is registered for them.
+  Before the gloss was added the reporter printed "no cause recorded, which is
+  itself a defect", which is the check catching the omission.
+* **Where I Was Wrong:**
+  * I was about to report `_DESELECT` as stale on the strength of a control
+    failure that my own abandoned run had caused by flipping `frozen=True` to
+    `frozen=False`. A quiet-tree re-measurement gave 772 of 772. **I nearly
+    filed the instrument's success as its defect.**
+  * I put the setup fixture in a support module, where pytest never discovers
+    one. It would have linted clean, passed, and gated nothing.
+  * I wrote a third callable rebinding `112364`, which `112226` forbids.
+  * I used a shell heredoc once, against the standing rule.
+* **Injection Verification:** Six injections, each caught: a mismatched digest
+  waved through, an undeclared module trusted, the control reading the module
+  itself again, recovery reporting nothing, the manifest writer
+  re-serializing, and a second declaration accumulating. **One was NOT CAUGHT
+  on the first pass**: my assertion said only that something was refused, which
+  passed through the mismatch branch with a message naming `None`. The case
+  now requires the refusal to carry the remedy.
+* **Validated By The Failure Itself:** A run killed mid-control the same day
+  left a backup whose digest matched the declaration exactly, and `recover`
+  restored a file identical to `HEAD`. Under the previous code that kill left
+  no backup at all.
+* **Code Quality & Compliance Audit:** 801 unit and system, pylint exit 0.
+* **AI Output Summary & Action Items:** Taxonomy sections 15.2.1, 15.2.2,
+  15.5, 15.10 and 15.11; `DESIGN.md` section 7.8 on the assertion boundary;
+  cases `112363` to `112365`; requirements `MQC_REQ_HAR_CMN_0163` to `0166`;
+  `QC_HARNESS_AUDIT_REFUSED` registered. Two gaps recorded: the absent lock,
+  and that nothing checks an assertion matches a declared figure.
+
+## 2026-10-14: Three documents said the judge is never replayed
+
+* **Requirements & Design Choices:** The project owner's position: the judge is
+  not under test, the model is; recorded judgements exist to cut cost and speed
+  up work on the harness and the cases, and a model finding comes only from a
+  live candidate scored by a live judge. That was already the design,
+  `tier3_evaluation.md` section 5A.5 and `AP-Model-QC` `consumer_ci.md` section
+  6.4.1. The defect was older sentences contradicting it.
+* **What Was Corrected:** The gate paragraph in `testing-standards.md` section
+  2, `harness_ci_pipeline.md` section 8.2.2, `harness_test_taxonomy.md`
+  section 7.4.2 and the tense of `tier2_execution.md` section 7.9. The
+  taxonomy table was the worst of them: it called replayed-candidate,
+  live-judge "the pull-request gate", which is the judge-drift rung, and
+  listed live-candidate, replayed-judge as a configuration when it is refused.
+  Commentary in `cmn/workflow_standards.py` and two test docstrings carried
+  the same claim and were corrected with it; no behaviour changed.
+* **Identifier Format:** Six digits, as `testing-standards.md` section 1 and
+  every case on disk have it. Gate 2 to 8 in `framework-rules.md`, the
+  register example in `testing-standards.md` and three skills said five; the
+  skills now point at the layer registry rather than list layers that went
+  stale. `harness_phase0_project_ambiguities.md` keeps its old form as a
+  record of Phase 0.
+* **Where I Was Wrong:** I proposed rewriting the rule to describe judge
+  replay as if it were a new decision, and listed the Model Repository's
+  `CLAUDE.md` pointing at a missing `.claude/rules/framework-rules.md` as a
+  defect. The table there is headed "Read these in the harness", so the path
+  was correct. Both were caught before any edit.
+* **Not Changed:** "the seven gates" in both `CLAUDE.md` files stays until the
+  mutation gate is finished, and the mutation family's open items stay with
+  it.
+
+## 2026-10-14: Four workflow engine lists were copies of the roster
+
+* **Requirements & Design Choices:** The project owner's instruction: grok is
+  in the design, the documents, the harness, CI and the recordings, so a
+  workflow omitting it is an omission, found by iterating the review. Design
+  first, then documentation, the matrix and the case, then the fix.
+* **What Was Found:** `debug-failures-on-demand.yml`, `diagnose-on-demand.yml`
+  and `regress-harness-on-branch.yml` here, and `debug-cases-on-demand.yml` in
+  `AP-Model-QC`, listed gemini, openai and claude. `AP-Model-QC` `consumer_ci.md`
+  section 4.19.3 had replaced one hand-written copy of the roster with a read on
+  2026-10-04; the workflows held four more, in YAML, which no check read.
+* **The Check:** `engine_list_gaps` reads each `engine` choice input and each
+  `engine` matrix written as a list, and reports a missing or unrostered
+  engine. Order is not compared. `harness_ci_pipeline.md` section 8.5,
+  `MQC_REQ_HAR_CMN_0167`, `MQC_CMN_UNI_112366`, and `MQC_CAS_UNI_115743` with
+  `MQC_REQ_CAS_GOV_0008` on the other side.
+* **Injection Verification:** Both cases were run before any workflow was
+  touched. `112366` failed naming exactly the three harness lists and `115743`
+  failed naming exactly `debug-cases-on-demand.yml`; both passed after grok was
+  added. The harness case also builds a workflow carrying a short menu, a
+  matrix with an unrostered engine, a free-text input and an `include` matrix,
+  and requires exactly the first two reported.
+* **Decided, Not Yet Done:** The project owner, 2026-10-14: replay on both
+  sides is for harness tests only, and model tests never use replay for the
+  candidate or the judge. That makes the replay pull-request gate in
+  `AP-Model-QC`, rungs 1 and 2 of its ladder, and the replay legs of
+  `evaluate-live-weekly.yml` contrary to the rule, along with the tables written
+  earlier today in `harness_test_taxonomy.md` section 7.4.2 and `AP-Model-QC`
+  `consumer_ci.md` section 6.4. It goes through design next.
+* **Open Items:** `evaluate-live-weekly.yml` writes its matrix as `include`
+  entries and is not read, because grok's leg there needs a mode and the mode
+  belongs to the replay correction. `debug-failures-on-demand.yml`,
+  `diagnose-on-demand.yml` and `AP-Model-QC` `debug-cases-on-demand.yml` pass
+  only the judge's key, so a live run there for openai, claude or grok has no
+  credential.
+* **Where I Was Wrong:** I used a shell heredoc to patch the edit script,
+  against the standing rule. The tool layer halved a backslash, the patch's
+  assertion failed, and the unpatched script then ran: one plan row landed
+  before `0166` instead of after it and one matrix row lost its quotes. Both
+  were corrected and checked by parsing the CSV.
+  * I named both cases with a 62-character behaviour, past the 60 the naming
+    pattern allows, so neither was collected on the first full run and the
+    inventory, matrix and pylint checks all reported it. Renamed to
+    `a_workflow_engine_list_off_the_roster_is_reported` everywhere.
+* **Figures Moved:** `cmn_verdict_and_cli.md` 287 cases, `DESIGN.md` index 287,
+  README 300 requirements and 615 instrument cases; in `AP-Model-QC`,
+  `consumer_ci.md` 82 cases, README 133 requirements, 118 preconditions and
+  802 harness cases. Each was reported by the check that owns it.
+* **Code Quality & Compliance Audit:** 802 unit and system, pylint exit 0.
+  `AP-Model-QC`: 118 preconditions, pylint exit 0. The mutation-audited modules
+  are untouched, so the audit result of 2026-10-14 stands.
+
+## 2026-10-14: Three debug workflows could not run three engines live
+
+* **Requirements & Design Choices:** The project owner confirmed the keys exist
+  for local runs and as Actions secrets. A secret reaches a step only through an
+  assignment naming it, so existing is not enough; the owner also directed that
+  local live runs load keys by variable name and that no value is printed,
+  logged or written into any document.
+* **What Was Found:** `debug-failures-on-demand.yml`, `diagnose-on-demand.yml`
+  and `AP-Model-QC` `debug-cases-on-demand.yml` offered every rostered engine
+  and a live mode, and assigned only `GEMINI_API_KEY`. `MQC_CAS_UNI_115710`
+  held the rule for `evaluate-engine.yml` alone.
+* **The Check:** `unoffered_credentials` reads a workflow that writes an engine
+  list and offers `live` as a mode, and requires each declared variable to be
+  assigned from the secret of the same name. A comment naming it does not
+  count. The variables come from the rostered adapters, so the check names no
+  provider. `harness_ci_pipeline.md` section 8.5.4, `MQC_REQ_HAR_CMN_0168`,
+  `MQC_CMN_UNI_112367`, and `MQC_CAS_UNI_115744` with `MQC_REQ_CAS_GOV_0009`.
+* **Injection Verification:** Both cases ran before any workflow changed.
+  `112367` failed naming the two harness workflows and `115744` the case
+  repository's, each missing `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and
+  `XAI_API_KEY`; both pass after. The harness case also builds a live workflow
+  whose second key appears only in a comment and a replay-only workflow
+  missing it, and requires exactly the first reported.
+* **Code Quality & Compliance Audit:** 803 unit and system, pylint exit 0.
+  `AP-Model-QC`: 119 preconditions, pylint exit 0. The mutation-audited
+  modules are untouched.
+
+## 2026-10-14: The job combinations stand as designed
+
+* **Requirements & Design Choices:** The project owner rejected a proposal to
+  retire `evaluate-live-weekly.yml` and make both debug workflows replay-only.
+  Model jobs are designed to run against a green, stable harness. A harness
+  under extension is still evaluated against its regression tests and against
+  new debug tests, which is why the debug workflows offer the ref and mode
+  combinations they do. The version probe runs the tests against a changed
+  model on a green harness; otherwise they run weekly. Harness unit tests spend
+  no tokens, and nothing in the change below altered that.
+* **The Model Side's Replay Rungs Are Pairing Checks:** A new case may have to
+  run against a green harness or against a newer, not yet green harness on a
+  separate branch, which the branch naming and `harness_pin.yaml` express
+  (`harness_ci_pipeline.md` section 3C). Replay on both sides in
+  `AP-Model-QC` therefore tests the paired harness against the cases and
+  yields no model finding, which is the harness test the owner's rule
+  reserves replay for. The planned redesign of `gate-target.yml` and
+  `evaluate-engine.yml` rungs 1 and 2 is withdrawn.
+* **Where I Was Wrong:** I read the owner's statement that harness unit tests
+  need no tokens as a rule that no harness workflow may spend, and proposed
+  removing live modes on that basis. The two are different claims. The
+  credential assignments of the entry above stand, since the debug workflows'
+  live mode is intended.
+* **Open, Not Fixed:** `evaluate-live-weekly.yml` runs `pytest -m evaluator`,
+  `-m tool` and `-m sec` in this repository, which owns no graded case, so each
+  collects nothing; `gate-on-change.yml` records the same defect for Gates 4 to
+  7. `probe-model-version-nightly.yml` dispatches that workflow, not a run of
+  the cases against the green harness. Both are gaps between the implementation
+  and the design the owner restated, to be settled in design first.
+
+## 2026-10-14: Branch passages brought into line with dated branches
+
+* **Requirements & Design Choices:** The project owner restated the topology,
+  which section 3C.6 of `harness_ci_pipeline.md` already holds. Working
+  branches merge into a stabilization branch, only a stabilization branch
+  merges into `main`, and a stale stabilization branch is succeeded by a newer
+  one before anything reaches `main`. The rules and `harness_pin.yaml` agreed;
+  passages written before the dated branches did not.
+* **What Changed:** The opening table of section 3C named a single long-lived
+  `stabilization` branch in each repository and paired an extension with it.
+  It now names the dated kinds and pairs an extension with the harness branch
+  its own mapping entry names. `harness_running_jobs.md` examples used a bare
+  `stabilization`, a free-text referent the naming check refuses, and
+  `10428`, the retired five-digit identifier of `115005`; they now use names
+  the check accepts.
+* **Test Inputs Too, At The Owner's Instruction:** `mqc_uni_branch_policy.py`
+  used `10428` as a referent in four route assertions, and `AP-Model-QC`
+  `mqc_uni_harness_pin.py` in six pairing inputs. Routing and pairing do not
+  read the referent, so each case asserted what it claimed, but every one of
+  those names fails `name_problems`, which reports `10428` as matching no
+  registered kind. They now use `115005`, which it accepts.
+* **Identifier Width Confirmed:** The project owner asked whether the case
+  repository moved to six digits while the harness stayed at five. It did not:
+  the prompt of 2026-10-03 asked for every case renumbered, and the entry of
+  2026-10-02 records 670 identifiers in both repositories moved at once.
+  Harness and case identifiers cannot collide because the third digit is the
+  module, `5` being `CAS` (`harness_test_taxonomy.md` section 3.2.1). The one
+  stale sentence found, `cmn_verdict_and_cli.md` calling a dependency a
+  five-digit identifier beside a six-digit example, now says six.
+  Requirements carry four digits, so the width separates the two registers as
+  the second mechanism behind the `MQC_REQ_` marker.
+* **Code Quality & Compliance Audit:** 803 unit and system, pylint exit 0.
+  `AP-Model-QC`: 119 preconditions, pylint exit 0.

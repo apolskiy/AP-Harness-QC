@@ -79,7 +79,7 @@ Once versioning begins, `CHANGELOG.md` records this evolution release to release
 
 ### Phase 2: Test Design Document Creation
 * Generate a structured test plan in `docs/testing/<feature_name>_test_plan.md`.
-* Document test IDs in the current four-segment format `MQC_<MODULE>_<LAYER>_<5DIGIT>_<behavior>` (modules `ING`/`EXE`/`EVL`/`CMN`; layers `UNI`/`SYS`/`EVAL`/`TOOL`/`SEC`), with inputs, expected outputs, and variable checks.
+* Document test IDs in the format `MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>`, with modules and layers as registered in `../rules/testing-standards.md` section 1, and with inputs, expected outputs, and variable checks.
 * Assign a priority to every case with its **matched qualifying condition** named, per `docs/design/harness_test_taxonomy.md` section 4.1. A priority without a named condition is not assignable.
 * Assign IDs from the registered layer's block; never reuse a retired ID.
 
@@ -112,14 +112,14 @@ The two Phase 2 artefacts have different subjects, and the division follows the 
 |---|---|---|
 | Path | `docs/design/<feature>.md` | `docs/testing/<feature>_test_plan.md` |
 | Subject | **The harness** | **The agent / model under evaluation** |
-| Layers | `MQC_UNI_`, `MQC_SYS_` | `MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_` |
+| Layers | `UNI`, `SYS` | `EVAL`, `TOOL`, `SEC` |
 | Assumes | Nothing | That the harness is complete |
 | Contains | Tiers, schemas, loaders, validation, test categories, priority assignment mechanics and examples | Test categories mapped to a requirements traceability matrix |
 | Released to a customer | **No**, test infrastructure | **Yes**, the model and agent are the product |
 
 **Why the split matters.** Without a working harness QA cannot test, but the harness is not the deliverable. For an end-product release it is the tests evaluating the agent and model that matter. Harness tests may appear in the test plan as a stated **precondition**; they are never its content.
 
-This also retro-justifies making `MQC_UNI_` and `MQC_SYS_` ungraded preconditions: they do not measure the product, so they do not belong in the product's quality budget.
+This also retro-justifies making the `UNI` and `SYS` layers ungraded preconditions: they do not measure the product, so they do not belong in the product's quality budget.
 
 ### 4.1 Requirements traceability
 

@@ -269,9 +269,9 @@ class TestMQCJudgeChannelMode:
         """A replay channel loads a stored judgement and dispatches nothing.
 
         **This is a quota leak, not a missing feature.** `FixtureKey` keys the
-        candidate only, so a bound judge is a live call whatever `--mode` says.
-        A replay run that judged would spend provider quota on every pull
-        request.
+        candidate only, so without the judgement store a bound judge would be a
+        live call whatever `--mode` says, and a replay run that judged would
+        spend provider quota on every pull request.
 
         **The provider is made to fail if reached**, rather than counted. A
         count asserts how often something happened; raising asserts that it

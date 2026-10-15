@@ -228,7 +228,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 93 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 283 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 288 cases | **Implemented** |
 | `docs/design/harness_ci_pipeline.md` | The seven workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 122 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 113 cases | **Implemented** |
@@ -1012,6 +1012,37 @@ satisfied is decided by comparing two numbers the fixture declares. Whether
 the response says so is an exact match against a figure and a set operation
 over what it names. That is the admission criterion §11.2 refuses a family
 without, and it is met without a rubric.
+
+##### An assertion matches a figure, never the vocabulary of a verdict
+
+Added 2026-10-13, after the first recorded run of this family. The sentence
+above is the rule and **the first implementation of it was not**: three
+assertions checked for a list of synonyms, `exceed`, `above`, `over`,
+`outside`, `beyond`, `more than`, and called that "the breach is reported".
+
+**A synonym list fails in both directions, and this one did.**
+
+| | |
+|---|---|
+| False positive | "The candidate does not match. The job requires between 5 and 9 years, but the candidate has 15+ years." **Correct, and refused**, because it uses none of the six |
+| False negative | "The candidate exceeds expectations and matches the requirement." **Wrong, and accepted**, because it contains one |
+
+**The rule's own level 3 exemplar would have failed it**, which is the proof
+that the assertion and the rubric had stopped describing the same behaviour:
+the rubric calls "does not fall within the required range" an acceptable
+answer and the assertion refused it.
+
+**So what is asserted is what the fixture declares.** The bound is 5 and 9 and
+the candidate's figure is 15, so the assertion is that the response names
+them; `requirement_match` has always done it this way, asserting 78, 85 and
+100 rather than the words around them. **Whether naming them amounts to
+reporting the breach is a reading of prose, and the rubric is the only
+instrument here that reads.**
+
+**This is the `QC_LLM_*` boundary, not a style preference.** An assertion
+failure is a finding about a model. A vocabulary assertion produces findings
+about phrasing, filed against a vendor as a defect, which is the most
+expensive mistake this project can make.
 
 **The judged part is narrow and declared.** Where the right response is a
 request for clarification rather than a refusal, whether the request is apt is

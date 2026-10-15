@@ -10,7 +10,7 @@
 # unauditable, and an unauditable exclusion is how a real failure gets parked
 # here and forgotten.
 #
-# Empty at present: all three registered adapters declare tool calling and
+# Empty at present: all four registered adapters declare tool calling and
 # structured output, so no pair is currently unsupported. The file exists
 # because an absent file and an empty one must mean the same thing, and
 # MQC_CMN_UNI_112018 asserts the exclusion against a populated list.

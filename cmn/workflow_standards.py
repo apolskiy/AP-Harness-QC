@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """What the CI definitions must hold, checked before a push rather than by it.
 
-Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.2 and 8.3.
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.2, 8.3, 8.5 and
+8.5.4.
 
 **Split from ``code_standards.py`` on 2026-10-04**, when these took that module
 past the thousand-line ceiling. The concerns differ: that module is about the
@@ -18,7 +19,7 @@ ceiling, and the one malformed-YAML class a parse accepts.
 import logging
 import re
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Iterable
 
 import yaml
 
@@ -34,9 +35,8 @@ _CEILING_FLAG: Final[str] = "--max-spend"
 
 
 # A STEP THAT CAN REACH A PROVIDER. `--mode live` dispatches to the candidate
-# and `--judge-mode live` dispatches to the judge, which is never replayed: a
-# bound judge is a live call whatever the candidate mode. Either spends.
-# Design `harness_ci_pipeline.md` section 8.2.
+# and `--judge-mode live` dispatches to the judge whatever the candidate mode.
+# Either spends. Design `harness_ci_pipeline.md` section 8.2.
 _SPENDING_FLAGS: Final[tuple[str, ...]] = ("--mode live", "--judge-mode live")
 
 # AND THE ONE THAT BOUNDS IT. `--max-spend` aborts before a request would take
@@ -236,6 +236,130 @@ def duplicate_yaml_keys(root: Path) -> list[str]:
                 f"{source.name}: {detail}" for detail in _repeated_keys(tree)
             )
     return problems
+
+
+def engine_list_gaps(root: Path, roster: Iterable[str]) -> list[str]:
+    """Report every workflow engine list that disagrees with the roster.
+
+    Reads each ``engine`` choice input under ``workflow_dispatch`` or
+    ``workflow_call`` and each ``engine`` matrix dimension written as a list.
+    A list is reported when it omits a rostered engine or names one the roster
+    does not carry; order is not compared. A free-text input and a matrix
+    written as ``include`` entries are not read.
+
+    Design: ``harness_ci_pipeline.md`` section 8.5.
+
+    Args:
+        root (Path): The repository root.
+        roster (Iterable[str]): The rostered engine names.
+
+    Returns:
+        list[str]: One entry per disagreeing list, naming the workflow, the
+        list and the engines missing or extra. Empty when every list agrees.
+    """
+    expected = set(roster)
+    problems: list[str] = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        definition = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+        for where, listed in _engine_lists(definition):
+            missing = sorted(expected - set(listed))
+            extra = sorted(set(listed) - expected)
+            if missing or extra:
+                problems.append(
+                    f"{workflow.name} {where} offers {listed}: missing "
+                    f"{missing}, not on the roster {extra}"
+                )
+    return problems
+
+
+def unoffered_credentials(root: Path, variables: Iterable[str]) -> list[str]:
+    """Report every live-capable engine workflow missing a credential assignment.
+
+    A workflow is read when it writes an engine list, as
+    :func:`engine_list_gaps` reads one, and has a ``mode`` choice input
+    offering ``live``. Each variable must be assigned from the secret of the
+    same name somewhere in the workflow; a mention in a comment does not count.
+    No secret value is read.
+
+    Design: ``harness_ci_pipeline.md`` section 8.5.4.
+
+    Args:
+        root (Path): The repository root.
+        variables (Iterable[str]): The credential variables the rostered
+            adapters declare.
+
+    Returns:
+        list[str]: One entry per workflow, naming the variables it does not
+        assign. Empty when every such workflow assigns them all.
+    """
+    required = sorted(set(variables))
+    problems: list[str] = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        body = workflow.read_text(encoding="utf-8")
+        definition = yaml.safe_load(body) or {}
+        if not _engine_lists(definition) or not _offers_live_mode(definition):
+            continue
+        missing = [
+            name for name in required
+            if not re.search(
+                rf"^\s*{re.escape(name)}:\s*\$\{{\{{\s*secrets\.{re.escape(name)}\s*\}}\}}",
+                body, re.MULTILINE,
+            )
+        ]
+        if missing:
+            problems.append(
+                f"{workflow.name} can run any engine live and does not assign "
+                f"{missing} from secrets, so a live run of that engine refuses "
+                f"at preflight"
+            )
+    return problems
+
+
+def _offers_live_mode(definition: dict[str, Any]) -> bool:
+    """Return whether a parsed workflow has a ``mode`` choice offering ``live``.
+
+    Args:
+        definition (dict[str, Any]): The workflow, as ``yaml.safe_load``
+            returns it.
+
+    Returns:
+        bool: True when a dispatch or call input named ``mode`` lists ``live``.
+    """
+    triggers = definition.get("on", definition.get(True)) or {}
+    if not isinstance(triggers, dict):
+        return False
+    for trigger in ("workflow_dispatch", "workflow_call"):
+        inputs = (triggers.get(trigger) or {}).get("inputs") or {}
+        options = (inputs.get("mode") or {}).get("options")
+        if isinstance(options, list) and "live" in options:
+            return True
+    return False
+
+
+def _engine_lists(definition: dict[str, Any]) -> list[tuple[str, list[str]]]:
+    """Return each engine list a parsed workflow writes, with where it sits.
+
+    Args:
+        definition (dict[str, Any]): The workflow, as ``yaml.safe_load``
+            returns it. YAML 1.1 reads the ``on`` key as ``True``.
+
+    Returns:
+        list[tuple[str, list[str]]]: The location, and the engines listed.
+    """
+    found: list[tuple[str, list[str]]] = []
+    triggers = definition.get("on", definition.get(True)) or {}
+    if isinstance(triggers, dict):
+        for trigger in ("workflow_dispatch", "workflow_call"):
+            inputs = (triggers.get(trigger) or {}).get("inputs") or {}
+            options = (inputs.get("engine") or {}).get("options")
+            if isinstance(options, list):
+                found.append((f"{trigger} input engine", [str(name) for name in options]))
+    for job_name, job in (definition.get("jobs") or {}).items():
+        matrix = ((job or {}).get("strategy") or {}).get("matrix") or {}
+        engines = matrix.get("engine") if isinstance(matrix, dict) else None
+        if isinstance(engines, list):
+            found.append((f"job {job_name} matrix engine", [str(name) for name in engines]))
+    return found
 
 
 def _repeated_keys(node: Any) -> list[str]:

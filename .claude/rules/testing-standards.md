@@ -379,7 +379,7 @@ Requirements carry `MQC_REQ_`; test cases never do.
 
 ```
 MQC_REQ_<SCOPE>_<AREA>_<NNNN>     a requirement
-MQC_<MODULE>_<LAYER>_<NNNNN>_<behaviour>     a test case
+MQC_<MODULE>_<LAYER>_<NNNNNN>_<behaviour>    a test case
 ```
 
 | | Requirement | Test case |
@@ -488,7 +488,7 @@ A shell-specific form anywhere in a tracked document is a defect, because the re
 
 **Only live-mode jobs need serialization.** Replay jobs consume no *candidate* quota and are pure CPU for the dispatch half, so the concurrency group is keyed on engine **and mode**, leaving replay legs fully parallel.
 
-**The judge is not replayed, and this is where that shows.** `FixtureKey` is `(case_id, engine, observation_index)` and keys the candidate only, so a bound judge is a live call whatever the mode. A replay job therefore consumes no quota **because the gate does not judge a failed case**, not because replay makes judging free. A debug run passing `--judge-on-failure` in replay mode does spend quota, deliberately and against a named subset; `AP-Model-QC` `consumer_ci.md` section 6.4 carries the full table and records replaying the judge as an open question.
+**The judge has a mode of its own, and this is where that shows.** `--judge-mode` defaults to `--mode`, so a replay job replays the candidate and the judge alike and consumes no quota; a judgement it cannot find is a `QC_HARNESS_FIXTURE_MISSING` skip, never a live call. `--judge-mode live` is a live call whatever the candidate mode, so judge quota is spent only by a job that names it or runs live. A live candidate with a replayed judge is refused at parsing, because a stored score describes text the live run did not produce. **A model finding comes from a live candidate and a live judge only**; the other two combinations check our code and the judge. `tier3_evaluation.md` section 5A.5 carries the table and `AP-Model-QC` `consumer_ci.md` section 6.4.1 the decision.
 
 **Default topology, revised 2026-10-01.** The harness runs `UNI` and `SYS`, which is all it has: it owns no corpus, so it has no graded cases and no bands. **A consumer runs its preconditions in one job and each priority band in a job of its own**, specified in `AP-Model-QC` `consumer_ci.md` section 3.12.
 

@@ -27,7 +27,7 @@ it, and deleted. `main` is never merged into a branch.
 ```
 git checkout main
 git pull
-git checkout -b expand-10428-09-24-2026
+git checkout -b expand-115005-09-24-2026
 ```
 
 The date is **the day you cut it**, and it is not decoration: it is the last
@@ -130,7 +130,7 @@ commit.
 ## 2. Rerunning Named Tests
 
 ```
-gh workflow run debug-failures-on-demand.yml --ref stabilization --field tests=112611
+gh workflow run debug-failures-on-demand.yml --ref stabilization-10-14-2026 --field tests=112611
 ```
 
 | Input | Answers | Default |
@@ -138,7 +138,7 @@ gh workflow run debug-failures-on-demand.yml --ref stabilization --field tests=1
 | `tests` | Which tests. Identifiers or nodeids, one per line or comma separated | Required |
 | `repeat` | How many times to run them | `1` |
 | `ref` | Branch, tag or commit | The dispatching ref |
-| `engine` | `gemini`, `openai` or `claude` | `gemini` |
+| `engine` | Any engine on the roster, `config/engines.yaml` | `gemini` |
 | `mode` | `replay` or `live` | `replay` |
 
 ### 2.1 `repeat` is how you tell a flake from a failure
@@ -167,7 +167,7 @@ one-variable-at-a-time principle the gates are built on.
 | Your branch | Your branch | Something did. This tells you nothing |
 
 ```
-gh workflow run diagnose-on-demand.yml --field code_ref=extend-judge-replay-09-24-2026 --field fixture_ref=main
+gh workflow run diagnose-on-demand.yml --field code_ref=extend-MQC-1234-09-24-2026 --field fixture_ref=main
 ```
 
 `fixture_ref` defaults to whatever `code_ref` is, which is the third row and
@@ -178,7 +178,7 @@ have run an ordinary suite with extra steps.
 empty.
 
 ```
-gh workflow run diagnose-on-demand.yml --field code_ref=stabilization --field fixture_ref=main --field selection="unit or system"
+gh workflow run diagnose-on-demand.yml --field code_ref=stabilization-10-14-2026 --field fixture_ref=main --field selection="unit or system"
 ```
 
 ---
@@ -186,7 +186,7 @@ gh workflow run diagnose-on-demand.yml --field code_ref=stabilization --field fi
 ## 4. Regressing A Branch
 
 ```
-gh workflow run regress-harness-on-branch.yml --ref stabilization
+gh workflow run regress-harness-on-branch.yml --ref stabilization-10-14-2026
 gh workflow run regress-harness-on-branch.yml --field ref=a1b2c3d
 ```
 
@@ -212,8 +212,8 @@ Every on-demand run names itself for what it is, so the Actions list is
 readable without opening anything:
 
 ```
-DEBUG (no verdict) on stabilization
-DIAGNOSTIC (no verdict) on extend-judge-replay-09-24-2026
+DEBUG (no verdict) on stabilization-10-14-2026
+DIAGNOSTIC (no verdict) on extend-MQC-1234-09-24-2026
 Full regression on a1b2c3d
 ```
 

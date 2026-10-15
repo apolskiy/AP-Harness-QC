@@ -29,6 +29,93 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A debug workflow that can run any engine live offers every engine's key, 2026-10-14
+
+**`debug-failures-on-demand.yml` and `diagnose-on-demand.yml` offered every
+rostered engine and a live mode, and assigned only the judge's key**, so a live
+run against openai, claude or grok refused at preflight. Both now assign all
+four. `cmn.workflow_standards.unoffered_credentials` reports a workflow that
+writes an engine list, offers a live mode and does not assign every declared
+credential variable from its secret; `MQC_CMN_UNI_112367` asserts it here.
+`harness_ci_pipeline.md` section 8.5.4. The README's figures moved with it: 301
+requirements traced, and the instrument inventory 616.
+
+### Every workflow engine list is compared with the roster, 2026-10-14
+
+**grok was rostered on 2026-10-04 and three harness workflows still offered
+three engines**: the `engine` menus of `debug-failures-on-demand.yml` and
+`diagnose-on-demand.yml`, and the `engine` matrix of
+`regress-harness-on-branch.yml`. All three now list grok.
+`cmn.workflow_standards.engine_list_gaps` reports a choice input or matrix
+dimension named `engine` that omits a rostered engine or names one the roster
+does not carry, and `MQC_CMN_UNI_112366` asserts it against this repository.
+The `--engine` row of `cmn_verdict_and_cli.md` section 7 and the dispatch table
+in `harness_running_jobs.md` now name the roster instead of copying it.
+`harness_ci_pipeline.md` section 8.5. The README's figures moved with the new
+requirement and case: 300 requirements traced, and the instrument inventory
+615.
+
+### The judge-replay statements caught up with judgement fixtures, 2026-10-14
+
+**Three documents said the judge is never replayed, and it has been since
+2026-09-24.** `testing-standards.md` section 2, `harness_ci_pipeline.md`
+section 8.2.2 and `harness_test_taxonomy.md` section 7.4.2 still described
+`FixtureKey` keying the candidate only, so a bound judge was a live call
+whatever the mode. `tier3_evaluation.md` section 5A.5 and the code say
+otherwise: `--judge-mode` defaults to `--mode`, a missing judgement is a skip,
+and a live candidate with a replayed judge is refused at parsing. The
+taxonomy's table also had the two replayed rows' meanings swapped and listed
+the refused row as permitted. No emitted result changes.
+
+**Test identifiers have six digits, and four rule and skill files said five.**
+`framework-rules.md` Gates 2 to 8, `testing-standards.md` section 1,
+`skill-rules.md`, `test-generator.md`, `validator-generator.md`,
+`harness_extensibility_standard.md` and the taxonomy's naming table now read
+six, and the skills point at the layer registry instead of copying it.
+
+### The mutation audit refuses a baseline it cannot vouch for, 2026-10-13
+
+**A damaged baseline was self-perpetuating, and the recovery certified it.**
+`cmn/verdict.py` was found in the worktree at 719 lines with no SPDX header
+and no comments, against 996 committed. `ast.unparse` is idempotent, so an
+already-stripped module passes the control gate trivially, is read as the
+baseline, written to the backup as authoritative and written back by the
+`finally`. Three restores from `git show HEAD:` were undone within seconds,
+by an abandoned background run nothing detected.
+
+**The baseline is now declared rather than discovered.** Each audited module
+carries a `digest` in `config/mutation_survivors.yaml` and the audit refuses
+to mutate a module that does not hash to it. The anchor is the manifest rather
+than `HEAD`, because a worktree legitimately differs from `HEAD` during
+ordinary work. It also couples a survivor declaration to the module version it
+was measured against, which nothing did before: an edit now refuses the audit
+until somebody re-measures.
+
+**And the backup now precedes every rewrite.** `control_problem` unparsed the
+module before any backup existed, leaving the longest window in the audit
+unguarded: the control is a full suite run while each mutant stops at its
+first failure. **Validated by the failure itself** on the same day, when a run
+was killed mid-control and the backup it left matched the declared digest
+exactly.
+
+**A refusal is a skip, not a failure.** `framework-rules.md` section 4 has
+always given `QC_HARNESS_*` the outcome "skip or broken, never fail", and both
+mutation cases reported `failed` for a baseline they never got past, sending a
+reader to look for a survivor nothing computed. The two refusals that cost
+nothing are now checked in a `conftest.py` fixture before any case body runs.
+
+**The code they carried belonged to another module.** All four refusal sites
+raised `QC_HARNESS_PARSER_ERROR`, which the registry defines as "ingestion
+failed to parse input files". `QC_HARNESS_AUDIT_REFUSED` is registered for
+them, glossed in `cmn/band_summary.py`, and the skip line now states a cause.
+
+**An assertion matches a figure, never the vocabulary of a verdict.**
+`DESIGN.md` section 7.8 said so and the first `premise_discrimination` rules
+did not, which the first recorded run exposed.
+
+`MQC_CMN_UNI_112363` to `112365` added, `MQC_REQ_HAR_CMN_0163` to `0166`
+traced. README: 614 instrument cases and 299 requirements.
+
 ### The rubric pass mark is recorded as a decision, and gains a switch, 2026-10-13
 
 **The mark was in every rubric and in no document.** All 38 declare `3.0` and

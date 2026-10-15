@@ -24,8 +24,19 @@
 #                  can kill it. **A finding about the production code**, not
 #                  about the tests: an unreachable branch is dead code wearing
 #                  a condition. Section 15.3.
+#
+# `digest` IS THE BASELINE THIS MODULE'S SURVIVORS WERE MEASURED AGAINST, and
+# the audit refuses to mutate a module that does not hash to it. A backup is
+# self-consistent and preserves damage faithfully: a module an earlier run
+# left unparsed passes the control gate, because unparsing is idempotent.
+# Section 15.10.
+#
+# SO AN EDIT TO AN AUDITED MODULE INVALIDATES ITS DECLARATIONS, deliberately.
+# A survivor describes a specific body of code, and re-measuring is what makes
+# the declaration true again.
 survivors:
   cmn/verdict.py:
+    digest: 8937d69896c289abe6f4e51ecc94127b5d413b354e93a38d487e3b1e1c42611c
     accepted:
       - mutation: "line 732: False to True"
         kind: equivalent
@@ -47,3 +58,5 @@ survivors:
           branch is unreachable given its predecessors and section 15.3 says
           so rather than a case pretending to cover it.
         expires_on: 2026-12-31
+  cmn/threshold_domain.py:
+    digest: 87f43c40eaf092d4778428e05f9dc4ad37e991f6ca68d8f456f6247cfc153441

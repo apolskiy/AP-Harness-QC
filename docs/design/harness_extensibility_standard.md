@@ -391,7 +391,7 @@ A provider adapter can satisfy every contract assertion while mapping its provid
 |---|---|
 | **10.00/10 Pylint** against `.pylintrc` | Implementation and tests |
 | Minimum 3-character identifiers, no `test_` prefix | Both |
-| `MQC_<MODULE>_<LAYER>_<5DIGIT>_<behavior>` naming | Tests |
+| `MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>` naming | Tests |
 | One layer and one priority per class | Tests |
 | Google docstrings, explicit typing, narrow exception handling | Both |
 | Frozen dataclasses, explicit casting at boundaries | Implementation |

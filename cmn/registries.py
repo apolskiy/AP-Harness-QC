@@ -98,6 +98,9 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     "QC_HARNESS_VERSION_UNAVAILABLE",
     "QC_HARNESS_FIXTURE_MISSING",
     "QC_HARNESS_FIXTURE_STALE",
+    # THE MUTATION AUDIT DECLINED TO MEASURE, which is not an adapter
+    # error and so appears here and not in the narrower set below.
+    "QC_HARNESS_AUDIT_REFUSED",
     "QC_HARNESS_DEPENDENCY_UNMET",
     # A --tests entry from a file naming no collected test. The run proceeds
     # and the entry is reported as a skip, because one typo in a curated

@@ -76,7 +76,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-24.04, windows-latest]
-        engine: [gemini, openai, claude]
+        engine: [gemini, openai, claude, grok]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5

@@ -168,12 +168,12 @@ class TestMQCBranchRoute:
         """
         assert not route_problems("stabilization-MQC-1234-09-24-2026", "main")
         assert not route_problems(
-            "expand-10428-09-24-2026", "stabilization-MQC-1234-09-24-2026"
+            "expand-115005-09-24-2026", "stabilization-MQC-1234-09-24-2026"
         )
 
-        assert route_problems("expand-10428-09-24-2026", "main")
+        assert route_problems("expand-115005-09-24-2026", "main")
         assert route_problems("extend-MQC-1234-09-24-2026", "main")
-        assert route_problems("debug-10428-09-24-2026", "main")
+        assert route_problems("debug-115005-09-24-2026", "main")
 
         # main is merged into nothing, whatever the target.
         assert route_problems("main", "stabilization-MQC-1234-09-24-2026")
@@ -244,7 +244,7 @@ class TestMQCIntegrationBranchNaming:
         assert staleness_problems(bare, date(2026, 11, 1))
         assert not staleness_problems(bare, date(2026, 9, 25))
         assert not route_problems(bare, "main")
-        assert route_problems("expand-10428-09-24-2026", "main")
+        assert route_problems("expand-115005-09-24-2026", "main")
 
         # AND A BARE STAMP IS NOT A CASE REFERENT, so nothing resolves it
         # against an inventory.

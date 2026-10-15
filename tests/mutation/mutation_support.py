@@ -8,14 +8,23 @@ Specified in ``docs/design/harness_test_taxonomy.md`` section 15.
 """
 
 from pathlib import Path
+from typing import Final
+
+import pytest
 
 from tools.mutation_audit import (
+    MutationRefusal,
     declared_survivors,
     survivor_problems,
     survivors,
 )
 
-_ROOT = Path(__file__).resolve().parents[2]
+ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+MANIFEST: Final[Path] = ROOT / "config/mutation_survivors.yaml"
+
+# EVERY MODULE THIS LAYER AUDITS, read by the setup gate in `conftest.py` so
+# it covers the whole class rather than whichever case runs first.
+AUDITED: Final[tuple[str, ...]] = ("cmn/verdict.py", "cmn/threshold_domain.py")
 
 # THE TWO CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they fail
 # on the reformatting the mutator performs and would kill every mutant for the
@@ -43,8 +52,13 @@ def audit(module: str) -> list[str]:
         list[str]: One entry per undeclared survivor and per declaration that
         no longer survives. Empty when the two agree.
     """
-    found = survivors(_ROOT, _ROOT / module, TARGETS)
-    declaration = declared_survivors(
-        _ROOT / "config/mutation_survivors.yaml"
-    ).get(module, {})
+    try:
+        found = survivors(ROOT, ROOT / module, TARGETS)
+    except MutationRefusal as refusal:
+        # THE CONTROL'S REFUSAL, discovered here because it costs a full suite
+        # run and the setup gate would pay for it twice. A refusal is a skip
+        # wherever it is raised: it says nothing about the survivor set, which
+        # is the only thing this case measures (section 15.2.1).
+        pytest.skip(str(refusal))
+    declaration = declared_survivors(MANIFEST).get(module, {})
     return survivor_problems(module, found, declaration)

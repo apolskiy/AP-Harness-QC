@@ -25,7 +25,7 @@ A callable identifier reads outward-in: **project identifier, then module, then 
 |---|---|---|
 | Module | `mqc_<component>.py` | `mqc_golden_rules.py` |
 | Class | `TestMQC<Component>` | `TestMQCGoldenRuleParser` |
-| Callable | `MQC_<MODULE>_<LAYER>_<5DIGIT_ID>_<behavior>` | `MQC_ING_UNI_111300_rejects_missing_rubric_key` |
+| Callable | `MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>` | `MQC_ING_UNI_111300_rejects_missing_rubric_key` |
 
 **Identifiers that are not test callables carry the prefix too**, because each reaches the durable record and a bare identifier has no project identity in a record spanning several sources.
 
@@ -773,6 +773,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_ENGINE_UNREACHABLE` | The engine was not reached: a 3xx redirect the client did not follow, or a connection failure. **Neither a model nor a judge finding, and not retryable**: a redirect is deterministic and a connection failure has already been retried inside the SDK. A proxy answering 302 with a login page is the ordinary cause (tier2 section 8.5.5) |
 | `QC_HARNESS_REQUEST_REJECTED` | The provider rejected the request as malformed, status 400. **Ours, anticipated, and not retryable**: the same request gets the same answer. Distinct from the catch-all so that an unanticipated failure stays findable (tier2 section 8.5.3) |
 | `QC_HARNESS_PARSER_ERROR` | Ingestion failed to parse input files |
+| `QC_HARNESS_AUDIT_REFUSED` | The mutation audit declined to measure: a backup from a killed run, a module that is not the baseline its survivors were measured against, a control that did not pass, or a run that collected nothing. **Not a statement about the survivors**, so it skips (section 15.2.1) |
 | `QC_HARNESS_AUTH_ERROR` | Credential or authentication failure, 401. Ends the run |
 | `QC_HARNESS_REQUEST_REFUSED` | The provider refused this request, 403. **Ends the case, never the run**, and the provider's own message is recorded with it. Whether it is an over-refusal worth filing or an entitlement the account never had is a person's call, per `tier2_execution.md` section 8.6.7 |
 | `QC_HARNESS_PREFLIGHT_FAILURE` | Preflight check failed; run aborted before execution (A11.4) |
@@ -1091,17 +1092,16 @@ judge replayed is not a supported configuration for measuring a model, model
 findings do have to come from live agents."**
 
 **The two halves are separately moded, which is what makes the combination
-possible at all.** `FixtureKey` is `(case_id, engine, observation_index)` and
-keys the candidate only, so a bound judge is a live call whatever `--mode` says
-(`testing-standards.md` section 2). Replaying the judge as well needs
-`--judge-on-failure` against a judgement store.
+possible at all.** `--mode` decides the candidate and `--judge-mode` the judge,
+defaulting to `--mode`; a judgement is stored and replayed under a key of its
+own (`tier2_execution.md` section 7.4, `tier3_evaluation.md` section 5A.5).
 
 | Candidate | Judge | What a result means |
 |---|---|---|
 | Live | Live | **A model finding.** The only configuration a vendor report comes from |
-| Live | Replayed | A judgement from a recording, against a fresh response |
-| Replayed | Live | **Our code against a frozen response**: the pull-request gate |
-| Replayed | Replayed | **Nothing about any model.** Two recordings agreeing with each other |
+| Live | Replayed | **Refused at parsing.** A stored score describes text the live run did not produce |
+| Replayed | Live | **The judge**, against a frozen response: whether the instrument drifted |
+| Replayed | Replayed | **Nothing about any model.** Our code against a frozen outcome: the pull-request gate |
 
 **The last row is a harness test wearing a model test's clothes.** Both sides
 are recordings, so the only thing it can establish is that our pipeline still
@@ -2239,6 +2239,67 @@ where unproven things go to be forgotten. **The list shrinks and never grows.**
 survives fails it too**, because an entry describing a gap that has been closed
 is a claim about the suite that is no longer true.
 
+#### 15.2.1 A refusal is not a measurement, so it skips
+
+Added 2026-10-13 at the project owner's instruction, after both mutation cases
+reported `failed` for a damaged baseline they never got past.
+
+**The taxonomy already said this and the cases did not do it.**
+`framework-rules.md` section 4 gives `QC_HARNESS_*` the outcome "skip or
+broken, never fail", and every refusal the audit raises is one: a backup from
+a killed run, a baseline that does not match its digest, a control that did
+not pass, a run that collected nothing. None of those is a statement about the
+survivor set, which is the only thing the case claims to measure.
+
+**They carried `QC_HARNESS_PARSER_ERROR`, which means ingestion failed to
+parse input files.** Four different refusals wore a code belonging to another
+module, so a reader handed one was sent to the corpus loader. `QC_HARNESS_AUDIT_REFUSED`
+is registered in section 6 for them, and `cmn/band_summary.py` glosses it, so
+a skipped case states a cause a reader can act on rather than reporting that
+no cause was recorded.
+
+| What happened | What it says about the suite | Outcome |
+|---|---|---|
+| An undeclared survivor | Behaviour nothing asserts | **Fail** |
+| A declaration that no longer survives | A claim that is no longer true | **Fail** |
+| The baseline was not the declared module | **Nothing. It never ran** | **Skip** |
+| A backup from a killed run, a failing control | **Nothing. It never ran** | **Skip** |
+
+**So the gate moves into setup.** A fixture recovers, checks the baseline and
+runs the control; a refusal there skips the case before its body executes.
+**Executing a case we already know cannot measure anything is superfluous**,
+and reporting its non-execution as a failure sends a reader to look for a
+survivor that was never computed.
+
+**This is the general rule and not a mutation-layer special case.** A
+precondition that the environment or the harness fails is a skip at every
+layer, which is why `QC_HARNESS_FIXTURE_MISSING` skips a graded case rather
+than failing it. The mutation layer was the one place the rule had been
+written as an exception without anybody deciding to make one.
+
+#### 15.2.2 The manifest's API belongs to the harness
+
+Added 2026-10-13 at the project owner's instruction. **A manifest may live
+beside the cases; the code that reads and writes one may not.**
+
+`declared_survivors` was already in `tools/mutation_audit.py` and the writing
+half was not, so a case needing a manifest hand-rolled the YAML. Two spellings
+of one format is the drift a single registry exists to prevent, applied to a
+file rather than to a list, and the hand-rolled one is the copy that is never
+exercised by the thing it describes.
+
+| Operation | Where it belongs |
+|---|---|
+| Reading the declarations | `tools/mutation_audit.py` |
+| **Writing a declaration, digest included** | **`tools/mutation_audit.py`** |
+| The fixture content a case declares | The case's support module |
+
+**Writing it was already an operation the project needed.** The refusal for an
+undeclared baseline tells a reader to add a line by hand, which is an
+instruction to edit a generated fact: exactly the shape
+`refresh_case_summaries.py` exists to remove. The audit declares the digest
+itself, and the case support calls that rather than composing YAML.
+
 ### 15.3 Equivalent mutants are a finding about the code
 
 Some changes cannot alter any observable result: a branch unreachable given the
@@ -2285,6 +2346,19 @@ So the original is written to a sibling `.mutation-backup` before the first
 mutation, and **a run that finds a backup already there restores from it and
 refuses to start**, naming what it did. The next run is a deliberate act by
 somebody who has seen that message, not an accident that compounds.
+
+**The control run counts as a mutation, and this was wrong until 2026-10-13.**
+`control_problem` rewrites the module from its syntax tree to check that
+unparsing alone passes, and it did so before any backup existed: the backup was
+written afterwards, by `survivors`. The unguarded window was therefore the
+longest one in the audit, since the control is a full suite run while each
+mutant stops at its first failure. A run killed during the control left a
+stripped module and no backup at all, which is the one state the recovery
+cannot see.
+
+**A backup is necessary and not sufficient**, which section 15.10 covers: it
+proves a restore round-tripped and says nothing about whether what it holds was
+ever right.
 
 ### 15.6 Ungraded, and deliberately not blocking
 
@@ -2357,6 +2431,71 @@ section 15.1 exists to catch.
 
 This section designs the layer. The module's own design document inventories
 the cases, as it does for `UNI`, `SYS` and cost.
+
+### 15.10 The baseline is declared, not discovered
+
+Added 2026-10-13, after `cmn/verdict.py` was found in the worktree at 719
+lines carrying no SPDX header and no comments, against 996 committed. Three
+successive restores from `git show HEAD:` were undone within seconds of each
+other, which is what made the cause hard to see rather than the damage itself.
+
+**The damage was self-perpetuating, and the recovery certified it.**
+`ast.unparse` is idempotent, so an already-stripped module passes the control
+gate trivially: unparsing it changes nothing and the suite still passes. It is
+then read as `original`, written to the backup as though authoritative, and
+written back by the `finally`. Every later run repeats the cycle, and
+`recover` reports that it restored the module. **Nothing in the loop ever
+compares the file to what it should be**, so the only escape was `git`.
+
+**A digest fixes this only if it is anchored outside the file.** A hash taken
+at the moment the baseline is read proves the restore round-tripped, which is
+worth having, but a self-consistent chain hashes the damage just as happily.
+The anchor is `config/mutation_survivors.yaml`, which already declares what
+the audit accepts: each audited module gains a `digest`, and **the audit
+refuses to mutate a module whose content does not hash to the declared
+value.**
+
+| Candidate anchor | Why not |
+|---|---|
+| The `HEAD` blob | A worktree legitimately differs from `HEAD` during ordinary work, so equality would refuse nearly every audit a developer runs |
+| The backup's own digest | Self-consistent. It is the thing that failed |
+| **A declared digest in the manifest** | A deliberate act, which is the discipline the survivors already follow |
+
+**It also fixes something that was not the reason for it.** A survivor
+declaration can currently outlive the code it was measured against: the module
+is edited, the declaration stays, and the audit keeps accepting a mutant whose
+justification refers to a line that has moved or gone. Pinning the digest makes
+a declaration valid **only for the module version it was measured on**. Edit
+the module and the audit refuses until somebody re-measures and re-declares.
+That is the correct coupling, and it was absent.
+
+**What it costs.** Every edit to an audited module needs its digest
+re-declared. That is accepted rather than regretted: Gate 8 is scheduled and
+non-blocking by section 15.6, so the friction lands on the one job that is
+allowed to be red without stopping anything.
+
+### 15.11 One audit at a time, which is designed and not yet built
+
+The second cause of the 2026-10-13 damage was **an abandoned run**. A
+background audit, still alive after twenty-five minutes, held `cmn/verdict.py`
+and rewrote it after each restore. Nothing detected it, and nothing stopped a
+second audit starting beside it and reading the first one's mutant as its
+baseline.
+
+**The backup cannot carry this.** A backup distinguishes "a previous run died"
+from "nothing happened"; it cannot distinguish either from "a run is happening
+right now", because a live run's backup and a dead run's backup are the same
+file.
+
+The design is a lock beside the backup, carrying the process id and the start
+time. An audit refuses to start while one is held by a **live** process and
+names the pid; a lock whose process is gone is a crash, which is the section
+15.5 path and recovers as it already does.
+
+**Deferred, and recorded as a gap rather than hidden as a plan.** Section 15.10
+makes the damage detectable, which is what makes deferring this safe: a second
+audit that reads a mutant as its baseline is refused by the digest rather than
+quietly measured. Tracked in `harness_open_questions.md` section 2B.
 
 ---
 

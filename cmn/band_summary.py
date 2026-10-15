@@ -76,6 +76,10 @@ _SKIP_CAUSES: Final[dict[str, str]] = {
     "QC_HARNESS_AUTH_ERROR": "the credential was refused",
     "QC_HARNESS_REQUEST_REFUSED": "the provider refused this request, and the credential is valid",
     "QC_HARNESS_PARSER_ERROR": "the response could not be parsed",
+    "QC_HARNESS_AUDIT_REFUSED": (
+        "the mutation audit declined to measure, so nothing was asked "
+        "about the survivors"
+    ),
 }
 
 _UNSTATED: Final[str] = "no cause recorded, which is itself a defect"

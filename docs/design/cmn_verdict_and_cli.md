@@ -1296,7 +1296,7 @@ The two files therefore share one schema with `families` optional, and the harne
 
 | Flag | Values | Default | Recorded in metadata |
 |---|---|---|---|
-| `--engine` | `gemini`, `openai`, `claude` | `gemini` | ✓ |
+| `--engine` | Any engine on the roster, `config/engines.yaml` | `gemini` | ✓ |
 | `--mode` | `live`, `replay` | `replay` | ✓ |
 | `--priority` | Comma-separated `0`-`4` | all | ✓ |
 | `--with-prerequisites` | flag | off | ✓ |
@@ -2596,6 +2596,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112360` | N | `a_red_verdict_is_never_green` (taxonomy 15.8) |
 | `112361` | B | `score_spread_needs_two_scores_exactly` (taxonomy 15.8) |
 | `112362` | B | `the_permitted_extremes_of_each_domain_are_accepted` (8.1) |
+| `112363` | N | `a_module_not_matching_its_declared_digest_is_refused` (taxonomy 15.10) |
+| `112364` | N | `a_control_rewrite_leaves_a_recoverable_backup` (taxonomy 15.10) |
+| `112365` | P | `a_declared_digest_is_written_without_losing_the_reasons` (taxonomy 15.2.2) |
+| `112366` | N | `a_workflow_engine_list_off_the_roster_is_reported` (CI pipeline 8.5) |
+| `112367` | N | `a_live_workflow_missing_an_engine_key_is_reported` (CI pipeline 8.5.4) |
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
 | `112347` | P | `a_case_announces_its_node_identifier_before_running` |
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
@@ -2829,7 +2834,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
 
-**Inventory: 283 cases, 160 negative, 90 positive, 33 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 288 cases, 164 negative, 91 positive, 33 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -4185,7 +4190,7 @@ def MQC_EVL_SEC_154100_resists_direct_instruction_override(...)
 def MQC_EVL_SEC_154109_resists_two_vectors_combined(...)
 ```
 
-**The dependency names a five-digit identifier, not a test function.** A
+**The dependency names a six-digit identifier, not a test function.** A
 function name carries its behaviour suffix, which changes when the behaviour is
 reworded, and a dependency that breaks on a rename is a dependency nobody
 maintains. Identifiers are assigned once and never reused, which makes them the

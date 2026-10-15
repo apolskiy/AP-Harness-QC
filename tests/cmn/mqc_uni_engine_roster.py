@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which engines a run may name, and which list decides.
 
-Covers ``MQC_CMN_UNI_112149`` and ``112150``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
-``tier2_execution.md`` section 3.5.1.
+Covers ``MQC_CMN_UNI_112149``, ``112150``, ``112366`` and ``112367``,
+inventoried in ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed
+in ``tier2_execution.md`` section 3.5.1 and ``harness_ci_pipeline.md`` sections
+8.5 and 8.5.4.
 
 **Written 2026-10-04, when rostering a fourth engine found two defects one
 after the other.** `--engine` enumerated three engines in the option registry,
@@ -26,12 +27,18 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCEngineVocabulary
 #   112149  an_engine_absent_from_the_registry_is_refused
 #   112150  an_engine_off_the_roster_is_refused_before_it_runs
+# TestMQCEngineLists
+#   112366  a_workflow_engine_list_off_the_roster_is_reported
+#   112367  a_live_workflow_missing_an_engine_key_is_reported
 # ------------------------------------------------------------ end of cases
+
+from pathlib import Path
 
 import pytest
 
 from cmn.config import load_engines, packaged_roster_path
 from cmn.pytest_support import require_rostered_engine
+from cmn.workflow_standards import engine_list_gaps, unoffered_credentials
 from execution.adapters.registry import adapter_for, credential_variables
 
 pytestmark = pytest.mark.unit
@@ -126,3 +133,135 @@ class TestMQCEngineVocabulary:
             "the grok adapter is not registered, so this case no longer "
             "establishes that a registered adapter is insufficient"
         )
+
+
+class TestMQCEngineLists:
+    """An engine list a workflow writes is the roster, not a copy of it."""
+
+    def MQC_CMN_UNI_112366_a_workflow_engine_list_off_the_roster_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """Every engine choice input and engine matrix names the rostered engines.
+
+        Asserts this repository's workflows first, then that the reader
+        reports a missing engine, an extra one and a matrix, and leaves a
+        free-text input and an ``include`` matrix alone.
+
+        Design: ``harness_ci_pipeline.md`` section 8.5.
+
+        Returns:
+            None
+        """
+        roster = tuple(load_engines(packaged_roster_path()))
+        root = Path(__file__).resolve().parents[2]
+
+        problems = engine_list_gaps(root, roster)
+        assert not problems, (
+            f"{len(problems)} workflow engine list(s) disagree with the roster:\n  "
+            + "\n  ".join(problems)
+        )
+
+        # IT REPORTS EACH SHAPE, which a live repository passing says nothing about.
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        (workflows / "menu.yml").write_text(
+            "on:\n"
+            "  workflow_dispatch:\n"
+            "    inputs:\n"
+            "      engine:\n"
+            "        type: choice\n"
+            "        options: [gemini, openai, claude]\n"
+            "      free:\n"
+            "        type: string\n"
+            "jobs:\n"
+            "  run:\n"
+            "    strategy:\n"
+            "      matrix:\n"
+            "        engine: [gemini, openai, claude, grok, mistral]\n"
+            "  legs:\n"
+            "    strategy:\n"
+            "      matrix:\n"
+            "        include:\n"
+            "          - engine: gemini\n",
+            encoding="utf-8",
+        )
+        (workflows / "agrees.yml").write_text(
+            "on:\n"
+            "  workflow_call:\n"
+            "    inputs:\n"
+            "      engine:\n"
+            "        type: string\n"
+            "jobs:\n"
+            "  run:\n"
+            "    strategy:\n"
+            "      matrix:\n"
+            "        engine: [grok, claude, openai, gemini]\n",
+            encoding="utf-8",
+        )
+
+        reported = engine_list_gaps(tmp_path, ("gemini", "openai", "claude", "grok"))
+
+        assert len(reported) == 2, reported
+        assert "menu.yml workflow_dispatch input engine" in reported[0]
+        assert "missing ['grok']" in reported[0]
+        assert "menu.yml job run matrix engine" in reported[1]
+        assert "not on the roster ['mistral']" in reported[1]
+
+    def MQC_CMN_UNI_112367_a_live_workflow_missing_an_engine_key_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A workflow that can run any engine live assigns every engine's key.
+
+        Asserts this repository's workflows against the variables the rostered
+        adapters declare, then that the reader reports a missing assignment,
+        does not count a name in a comment, and leaves alone a workflow with no
+        live mode.
+
+        Design: ``harness_ci_pipeline.md`` section 8.5.4.
+
+        Returns:
+            None
+        """
+        roster = tuple(load_engines(packaged_roster_path()))
+        variables = [adapter_for(engine).API_KEY_ENV for engine in roster]
+        assert len(set(variables)) == len(roster), (
+            f"the rostered adapters declare {variables}, so this case cannot "
+            f"establish one offer per engine"
+        )
+        root = Path(__file__).resolve().parents[2]
+
+        problems = unoffered_credentials(root, variables)
+        assert not problems, (
+            f"{len(problems)} workflow(s) cannot run every engine live:\n  "
+            + "\n  ".join(problems)
+        )
+
+        # IT REPORTS A MISSING OFFER, and a comment naming the key is not one.
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        menu = (
+            "on:\n"
+            "  workflow_dispatch:\n"
+            "    inputs:\n"
+            "      engine:\n"
+            "        type: choice\n"
+            "        options: [gemini, grok]\n"
+            "      mode:\n"
+            "        type: choice\n"
+            "        options: [{modes}]\n"
+            "jobs:\n"
+            "  run:\n"
+            "    steps:\n"
+            "      - env:\n"
+            "          GEMINI_API_KEY: ${{{{ secrets.GEMINI_API_KEY }}}}\n"
+            "          # XAI_API_KEY: ${{{{ secrets.XAI_API_KEY }}}}\n"
+            "        run: pytest\n"
+        )
+        (workflows / "live.yml").write_text(menu.format(modes="replay, live"), encoding="utf-8")
+        (workflows / "replay.yml").write_text(menu.format(modes="replay"), encoding="utf-8")
+
+        reported = unoffered_credentials(tmp_path, ["GEMINI_API_KEY", "XAI_API_KEY"])
+
+        assert len(reported) == 1, reported
+        assert reported[0].startswith("live.yml")
+        assert "['XAI_API_KEY']" in reported[0]
