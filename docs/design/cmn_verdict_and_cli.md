@@ -1865,6 +1865,21 @@ comparison was tested against values a test supplied, and nothing asked where a
 real run's value came from. A case asserting a mechanism's logic does not
 assert that anything feeds it.
 
+##### The digest is recorded at session start, before any adoption
+
+Corrected 2026-10-15. **Recording it where a dispatch plan is built was too
+late.** Adoption runs at session start and compares the carried digest with this
+run's; the plan is built when the first graded case runs. So every band after
+the first compared a real digest with an empty one and refused, and every
+consumer gate had been exiting 3 from its P1 band since 2026-10-13, the day the
+wire was added. No case ran two bands in sequence, which is the only shape the
+defect has.
+
+**The consumer records it in `pytest_sessionstart`, before
+`adopt_prerequisites`.** Recording stays idempotent, so the call where the plan
+is built finds the digest already set. `MQC_CAS_UNI_115757` runs the P0 band and
+then the P1 band carrying its outcomes, as the consumer's gate does.
+
 #### 7.7.1 Three flags, one mechanism
 
 | Flag | Selects | Resolved through |
