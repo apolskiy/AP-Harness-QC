@@ -63,22 +63,22 @@ survivors:
   cmn/layers.py:
     digest: f5f71a25cd486b2fb526e96e2ccb006aa1ce6c84e79e4b4cc4f343ccbcb3bb8e
   cmn/registries.py:
-    digest: c65a095f75923eaaee9f2ce1902fece268dfc69d323226ba1cd9d3188b97c2a4
+    digest: 63eb0cf9a8fe6500499706e42939639999d6549471c41e79cdf0fd8279254267
     accepted:
-      - mutation: "line 446: 1 to 2"
+      - mutation: "line 450: 1 to 2"
         kind: equivalent
         reason: >-
           An unranked code sorts after every ranked group at the last rank plus
           one or plus two alike; the design asks only that it sort last
           (taxonomy section 6.5), and unranked_codes is what fails on one.
         expires_on: 2026-12-31
-      - mutation: "line 723: 1 to 2"
+      - mutation: "line 727: 1 to 2"
         kind: equivalent
         reason: >-
           The stem is the first element of the split, and maxsplit 1 and 2
           give the same first element for every string.
         expires_on: 2026-12-31
-      - mutation: "line 800: Or to And"
+      - mutation: "line 804: Or to And"
         kind: equivalent
         reason: >-
           The two guards differ only for a status equal to True, which is 1,

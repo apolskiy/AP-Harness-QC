@@ -11466,3 +11466,25 @@ design with a one-line pointer, which is where reasoning belongs anyway.
 * **Code Quality & Compliance Audit:** 862 test cases, 856 executions in the
   precondition run, all passing, exit 0; pylint 10.00/10, exit 0. 319
   requirements.
+
+## 2026-10-16: The mutation audit refused every module after `0e917b9`
+
+* **Found By:** run 38958762674, `audit-mutation-on-change`, after the project
+  owner pushed. All six audits skipped with `QC_HARNESS_AUDIT_REFUSED` in 0.08
+  seconds: `cmn/registries.py` hashed differently from the digest
+  `config/mutation_survivors.yaml` declares, because the parametrisation change
+  added `QC_HARNESS_CASE_REPEATED` to it. The audit refuses to mutate a module
+  whose survivors were measured against other code (taxonomy section 15.10).
+  `gate-on-change` passed on the same commit.
+* **Fix:** the digest re-declared with the tool's own `module_digest` and
+  `declare_digest`, and the three accepted survivors' line numbers moved by the
+  four inserted lines, each checked against its line. The registries audit then
+  ran and passed on an export of `0e917b9` carrying only this file; the working
+  tree could not run the audit's control, its unfinished step work leaving the
+  suite red.
+* **Digressions the user spotted, and the fix:**
+  * Local verification ran pytest and pylint and never the mutation audit, so an
+    edit to an audited module reached `main` with a stale digest. Caught by the
+    project owner's report of the failed job. An edit to a module named in
+    `config/mutation_survivors.yaml` is now re-declared and audited before it is
+    staged.
