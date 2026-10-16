@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for paths a branch-coverage run found unexercised.
 
-Covers `MQC_ING_UNI_111000` through `111013`, inventoried in
+Its cases are listed in the block below, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.5.
 
 **These came from measuring rather than reading.** Coverage of the production
@@ -23,14 +23,22 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   111000  yaml_loader_builds_rule_sets_from_a_document
 #   111001  csv_with_no_header_row_is_rejected
 #   111002  empty_yaml_document_is_rejected
-#   111003  csv_boolean_column_is_coerced_from_text
+#   111015  a_csv_boolean_of_true_reads_as_true
+#   111016  a_csv_boolean_of_upper_true_reads_as_true
+#   111017  a_csv_boolean_of_yes_reads_as_true
+#   111018  a_csv_boolean_of_one_reads_as_true
+#   111019  a_csv_boolean_of_false_reads_as_false
+#   111020  a_csv_boolean_of_no_reads_as_false
+#   111021  a_csv_boolean_of_zero_reads_as_false
 # TestMQCRecordPaths
 #   111004  context_document_title_is_optional
 #   111005  tool_definition_rejects_a_non_mapping_schema
 #   111006  assertion_carries_its_taxonomy_code_and_severity
 #   111007  tool_expectation_accepts_disjoint_sets
 #   111014  non_numeric_priority_is_a_malformed_source
-#   111008  priority_outside_zero_to_four_is_rejected
+#   111022  a_priority_of_minus_one_is_rejected
+#   111023  a_priority_of_five_is_rejected
+#   111024  a_priority_of_ninety_nine_is_rejected
 #   111012  anchors_supplied_as_a_list_are_rejected
 #   111013  a_none_value_counts_as_empty_for_a_mandatory_field
 # TestMQCScreenAndRegistryPaths
@@ -132,12 +140,88 @@ class TestMQCLoaderPaths:
         with pytest.raises(ValueError, match="QC_DATA_REQUIRED_FIELD_MISSING"):
             load_tasks_from_yaml(path)
 
-    @pytest.mark.parametrize(
-        ("supplied", "expected"),
-        [("true", True), ("TRUE", True), ("yes", True), ("1", True),
-         ("false", False), ("no", False), ("0", False)],
-    )
-    def MQC_ING_UNI_111003_csv_boolean_column_is_coerced_from_text(
+    def MQC_ING_UNI_111015_a_csv_boolean_of_true_reads_as_true(self, write_text_file: Any) -> None:
+        """``true`` in a declared boolean column reads as True.
+
+        Args:
+            write_text_file (Any): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._csv_boolean_reads_as(write_text_file, "true", True)
+
+    def MQC_ING_UNI_111016_a_csv_boolean_of_upper_true_reads_as_true(
+        self, write_text_file: Any
+    ) -> None:
+        """``TRUE`` in a declared boolean column reads as True.
+
+        Args:
+            write_text_file (Any): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._csv_boolean_reads_as(write_text_file, "TRUE", True)
+
+    def MQC_ING_UNI_111017_a_csv_boolean_of_yes_reads_as_true(self, write_text_file: Any) -> None:
+        """``yes`` in a declared boolean column reads as True.
+
+        Args:
+            write_text_file (Any): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._csv_boolean_reads_as(write_text_file, "yes", True)
+
+    def MQC_ING_UNI_111018_a_csv_boolean_of_one_reads_as_true(self, write_text_file: Any) -> None:
+        """``1`` in a declared boolean column reads as True.
+
+        Args:
+            write_text_file (Any): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._csv_boolean_reads_as(write_text_file, "1", True)
+
+    def MQC_ING_UNI_111019_a_csv_boolean_of_false_reads_as_false(
+        self, write_text_file: Any
+    ) -> None:
+        """``false`` in a declared boolean column reads as False.
+
+        Args:
+            write_text_file (Any): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._csv_boolean_reads_as(write_text_file, "false", False)
+
+    def MQC_ING_UNI_111020_a_csv_boolean_of_no_reads_as_false(self, write_text_file: Any) -> None:
+        """``no`` in a declared boolean column reads as False.
+
+        Args:
+            write_text_file (Any): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._csv_boolean_reads_as(write_text_file, "no", False)
+
+    def MQC_ING_UNI_111021_a_csv_boolean_of_zero_reads_as_false(self, write_text_file: Any) -> None:
+        """``0`` in a declared boolean column reads as False.
+
+        Args:
+            write_text_file (Any): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._csv_boolean_reads_as(write_text_file, "0", False)
+
+    def _csv_boolean_reads_as(
         self, write_text_file: Any, supplied: Any, expected: Any
     ) -> None:
         """CSV carries no types, so a declared flag is read from its spelling.
@@ -249,8 +333,46 @@ class TestMQCRecordPaths:
         with pytest.raises(ValueError, match="QC_DATA_MALFORMED_SOURCE"):
             GoldenRuleSet.from_dict(sample_rule_payload)
 
-    @pytest.mark.parametrize("priority", [-1, 5, 99])
-    def MQC_ING_UNI_111008_priority_outside_zero_to_four_is_rejected(
+    def MQC_ING_UNI_111022_a_priority_of_minus_one_is_rejected(
+        self, sample_rule_payload: dict[str, Any]
+    ) -> None:
+        """A priority of -1 is rejected.
+
+        Args:
+            sample_rule_payload (dict[str, Any]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._priority_is_rejected(sample_rule_payload, -1)
+
+    def MQC_ING_UNI_111023_a_priority_of_five_is_rejected(
+        self, sample_rule_payload: dict[str, Any]
+    ) -> None:
+        """A priority of 5, one past the scale, is rejected.
+
+        Args:
+            sample_rule_payload (dict[str, Any]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._priority_is_rejected(sample_rule_payload, 5)
+
+    def MQC_ING_UNI_111024_a_priority_of_ninety_nine_is_rejected(
+        self, sample_rule_payload: dict[str, Any]
+    ) -> None:
+        """A priority of 99 is rejected.
+
+        Args:
+            sample_rule_payload (dict[str, Any]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._priority_is_rejected(sample_rule_payload, 99)
+
+    def _priority_is_rejected(
         self, sample_rule_payload: dict[str, Any], priority: int
     ) -> None:
         """The level count is fixed at five, so a sixth is not assignable.

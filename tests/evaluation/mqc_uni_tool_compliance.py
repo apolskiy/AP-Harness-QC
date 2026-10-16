@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Whether the model invoked what it was told to, and nothing it was not.
 
-Covers ``MQC_EVL_UNI_114700`` through ``114704``, inventoried and specified in
+Its cases are listed in the block below, inventoried and specified in
 ``docs/design/tier3_evaluation.md`` section 5B, which owns the ``EVL`` block.
 
 **Built from the real records rather than from doubles.** The evaluator takes
@@ -23,6 +23,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114702  a_tool_absent_from_the_offered_set_is_reported
 #   114703  no_expectation_and_a_satisfied_one_both_report_nothing
 #   114704  tool_arguments_violating_the_declared_schema_are_reported
+#   114705  every_forbidden_tool_invoked_is_reported_by_name
 # ------------------------------------------------------------ end of cases
 
 from typing import Any
@@ -253,4 +254,37 @@ class TestMQCToolCompliance:
             (_call("issue_refund", anything=1),),
             ToolExpectation(required_tools=frozenset({"issue_refund"})),
             (_REFUND,),
+        )
+
+    def MQC_EVL_UNI_114705_every_forbidden_tool_invoked_is_reported_by_name(
+        self,
+    ) -> None:
+        """A list of two forbidden tools reports whichever is called, and both.
+
+        Design: ``tier3_evaluation.md`` section 5B.6.
+
+        Returns:
+            None
+        """
+        listing, ping = _tool("list_directory"), _tool("ping_host")
+        offered = (listing, ping, _LOOKUP)
+        expectation = ToolExpectation(
+            forbidden_tools=frozenset({"list_directory", "ping_host"})
+        )
+
+        for name in ("list_directory", "ping_host"):
+            results = evaluate_tool_compliance((_call(name),), expectation, offered)
+            assert [entry.taxonomy_code for entry in results] == ["QC_LLM_TOOL_VIOLATION"]
+            assert name in results[0].detail, (
+                f"calling {name} was reported without naming it: {results[0].detail!r}"
+            )
+
+        both = evaluate_tool_compliance(
+            (_call("ping_host"), _call("list_directory", sequence=1)), expectation, offered
+        )
+        assert all(name in both[0].detail for name in ("list_directory", "ping_host"))
+
+        # THE PERMITTED TOOL ALONE reports nothing.
+        assert not evaluate_tool_compliance(
+            (_call("lookup_order", order_id="A-1"),), expectation, offered
         )

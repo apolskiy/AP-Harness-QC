@@ -1280,6 +1280,7 @@ Specified here because the matrices are **loaded through the CSV loader**, so th
 | `category` | Both | Where the requirement comes from: a module and section for the harness, a requirement domain for the model |
 | `families` | **Model only** | The evaluation families whose cases exercise it, semicolon separated |
 | `test_ids` | Both | Covering tests, semicolon separated |
+| `retired_test_ids` | Both | Tests that once covered it and were retired, semicolon separated. Section 6.1.2 |
 | `notes` | Both | Why the row reads as it does, where that is not obvious |
 
 #### 6.1.1 Why the model matrix carries families and the harness matrix does not
@@ -1291,6 +1292,30 @@ The two files therefore share one schema with `families` optional, and the harne
 **The column exists because coverage is read per family, not only per requirement.** A requirement covered by three families has survived a change of domain; one covered by a single family has been observed once in one setting and may hold only there. That distinction is the whole subject of `model_evaluation_test_plan.md` section 4.4, which lives in `AP-Model-QC`, and without this column it is visible in the case inventory and invisible in the matrix that exists to report coverage.
 
 **`families` is derived, never authored.** It is the distinct families of the cases named in `test_ids`, so it cannot disagree with the inventory. A hand-maintained copy would be a second statement of one fact, which is the drift this project has already corrected three times.
+
+#### 6.1.2 A retired test stays in its requirement's row, in a column of its own
+
+Decided 2026-10-16 by the project owner, when sixty parametrised harness
+identifiers were retired and split (`harness_test_taxonomy.md` section 1.1).
+**A retired test used to leave the matrix entirely**: `test_ids` may name only
+tests that exist, so a requirement's coverage history survived only as prose in
+`notes`, and only where somebody wrote it.
+
+**`retired_test_ids` keeps that history structured.** The column lists every
+test that once covered the requirement and was retired. **When and why, and
+what replaced it, stay in the design inventory's struck-through row**, so each
+fact has one home and the matrix states only which retired tests covered which
+requirement.
+
+| A name in `retired_test_ids` must | Because |
+|---|---|
+| Not be collected | A retired test that still runs is not retired |
+| Appear struck through in a design inventory | The inventory carries the date and the reason |
+| Not also appear in `test_ids` of any row | One test is either active or retired |
+
+**Optional and blank by default**, under the loader's rules above, so a row
+nothing was ever retired from needs no value. Both matrices carry the column,
+because the parser is shared and a retirement can happen in either repository.
 
 ---
 
@@ -2151,6 +2176,37 @@ This is §7.1.0's failure again with an aggravation: **the coverage file asserte
 
 **The check that would have caught it** is a comparison between the registry and what reads each flag. `flag_coverage.yaml` was built to be that check and it takes an **assertion** about each flag rather than deriving one, so an entry claiming an owner is believed. That is the same shape as the hand-typed field list in §9.4 and the self-consistent inventory in §11.2.2: a file that states a fact it could have computed.
 
+#### 7.8.5 An identifier executes once per run, so a run collecting one twice refuses
+
+Decided 2026-10-16 by the project owner (`harness_test_taxonomy.md` section
+1.1). **A named list resolved an identifier to every item carrying it**, so
+`--tests 112056` ran 28 executions under one name and logged "1 named case(s)
+selected 28 case(s)" as a matter of course. Three failures among them read as
+one failing case, and an analysis over identifiers could not tell which input
+failed.
+
+**The guard is at collection, for every run**, not only a named one: a full
+run executes a parametrised case several times just the same. After the
+collection hooks finish, an identifier carried by more than one collected item
+refuses the run with `QC_HARNESS_CASE_REPEATED`, naming each identifier and its
+count. **Refused rather than skipped**, because nothing about the run is
+trustworthy: every aggregate over identifiers is wrong while one identifier
+stands for several test cases, and a precondition run that cannot count is the
+exit 3 section 3.1 of `framework-rules.md` reserves.
+
+**One implementation in `cmn`, so both repositories are guarded** through the
+shared collection hook, and a parametrisation by decorator, by a fixture's
+`params` or by `pytest_generate_tests` is caught alike, being caught by its
+effect rather than its syntax.
+
+| Collected | Outcome |
+|---|---|
+| Each identifier once | Runs |
+| One identifier more than once | **Refused**, `QC_HARNESS_CASE_REPEATED`, exit 3, each repeated identifier named with its count |
+
+`MQC_CMN_UNI_112153` asserts both rows, and `112154` that a named list of N
+identifiers selects exactly N executions.
+
 ### 7.11 A band job reports its band, not what it declined to run
 
 Added 2026-10-06 at the project owner's instruction, after reading a P1 gate
@@ -2575,7 +2631,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | ID | Cat | Behaviour |
 |---|---|---|
 | `112000` | P | `green_when_all_rules_satisfied` |
-| `112001` | N | `red_when_p0_observation_fails` (V1) |
+| ~~`112001`~~ | | ~~`red_when_p0_observation_fails`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112060`. Its P1 input duplicated `112002`, so one case remains |
+| `112060` | N | `red_when_a_p0_observation_fails` (V1) |
 | `112002` | N | `red_when_p1_observation_fails` (V1) |
 | `112003` | P | `green_when_p2_fails_within_pass_floor` (V1) |
 | `112004` | B | `green_at_exactly_ninety_percent_pass_rate` (V2) |
@@ -2586,17 +2643,24 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | ~~`112009`~~ | | ~~`red_just_above_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
 | `112010` | N | `red_when_quarantine_entry_expired` (V5) |
 | `112011` | P | `green_when_quarantine_entry_current` (V5) |
-| `112012` | B | `expiry_boundary_evaluated_against_injected_date` |
+| ~~`112012`~~ | | ~~`expiry_boundary_evaluated_against_injected_date`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112700`, `112701`, `112702`, `112703`. One case per boundary day |
+| `112700` | B | `an_entry_nineteen_days_old_is_still_valid` |
+| `112701` | B | `an_entry_twenty_days_old_is_still_valid` |
+| `112702` | B | `an_entry_twenty_one_days_old_has_expired` |
+| `112703` | B | `an_entry_twenty_two_days_old_has_expired` |
 | `112013` | N | `red_when_no_observations_at_all` (V6) |
 | `112014` | N | `red_when_no_graded_observations` (V6) |
 | `112015` | N | `red_when_every_graded_case_quarantined` (V6) |
 | `112016` | N | `red_when_every_pair_unsupported` (V6) |
 | `112017` | N | `dependency_skips_excluded_from_skip_denominator` |
 | `112018` | N | `unsupported_pairs_excluded_from_skip_denominator` |
-| ~~`112019`~~ | | ~~`quarantined_cases_excluded_from_pass_denominator`~~. **Retired 2026-10-08**, section 4.6.12. Quarantine saves the cost of asking again about a known failure and does not stop it being one, so it no longer leaves the denominator; `112046` and `112048` state what replaced it |
+| ~~`112019`~~ | | ~~`quarantined_cases_excluded_from_pass_denominator`~~. **Retired 2026-10-08**, section 4.6.12. Quarantine saves the cost of asking again about a known failure and does not stop it being one, so it no longer leaves the denominator; `112061` and `112048` state what replaced it |
 | `112044` | N | `the_retired_skip_ceilings_never_fire` |
 | `112045` | P | `a_skip_we_caused_leaves_the_pass_rate` |
-| `112046` | N | `a_skip_the_model_caused_counts_as_a_failure` |
+| ~~`112046`~~ | | ~~`a_skip_the_model_caused_counts_as_a_failure`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112061`, `112062`, `112063`. One case per skip reason |
+| `112061` | N | `a_quarantined_skip_counts_as_a_failure` |
+| `112062` | N | `a_skip_behind_a_failed_foundation_counts_as_a_failure` |
+| `112063` | N | `a_skip_with_no_reason_counts_as_a_failure` |
 | `112047` | B | `a_counted_skip_never_reaches_the_numerator` |
 | `112048` | P | `a_dispensed_quarantine_skip_leaves_the_pass_rate` |
 | ~~`112049`~~ | | ~~`each_kind_of_skip_is_named_by_its_remedy`~~. **Retired 2026-10-09**, section 7.11.3. It asserted a phrase per remedy class and the line now names the cause per case, which is a different assertion; `112051` states it |
@@ -2655,9 +2719,45 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112053` | B | `p1_share_decides_on_both_sides_of_its_ceiling` (V8, 10.38) |
 | `112054` | B | `combined_share_at_exactly_the_ceiling_is_permitted` (V9, 10.38) |
 | `112055` | B | `distribution_returns_a_verdict_at_exactly_the_minimum` (10.38) |
-| `112056` | N | `a_rate_outside_the_unit_interval_is_refused` (8.1) |
+| ~~`112056`~~ | | ~~`a_rate_outside_the_unit_interval_is_refused`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112064`, `112065`, `112066`, `112067`, `112068`, `112069`, `112070`, `112071`, `112072`, `112073`, `112074`, `112075`, `112076`, `112077`, `112078`, `112079`, `112080`, `112081`, `112082`, `112083`, `112084`, `112085`, `112086`, `112087`, `112088`, `112089`, `112090`, `112091`. One case per rate and value |
+| `112064` | N | `a_combined_share_ceiling_of_minus_one_is_refused` |
+| `112065` | N | `a_combined_share_ceiling_of_zero_is_refused` |
+| `112066` | N | `a_combined_share_ceiling_of_one_and_a_half_is_refused` |
+| `112067` | N | `a_combined_share_ceiling_of_one_hundred_is_refused` |
+| `112068` | N | `a_inconsistency_ceiling_of_minus_one_is_refused` |
+| `112069` | N | `a_inconsistency_ceiling_of_zero_is_refused` |
+| `112070` | N | `a_inconsistency_ceiling_of_one_and_a_half_is_refused` |
+| `112071` | N | `a_inconsistency_ceiling_of_one_hundred_is_refused` |
+| `112072` | N | `a_p0_share_ceiling_of_minus_one_is_refused` |
+| `112073` | N | `a_p0_share_ceiling_of_zero_is_refused` |
+| `112074` | N | `a_p0_share_ceiling_of_one_and_a_half_is_refused` |
+| `112075` | N | `a_p0_share_ceiling_of_one_hundred_is_refused` |
+| `112076` | N | `a_p1_share_ceiling_of_minus_one_is_refused` |
+| `112077` | N | `a_p1_share_ceiling_of_zero_is_refused` |
+| `112078` | N | `a_p1_share_ceiling_of_one_and_a_half_is_refused` |
+| `112079` | N | `a_p1_share_ceiling_of_one_hundred_is_refused` |
+| `112080` | N | `a_pass_floor_of_minus_one_is_refused` |
+| `112081` | N | `a_pass_floor_of_zero_is_refused` |
+| `112082` | N | `a_pass_floor_of_one_and_a_half_is_refused` |
+| `112083` | N | `a_pass_floor_of_one_hundred_is_refused` |
+| `112084` | N | `a_priority_skip_ceiling_of_minus_one_is_refused` |
+| `112085` | N | `a_priority_skip_ceiling_of_zero_is_refused` |
+| `112086` | N | `a_priority_skip_ceiling_of_one_and_a_half_is_refused` |
+| `112087` | N | `a_priority_skip_ceiling_of_one_hundred_is_refused` |
+| `112088` | N | `a_skip_ceiling_of_minus_one_is_refused` |
+| `112089` | N | `a_skip_ceiling_of_zero_is_refused` |
+| `112090` | N | `a_skip_ceiling_of_one_and_a_half_is_refused` |
+| `112091` | N | `a_skip_ceiling_of_one_hundred_is_refused` |
 | `112057` | N | `a_non_numeric_threshold_is_refused` (8.1) |
-| `112058` | N | `a_population_count_below_one_is_refused` (8.1) |
+| ~~`112058`~~ | | ~~`a_population_count_below_one_is_refused`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112092`, `112093`, `112094`, `112095`, `112096`, `112097`, `112098`. One case per count and value, and the registration check it carried is a case of its own |
+| `112092` | N | `a_distribution_minimum_of_zero_is_refused` |
+| `112093` | N | `a_distribution_minimum_of_minus_one_is_refused` |
+| `112094` | N | `a_distribution_minimum_of_minus_five_is_refused` |
+| `112095` | N | `a_quarantine_window_days_of_zero_is_refused` |
+| `112096` | N | `a_quarantine_window_days_of_minus_one_is_refused` |
+| `112097` | N | `a_quarantine_window_days_of_minus_five_is_refused` |
+| `112098` | P | `every_threshold_declares_a_domain` |
+| `112099` | P | `every_threshold_field_has_refusal_cases` |
 | `112059` | N | `a_stored_artifact_carrying_an_impossible_threshold_refuses` (8.1) |
 | `112100` | P | `demotion_orders_single_match_before_multiple` |
 | `112101` | P | `security_cases_are_never_demoted` |
@@ -2677,7 +2777,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112202` | N | `unregistered_code_in_a_live_specification_is_reported` |
 | `112203` | N | `stated_inventory_counts_disagreeing_with_rows_is_reported` |
 | `112110` | P | `option_registry_yields_identical_flags_to_both_surfaces` |
-| `112111` | N | `invalid_enumerated_flag_value_is_rejected_at_parse_time` |
+| ~~`112111`~~ | | ~~`invalid_enumerated_flag_value_is_rejected_at_parse_time`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112155`, `112156`. One case per flag |
+| `112155` | N | `a_mode_of_cached_is_rejected_at_parse_time` |
+| `112156` | N | `an_extra_columns_of_keep_is_rejected_at_parse_time` |
 | `112112` | P | `verdict_recomputable_from_stored_artifacts` |
 | `112113` | N | `precondition_failure_exits_three_not_one` |
 | ~~`112114`~~ | | ~~`unknown_case_identifier_is_an_error_not_an_empty_run`~~. **Retired 2026-10-03 with `--case`**, section 7.8.4. It asserted that two string literals it had just written differ, then checked engine validation; the behaviour its requirement names is established by `112245` |
@@ -2693,12 +2795,27 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112208` | N | `result_missing_a_required_metadata_field_is_rejected` |
 | `112120` | P | `no_filter_yields_selection_mode_full` |
 | `112121` | P | `change_scoped_selection_still_yields_a_verdict` |
-| `112122` | N | `manual_filter_yields_no_verdict` |
+| ~~`112122`~~ | | ~~`manual_filter_yields_no_verdict`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112157`, `112158`, `112159`, `112160`, `112161`, `112162`, `112163`, `112164`. One case per selector flag, and a case that every registered selector has one |
+| `112157` | N | `a_family_filter_yields_no_verdict` |
+| `112158` | N | `a_module_filter_yields_no_verdict` |
+| `112159` | N | `an_observations_override_yields_no_verdict` |
+| `112160` | N | `a_priority_filter_yields_no_verdict` |
+| `112161` | N | `a_requirement_filter_yields_no_verdict` |
+| `112162` | N | `a_tag_filter_yields_no_verdict` |
+| `112163` | N | `a_tests_filter_yields_no_verdict` |
+| `112164` | N | `a_tests_file_filter_yields_no_verdict` |
+| `112171` | P | `every_manual_selector_flag_has_a_case` |
 | `112209` | P | `selection_mode_recorded_per_result` |
 | `112210` | N | `debug_artifact_name_does_not_match_collector_pattern` |
 | `112211` | P | `debug_rows_carry_ci_debug_context_and_ungated_flag` |
 | `112123` | N | `verdict_tool_refuses_a_manual_selection_artifact` |
-| `112124` | P | `gated_derived_from_selection_preconditions_and_run_context` |
+| ~~`112124`~~ | | ~~`gated_derived_from_selection_preconditions_and_run_context`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112165`, `112166`, `112167`, `112168`, `112169`, `112170`. One case per context, selection and precondition outcome |
+| `112165` | P | `a_full_ci_run_with_passing_preconditions_is_gated` |
+| `112166` | P | `a_change_scoped_ci_run_is_gated` |
+| `112167` | N | `a_manual_ci_selection_is_not_gated` |
+| `112168` | N | `a_ci_run_with_failed_preconditions_is_not_gated` |
+| `112169` | N | `a_debug_ci_run_is_not_gated` |
+| `112170` | N | `a_local_run_is_not_gated` |
 | `112125` | N | `refusal_exits_four_not_one` |
 | `112126` | B | `full_selection_under_debug_context_is_still_ungated` |
 | `112212` | B | `first_run_on_a_branch_has_no_previous_conclusion_to_compare` |
@@ -2730,7 +2847,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112135` | N | `an_unreadable_artifact_is_an_argument_error` |
 | `112136` | B | `an_unrecorded_threshold_falls_back_to_the_default` |
 | `112219` | B | `latency_is_absent_rather_than_zero_when_nothing_measured` |
-| `112220` | P | `changed_areas_distinguish_harness_from_tests` |
+| ~~`112220`~~ | | ~~`changed_areas_distinguish_harness_from_tests`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112258`, `112259`, `112260`, `112261`. One case per changed area |
+| `112258` | P | `a_production_change_is_attributed_to_the_harness` |
+| `112259` | P | `a_test_change_is_attributed_to_the_tests` |
+| `112260` | P | `a_change_to_both_is_attributed_to_both` |
+| `112261` | B | `a_documentation_change_is_attributed_to_neither` |
 | `112221` | N | `a_field_the_record_does_not_declare_is_rejected` |
 | `112222` | N | `requirements_files_disagreeing_with_pyproject_fail` |
 | `112223` | N | `every_imported_package_is_declared` |
@@ -2765,6 +2886,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112150` | N | `an_engine_off_the_roster_is_refused_before_it_runs` |
 | `112151` | N | `a_pylint_invocation_differing_from_the_rest_is_reported` |
 | `112152` | N | `a_duplicated_yaml_key_is_reported` |
+| `112153` | N | `an_identifier_collected_twice_refuses_the_run` (7.8.5) |
+| `112154` | B | `a_named_list_selects_one_execution_per_identifier` (7.8.5) |
 | `112241` | P | `a_case_in_two_families_publishes_both` |
 | `112242` | P | `a_shared_case_counts_toward_every_family_it_addresses` |
 | `112243` | N | `a_repeated_family_value_is_reported` |
@@ -2868,8 +2991,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112351` | P | `an_inquest_records_a_dependent_as_unattributed` |
 | `112341` | N | `a_skipped_case_absent_from_the_pass_rate_is_reported` |
 | `112342` | N | `a_blocker_released_without_a_dispensation_is_reported` |
+| `112349` | N | `a_retired_test_that_runs_or_is_unstruck_is_reported` (6.1.2) |
+| `112386` | P | `the_matrix_retirements_hold_against_the_suite` (6.1.2) |
+| `112387` | N | `a_registry_member_without_a_case_of_its_own_is_reported` |
 
-**Inventory: 310 cases, 180 negative, 95 positive, 35 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 371 cases, 229 negative, 102 positive, 40 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

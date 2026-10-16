@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for calibration against anchored exemplars.
 
-Covers `MQC_EVL_UNI_114200` through `114203`, inventoried in
+Its cases are listed in the block below, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **An anchor states what a level means; an exemplar shows it.** Calibration asks
@@ -21,8 +21,10 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCCalibrationTolerance
 #   114200  calibration_exact_match_passes
-#   114201  calibration_one_level_deviation_passes_and_records
-#   114202  calibration_two_level_deviation_fails
+#   114208  a_score_one_level_below_passes_and_records
+#   114209  a_score_one_level_above_passes_and_records
+#   114210  a_score_two_levels_below_fails_calibration
+#   114211  a_score_two_levels_above_fails_calibration
 #   114203  deviation_within_tolerance_is_recorded_for_trend
 # TestMQCCalibrationOverARubric
 #   114204  an_anchor_without_an_exemplar_yields_no_result
@@ -62,8 +64,23 @@ class TestMQCCalibrationTolerance:
         assert result.deviation == 0
         assert result.drifted_within_tolerance is False
 
-    @pytest.mark.parametrize("observed", [2.0, 4.0])
-    def MQC_EVL_UNI_114201_calibration_one_level_deviation_passes_and_records(
+    def MQC_EVL_UNI_114208_a_score_one_level_below_passes_and_records(self) -> None:
+        """A judged score one level below the exemplar's passes, and the deviation is recorded.
+
+        Returns:
+            None
+        """
+        self._one_level_deviation(2.0)
+
+    def MQC_EVL_UNI_114209_a_score_one_level_above_passes_and_records(self) -> None:
+        """A judged score one level above the exemplar's passes, and the deviation is recorded.
+
+        Returns:
+            None
+        """
+        self._one_level_deviation(4.0)
+
+    def _one_level_deviation(
         self, observed: float
     ) -> None:
         """The boundary, stated at one level exactly and in both directions.
@@ -83,8 +100,23 @@ class TestMQCCalibrationTolerance:
         assert result.deviation == 1.0
         assert result.drifted_within_tolerance is True
 
-    @pytest.mark.parametrize("observed", [1.0, 5.0])
-    def MQC_EVL_UNI_114202_calibration_two_level_deviation_fails(self, observed: float) -> None:
+    def MQC_EVL_UNI_114210_a_score_two_levels_below_fails_calibration(self) -> None:
+        """A judged score two levels below the exemplar's fails calibration.
+
+        Returns:
+            None
+        """
+        self._two_level_deviation(1.0)
+
+    def MQC_EVL_UNI_114211_a_score_two_levels_above_fails_calibration(self) -> None:
+        """A judged score two levels above the exemplar's fails calibration.
+
+        Returns:
+            None
+        """
+        self._two_level_deviation(5.0)
+
+    def _two_level_deviation(self, observed: float) -> None:
         """Two levels apart means the rubric or the judge has drifted.
 
         Scores from a rubric in that state cannot be compared with earlier

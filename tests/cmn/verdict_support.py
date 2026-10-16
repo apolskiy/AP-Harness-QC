@@ -15,7 +15,10 @@ deliberately outside that pattern, which is the same arrangement
 from datetime import date
 from typing import Any
 
+import pytest
+
 from cmn.observations import Observation
+from cmn.verdict import Thresholds
 
 # The date every verdict case injects. The verdict reads no clock, so this is
 # supplied rather than observed, and a fixed value keeps a boundary case from
@@ -137,3 +140,37 @@ def gated_artifact(**overrides: Any) -> dict:
     }
     payload.update(overrides)
     return payload
+
+
+class RateRefusal:
+    """The check each rate case runs, shared by the classes that split them.
+
+    Design: ``harness_test_taxonomy.md`` section 1.1.
+    """
+
+    def _rate_is_refused(self, field_name: str, value: float) -> None:
+        """Assert a rate outside the unit interval is refused, naming both.
+
+        **Zero and negative one are the dangerous pair.** A `pass_floor` at
+        either turned every run green at exit 0 with no breach recorded, which
+        is worse than the error a string produced because the run reported a
+        result. `100.0` is the slip for someone who meant ninety percent.
+
+        **Zero is refused for the ceilings too.** It leaves no band, and the
+        rule it reaches for is V1.
+
+        Args:
+            field_name (str): The rate under test.
+            value (float): The value outside the domain.
+
+        Returns:
+            None
+        """
+        with pytest.raises(ValueError) as refusal:
+            Thresholds(**{field_name: value})
+
+        assert field_name in str(refusal.value), (
+            "the refusal did not name the field, so it points at the "
+            "comparison rather than at the edit that caused it"
+        )
+        assert repr(value) in str(refusal.value)

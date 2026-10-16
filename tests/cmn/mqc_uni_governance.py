@@ -25,6 +25,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112326  an_identifier_bound_by_two_callables_is_reported
 # TestMQCLiveMatrixAgainstTheSuite
 #   112313  a_collected_test_named_in_no_matrix_row_is_reported
+#   112349  a_retired_test_that_runs_or_is_unstruck_is_reported
+#   112386  the_matrix_retirements_hold_against_the_suite
 # TestMQCIndexAgainstDesigns
 #   112314  an_index_case_count_disagreeing_with_its_design_is_reported
 #   112323  a_readme_count_disagreeing_with_the_designs_is_reported
@@ -44,7 +46,7 @@ import pytest
 
 from cmn.config import forbidden_keys
 from cmn.layers import layer_properties, registered_layers
-from cmn.traceability import MatrixRow, untraced_tests
+from cmn.traceability import MatrixRow, retirement_problems, untraced_tests
 
 pytestmark = pytest.mark.unit
 
@@ -483,6 +485,73 @@ class TestMQCLiveMatrixAgainstTheSuite:
             f"{', '.join(entry.subject for entry in untraced[:8])}"
         )
 
+    def MQC_CMN_UNI_112349_a_retired_test_that_runs_or_is_unstruck_is_reported(
+        self,
+    ) -> None:
+        """A retired test still collected, still active, or never struck is reported.
+
+        Design: ``cmn_verdict_and_cli.md`` section 6.1.2.
+
+        Returns:
+            None
+        """
+        retired = "MQC_CMN_UNI_112001_red_when_p0_observation_fails"
+        struck = ["| ~~`112001`~~ | | ~~`red_when_p0_observation_fails`~~. Retired |"]
+
+        def row(active: str, gone: str) -> MatrixRow:
+            """Return one matrix row with an active and a retired test.
+
+            Args:
+                active (str): The ``test_ids`` cell.
+                gone (str): The ``retired_test_ids`` cell.
+
+            Returns:
+                MatrixRow: The built row.
+            """
+            return MatrixRow.from_row({
+                "requirement_id": "MQC_REQ_HAR_CMN_0021", "requirement_text": "t",
+                "source": "s", "category": "c", "test_ids": active,
+                "retired_test_ids": gone, "notes": "",
+            })
+
+        clean = [row("MQC_CMN_UNI_112060_red_when_a_p0_observation_fails", retired)]
+        assert clean[0].retired_test_ids == [retired]
+        assert not retirement_problems(clean, set(), struck)
+
+        still_runs = retirement_problems(clean, {retired}, struck)
+        assert len(still_runs) == 1 and "still collects" in still_runs[0], still_runs
+
+        both = [row(retired, retired)]
+        assert any("active" in problem for problem in retirement_problems(both, set(), struck))
+
+        unstruck = retirement_problems(clean, set(), ["| `112001` | N | `x` |"])
+        assert len(unstruck) == 1 and "112001" in unstruck[0], unstruck
+
+    def MQC_CMN_UNI_112386_the_matrix_retirements_hold_against_the_suite(self) -> None:
+        """Every retired test in this matrix is uncollected, inactive and struck.
+
+        Design: ``cmn_verdict_and_cli.md`` section 6.1.2.
+
+        Returns:
+            None
+        """
+        matrix = _REPOSITORY_ROOT / "docs" / "testing" / "rtm_harness.csv"
+        with matrix.open(encoding="utf-8-sig", newline="") as handle:
+            rows = [MatrixRow.from_row(entry) for entry in csv.DictReader(handle)]
+        collected = {
+            f"MQC_{module}_{layer}_{number}_{behaviour}"
+            for module, layer, number, behaviour in _collected_tests()
+        }
+        designs = [
+            path.read_text(encoding="utf-8")
+            for path in sorted((_REPOSITORY_ROOT / "docs" / "design").glob("*.md"))
+        ]
+        assert any(row.retired_test_ids for row in rows), (
+            "the matrix records no retired test, though identifiers were retired"
+        )
+        problems = retirement_problems(rows, collected, designs)
+        assert not problems, f"{len(problems)} retirement problem(s): {problems[:5]}"
+
 
 class TestMQCIndexAgainstDesigns:
     """The document map checked against the documents it maps."""
@@ -563,7 +632,9 @@ class TestMQCIndexAgainstDesigns:
             )
             if total is not None
         )
-        stated_cases = re.search(r"\*\*(\d+) cases, all passing\*\*", readme)
+        # "TEST CASES" SINCE 2026-10-16, the term harness_test_taxonomy.md
+        # section 1.1 registers; the bare form is still read.
+        stated_cases = re.search(r"\*\*(\d+) (?:test )?cases, all passing\*\*", readme)
         if stated_cases is None:
             disagreements.append("the README states no case count")
         elif int(stated_cases.group(1)) != inventoried:

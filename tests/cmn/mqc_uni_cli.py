@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the option registry, exit codes and what a subset costs.
 
-Covers `MQC_CMN_UNI_112102` through `112105`, `112110` through `112117`, `112118`,
-`112120` through `112122`, `112123` through `112125`, `112126`, `112212` and `112127`,
-inventoried in ``docs/design/cmn_verdict_and_cli.md`` section 10.
+Covers the option registry, the verdict tool's exit codes, diagnostic runs,
+threshold recording and the consumer registry, inventoried in
+``docs/design/cmn_verdict_and_cli.md`` section 10; the block below lists the
+cases. Selection mode and the gated flag moved to
+``mqc_uni_selection_mode.py`` on 2026-10-16.
 
 **Testers may run any subset. What a subset costs is the verdict, not the
 ability to run.** A hand-typed selection is arbitrary and has no backstop, while
@@ -24,21 +26,13 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCOptionRegistry
 #   112110  option_registry_yields_identical_flags_to_both_surfaces
-#   112111  invalid_enumerated_flag_value_is_rejected_at_parse_time
+#   112155  a_mode_of_cached_is_rejected_at_parse_time
+#   112156  an_extra_columns_of_keep_is_rejected_at_parse_time
 #   112132  argparse_rejects_the_same_values_the_registry_does
 #   112102  cli_defaults_are_recorded_in_metadata
 #   112103  defaulted_engine_emits_warning_into_artifact
 #   112143  choosing_the_default_engine_is_not_defaulting
 #   112133  mode_defaults_to_replay_so_nothing_spends_quota
-# TestMQCSelectionMode
-#   112120  no_filter_yields_selection_mode_full
-#   112122  manual_filter_yields_no_verdict
-#   112121  change_scoped_selection_still_yields_a_verdict
-#   112116  observations_override_replaces_configured_count
-# TestMQCGatedDerivation
-#   112124  gated_derived_from_selection_preconditions_and_run_context
-#   112126  full_selection_under_debug_context_is_still_ungated
-#   112127  manual_full_dispatch_of_ci_is_gated_and_yields_a_verdict
 # TestMQCVerdictToolExitCodes
 #   112112  verdict_recomputable_from_stored_artifacts
 #   112113  precondition_failure_exits_three_not_one
@@ -158,6 +152,22 @@ class TestMQCOptionRegistry:
             expected = list(declared.choices) if declared.choices else None
             assert plugin.choices[declared.cli_flag] == expected
 
+    def MQC_CMN_UNI_112155_a_mode_of_cached_is_rejected_at_parse_time(self) -> None:
+        """``--mode cached`` is rejected when the arguments are parsed.
+
+        Returns:
+            None
+        """
+        self._rejected_at_parse_time("mode", "cached")
+
+    def MQC_CMN_UNI_112156_an_extra_columns_of_keep_is_rejected_at_parse_time(self) -> None:
+        """``--extra-columns keep`` is rejected when the arguments are parsed.
+
+        Returns:
+            None
+        """
+        self._rejected_at_parse_time("extra-columns", "keep")
+
     # `engine` LEFT THIS LIST ON 2026-10-04 when its choices tuple was removed.
     # An enumerated list had to be edited whenever an adapter was added, which
     # is the coupling `--judge-engine` had already been written to avoid, and
@@ -165,10 +175,7 @@ class TestMQCOptionRegistry:
     # unknown engine is now refused by the adapter registry instead, which
     # `112149` covers: later than parse time, and against the registry rather
     # than against a copy of it.
-    @pytest.mark.parametrize(
-        "name,value", [("mode", "cached"), ("extra-columns", "keep")]
-    )
-    def MQC_CMN_UNI_112111_invalid_enumerated_flag_value_is_rejected_at_parse_time(
+    def _rejected_at_parse_time(
         self, name: str, value: Any
     ) -> None:
         """A typo reaching the suite would select nothing and report an empty run.
@@ -292,136 +299,6 @@ class TestMQCOptionRegistry:
         assert option("mode").default == "replay"
         assert option("extra-columns").default == "reject"
         assert option("judge-on-failure").default is False
-
-
-class TestMQCSelectionMode:
-    """What makes a selection manual, and what that costs it."""
-
-    def MQC_CMN_UNI_112120_no_filter_yields_selection_mode_full(self) -> None:
-        """Nothing supplied means everything ran.
-
-        Returns:
-            None
-        """
-        invocation = build_invocation({})
-        assert invocation.selection_mode == "full"
-        assert invocation.yields_verdict is True
-
-    @pytest.mark.parametrize("flag", sorted(manual_selector_flags()))
-    def MQC_CMN_UNI_112122_manual_filter_yields_no_verdict(self, flag: str) -> None:
-        """Every filtering flag makes the selection manual.
-
-        Parametrized over the registry rather than written per flag, so a
-        selector added later cannot be the one nobody checked.
-
-        Args:
-            flag (str): The selector supplied.
-
-        Returns:
-            None
-        """
-        invocation = build_invocation({flag: "0,1" if flag == "priority" else "x"})
-        assert invocation.selection_mode == "manual"
-        assert invocation.yields_verdict is False
-
-    def MQC_CMN_UNI_112121_change_scoped_selection_still_yields_a_verdict(self) -> None:
-        """Derived from the diff, recorded, and backstopped by the full merge run.
-
-        **Not all subsets are equal, and the difference is not size.** A
-        change-scoped selection yields a verdict because of where it came from,
-        not because of how much of the suite it covers.
-
-        Returns:
-            None
-        """
-        scoped = RunContext(
-            run_context="ci", selection_mode="change_scoped", preconditions_executed=True
-        )
-        assert scoped.gated is True
-
-    def MQC_CMN_UNI_112116_observations_override_replaces_configured_count(self) -> None:
-        """Overriding the observation count is a diagnostic selection.
-
-        Returns:
-            None
-        """
-        invocation = build_invocation({"observations": 1})
-        assert invocation.as_metadata()["observations"] == 1
-        assert invocation.yields_verdict is False
-
-
-# `112114` AND `112115` WERE RETIRED 2026-10-03 with `--case`. Both are
-# recorded in `cmn_verdict_and_cli.md` section 7.8.4: `112115` asserted that
-# the flag reached metadata and made a run unverdictable, which was true while
-# nothing selected on it, and `112114` asserted that two string literals it had
-# just written differ. The behaviour `MQC_REQ_HAR_CMN_0019` names is
-# established by `112245` against `--tests`.
-
-class TestMQCGatedDerivation:
-    """Three facts, all required, none of them assertable by the artifact."""
-
-    @pytest.mark.parametrize(
-        "context,selection,preconditions,expected",
-        [
-            ("ci", "full", True, True),
-            ("ci", "change_scoped", True, True),
-            ("ci", "manual", True, False),
-            ("ci", "full", False, False),
-            ("ci_debug", "full", True, False),
-            ("local", "full", True, False),
-        ],
-    )
-    def MQC_CMN_UNI_112124_gated_derived_from_selection_preconditions_and_run_context(
-        self, context: str, selection: str, preconditions: bool, expected: Any
-    ) -> None:
-        """Derived, never set, so an artifact cannot claim to be gated.
-
-        Args:
-            context (str): The run context.
-            selection (str): The selection mode.
-            preconditions (bool): Whether the preconditions executed.
-            expected (bool): Whether a verdict may be computed.
-
-        Returns:
-            None
-        """
-        run = RunContext(
-            run_context=context, selection_mode=selection,
-            preconditions_executed=preconditions,
-        )
-        assert run.gated is expected
-        assert run.as_fields()["gated"] is expected
-
-    def MQC_CMN_UNI_112126_full_selection_under_debug_context_is_still_ungated(self) -> None:
-        """The boundary: a full selection is not sufficient on its own.
-
-        A debug job may be exercising a different harness branch entirely
-        against different test cases, so covering the whole suite says nothing
-        about which suite it covered.
-
-        Returns:
-            None
-        """
-        debug = RunContext(
-            run_context="ci_debug", selection_mode="full", preconditions_executed=True
-        )
-        assert debug.gated is False
-
-    def MQC_CMN_UNI_112127_manual_full_dispatch_of_ci_is_gated_and_yields_a_verdict(self) -> None:
-        """A human pressing run on the full CI workflow is still a full selection.
-
-        The distinction is what the selection was, not who started it. A full
-        run dispatched by hand covers the same suite as one dispatched by a
-        push, and refusing it would mean nobody could verify a branch before
-        offering it.
-
-        Returns:
-            None
-        """
-        dispatched = RunContext(
-            run_context="ci", selection_mode="full", preconditions_executed=True
-        )
-        assert dispatched.gated is True
 
 
 class TestMQCVerdictToolExitCodes:

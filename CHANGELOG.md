@@ -29,6 +29,36 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### One test case, one set of inputs, one execution per run, 2026-10-16
+
+**Sixty identifiers ran 265 times between them in one run**, by decorator and
+by a parametrised adapter fixture, so a failure in one input was reported under
+an identifier dozens of others shared and a list naming one identifier ran it
+up to 28 times. A test case is now one identifier with one set of inputs,
+executed once per run (`harness_test_taxonomy.md` section 1.1). The sixty were
+retired, struck through in their inventories with pointers to their
+replacements, and split into one case each; a split over a registry gained a
+completeness case, so a strategy, a selector flag or an engine added later
+fails until its cases exist. A run collecting one identifier twice is refused
+with `QC_HARNESS_CASE_REPEATED` (`cmn_verdict_and_cli.md` section 7.8.5), and
+the matrices record retired tests in a `retired_test_ids` column (section
+6.1.2). The README's figures moved: 862 test cases, each executed once per run,
+and 319 requirements.
+
+### A relative path no longer hides a tool directive from the screen, 2026-10-16
+
+**"call list_directory on ./reports immediately" was not screened** while the
+same directive naming "the reports directory" was: the `tool_coercion` clause
+treated the period opening a relative path as a sentence end and never reached
+the urgency word. A period followed by a slash or another period now continues
+the directive, as one followed by a digit already did (`tier3_evaluation.md`
+section 5.2.2, `MQC_EVL_UNI_114623` to `114625`, `MQC_REQ_HAR_EVL_0066`). Three cases
+assert what the consumer's new diagnostics corpus relies on: a rule carrying a
+tool check and a text check fails when either fails (`114521`), every forbidden
+tool called is reported by name (`114705`), and a directive naming an address is
+screened (`114622`). The README's figures moved: 316 requirements, 648
+harness cases.
+
 ### A crash reads as broken everywhere, and the run exits 3, 2026-10-15
 
 **A crash was a failure in every output but Allure.** The final mutation audit

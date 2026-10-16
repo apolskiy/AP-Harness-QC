@@ -111,6 +111,10 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     # list must not void work already done. Design
     # `cmn_verdict_and_cli.md` section 7.8.3.
     "QC_HARNESS_SELECTION_UNRESOLVED",
+    # ONE IDENTIFIER COLLECTED MORE THAN ONCE refuses the run, because every
+    # aggregate over identifiers is wrong while one stands for several test
+    # cases. Design `cmn_verdict_and_cli.md` section 7.8.5.
+    "QC_HARNESS_CASE_REPEATED",
     "QC_HARNESS_UPSTREAM_UNVERIFIED",
     "QC_HARNESS_BRANCH_NAME",
     "QC_HARNESS_BRANCH_STALE",

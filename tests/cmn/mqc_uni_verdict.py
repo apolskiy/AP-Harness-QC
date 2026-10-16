@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for verdict computation.
 
-Covers `MQC_CMN_UNI_112000` through `112101`, inventoried in
+Its cases are listed in the block below, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Every case here is synthetic and deterministic.** The verdict is a pure
@@ -22,7 +22,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCPriorityGate
 #   112000  green_when_all_rules_satisfied
-#   112001  red_when_p0_observation_fails
+#   112060  red_when_a_p0_observation_fails
 #   112002  red_when_p1_observation_fails
 #   112003  green_when_p2_fails_within_pass_floor
 # TestMQCRateThresholds
@@ -54,7 +54,9 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112030  a_broken_graded_observation_blocks_and_exits_three
 #   112031  an_incomplete_skip_blocks_however_few_there_are
 #   112045  a_skip_we_caused_leaves_the_pass_rate
-#   112046  a_skip_the_model_caused_counts_as_a_failure
+#   112061  a_quarantined_skip_counts_as_a_failure
+#   112062  a_skip_behind_a_failed_foundation_counts_as_a_failure
+#   112063  a_skip_with_no_reason_counts_as_a_failure
 #   112047  a_counted_skip_never_reaches_the_numerator
 #   112048  a_dispensed_quarantine_skip_leaves_the_pass_rate
 # ------------------------------------------------------------ end of cases
@@ -93,21 +95,16 @@ class TestMQCPriorityGate:
         assert result.exit_code == 0
         assert not result.breaches
 
-    @pytest.mark.parametrize("priority", [0, 1])
-    def MQC_CMN_UNI_112001_red_when_p0_observation_fails(self, priority: int) -> None:
-        """A P0 or P1 failure fails the run whatever the pass rate.
+    def MQC_CMN_UNI_112060_red_when_a_p0_observation_fails(self) -> None:
+        """A P0 failure fails the run whatever the pass rate.
 
-        Both bands are covered here rather than in two cases, because the rule
-        treats them identically and splitting it would suggest otherwise.
-
-        Args:
-            priority (int): The band that failed.
+        P1 alone is `112002`.
 
         Returns:
             None
         """
         observations = passing_suite(20)
-        observations.append(graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=priority))
+        observations.append(graded("MQC_TASK_x::MQC_RULE_r", "fail", priority=0))
 
         result = verdict(observations, VerdictConfig(), TODAY)
         assert result.green is False
@@ -117,8 +114,8 @@ class TestMQCPriorityGate:
     def MQC_CMN_UNI_112002_red_when_p1_observation_fails(self) -> None:
         """Stated separately because the inventory does, and it is not a duplicate.
 
-        `112001` asserts the shared rule over both bands; this asserts that P1
-        alone is sufficient, which a rule reading only P0 would pass.
+        `112060` asserts P0; this asserts that P1 alone is sufficient, which a
+        rule reading only P0 would pass.
 
         Returns:
             None
@@ -340,7 +337,7 @@ class TestMQCDenominators:
     # `112019` IS RETIRED, 2026-10-08. Quarantine no longer leaves the
     # pass-rate denominator: it saves the cost of asking again about a known
     # failure and does not stop it being one (design section 4.6.12). The
-    # identifier stays retired, and `112046` and `112048` state what replaced
+    # identifier stays retired, and `112061` and `112048` state what replaced
     # it: a quarantined skip counts as a failure, and a recorded dispensation
     # is the one thing that releases it.
 
@@ -685,18 +682,44 @@ class TestMQCRunSoundness:
         assert result.green, f"an outage failed the run: {result.breaches}"
         assert result.exit_code == 0
 
-    @pytest.mark.parametrize("reason", ["quarantined", "dependency", None])
-    def MQC_CMN_UNI_112046_a_skip_the_model_caused_counts_as_a_failure(
-        self, reason: object
+    def MQC_CMN_UNI_112061_a_quarantined_skip_counts_as_a_failure(self) -> None:
+        """A quarantined skip enters the pass-rate denominator.
+
+        Returns:
+            None
+        """
+        self._counts_as_a_failure("quarantined")
+
+    def MQC_CMN_UNI_112062_a_skip_behind_a_failed_foundation_counts_as_a_failure(
+        self,
     ) -> None:
-        """Each reason naming a non-pass the model owns enters the denominator.
+        """A skip behind a foundation that did not hold enters the denominator.
 
-        ``None`` is included deliberately: a skip nobody attributed is not
-        evidence that the model was blameless, so the default is to count it.
+        Returns:
+            None
+        """
+        self._counts_as_a_failure("dependency")
 
-        **`incomplete` is absent because it blocks rather than rates.**
+    def MQC_CMN_UNI_112063_a_skip_with_no_reason_counts_as_a_failure(self) -> None:
+        """A skip nobody attributed enters the denominator.
+
+        A skip with no recorded cause is not evidence that the model was
+        blameless, so the default is to count it.
+
+        Returns:
+            None
+        """
+        self._counts_as_a_failure(None)
+
+    def _counts_as_a_failure(self, reason: object) -> None:
+        """Assert one skip of this reason makes nine passes of ten a 90% rate.
+
+        **`incomplete` has no case here because it blocks rather than rates.**
         Unfinished work makes the run unsound and leaves no pass rate at all to
         count it in, which `112031` asserts.
+
+        Args:
+            reason (object): The skip reason recorded on the observation.
 
         Returns:
             None

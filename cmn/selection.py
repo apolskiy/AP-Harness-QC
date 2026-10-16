@@ -569,6 +569,36 @@ def select_named_tests(config: pytest.Config, items: list[pytest.Item]) -> None:
     )
 
 
+def refuse_repeated_cases(items: list[pytest.Item]) -> None:
+    """Refuse a run in which one case identifier was collected more than once.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.8.5.
+
+    Args:
+        items (list): The items this run will execute, after every selector.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: With ``QC_HARNESS_CASE_REPEATED``, naming each identifier
+            collected more than once and its count.
+    """
+    counts: dict[str, int] = {}
+    for item in items:
+        found = case_identifier(item.name)
+        if found is not None:
+            counts[found] = counts.get(found, 0) + 1
+    repeated = {number: count for number, count in sorted(counts.items()) if count > 1}
+    if repeated:
+        named = ", ".join(f"{number} x{count}" for number, count in repeated.items())
+        raise ValueError(
+            f"QC_HARNESS_CASE_REPEATED: {len(repeated)} case identifier(s) would "
+            f"execute more than once in this run: {named}. A second set of inputs "
+            f"is a second case with its own identifier"
+        )
+
+
 def report_unresolved_selection(
     session: pytest.Session, items: list[pytest.Item]
 ) -> None:

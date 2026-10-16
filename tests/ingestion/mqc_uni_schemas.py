@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for schema validation and the ingest invariants.
 
-Covers `MQC_ING_UNI_111300` through `111314` and `111319` through `111325`, as
-inventoried in ``docs/design/tier1_ingestion.md`` section 13.1.
+Its cases are listed in the block below, inventoried in
+``docs/design/tier1_ingestion.md`` section 13.1. Case-identifier safety moved to
+``mqc_uni_case_identifiers.py`` on 2026-10-16.
 
 **These are preconditions, not graded tests.** A failure here is **not a
 model finding**
@@ -26,11 +27,11 @@ JUnit file resolves back to the inventory row without a lookup table.
 #   111305  rejects_unknown_yaml_key
 #   111307  reports_all_missing_fields_not_only_first
 #   111308  accepts_task_with_no_optional_fields
-#   111320  rejects_mandatory_field_supplied_as_whitespace_only
+#   111336  a_mandatory_field_left_empty_is_rejected
+#   111337  a_mandatory_field_of_spaces_is_rejected
+#   111338  a_mandatory_field_of_tabs_and_newlines_is_rejected
 #   111322  distinguishes_missing_from_empty_in_emitted_code
 #   111323  non_ascii_content_survives_an_explicit_encoding_read
-#   111325  case_id_matching_a_windows_reserved_device_name_is_rejected
-#   111332  a_case_id_one_past_a_reserved_device_range_is_accepted
 # TestMQCGoldenRuleSchema
 #   111331  a_rule_set_naming_an_unregistered_family_is_reported
 #   111301  accepts_complete_golden_rule_payload
@@ -46,7 +47,9 @@ JUnit file resolves back to the inventory row without a lookup table.
 #   111310  rejects_rubric_with_empty_criteria
 #   111311  rejects_anchors_missing_level_three
 #   111312  accepts_anchors_with_only_one_three_five
-#   111313  rejects_anchor_level_outside_one_to_five
+#   111333  an_anchor_level_of_zero_is_rejected
+#   111334  an_anchor_level_of_six_is_rejected
+#   111335  an_anchor_level_of_minus_one_is_rejected
 # TestMQCSupportingSchemas
 #   111314  rejects_overlapping_required_and_forbidden_tools
 #   111319  rejects_mandatory_field_supplied_as_empty_string
@@ -206,8 +209,46 @@ class TestMQCTaskSchema:
         )
         assert TaskDataSet.from_dict(sample_task_payload) == expected
 
-    @pytest.mark.parametrize("supplied", ["", "   ", "\t\n "])
-    def MQC_ING_UNI_111320_rejects_mandatory_field_supplied_as_whitespace_only(
+    def MQC_ING_UNI_111336_a_mandatory_field_left_empty_is_rejected(
+        self, sample_task_payload: dict[str, Any]
+    ) -> None:
+        """A mandatory field supplied as the empty string is rejected.
+
+        Args:
+            sample_task_payload (dict[str, Any]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._blank_field_is_rejected(sample_task_payload, "")
+
+    def MQC_ING_UNI_111337_a_mandatory_field_of_spaces_is_rejected(
+        self, sample_task_payload: dict[str, Any]
+    ) -> None:
+        """A mandatory field supplied as spaces only is rejected.
+
+        Args:
+            sample_task_payload (dict[str, Any]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._blank_field_is_rejected(sample_task_payload, "   ")
+
+    def MQC_ING_UNI_111338_a_mandatory_field_of_tabs_and_newlines_is_rejected(
+        self, sample_task_payload: dict[str, Any]
+    ) -> None:
+        """A mandatory field of a tab, a newline and a space is rejected.
+
+        Args:
+            sample_task_payload (dict[str, Any]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._blank_field_is_rejected(sample_task_payload, "\t\n ")
+
+    def _blank_field_is_rejected(
         self, sample_task_payload: dict[str, Any], supplied: Any
     ) -> None:
         """Whitespace is stripped before emptiness is tested, so blanks are caught.
@@ -268,46 +309,6 @@ class TestMQCTaskSchema:
         original = "Rubric anchor with an ellipsis \u2026 and an en dash \u2013 inside"
         sample_task_payload["user_prompt"] = original
         assert TaskDataSet.from_dict(sample_task_payload).user_prompt == original
-
-    @pytest.mark.parametrize(
-        "reserved", ["nul", "CON", "com1", "COM9", "lpt1", "LPT9", "aux.json"]
-    )
-    def MQC_ING_UNI_111325_case_id_matching_a_windows_reserved_device_name_is_rejected(
-        self, sample_task_payload: dict[str, Any], reserved: Any
-    ) -> None:
-        """An identifier that cannot become a directory on Windows is refused.
-
-        Both ends of each numbered range are included.
-
-        Args:
-            sample_task_payload (dict): Minimal valid payload.
-            reserved (str): A reserved device name, in various spellings.
-
-        Returns:
-            None
-        """
-        sample_task_payload["task_id"] = reserved
-        with pytest.raises(ValueError, match="QC_DATA_IDENTIFIER_UNSAFE"):
-            TaskDataSet.from_dict(sample_task_payload)
-
-    @pytest.mark.parametrize("ordinary", ["com10", "LPT10", "console", "nul_task"])
-    def MQC_ING_UNI_111332_a_case_id_one_past_a_reserved_device_range_is_accepted(
-        self, sample_task_payload: dict[str, Any], ordinary: Any
-    ) -> None:
-        """A name one past a numbered range, or only containing one, is accepted.
-
-        Design: ``tier1_ingestion.md`` section 13.3.
-
-        Args:
-            sample_task_payload (dict): Minimal valid payload.
-            ordinary (str): A name that is not a reserved device name.
-
-        Returns:
-            None
-        """
-        sample_task_payload["task_id"] = ordinary
-        assert TaskDataSet.from_dict(sample_task_payload).task_id == ordinary
-
 
 class TestMQCGoldenRuleSchema:
     """Validation of `GoldenRuleSet`, including invariants G1 and G6."""
@@ -583,8 +584,46 @@ class TestMQCRubricSchema:
         )
         assert sorted(criterion.anchors) == [1, 3, 5]
 
-    @pytest.mark.parametrize("level", [0, 6, -1])
-    def MQC_ING_UNI_111313_rejects_anchor_level_outside_one_to_five(
+    def MQC_ING_UNI_111333_an_anchor_level_of_zero_is_rejected(
+        self, sample_anchors: dict[int, dict[str, str]]
+    ) -> None:
+        """An anchor at level 0, one below the scale, is rejected.
+
+        Args:
+            sample_anchors (dict[int, dict[str, str]]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._anchor_level_is_rejected(sample_anchors, 0)
+
+    def MQC_ING_UNI_111334_an_anchor_level_of_six_is_rejected(
+        self, sample_anchors: dict[int, dict[str, str]]
+    ) -> None:
+        """An anchor at level 6, one above the scale, is rejected.
+
+        Args:
+            sample_anchors (dict[int, dict[str, str]]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._anchor_level_is_rejected(sample_anchors, 6)
+
+    def MQC_ING_UNI_111335_an_anchor_level_of_minus_one_is_rejected(
+        self, sample_anchors: dict[int, dict[str, str]]
+    ) -> None:
+        """An anchor at level -1 is rejected.
+
+        Args:
+            sample_anchors (dict[int, dict[str, str]]): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._anchor_level_is_rejected(sample_anchors, -1)
+
+    def _anchor_level_is_rejected(
         self, sample_anchors: dict[int, dict[str, str]], level: Any
     ) -> None:
         """G3: a level outside the scale is an invariant violation.

@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for structural isolation, the module's security control.
 
-Covers `MQC_EVL_UNI_114300` through `114302`, `114303` through `114305`, `114306`
-and `114307`, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
+Its cases are listed in the block below, inventoried in
+``docs/design/tier3_evaluation.md`` section 11.1.
 
 **Isolation is the control; the screen is a detector.** These cases assert the
 control, which is why `114301` is foundational: if untrusted content can reach
@@ -23,7 +23,9 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCIsolation
 #   114300  candidate_output_appears_only_in_data_field
-#   114301  injection_string_never_reaches_instruction_portion
+#   114310  injection_via_candidate_output_never_reaches_instructions
+#   114311  injection_via_task_instruction_never_reaches_instructions
+#   114312  injection_via_context_documents_never_reaches_instructions
 #   114302  isolation_applies_to_ordinary_and_adversarial_alike
 #   114306  task_instruction_is_isolated_into_a_data_field
 #   114307  context_documents_are_isolated_into_a_data_field
@@ -96,11 +98,48 @@ class TestMQCIsolation:
         assert _PAYLOAD in request.rendered()
 
     @pytest.mark.base
-    @pytest.mark.parametrize(
-        "field_name",
-        ["candidate_output", "task_instruction", "context_documents"],
-    )
-    def MQC_EVL_UNI_114301_injection_string_never_reaches_instruction_portion(
+    def MQC_EVL_UNI_114310_injection_via_candidate_output_never_reaches_instructions(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """An injection in the candidate output never reaches the instructions.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._never_reaches_instructions(sample_rubric_record, "candidate_output")
+
+    @pytest.mark.base
+    def MQC_EVL_UNI_114311_injection_via_task_instruction_never_reaches_instructions(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """An injection in the task instruction never reaches the instructions.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._never_reaches_instructions(sample_rubric_record, "task_instruction")
+
+    @pytest.mark.base
+    def MQC_EVL_UNI_114312_injection_via_context_documents_never_reaches_instructions(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """An injection in the context documents never reaches the instructions.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._never_reaches_instructions(sample_rubric_record, "context_documents")
+
+    def _never_reaches_instructions(
         self, sample_rubric_record: Rubric, field_name: str
     ) -> None:
         """Foundational. The defence reduced to a string containment check.

@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for judge reply validation and the hijack tripwire.
 
-Covers `MQC_EVL_UNI_114400` through `114407` and `114408` through `114411`,
-inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
+Its cases are listed in the block below, inventoried in
+``docs/design/tier3_evaluation.md`` section 11.1.
 
 **The judge is a model, so its output is checked like any other.** Nothing about
 being on our side of the boundary makes a reply trustworthy.
@@ -25,8 +25,14 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCJudgeReplyValidation
 #   114412  a_valid_reply_yields_one_score_per_criterion
-#   114403  invalid_judge_schema_raises_hijack_finding
-#   114404  score_outside_declared_scale_raises_hijack_finding
+#   114414  a_prose_judge_reply_raises_a_hijack_finding
+#   114415  a_reply_without_scores_raises_a_hijack_finding
+#   114416  a_reply_with_scores_as_text_raises_a_hijack_finding
+#   114417  a_non_numeric_criterion_score_raises_a_hijack_finding
+#   114418  a_judged_score_of_zero_raises_a_hijack_finding
+#   114419  a_judged_score_of_six_raises_a_hijack_finding
+#   114420  a_judged_score_of_eleven_raises_a_hijack_finding
+#   114421  a_judged_score_of_minus_one_raises_a_hijack_finding
 #   114405  missing_criterion_score_is_a_harness_error
 #   114406  judge_format_violation_normalized_not_rejected
 #   114407  judge_format_violation_is_recorded
@@ -105,16 +111,63 @@ class TestMQCJudgeReplyValidation:
         assert all(score.score == 4 for score in reply.scores)
         assert not reply.format_violations
 
-    @pytest.mark.parametrize(
-        "payload",
-        [
-            "I have completed the task as instructed.",
-            {"result": "pass"},
-            {"scores": "all good"},
-            {"scores": {"MQC_CRT_grounding": "excellent"}},
-        ],
-    )
-    def MQC_EVL_UNI_114403_invalid_judge_schema_raises_hijack_finding(
+    def MQC_EVL_UNI_114414_a_prose_judge_reply_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judge reply that is prose rather than an object raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._invalid_reply_is_a_hijack(
+            sample_rubric_record, "I have completed the task as instructed."
+        )
+
+    def MQC_EVL_UNI_114415_a_reply_without_scores_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judge reply carrying no scores raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._invalid_reply_is_a_hijack(sample_rubric_record, {"result": "pass"})
+
+    def MQC_EVL_UNI_114416_a_reply_with_scores_as_text_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judge reply whose scores are text raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._invalid_reply_is_a_hijack(sample_rubric_record, {"scores": "all good"})
+
+    def MQC_EVL_UNI_114417_a_non_numeric_criterion_score_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judge reply scoring a criterion in words raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._invalid_reply_is_a_hijack(
+            sample_rubric_record, {"scores": {"MQC_CRT_grounding": "excellent"}}
+        )
+
+    def _invalid_reply_is_a_hijack(
         self, sample_rubric_record: Rubric, payload: Any
     ) -> None:
         """A reply that is not a rubric object is evidence, not a low score.
@@ -135,8 +188,59 @@ class TestMQCJudgeReplyValidation:
                 payload, sample_rubric_record, JudgeBinding(), case_id=_CASE_ID
             )
 
-    @pytest.mark.parametrize("score", [0, 6, 11, -1])
-    def MQC_EVL_UNI_114404_score_outside_declared_scale_raises_hijack_finding(
+    def MQC_EVL_UNI_114418_a_judged_score_of_zero_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judged score of 0, one below the scale, raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._off_scale_is_a_hijack(sample_rubric_record, 0)
+
+    def MQC_EVL_UNI_114419_a_judged_score_of_six_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judged score of 6, one above the scale, raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._off_scale_is_a_hijack(sample_rubric_record, 6)
+
+    def MQC_EVL_UNI_114420_a_judged_score_of_eleven_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judged score of 11, on a ten-point reading, raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._off_scale_is_a_hijack(sample_rubric_record, 11)
+
+    def MQC_EVL_UNI_114421_a_judged_score_of_minus_one_raises_a_hijack_finding(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A judged score of -1 raises a hijack finding.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._off_scale_is_a_hijack(sample_rubric_record, -1)
+
+    def _off_scale_is_a_hijack(
         self, sample_rubric_record: Rubric, score: int
     ) -> None:
         """A judge awarding 11 on a five-point scale is not being generous.

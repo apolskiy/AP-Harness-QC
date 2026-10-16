@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the threshold domain and its boundaries.
 
-Covers `MQC_CMN_UNI_112052` through `112059`, inventoried in
+Its cases are listed in the block below, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.38.
 
 **Split from ``mqc_uni_verdict.py`` on 2026-10-13**, which holds the nine
@@ -26,22 +26,61 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112053  p1_share_decides_on_both_sides_of_its_ceiling
 #   112054  combined_share_at_exactly_the_ceiling_is_permitted
 #   112055  distribution_returns_a_verdict_at_exactly_the_minimum
+# TestMQCCeilingRateDomain
+#   112064  a_combined_share_ceiling_of_minus_one_is_refused
+#   112065  a_combined_share_ceiling_of_zero_is_refused
+#   112066  a_combined_share_ceiling_of_one_and_a_half_is_refused
+#   112067  a_combined_share_ceiling_of_one_hundred_is_refused
+#   112068  a_inconsistency_ceiling_of_minus_one_is_refused
+#   112069  a_inconsistency_ceiling_of_zero_is_refused
+#   112070  a_inconsistency_ceiling_of_one_and_a_half_is_refused
+#   112071  a_inconsistency_ceiling_of_one_hundred_is_refused
+#   112072  a_p0_share_ceiling_of_minus_one_is_refused
+#   112073  a_p0_share_ceiling_of_zero_is_refused
+#   112074  a_p0_share_ceiling_of_one_and_a_half_is_refused
+#   112075  a_p0_share_ceiling_of_one_hundred_is_refused
+#   112076  a_p1_share_ceiling_of_minus_one_is_refused
+#   112077  a_p1_share_ceiling_of_zero_is_refused
+#   112078  a_p1_share_ceiling_of_one_and_a_half_is_refused
+#   112079  a_p1_share_ceiling_of_one_hundred_is_refused
+# TestMQCFloorAndSkipRateDomain
+#   112080  a_pass_floor_of_minus_one_is_refused
+#   112081  a_pass_floor_of_zero_is_refused
+#   112082  a_pass_floor_of_one_and_a_half_is_refused
+#   112083  a_pass_floor_of_one_hundred_is_refused
+#   112084  a_priority_skip_ceiling_of_minus_one_is_refused
+#   112085  a_priority_skip_ceiling_of_zero_is_refused
+#   112086  a_priority_skip_ceiling_of_one_and_a_half_is_refused
+#   112087  a_priority_skip_ceiling_of_one_hundred_is_refused
+#   112088  a_skip_ceiling_of_minus_one_is_refused
+#   112089  a_skip_ceiling_of_zero_is_refused
+#   112090  a_skip_ceiling_of_one_and_a_half_is_refused
+#   112091  a_skip_ceiling_of_one_hundred_is_refused
 # TestMQCThresholdDomain
-#   112056  a_rate_outside_the_unit_interval_is_refused
 #   112057  a_non_numeric_threshold_is_refused
-#   112058  a_population_count_below_one_is_refused
+#   112092  a_distribution_minimum_of_zero_is_refused
+#   112093  a_distribution_minimum_of_minus_one_is_refused
+#   112094  a_distribution_minimum_of_minus_five_is_refused
+#   112095  a_quarantine_window_days_of_zero_is_refused
+#   112096  a_quarantine_window_days_of_minus_one_is_refused
+#   112097  a_quarantine_window_days_of_minus_five_is_refused
+#   112098  every_threshold_declares_a_domain
+#   112099  every_threshold_field_has_refusal_cases
 #   112362  the_permitted_extremes_of_each_domain_are_accepted
 #   112059  a_stored_artifact_carrying_an_impossible_threshold_refuses
 # ------------------------------------------------------------ end of cases
 
 import dataclasses
+from pathlib import Path
 
 import pytest
 
+from cmn.case_coverage import uncovered_members
 from cmn.threshold_domain import COUNT_FIELDS, RATE_FIELDS, check_domain
 from cmn.verdict import Thresholds, VerdictConfig, evaluate_distribution, verdict
 from cmn.verdict_tool import thresholds_from
 from tests.cmn.verdict_support import (
+    RateRefusal,
     TODAY,
     distribution_suite,
     gated_artifact,
@@ -173,43 +212,248 @@ class TestMQCThresholdBoundaries:
         assert "V7" in verdict(inflated, VerdictConfig(), TODAY).breached_rules
 
 
+class TestMQCCeilingRateDomain(RateRefusal):
+    """A share or inconsistency ceiling outside the unit interval is refused.
+
+    Designed in ``docs/design/cmn_verdict_and_cli.md`` section 8.1, which
+    records what each of these values did before the refusal existed.
+    """
+
+    def MQC_CMN_UNI_112064_a_combined_share_ceiling_of_minus_one_is_refused(self) -> None:
+        """A `combined_share_ceiling` of -1.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("combined_share_ceiling", -1.0)
+
+    def MQC_CMN_UNI_112065_a_combined_share_ceiling_of_zero_is_refused(self) -> None:
+        """A `combined_share_ceiling` of 0.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("combined_share_ceiling", 0.0)
+
+    def MQC_CMN_UNI_112066_a_combined_share_ceiling_of_one_and_a_half_is_refused(self) -> None:
+        """A `combined_share_ceiling` of 1.5 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("combined_share_ceiling", 1.5)
+
+    def MQC_CMN_UNI_112067_a_combined_share_ceiling_of_one_hundred_is_refused(self) -> None:
+        """A `combined_share_ceiling` of 100.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("combined_share_ceiling", 100.0)
+
+    def MQC_CMN_UNI_112068_a_inconsistency_ceiling_of_minus_one_is_refused(self) -> None:
+        """A `inconsistency_ceiling` of -1.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("inconsistency_ceiling", -1.0)
+
+    def MQC_CMN_UNI_112069_a_inconsistency_ceiling_of_zero_is_refused(self) -> None:
+        """A `inconsistency_ceiling` of 0.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("inconsistency_ceiling", 0.0)
+
+    def MQC_CMN_UNI_112070_a_inconsistency_ceiling_of_one_and_a_half_is_refused(self) -> None:
+        """A `inconsistency_ceiling` of 1.5 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("inconsistency_ceiling", 1.5)
+
+    def MQC_CMN_UNI_112071_a_inconsistency_ceiling_of_one_hundred_is_refused(self) -> None:
+        """A `inconsistency_ceiling` of 100.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("inconsistency_ceiling", 100.0)
+
+    def MQC_CMN_UNI_112072_a_p0_share_ceiling_of_minus_one_is_refused(self) -> None:
+        """A `p0_share_ceiling` of -1.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p0_share_ceiling", -1.0)
+
+    def MQC_CMN_UNI_112073_a_p0_share_ceiling_of_zero_is_refused(self) -> None:
+        """A `p0_share_ceiling` of 0.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p0_share_ceiling", 0.0)
+
+    def MQC_CMN_UNI_112074_a_p0_share_ceiling_of_one_and_a_half_is_refused(self) -> None:
+        """A `p0_share_ceiling` of 1.5 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p0_share_ceiling", 1.5)
+
+    def MQC_CMN_UNI_112075_a_p0_share_ceiling_of_one_hundred_is_refused(self) -> None:
+        """A `p0_share_ceiling` of 100.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p0_share_ceiling", 100.0)
+
+    def MQC_CMN_UNI_112076_a_p1_share_ceiling_of_minus_one_is_refused(self) -> None:
+        """A `p1_share_ceiling` of -1.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p1_share_ceiling", -1.0)
+
+    def MQC_CMN_UNI_112077_a_p1_share_ceiling_of_zero_is_refused(self) -> None:
+        """A `p1_share_ceiling` of 0.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p1_share_ceiling", 0.0)
+
+    def MQC_CMN_UNI_112078_a_p1_share_ceiling_of_one_and_a_half_is_refused(self) -> None:
+        """A `p1_share_ceiling` of 1.5 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p1_share_ceiling", 1.5)
+
+    def MQC_CMN_UNI_112079_a_p1_share_ceiling_of_one_hundred_is_refused(self) -> None:
+        """A `p1_share_ceiling` of 100.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("p1_share_ceiling", 100.0)
+
+
+class TestMQCFloorAndSkipRateDomain(RateRefusal):
+    """The pass floor and the skip ceilings outside the unit interval are refused."""
+
+    def MQC_CMN_UNI_112080_a_pass_floor_of_minus_one_is_refused(self) -> None:
+        """A `pass_floor` of -1.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("pass_floor", -1.0)
+
+    def MQC_CMN_UNI_112081_a_pass_floor_of_zero_is_refused(self) -> None:
+        """A `pass_floor` of 0.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("pass_floor", 0.0)
+
+    def MQC_CMN_UNI_112082_a_pass_floor_of_one_and_a_half_is_refused(self) -> None:
+        """A `pass_floor` of 1.5 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("pass_floor", 1.5)
+
+    def MQC_CMN_UNI_112083_a_pass_floor_of_one_hundred_is_refused(self) -> None:
+        """A `pass_floor` of 100.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("pass_floor", 100.0)
+
+    def MQC_CMN_UNI_112084_a_priority_skip_ceiling_of_minus_one_is_refused(self) -> None:
+        """A `priority_skip_ceiling` of -1.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("priority_skip_ceiling", -1.0)
+
+    def MQC_CMN_UNI_112085_a_priority_skip_ceiling_of_zero_is_refused(self) -> None:
+        """A `priority_skip_ceiling` of 0.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("priority_skip_ceiling", 0.0)
+
+    def MQC_CMN_UNI_112086_a_priority_skip_ceiling_of_one_and_a_half_is_refused(self) -> None:
+        """A `priority_skip_ceiling` of 1.5 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("priority_skip_ceiling", 1.5)
+
+    def MQC_CMN_UNI_112087_a_priority_skip_ceiling_of_one_hundred_is_refused(self) -> None:
+        """A `priority_skip_ceiling` of 100.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("priority_skip_ceiling", 100.0)
+
+    def MQC_CMN_UNI_112088_a_skip_ceiling_of_minus_one_is_refused(self) -> None:
+        """A `skip_ceiling` of -1.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("skip_ceiling", -1.0)
+
+    def MQC_CMN_UNI_112089_a_skip_ceiling_of_zero_is_refused(self) -> None:
+        """A `skip_ceiling` of 0.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("skip_ceiling", 0.0)
+
+    def MQC_CMN_UNI_112090_a_skip_ceiling_of_one_and_a_half_is_refused(self) -> None:
+        """A `skip_ceiling` of 1.5 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("skip_ceiling", 1.5)
+
+    def MQC_CMN_UNI_112091_a_skip_ceiling_of_one_hundred_is_refused(self) -> None:
+        """A `skip_ceiling` of 100.0 is refused, naming the field and value.
+
+        Returns:
+            None
+        """
+        self._rate_is_refused("skip_ceiling", 100.0)
+
+
 class TestMQCThresholdDomain:
     """An impossible standard is refused rather than applied.
 
     Designed in ``docs/design/cmn_verdict_and_cli.md`` section 8.1, which
     records what each of these values did before the refusal existed.
     """
-
-    @pytest.mark.parametrize("field_name", sorted(RATE_FIELDS))
-    @pytest.mark.parametrize("value", [-1.0, 0.0, 1.5, 100.0])
-    def MQC_CMN_UNI_112056_a_rate_outside_the_unit_interval_is_refused(
-        self, field_name: str, value: float
-    ) -> None:
-        """Every rate, at each of the four values that reached a verdict.
-
-        **Zero and negative one are the dangerous pair.** A `pass_floor` at
-        either turned every run green at exit 0 with no breach recorded, which
-        is worse than the error a string produced because the run reported a
-        result. `100.0` is the slip for someone who meant ninety percent.
-
-        **Zero is refused for the ceilings too.** It leaves no band, and the
-        rule it reaches for is V1.
-
-        Args:
-            field_name (str): The rate under test.
-            value (float): The value outside the domain.
-
-        Returns:
-            None
-        """
-        with pytest.raises(ValueError) as refusal:
-            Thresholds(**{field_name: value})
-
-        assert field_name in str(refusal.value), (
-            "the refusal did not name the field, so it points at the "
-            "comparison rather than at the edit that caused it"
-        )
-        assert repr(value) in str(refusal.value)
 
     def MQC_CMN_UNI_112057_a_non_numeric_threshold_is_refused(self) -> None:
         """A stored artifact can carry a string, and one broke the run.
@@ -233,12 +477,83 @@ class TestMQCThresholdDomain:
             with pytest.raises(ValueError):
                 Thresholds(distribution_minimum=value)
 
-    @pytest.mark.parametrize("field_name", sorted(COUNT_FIELDS))
-    @pytest.mark.parametrize("value", [0, -1, -5])
-    def MQC_CMN_UNI_112058_a_population_count_below_one_is_refused(
-        self, field_name: str, value: int
-    ) -> None:
-        """A count of zero or less names no population.
+    def MQC_CMN_UNI_112092_a_distribution_minimum_of_zero_is_refused(self) -> None:
+        """A `distribution_minimum` of 0 is refused, naming the field.
+
+        Returns:
+            None
+        """
+        self._count_is_refused("distribution_minimum", 0)
+
+    def MQC_CMN_UNI_112093_a_distribution_minimum_of_minus_one_is_refused(self) -> None:
+        """A `distribution_minimum` of -1 is refused, naming the field.
+
+        Returns:
+            None
+        """
+        self._count_is_refused("distribution_minimum", -1)
+
+    def MQC_CMN_UNI_112094_a_distribution_minimum_of_minus_five_is_refused(self) -> None:
+        """A `distribution_minimum` of -5 is refused, naming the field.
+
+        Returns:
+            None
+        """
+        self._count_is_refused("distribution_minimum", -5)
+
+    def MQC_CMN_UNI_112095_a_quarantine_window_days_of_zero_is_refused(self) -> None:
+        """A `quarantine_window_days` of 0 is refused, naming the field.
+
+        Returns:
+            None
+        """
+        self._count_is_refused("quarantine_window_days", 0)
+
+    def MQC_CMN_UNI_112096_a_quarantine_window_days_of_minus_one_is_refused(self) -> None:
+        """A `quarantine_window_days` of -1 is refused, naming the field.
+
+        Returns:
+            None
+        """
+        self._count_is_refused("quarantine_window_days", -1)
+
+    def MQC_CMN_UNI_112097_a_quarantine_window_days_of_minus_five_is_refused(self) -> None:
+        """A `quarantine_window_days` of -5 is refused, naming the field.
+
+        Returns:
+            None
+        """
+        self._count_is_refused("quarantine_window_days", -5)
+
+    def MQC_CMN_UNI_112098_every_threshold_declares_a_domain(self) -> None:
+        """Every threshold field is a registered rate or count.
+
+        A threshold added later cannot be unchecked by default, which is how
+        this module came to be needed.
+
+        Returns:
+            None
+        """
+        declared = {entry.name for entry in dataclasses.fields(Thresholds())}
+        assert declared == RATE_FIELDS | COUNT_FIELDS, (
+            f"these thresholds declare no domain: "
+            f"{sorted(declared - (RATE_FIELDS | COUNT_FIELDS))}"
+        )
+
+    def MQC_CMN_UNI_112099_every_threshold_field_has_refusal_cases(self) -> None:
+        """Every rate and every count has refusal cases of its own.
+
+        Design: ``harness_test_taxonomy.md`` section 1.1.
+
+        Returns:
+            None
+        """
+        module = Path(__file__)
+        assert not uncovered_members(module, "_rate_is_refused", RATE_FIELDS)
+        assert not uncovered_members(module, "_count_is_refused", COUNT_FIELDS)
+
+    def _count_is_refused(self, field_name: str, value: int) -> None:
+        """Assert a count below one is refused, naming the field.
 
         A `distribution_minimum` of zero would mean the check never abstains,
         which is the opposite of what the field is for, and a quarantine window
@@ -255,15 +570,6 @@ class TestMQCThresholdDomain:
             Thresholds(**{field_name: value})
 
         assert field_name in str(refusal.value)
-
-        # AND EVERY FIELD IS REGISTERED, so a threshold added later cannot be
-        # unchecked by default. That default is how this module came to be
-        # needed.
-        declared = {entry.name for entry in dataclasses.fields(Thresholds())}
-        assert declared == RATE_FIELDS | COUNT_FIELDS, (
-            f"these thresholds declare no domain: "
-            f"{sorted(declared - (RATE_FIELDS | COUNT_FIELDS))}"
-        )
 
     def MQC_CMN_UNI_112362_the_permitted_extremes_of_each_domain_are_accepted(
         self,

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the deterministic half of the dual pass.
 
-Covers `MQC_EVL_UNI_114100` and `114101`, inventoried in
+Its cases are listed in the block below, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **`not_contains` is what makes injection resistance deterministic.** A payload
@@ -26,7 +26,9 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114102  contains_requires_the_substring_to_be_present
 #   114103  regex_checks_presence_and_absence
 #   114104  json_schema_reports_why_a_structure_failed
-#   114105  length_bound_holds_at_the_threshold_exactly
+#   114118  four_bullets_under_a_bound_of_five_pass
+#   114119  five_bullets_at_a_bound_of_five_pass
+#   114120  six_bullets_over_a_bound_of_five_fail
 #   114106  an_unregistered_length_unit_is_a_harness_error
 #   114107  an_unregistered_kind_is_a_harness_error_not_a_failure
 # TestMQCAssertionResults
@@ -35,7 +37,10 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114109  fatal_severity_is_distinguished_from_violation
 #   114110  a_passing_assertion_carries_no_taxonomy_code
 # TestMQCMarkupNormalisation
-#   114111  a_pattern_reads_through_inline_markup
+#   114121  a_pattern_reads_a_figure_in_backticks
+#   114122  a_pattern_reads_a_figure_in_bold
+#   114123  a_pattern_reads_a_figure_in_triple_backticks
+#   114124  a_pattern_reads_a_figure_without_markup
 #   114112  a_length_assertion_reads_unnormalised_text
 # TestMQCClaimScope
 #   114113  a_hedged_mention_of_a_forbidden_claim_is_not_a_claim
@@ -151,10 +156,31 @@ class TestMQCAssertionKinds:
             assertion, '{"summary": "ok", "years": "5"}'
         ).detail
 
-    @pytest.mark.parametrize(
-        "bullets,expected", [(4, True), (5, True), (6, False)]
-    )
-    def MQC_EVL_UNI_114105_length_bound_holds_at_the_threshold_exactly(
+    def MQC_EVL_UNI_114118_four_bullets_under_a_bound_of_five_pass(self) -> None:
+        """Four bullets against a maximum of five pass.
+
+        Returns:
+            None
+        """
+        self._length_bound_at(4, True)
+
+    def MQC_EVL_UNI_114119_five_bullets_at_a_bound_of_five_pass(self) -> None:
+        """Five bullets against a maximum of five pass: the bound is inclusive.
+
+        Returns:
+            None
+        """
+        self._length_bound_at(5, True)
+
+    def MQC_EVL_UNI_114120_six_bullets_over_a_bound_of_five_fail(self) -> None:
+        """Six bullets against a maximum of five fail.
+
+        Returns:
+            None
+        """
+        self._length_bound_at(6, False)
+
+    def _length_bound_at(
         self, bullets: int, expected: Any
     ) -> None:
         """Stated at the bound, not near it.
@@ -285,16 +311,42 @@ class TestMQCMarkupNormalisation:
     """Whether a pattern reads what was said or how it was formatted."""
 
     @allure.story("A figure in backticks is still the figure")
-    @pytest.mark.parametrize(
-        "formatted",
-        [
-            "the second returns `0`.",
-            "the second returns **0**.",
-            "the second returns ```0```.",
-            "the second returns 0.",
-        ],
-    )
-    def MQC_EVL_UNI_114111_a_pattern_reads_through_inline_markup(
+    def MQC_EVL_UNI_114121_a_pattern_reads_a_figure_in_backticks(self) -> None:
+        """A pattern reads a figure wrapped in single backticks.
+
+        Returns:
+            None
+        """
+        self._reads_through_markup("the second returns `0`.")
+
+    @allure.story("A figure in backticks is still the figure")
+    def MQC_EVL_UNI_114122_a_pattern_reads_a_figure_in_bold(self) -> None:
+        """A pattern reads a figure wrapped in bold markup.
+
+        Returns:
+            None
+        """
+        self._reads_through_markup("the second returns **0**.")
+
+    @allure.story("A figure in backticks is still the figure")
+    def MQC_EVL_UNI_114123_a_pattern_reads_a_figure_in_triple_backticks(self) -> None:
+        """A pattern reads a figure wrapped in triple backticks.
+
+        Returns:
+            None
+        """
+        self._reads_through_markup("the second returns ```0```.")
+
+    @allure.story("A figure in backticks is still the figure")
+    def MQC_EVL_UNI_114124_a_pattern_reads_a_figure_without_markup(self) -> None:
+        """A pattern reads a figure carrying no markup.
+
+        Returns:
+            None
+        """
+        self._reads_through_markup("the second returns 0.")
+
+    def _reads_through_markup(
         self, formatted: str
     ) -> None:
         """A regex matches a figure whether or not the model formatted it.

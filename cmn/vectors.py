@@ -171,8 +171,11 @@ _VECTOR_PATTERNS: Final[dict[str, Pattern[str]]] = {
         # A DECIMAL POINT IS NOT A SENTENCE END. The `[^.]` idiom this file
         # uses to stay inside one sentence breaks on "149.00", and an amount is
         # exactly what a refund directive carries. A period counts as a
-        # boundary only when a digit does not follow it.
-        r"(?:[^.]|\.(?=\d)){0,60}?"
+        # boundary only when a digit does not follow it. NOR A PATH: a period
+        # followed by a slash or another period opens a relative path, and
+        # stopping there let "./reports" hide the urgency word after it
+        # (tier3_evaluation.md section 5.2.2).
+        r"(?:[^.]|\.(?=[\d./])){0,60}?"
         r"\b(immediately|right\s+now|before\s+replying|regardless|"
         r"without\s+asking|first)\b|"
         # CALLED AND INVOKED ARE WHAT ONE DOES TO A FUNCTION, so they need

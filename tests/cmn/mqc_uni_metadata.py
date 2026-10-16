@@ -2,9 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for result emission, the code registry and the fixtures.
 
-Covers `MQC_CMN_UNI_112200` through `112203`, `112204`, `112119` through `112208`,
-`112209` through `112211`, `10171` through `10173`, `112213`, `112214` and `112215`
-through `112218`, inventoried in ``docs/design/cmn_verdict_and_cli.md``
+Its cases are listed in the block below, inventoried in ``docs/design/cmn_verdict_and_cli.md``
 section 10.
 
 **Run-scoped fields are emitted twice**, once in a manifest and again on every
@@ -47,7 +45,10 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCDiagnosticSummary
 #   112213  summary_records_job_run_number_both_refs_and_changed_areas
 #   112214  fixture_ref_defaults_to_code_ref_when_not_supplied
-#   112220  changed_areas_distinguish_harness_from_tests
+#   112258  a_production_change_is_attributed_to_the_harness
+#   112259  a_test_change_is_attributed_to_the_tests
+#   112260  a_change_to_both_is_attributed_to_both
+#   112261  a_documentation_change_is_attributed_to_neither
 #   112212  first_run_on_a_branch_has_no_previous_conclusion_to_compare
 # TestMQCObservationAssembly
 #   112206  observation_assembled_from_tier_results_and_case_metadata
@@ -506,16 +507,39 @@ class TestMQCDiagnosticSummary:
         assert summary.fixture_ref == "a1b2c3d"
         assert summary.refs_diverge is False
 
-    @pytest.mark.parametrize(
-        "paths,expected",
-        [
-            (["execution/dispatch.py"], "harness"),
-            (["tests/cmn/mqc_uni_verdict.py"], "tests"),
-            (["cmn/verdict.py", "tests/cmn/mqc_uni_verdict.py"], "both"),
-            (["docs/design/tier2_execution.md"], "none"),
-        ],
-    )
-    def MQC_CMN_UNI_112220_changed_areas_distinguish_harness_from_tests(
+    def MQC_CMN_UNI_112258_a_production_change_is_attributed_to_the_harness(self) -> None:
+        """A change to production code is attributed to the harness.
+
+        Returns:
+            None
+        """
+        self._changed_area(["execution/dispatch.py"], "harness")
+
+    def MQC_CMN_UNI_112259_a_test_change_is_attributed_to_the_tests(self) -> None:
+        """A change to a test module is attributed to the tests.
+
+        Returns:
+            None
+        """
+        self._changed_area(["tests/cmn/mqc_uni_verdict.py"], "tests")
+
+    def MQC_CMN_UNI_112260_a_change_to_both_is_attributed_to_both(self) -> None:
+        """A change to production code and a test is attributed to both.
+
+        Returns:
+            None
+        """
+        self._changed_area(["cmn/verdict.py", "tests/cmn/mqc_uni_verdict.py"], "both")
+
+    def MQC_CMN_UNI_112261_a_documentation_change_is_attributed_to_neither(self) -> None:
+        """A change to a design document alone is attributed to neither.
+
+        Returns:
+            None
+        """
+        self._changed_area(["docs/design/tier2_execution.md"], "none")
+
+    def _changed_area(
         self, paths: list[str], expected: Any
     ) -> None:
         """A run where only tests changed and results moved points at the tests.

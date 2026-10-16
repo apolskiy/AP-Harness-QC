@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the canonical shapes Tier 3 receives.
 
-Covers `MQC_EXE_UNI_113400` through `113407` and `113408`, inventoried in
+Its cases are listed in the block below, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.
 
 **These shapes are the whole boundary.** A vendor object reaching Tier 3 would
@@ -20,12 +20,18 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCToolCallShape
 #   113401  parses_tool_arguments_supplied_as_json_string
 #   113402  parses_tool_arguments_supplied_as_object
-#   113403  malformed_tool_arguments_map_to_model_finding_not_harness
+#   113413  unparseable_tool_arguments_are_a_model_finding
+#   113414  tool_arguments_as_a_string_are_a_model_finding
+#   113415  tool_arguments_as_a_list_are_a_model_finding
+#   113416  tool_arguments_as_a_number_are_a_model_finding
 #   113405  preserves_tool_call_sequence_order
 #   113409  call_id_is_optional_because_providers_differ
 # TestMQCNormalizedResponseShape
 #   113400  rejects_response_missing_required_canonical_field
-#   113410  mode_outside_the_registered_set_is_rejected
+#   113417  a_mode_of_cached_is_rejected
+#   113418  a_mode_of_dry_run_is_rejected
+#   113419  an_empty_mode_is_rejected
+#   113420  an_upper_case_mode_is_rejected
 #   113411  finish_reason_outside_the_registered_set_is_rejected
 #   113404  returns_empty_tool_call_list_when_none_present
 #   113406  records_resolved_model_version_not_requested
@@ -100,8 +106,39 @@ class TestMQCToolCallShape:
         from_object = ToolCall.from_provider("search", {"query": "grounding"}, sequence=0)
         assert from_text == from_object
 
-    @pytest.mark.parametrize("supplied", ["{not json", '"a string"', "[1, 2]", "42"])
-    def MQC_EXE_UNI_113403_malformed_tool_arguments_map_to_model_finding_not_harness(
+    def MQC_EXE_UNI_113413_unparseable_tool_arguments_are_a_model_finding(self) -> None:
+        """Tool arguments that are not JSON are a model finding, not a harness one.
+
+        Returns:
+            None
+        """
+        self._malformed_arguments("{not json")
+
+    def MQC_EXE_UNI_113414_tool_arguments_as_a_string_are_a_model_finding(self) -> None:
+        """Tool arguments that decode to a string are a model finding.
+
+        Returns:
+            None
+        """
+        self._malformed_arguments('"a string"')
+
+    def MQC_EXE_UNI_113415_tool_arguments_as_a_list_are_a_model_finding(self) -> None:
+        """Tool arguments that decode to a list are a model finding.
+
+        Returns:
+            None
+        """
+        self._malformed_arguments("[1, 2]")
+
+    def MQC_EXE_UNI_113416_tool_arguments_as_a_number_are_a_model_finding(self) -> None:
+        """Tool arguments that decode to a number are a model finding.
+
+        Returns:
+            None
+        """
+        self._malformed_arguments("42")
+
+    def _malformed_arguments(
         self, supplied: Any
     ) -> None:
         """The provider transported correctly; the model emitted bad JSON.
@@ -165,8 +202,39 @@ class TestMQCNormalizedResponseShape:
         with pytest.raises(TypeError):
             NormalizedResponse(**incomplete)
 
-    @pytest.mark.parametrize("mode", ["cached", "dry-run", "", "LIVE"])
-    def MQC_EXE_UNI_113410_mode_outside_the_registered_set_is_rejected(self, mode: str) -> None:
+    def MQC_EXE_UNI_113417_a_mode_of_cached_is_rejected(self) -> None:
+        """A mode of ``cached`` is rejected.
+
+        Returns:
+            None
+        """
+        self._mode_is_rejected("cached")
+
+    def MQC_EXE_UNI_113418_a_mode_of_dry_run_is_rejected(self) -> None:
+        """A mode of ``dry-run`` is rejected.
+
+        Returns:
+            None
+        """
+        self._mode_is_rejected("dry-run")
+
+    def MQC_EXE_UNI_113419_an_empty_mode_is_rejected(self) -> None:
+        """An empty mode is rejected.
+
+        Returns:
+            None
+        """
+        self._mode_is_rejected("")
+
+    def MQC_EXE_UNI_113420_an_upper_case_mode_is_rejected(self) -> None:
+        """A mode of ``LIVE`` is rejected: modes are not case folded.
+
+        Returns:
+            None
+        """
+        self._mode_is_rejected("LIVE")
+
+    def _mode_is_rejected(self, mode: str) -> None:
         """A replayed result must never be mistaken for an observation (A6).
 
         Args:

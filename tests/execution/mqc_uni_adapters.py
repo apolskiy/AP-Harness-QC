@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Per-adapter cases covering each provider's own conventions.
 
-Covers `MQC_EXE_UNI_113000` through `113008`, inventoried in
+Its cases are listed in the block below, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.3.
 
 **Passing the conformance battery is necessary and not sufficient**
@@ -41,7 +41,10 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113005  gemini_reconciles_a_stop_reason_carrying_captured_calls
 #   113006  gemini_a_blocked_candidate_yields_empty_text_not_an_error
 #   113007  gemini_disables_provider_side_automatic_function_calling
-#   113008  gemini_maps_each_error_status_to_its_harness_code
+#   113023  gemini_maps_a_rate_limit_to_its_harness_code
+#   113024  gemini_maps_an_auth_failure_to_its_harness_code
+#   113025  gemini_maps_a_missing_model_to_its_harness_code
+#   113026  gemini_maps_a_timeout_to_its_harness_code
 #   113016  gemini_reads_the_spent_period_from_the_quota_id
 #   113017  every_adapter_reports_the_four_token_counts
 #   113018  thinking_is_counted_only_where_reported_separately
@@ -437,16 +440,39 @@ class TestMQCGeminiAdapter:
         assert config["automatic_function_calling"] == {"disable": True}
         assert config["tools"][0]["function_declarations"][0]["name"] == "search_postings"
 
-    @pytest.mark.parametrize(
-        "kind,expected",
-        [
-            ("rate_limit", "QC_HARNESS_RATE_LIMIT"),
-            ("auth", "QC_HARNESS_AUTH_ERROR"),
-            ("not_found", "QC_HARNESS_VERSION_UNAVAILABLE"),
-            ("timeout", "QC_HARNESS_CANDIDATE_TIMEOUT"),
-        ],
-    )
-    def MQC_EXE_UNI_113008_gemini_maps_each_error_status_to_its_harness_code(
+    def MQC_EXE_UNI_113023_gemini_maps_a_rate_limit_to_its_harness_code(self) -> None:
+        """A gemini rate limit maps to ``QC_HARNESS_RATE_LIMIT``.
+
+        Returns:
+            None
+        """
+        self._gemini_maps("rate_limit", "QC_HARNESS_RATE_LIMIT")
+
+    def MQC_EXE_UNI_113024_gemini_maps_an_auth_failure_to_its_harness_code(self) -> None:
+        """A gemini authentication failure maps to ``QC_HARNESS_AUTH_ERROR``.
+
+        Returns:
+            None
+        """
+        self._gemini_maps("auth", "QC_HARNESS_AUTH_ERROR")
+
+    def MQC_EXE_UNI_113025_gemini_maps_a_missing_model_to_its_harness_code(self) -> None:
+        """A gemini model-not-found maps to ``QC_HARNESS_VERSION_UNAVAILABLE``.
+
+        Returns:
+            None
+        """
+        self._gemini_maps("not_found", "QC_HARNESS_VERSION_UNAVAILABLE")
+
+    def MQC_EXE_UNI_113026_gemini_maps_a_timeout_to_its_harness_code(self) -> None:
+        """A gemini timeout maps to ``QC_HARNESS_CANDIDATE_TIMEOUT``.
+
+        Returns:
+            None
+        """
+        self._gemini_maps("timeout", "QC_HARNESS_CANDIDATE_TIMEOUT")
+
+    def _gemini_maps(
         self, kind: str, expected: Any
     ) -> None:
         """This provider raises one class for every client failure.

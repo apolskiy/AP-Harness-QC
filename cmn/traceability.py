@@ -35,8 +35,13 @@ _LIST_DELIMITER: Final[str] = ";"
 # performs no task, so the column would be empty in every harness row and an
 # always-empty column teaches a reader to ignore a column.
 _SHARED_COLUMNS: Final[tuple[str, ...]] = (
-    "requirement_id", "requirement_text", "source", "category", "test_ids", "notes",
+    "requirement_id", "requirement_text", "source", "category", "test_ids",
+    "retired_test_ids", "notes",
 )
+
+# A struck inventory row, which is how a design records a retirement.
+_STRUCK_ROW: Final[re.Pattern[str]] = re.compile(r"^\|\s*~~`(\d{6})`~~", re.MULTILINE)
+_CASE_NUMBER: Final[re.Pattern[str]] = re.compile(r"^MQC_[A-Z]{3}_[A-Z]{3,5}_(\d{6})_")
 _MODEL_ONLY_COLUMNS: Final[tuple[str, ...]] = ("families",)
 
 
@@ -72,6 +77,8 @@ class MatrixRow:
         families (list): Derived from the cases named in ``test_ids``. Empty on
             a harness row, where the column is absent rather than blank.
         notes (str): Why the row reads as it does.
+        retired_test_ids (list): Tests that once covered the requirement and
+            were retired (design section 6.1.2).
     """
 
     requirement_id: str
@@ -81,6 +88,7 @@ class MatrixRow:
     test_ids: list[str] = field(default_factory=list)
     families: list[str] = field(default_factory=list)
     notes: str = ""
+    retired_test_ids: list[str] = field(default_factory=list)
 
     @classmethod
     def from_row(cls, row: dict[str, str]) -> "MatrixRow":
@@ -112,6 +120,7 @@ class MatrixRow:
             test_ids=_split(row.get("test_ids", "")),
             families=_split(row.get("families", "")),
             notes=str(row.get("notes", "")).strip(),
+            retired_test_ids=_split(row.get("retired_test_ids", "")),
         )
 
 
@@ -314,6 +323,41 @@ def untraced_tests(
         )
         for test_id in sorted(suite_tests - named)
     ]
+
+
+def retirement_problems(
+    rows: list[MatrixRow], collected: set[str], designs: list[str]
+) -> list[str]:
+    """Return every retired test that still runs, is still active, or is unstruck.
+
+    Design: ``cmn_verdict_and_cli.md`` section 6.1.2.
+
+    Args:
+        rows (list): The loaded matrix rows.
+        collected (set): Every test the suite collects.
+        designs (list): The text of every design document holding an inventory.
+
+    Returns:
+        list[str]: One line per breach, naming the requirement and the test.
+    """
+    active = {test_id for row in rows for test_id in row.test_ids}
+    struck = set(_STRUCK_ROW.findall("\n".join(designs)))
+    problems: list[str] = []
+    for row in rows:
+        for test_id in row.retired_test_ids:
+            if test_id in collected:
+                problems.append(
+                    f"{row.requirement_id} retires {test_id}, and the suite still collects it"
+                )
+            if test_id in active:
+                problems.append(f"{row.requirement_id} retires {test_id}, which is also active")
+            number = _CASE_NUMBER.match(test_id)
+            if number is None or number.group(1) not in struck:
+                problems.append(
+                    f"{row.requirement_id} retires {test_id}, and no design inventory "
+                    f"strikes {number.group(1) if number else 'its identifier'}"
+                )
+    return problems
 
 
 def _check_t1(declared: set[str], traced: set[str]) -> list[TraceabilityFinding]:

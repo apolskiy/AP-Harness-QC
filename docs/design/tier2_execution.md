@@ -1833,28 +1833,82 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 ### 10.1 `MQC_EXE_UNI_`
 
+**Category `1138xx` is adapter conformance, one case per engine and check**,
+allocated 2026-10-16 when the battery was split (`harness_test_taxonomy.md`
+section 1.1). Each engine takes twenty consecutive identifiers in roster order,
+`113800` claude, `113820` gemini, `113840` grok and `113860` openai, which
+leaves room for one more engine; a sixth needs a category of its own.
+`113114` fails while any registered engine lacks its cases.
+
 | ID | Cat | Behaviour |
 |---|---|---|
-| `113100` | P | `composes_request_from_minimal_case` |
-| `113101` | P | `composes_request_carrying_constraints_and_context` |
-| `113102` | P | `normalizes_response_to_canonical_shape` |
+| ~~`113100`~~ | | ~~`composes_request_from_minimal_case`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113800`, `113820`, `113840`, `113860`. One case per registered engine, in that engine's conformance module |
+| `113800` | P | `claude_composes_a_request_from_a_minimal_case` |
+| `113820` | P | `gemini_composes_a_request_from_a_minimal_case` |
+| `113840` | P | `grok_composes_a_request_from_a_minimal_case` |
+| `113860` | P | `openai_composes_a_request_from_a_minimal_case` |
+| ~~`113101`~~ | | ~~`composes_request_carrying_constraints_and_context`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113801`, `113821`, `113841`, `113861`. One case per registered engine, in that engine's conformance module |
+| `113801` | P | `claude_composes_a_request_with_constraints_and_context` |
+| `113821` | P | `gemini_composes_a_request_with_constraints_and_context` |
+| `113841` | P | `grok_composes_a_request_with_constraints_and_context` |
+| `113861` | P | `openai_composes_a_request_with_constraints_and_context` |
+| ~~`113102`~~ | | ~~`normalizes_response_to_canonical_shape`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113802`, `113822`, `113842`, `113862`. One case per registered engine, in that engine's conformance module |
+| `113802` | P | `claude_normalizes_a_response_to_the_canonical_shape` |
+| `113822` | P | `gemini_normalizes_a_response_to_the_canonical_shape` |
+| `113842` | P | `grok_normalizes_a_response_to_the_canonical_shape` |
+| `113862` | P | `openai_normalizes_a_response_to_the_canonical_shape` |
 | `113400` | N | `rejects_response_missing_required_canonical_field` |
 | `113401` | P | `parses_tool_arguments_supplied_as_json_string` |
 | `113402` | P | `parses_tool_arguments_supplied_as_object` |
-| `113403` | N | `malformed_tool_arguments_map_to_model_finding_not_harness` |
-| `113103` | P | `captures_tool_call_without_executing_it` |
+| ~~`113403`~~ | | ~~`malformed_tool_arguments_map_to_model_finding_not_harness`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113413`, `113414`, `113415`, `113416`. One case per malformed shape |
+| `113413` | N | `unparseable_tool_arguments_are_a_model_finding` |
+| `113414` | N | `tool_arguments_as_a_string_are_a_model_finding` |
+| `113415` | N | `tool_arguments_as_a_list_are_a_model_finding` |
+| `113416` | N | `tool_arguments_as_a_number_are_a_model_finding` |
+| ~~`113103`~~ | | ~~`captures_tool_call_without_executing_it`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113804`, `113824`, `113844`, `113864`. One case per registered engine, in that engine's conformance module |
+| `113804` | P | `claude_captures_a_tool_call_without_executing_it` |
+| `113824` | P | `gemini_captures_a_tool_call_without_executing_it` |
+| `113844` | P | `grok_captures_a_tool_call_without_executing_it` |
+| `113864` | P | `openai_captures_a_tool_call_without_executing_it` |
 | `113404` | B | `returns_empty_tool_call_list_when_none_present` |
 | `113405` | P | `preserves_tool_call_sequence_order` |
 | `113406` | P | `records_resolved_model_version_not_requested` |
-| `113500` | N | `absent_model_version_fails_preflight` |
+| ~~`113500`~~ | | ~~`absent_model_version_fails_preflight`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113510`, `113511`, `113512`. One case per absence |
+| `113510` | N | `no_model_version_fails_preflight` |
+| `113511` | N | `an_empty_model_version_fails_preflight` |
+| `113512` | N | `a_blank_model_version_fails_preflight` |
 | `113407` | P | `records_both_when_resolved_differs_from_requested` |
-| `113104` | P | `maps_rate_limit_error_to_harness_code` |
-| `113105` | P | `maps_timeout_error_to_harness_code` |
-| `113106` | P | `maps_auth_error_to_harness_code` |
-| `113107` | N | `unrecognised_error_preserves_original_text` |
+| ~~`113104`~~ | | ~~`maps_rate_limit_error_to_harness_code`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113806`, `113826`, `113846`, `113866`. One case per registered engine, in that engine's conformance module |
+| `113806` | N | `claude_maps_a_rate_limit_error_to_its_harness_code` |
+| `113826` | N | `gemini_maps_a_rate_limit_error_to_its_harness_code` |
+| `113846` | N | `grok_maps_a_rate_limit_error_to_its_harness_code` |
+| `113866` | N | `openai_maps_a_rate_limit_error_to_its_harness_code` |
+| ~~`113105`~~ | | ~~`maps_timeout_error_to_harness_code`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113807`, `113827`, `113847`, `113867`. One case per registered engine, in that engine's conformance module |
+| `113807` | N | `claude_maps_a_timeout_error_to_its_harness_code` |
+| `113827` | N | `gemini_maps_a_timeout_error_to_its_harness_code` |
+| `113847` | N | `grok_maps_a_timeout_error_to_its_harness_code` |
+| `113867` | N | `openai_maps_a_timeout_error_to_its_harness_code` |
+| ~~`113106`~~ | | ~~`maps_auth_error_to_harness_code`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113808`, `113828`, `113848`, `113868`. One case per registered engine, in that engine's conformance module |
+| `113808` | N | `claude_maps_an_auth_error_to_its_harness_code` |
+| `113828` | N | `gemini_maps_an_auth_error_to_its_harness_code` |
+| `113848` | N | `grok_maps_an_auth_error_to_its_harness_code` |
+| `113868` | N | `openai_maps_an_auth_error_to_its_harness_code` |
+| ~~`113107`~~ | | ~~`unrecognised_error_preserves_original_text`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113809`, `113829`, `113849`, `113869`. One case per registered engine, in that engine's conformance module |
+| `113809` | N | `claude_unrecognised_error_preserves_original_text` |
+| `113829` | N | `gemini_unrecognised_error_preserves_original_text` |
+| `113849` | N | `grok_unrecognised_error_preserves_original_text` |
+| `113869` | N | `openai_unrecognised_error_preserves_original_text` |
 | `113408` | N | `no_vendor_type_appears_in_normalized_output` |
-| `113108` | P | `declared_capabilities_derive_unsupported_pairs` |
-| `113109` | N | `tool_case_against_engine_without_tool_calling_is_unsupported` |
+| ~~`113108`~~ | | ~~`declared_capabilities_derive_unsupported_pairs`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113810`, `113830`, `113850`, `113870`. One case per registered engine, in that engine's conformance module |
+| `113810` | N | `claude_declared_capabilities_derive_unsupported_pairs` |
+| `113830` | N | `gemini_declared_capabilities_derive_unsupported_pairs` |
+| `113850` | N | `grok_declared_capabilities_derive_unsupported_pairs` |
+| `113870` | N | `openai_declared_capabilities_derive_unsupported_pairs` |
+| ~~`113109`~~ | | ~~`tool_case_against_engine_without_tool_calling_is_unsupported`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113811`, `113831`, `113851`, `113871`. One case per registered engine, in that engine's conformance module |
+| `113811` | N | `claude_tool_case_without_tool_calling_is_unsupported` |
+| `113831` | N | `gemini_tool_case_without_tool_calling_is_unsupported` |
+| `113851` | N | `grok_tool_case_without_tool_calling_is_unsupported` |
+| `113871` | N | `openai_tool_case_without_tool_calling_is_unsupported` |
 | `113600` | P | `replay_reproduces_all_three_recorded_observations` |
 | `113601` | N | `replay_of_single_response_thrice_is_rejected` |
 | `113602` | N | `changed_request_hash_reports_fixture_stale` |
@@ -1874,10 +1928,17 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113503` | B | `absent_baseline_is_recorded_rather_than_treated_as_a_change` |
 | `113504` | N | `probe_failure_records_a_harness_event_and_does_not_dispatch` |
 | `113605` | B | `divergent_refs_report_staleness_as_a_finding` |
-| `113606` | P | `request_hash_is_identical_across_line_ending_conventions` |
+| ~~`113606`~~ | | ~~`request_hash_is_identical_across_line_ending_conventions`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113617`, `113618`, `113619`. One case per request shape |
+| `113617` | P | `a_prompt_hashes_alike_across_line_endings` |
+| `113618` | P | `a_nested_prompt_hashes_alike_across_line_endings` |
+| `113619` | P | `documents_hash_alike_across_line_endings` |
 | `113607` | N | `a_fixture_path_never_contains_the_case_id_separator` |
 | `113409` | P | `call_id_is_optional_because_providers_differ` |
-| `113410` | N | `mode_outside_the_registered_set_is_rejected` |
+| ~~`113410`~~ | | ~~`mode_outside_the_registered_set_is_rejected`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113417`, `113418`, `113419`, `113420`. One case per mode |
+| `113417` | N | `a_mode_of_cached_is_rejected` |
+| `113418` | N | `a_mode_of_dry_run_is_rejected` |
+| `113419` | N | `an_empty_mode_is_rejected` |
+| `113420` | N | `an_upper_case_mode_is_rejected` |
 | `113411` | N | `finish_reason_outside_the_registered_set_is_rejected` |
 | `113412` | P | `raw_reference_is_a_pointer_not_a_payload` |
 | `113608` | P | `different_requests_hash_differently` |
@@ -1893,9 +1954,21 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113507` | P | `a_failed_probe_leaves_its_baseline_untouched` |
 | `113508` | N | `an_unreadable_baseline_is_reported_not_ignored` |
 | `113509` | P | `probe_outcomes_are_returned_in_a_reproducible_order` |
-| `113110` | P | `every_adapter_returns_tool_arguments_as_a_mapping` |
-| `113111` | P | `every_adapter_reads_the_version_from_the_response` |
-| `113112` | N | `no_vendor_type_survives_any_adapter_normalization` |
+| ~~`113110`~~ | | ~~`every_adapter_returns_tool_arguments_as_a_mapping`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113803`, `113823`, `113843`, `113863`. One case per registered engine, in that engine's conformance module |
+| `113803` | P | `claude_returns_tool_arguments_as_a_mapping` |
+| `113823` | P | `gemini_returns_tool_arguments_as_a_mapping` |
+| `113843` | P | `grok_returns_tool_arguments_as_a_mapping` |
+| `113863` | P | `openai_returns_tool_arguments_as_a_mapping` |
+| ~~`113111`~~ | | ~~`every_adapter_reads_the_version_from_the_response`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113805`, `113825`, `113845`, `113865`. One case per registered engine, in that engine's conformance module |
+| `113805` | P | `claude_reads_the_version_from_the_response` |
+| `113825` | P | `gemini_reads_the_version_from_the_response` |
+| `113845` | P | `grok_reads_the_version_from_the_response` |
+| `113865` | P | `openai_reads_the_version_from_the_response` |
+| ~~`113112`~~ | | ~~`no_vendor_type_survives_any_adapter_normalization`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113812`, `113832`, `113852`, `113872`. One case per registered engine, in that engine's conformance module |
+| `113812` | P | `claude_leaves_no_vendor_type_after_normalization` |
+| `113832` | P | `gemini_leaves_no_vendor_type_after_normalization` |
+| `113852` | P | `grok_leaves_no_vendor_type_after_normalization` |
+| `113872` | P | `openai_leaves_no_vendor_type_after_normalization` |
 | `113113` | N | `registering_two_adapters_under_one_engine_name_fails` |
 | `113114` | P | `the_registry_enrols_every_adapter_in_the_battery` |
 | `113000` | P | `claude_maps_refusal_stop_reason_to_content_filter` |
@@ -1906,7 +1979,11 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113005` | P | `gemini_reconciles_a_stop_reason_carrying_captured_calls` |
 | `113006` | N | `gemini_a_blocked_candidate_yields_empty_text_not_an_error` |
 | `113007` | P | `gemini_disables_provider_side_automatic_function_calling` |
-| `113008` | P | `gemini_maps_each_error_status_to_its_harness_code` |
+| ~~`113008`~~ | | ~~`gemini_maps_each_error_status_to_its_harness_code`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113023`, `113024`, `113025`, `113026`. One case per error kind |
+| `113023` | N | `gemini_maps_a_rate_limit_to_its_harness_code` |
+| `113024` | N | `gemini_maps_an_auth_failure_to_its_harness_code` |
+| `113025` | N | `gemini_maps_a_missing_model_to_its_harness_code` |
+| `113026` | N | `gemini_maps_a_timeout_to_its_harness_code` |
 | `113115` | N | `an_unregistered_engine_name_names_what_is_registered` |
 | `113009` | P | `claude_sends_the_system_instruction_as_its_own_field` |
 | `113010` | P | `openai_sends_the_system_instruction_as_a_message_role` |
@@ -1916,25 +1993,70 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `113210` | N | `a_connection_left_open_after_a_response_is_reported` |
 | `113211` | B | `keeping_the_connection_is_opt_in_and_recorded` |
 | `113212` | N | `a_judge_sharing_the_candidate_adapter_is_reported` |
-| `113116` | N | `a_declared_capability_that_cannot_judge_is_reported` |
-| `113117` | P | `a_judgement_round_trips_through_the_adapter_to_a_mapping` |
+| ~~`113116`~~ | | ~~`a_declared_capability_that_cannot_judge_is_reported`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113813`, `113833`, `113853`, `113873`. One case per registered engine, in that engine's conformance module |
+| `113813` | N | `claude_reports_a_capability_that_cannot_judge` |
+| `113833` | N | `gemini_reports_a_capability_that_cannot_judge` |
+| `113853` | N | `grok_reports_a_capability_that_cannot_judge` |
+| `113873` | N | `openai_reports_a_capability_that_cannot_judge` |
+| ~~`113117`~~ | | ~~`a_judgement_round_trips_through_the_adapter_to_a_mapping`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113814`, `113834`, `113854`, `113874`. One case per registered engine, in that engine's conformance module |
+| `113814` | P | `claude_round_trips_a_judgement_to_a_mapping` |
+| `113834` | P | `gemini_round_trips_a_judgement_to_a_mapping` |
+| `113854` | P | `grok_round_trips_a_judgement_to_a_mapping` |
+| `113874` | P | `openai_round_trips_a_judgement_to_a_mapping` |
 | `113013` | P | `an_engine_on_a_shared_protocol_inherits_it_entire` |
 | `113014` | N | `two_engines_on_one_protocol_do_not_share_a_credential` |
 | `113015` | P | `a_role_is_derived_from_the_registry_not_a_list` |
 | `113300` | N | `a_replay_judgement_never_reaches_the_provider` |
 | `113301` | P | `a_live_judgement_is_recorded_for_later_replay` |
-| `113118` | N | `a_transient_provider_failure_is_not_a_parser_error` |
+| ~~`113118`~~ | | ~~`a_transient_provider_failure_is_not_a_parser_error`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113815`, `113835`, `113855`, `113875`. One case per registered engine, in that engine's conformance module |
+| `113815` | N | `claude_transient_failure_is_not_a_parser_error` |
+| `113835` | N | `gemini_transient_failure_is_not_a_parser_error` |
+| `113855` | N | `grok_transient_failure_is_not_a_parser_error` |
+| `113875` | N | `openai_transient_failure_is_not_a_parser_error` |
 | `113119` | P | `a_transient_provider_failure_is_retried` |
-| `113120` | N | `a_rejected_request_is_not_an_unanticipated_failure` |
-| `113121` | N | `a_gateway_failure_is_not_the_provider_being_busy` |
-| `113122` | N | `a_redirect_or_connection_failure_is_unreachability` |
-| `113123` | P | `every_interface_maps_a_status_through_one_table` |
-| `113124` | P | `declares_a_reproduction_that_reconstructs_nothing` |
+| ~~`113120`~~ | | ~~`a_rejected_request_is_not_an_unanticipated_failure`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113816`, `113836`, `113856`, `113876`. One case per registered engine, in that engine's conformance module |
+| `113816` | N | `claude_rejected_request_is_not_unanticipated` |
+| `113836` | N | `gemini_rejected_request_is_not_unanticipated` |
+| `113856` | N | `grok_rejected_request_is_not_unanticipated` |
+| `113876` | N | `openai_rejected_request_is_not_unanticipated` |
+| ~~`113121`~~ | | ~~`a_gateway_failure_is_not_the_provider_being_busy`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113817`, `113837`, `113857`, `113877`. One case per registered engine, in that engine's conformance module |
+| `113817` | N | `claude_gateway_failure_is_not_provider_busy` |
+| `113837` | N | `gemini_gateway_failure_is_not_provider_busy` |
+| `113857` | N | `grok_gateway_failure_is_not_provider_busy` |
+| `113877` | N | `openai_gateway_failure_is_not_provider_busy` |
+| ~~`113122`~~ | | ~~`a_redirect_or_connection_failure_is_unreachability`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113818`, `113838`, `113858`, `113878`. One case per registered engine, in that engine's conformance module |
+| `113818` | N | `claude_redirect_or_connection_failure_is_unreachable` |
+| `113838` | N | `gemini_redirect_or_connection_failure_is_unreachable` |
+| `113858` | N | `grok_redirect_or_connection_failure_is_unreachable` |
+| `113878` | N | `openai_redirect_or_connection_failure_is_unreachable` |
+| ~~`113123`~~ | | ~~`every_interface_maps_a_status_through_one_table`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113819`, `113839`, `113859`, `113879`. One case per registered engine, in that engine's conformance module |
+| `113819` | P | `claude_maps_each_status_through_the_one_table` |
+| `113839` | P | `gemini_maps_each_status_through_the_one_table` |
+| `113859` | P | `grok_maps_each_status_through_the_one_table` |
+| `113879` | P | `openai_maps_each_status_through_the_one_table` |
+| ~~`113124`~~ | | ~~`declares_a_reproduction_that_reconstructs_nothing`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113130`, `113131`, `113132`, `113133`. One case per registered engine |
+| `113130` | P | `claude_reissues_a_recorded_call_verbatim` |
+| `113131` | P | `gemini_reissues_a_recorded_call_verbatim` |
+| `113132` | P | `grok_reissues_a_recorded_call_verbatim` |
+| `113133` | P | `openai_reissues_a_recorded_call_verbatim` |
 | `113125` | N | `a_refused_request_ends_the_case_not_the_run` |
-| `113126` | N | `a_reproduction_parses_back_to_the_recorded_arguments` |
-| `113127` | P | `a_wire_protocol_engine_also_reproduces_as_curl` |
+| ~~`113126`~~ | | ~~`a_reproduction_parses_back_to_the_recorded_arguments`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113134`, `113135`, `113136`, `113137`. One case per registered engine |
+| `113134` | P | `claude_reproduction_parses_back_to_recorded_arguments` |
+| `113135` | P | `gemini_reproduction_parses_back_to_recorded_arguments` |
+| `113136` | P | `grok_reproduction_parses_back_to_recorded_arguments` |
+| `113137` | P | `openai_reproduction_parses_back_to_recorded_arguments` |
+| ~~`113127`~~ | | ~~`a_wire_protocol_engine_also_reproduces_as_curl`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113138`, `113139`, `113140`, `113141`. One case per registered engine |
+| `113138` | P | `claude_offers_curl_only_on_the_wire_protocol` |
+| `113139` | P | `gemini_offers_curl_only_on_the_wire_protocol` |
+| `113140` | P | `grok_offers_curl_only_on_the_wire_protocol` |
+| `113141` | P | `openai_offers_curl_only_on_the_wire_protocol` |
 | `113128` | N | `refusals_in_a_run_that_answered_do_not_trip_the_breaker` |
-| `113129` | N | `a_client_on_another_base_url_is_given_its_own_key` |
+| ~~`113129`~~ | | ~~`a_client_on_another_base_url_is_given_its_own_key`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113142`, `113143`, `113144`, `113145`. One case per registered engine |
+| `113142` | P | `claude_client_on_another_base_url_gets_its_own_key` |
+| `113143` | P | `gemini_client_on_another_base_url_gets_its_own_key` |
+| `113144` | P | `grok_client_on_another_base_url_gets_its_own_key` |
+| `113145` | P | `openai_client_on_another_base_url_gets_its_own_key` |
+| `113146` | P | `every_engine_has_its_reproduction_cases` |
 | `113302` | N | `a_provider_failure_while_judging_is_contained` |
 | `113303` | N | `the_judge_channel_imports_no_evaluation_module` |
 | `113213` | P | `filling_gaps_dispatches_only_what_is_missing` |
@@ -1974,7 +2096,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 126 cases, 53 negative, 64 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 212 cases, 99 negative, 104 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

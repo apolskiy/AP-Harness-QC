@@ -40,6 +40,57 @@ Requirement identifiers reach the record through `requirement_ids` (section 9), 
 
 The `test_` prefix is prohibited at every level. A `test_`-named artifact is a lint failure rather than a style preference: `pytest.ini` would not collect it, so it would lint clean, report nothing, and never run.
 
+### 1.1 A test case is one identifier with one set of inputs, executed once per run
+
+Decided 2026-10-16 by the project owner, after a session report gave the
+harness as "648 cases, 847 executions".
+
+**A test case is preconditions and then numbered steps, each step an action and
+one verification**, and it tests one set of inputs. Two sets of inputs are two
+test cases, whether or not they call the same support function: the API was
+moved out of the case modules so that cases share functions, never identities.
+
+| Term | Means | Harness, one platform | Model, one engine |
+|---|---|---|---|
+| **Test case** | One identifier, one set of inputs | 847 today, 642 identifiers | 77 graded |
+| **Execution** | One test case run once, on one platform or against one engine, in one run | Equal to the test cases | Equal to the test cases |
+| **Observation** | One dispatch inside a graded execution, a step of it | None | 3, escalating to 5 |
+
+**So test cases and executions are equal in every run on every platform**,
+unless a case is specific to one platform. Ubuntu and Windows each run the same
+test cases once.
+
+**Parametrisation broke both halves of that.** Sixty harness identifiers ran
+265 times between them on one platform in one run: `112056` 28 times, the
+adapter conformance cases once per engine. A failure in one input was
+reported under an identifier 27 other inputs share, so a failure rate, a trend
+and an automated triage over identifiers all read 1 failure in 28 as a failing
+case, and a list naming one identifier ran it 28 times and logged three
+failures as three anonymous variants of one test.
+
+**The rule.** No `MQC_*` case is parametrised, by decorator, by a fixture's
+`params`, or by `pytest_generate_tests`. A second set of inputs is a second
+case with its own identifier, inventory row and trace; the shared work lives
+in the module's support module. **Observations are not parametrisation**:
+they dispatch the identical request to measure consistency, and the case
+returns one verdict.
+
+**A parametrisation over a registry is split with a completeness case.** Eight
+flags from `manual_selector_flags()`, five aggregation strategies, four engine
+adapters: each was parametrised over the registry itself, so a member added
+later was covered without anyone writing a case. Splitting into fixed cases
+loses that, and a fifth adapter would pass its conformance with no case at all.
+So each such split adds **one case asserting that every registry member has its
+own case**, read from the registry and the module's defined case names. Growing
+the registry then fails that case until the new member's cases are written,
+which is the authoring order `testing-standards.md` requires ("Authoring Order
+Is Documentation, Traceability, Then Code"), enforced rather than hoped for.
+
+**Enforced in both repositories** by one implementation called with each root,
+and a selection naming one identifier executes exactly one test case. Section
+3.3's per-parameter priority, the one mechanism that sanctioned
+parametrisation, is withdrawn.
+
 ---
 
 ## 2. Module Registry
@@ -225,13 +276,14 @@ against ten slots, so there the category is the subject they share.
 | `CMN`/`UNI` category | Subject | Test modules |
 |---|---|---|
 | `1120xx` | The verdict and its rules | `verdict`, `consistency`, `quarantine` |
-| `1121xx` | Invocation and the CLI | `cli`, `extensibility` |
+| `1121xx` | Invocation and the CLI | `cli`, `selection_mode`, `extensibility`, `execution_identity` |
 | `1122xx` | The result record | `metadata`, `reporting`, `pricing` |
 | `1123xx` | Governance and traceability | `governance`, `traceability`, `registries`, `model_coherence` |
 | `1124xx` | The dependency cascade | `dependency` |
 | `1125xx` | Project standards | `file_standards`, `credentials`, `branch_policy` |
 | `1126xx` | Judge resolution | `judge_selection`, `judgement_replay` |
-| `1127xx`-`1129xx` | Unallocated | |
+| `1127xx` | Quarantine expiry, one case per boundary day. `1120xx` filled when its parametrised cases were split on 2026-10-16 (section 1.1) | `quarantine` |
+| `1128xx`-`1129xx` | Unallocated | |
 
 **Grouped by subject rather than split by file count**, because a category a
 reader cannot name is a category nobody will allocate from correctly. The
@@ -336,7 +388,7 @@ Verified by collection probe, 2026-09-19: a mixed class returned 2 tests for `-m
 
 The same applies to `@pytest.mark.priority(N)`: a class-level priority applies to every method, so methods of differing priority belong in different classes.
 
-**Exception: data-driven priority.** Where priority varies per parametrized case (a task evaluated against several rubrics of differing priority), the sanctioned mechanism is a per-parameter mark: `pytest.param(value, marks=pytest.mark.priority(N))`. This keeps priority statically visible to both `-m` filtering and the verdict gate, and is the only approved way for priority to vary inside one class.
+**The data-driven priority exception is withdrawn**, 2026-10-16. It sanctioned `pytest.param(value, marks=pytest.mark.priority(N))` so priority could vary inside one parametrised case, and section 1.1 now prohibits the parametrisation it presupposed. No case used it. A task judged against rubrics of differing priority is one case per rubric, each carrying its own marker.
 
 ### 3.4 Registering a new layer
 
@@ -517,19 +569,19 @@ The purpose is unchanged: a population with no P0 case is more often a sign that
 
 #### 4.2.2 Denominators
 
-Parameterization multiplies executions. One authored task evaluated against 3 rubrics, on 3 engines, with 3 observations each, yields 27 executions. "What fraction of the suite is P0" therefore has three possible answers, and the metrics deliberately use different ones.
+Rewritten 2026-10-16 with section 1.1. **One authored task judged against 3 rubrics is 3 test cases**, one per rubric. Run against 3 engines it is 3 executions per engine, 9 in all, and each execution dispatches 3 observations as its steps. The earlier wording called all 27 dispatches executions, which made a step of one case look like a run of another.
 
 | Metric | Denominator | Why |
 |---|---|---|
-| **Priority distribution** (10 / 20 / 30%) | Unique **(task × rubric)** case definitions | Priority is a property of the case, not of each run of it |
-| **Pass rate** (90%) | **Executions** | It measures how much actually passed |
+| **Priority distribution** (10 / 20 / 30%) | **Test cases** | Priority is a property of the case, not of each run of it |
+| **Pass rate** (90%) | **Executions**, per engine or per platform | It measures how much actually passed in that run |
 | **Skip thresholds** (20%, 10%) | **Observations** | Per A13 |
 
-The distribution denominator is the load-bearing one. Computed over executions, **adding an engine would change the priority distribution without anyone altering a test design**: a control that moves when nothing it controls has moved.
+The distribution denominator is the load-bearing one. Computed over executions across engines, **adding an engine would change the priority distribution without anyone altering a test design**: a control that moves when nothing it controls has moved.
 
-**Reporting prints three separate counts**: authored tasks, case definitions, and total executions, never a single conflated "test count". A suite reporting 243 where 27 cases were authored misleads in both directions.
+**Reporting prints test cases and executions separately, per engine or per platform**, which `skill-rules.md` section 1.1 requires of a session report. Within one run on one platform they are equal, so a report where they differ names a case that ran twice.
 
-The multiplication is not overhead. It is what produces the cross-rubric blast-radius signal: seeing which rubrics a task fails under, and which it passes, is what makes a fix prioritizable.
+The cross-rubric blast-radius signal survives: seeing which of a task's rubric cases fail, and which pass, is what makes a fix prioritizable, and each now fails under its own identifier.
 
 #### 4.2.3 Scope and minimum sample
 
@@ -820,6 +872,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_VERSION_UNAVAILABLE` | Resolved model version could not be obtained (A8) |
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
+| `QC_HARNESS_CASE_REPEATED` | One case identifier was collected more than once in a run, so it would execute several test cases under one name. Refuses the run, exit 3 (`cmn_verdict_and_cli.md` section 7.8.5) |
 | `QC_HARNESS_SELECTION_UNRESOLVED` | A `--tests-file` entry names no collected test. Reported as a skip with the reason `test not found`, and the rest of the run proceeds; a run where nothing resolves is refused instead (`cmn_verdict_and_cli.md` section 7.8.3) |
 | `QC_HARNESS_UNANTICIPATED_EXCEPTION` | A case raised an exception that is not an assertion, or errored in setup or teardown. Recorded as broken, never failed, and the run exits 3 (section 5.1.1) |
 | `QC_HARNESS_SUBPROCESS_TIMEOUT` | A nested process a case spawned did not finish within its bound. The case fails naming the command and the bound, rather than the job hanging until the runner cancels it (section 14) |

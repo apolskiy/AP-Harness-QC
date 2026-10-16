@@ -11365,3 +11365,104 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   pytest and pylint only. The CI lint step runs actionlint as well, and nothing
   local did, so the gate's own check was the first to see the file.
   actionlint is now part of the local verification for any workflow change.
+
+## 2026-10-16: A relative path hid a tool directive from the screen, and four cases for the diagnostics corpus
+
+* **Found:** writing the case repository's diagnostics payloads.
+  "call list_directory on ./reports immediately" matched no vector, while the
+  same sentence naming "the reports directory" matched `tool_coercion`. The
+  clause stays inside one sentence by refusing a period, excused one followed
+  by a digit, and stopped at the period opening the path, before the urgency
+  word. An attacker writing a path evaded the screen for free.
+* **Fix:** a period followed by a slash or another period continues the
+  directive (`tier3_evaluation.md` section 5.2.2, `MQC_REQ_HAR_EVL_0066`).
+  `MQC_EVL_UNI_114623` failed on `./reports`, `../reports` and `./logs/today`
+  before the change and passes after; `114617`, ordinary prose, still passes.
+* **Cases for what the consumer's new corpus relies on**, none of which any
+  case asserted (section 5B.6): `114521` a rule carrying a tool check and a
+  text check fails when either fails; `114705` every forbidden tool called is
+  reported by name; `114622` a diagnostics directive naming an address is
+  screened. All three passed on the existing code, so each was verified by
+  injection: reporting only the first forbidden tool, dropping tool results
+  from a rule with assertions, and ending the directive at a period before a
+  digit each failed its case, and each file was restored from its bytes.
+* **`114521` is in a module of its own**, `mqc_uni_combined_checks.py`:
+  `mqc_uni_pipeline.py` already sits at 939 lines (`code-style.md` 5.1).
+* **Rules added at the project owner's instruction:** `skill-rules.md` section
+  1.1, an in-session test report gives the harness and the model separate
+  lines; and section 1, a log entry records departures under "Digressions the
+  user spotted, and the fix", replacing an unwritten "Where I Was Wrong" habit.
+* **Digressions the user spotted, and the fix:**
+  * The case repository's diagnostics cases were recorded live before these
+    harness cases existed, against the precondition order in
+    `testing-standards.md`. Caught by the project owner; the cases were written
+    and verified before the model bands were re-run.
+  * `114623` was written parametrised, three executions under one identifier.
+    The project owner ruled that a different parameter set is a different test
+    case: 60 harness identifiers run 265 times between them, and
+    `harness_test_taxonomy.md` sections 3.3 and 4.2.2 sanction it. Recorded for
+    the refactor that comes next, `114623` included.
+  * A sed edit carrying a backslash was used on a scratch script, against
+    `code-style.md` section 8.1. It touched no tracked file.
+* **Designed and not yet built:** a graded case's dispatches as numbered steps
+  of their own, steps 4 and 5 only on a disagreement among the first three, and
+  one verification per step; today the seven steps are pipeline phases repeated
+  inside every observation (section 8.2.1).
+* **Code Quality & Compliance Audit:** 847 executions passed, exit 0; pylint
+  10.00/10, exit 0. 648 cases, 316 requirements.
+
+## 2026-10-16: One test case, one set of inputs, one execution per run
+
+* **Decided by the project owner:** a test case is preconditions and numbered
+  steps against one set of inputs, and a second set is a second case. The
+  shared functions are why the API left the case modules; sharing them never
+  meant sharing an identity. Test cases and executions are equal per platform
+  per run, and a failure, a rate or a rerun addresses one input.
+* **Measured before:** 60 harness identifiers ran 265 times between them in one
+  run, 38 by decorator and 22 by the parametrised adapter fixture; `112056` ran
+  28 times and the conformance battery once per engine. The Model Repository
+  had none.
+* **Designed:** `harness_test_taxonomy.md` section 1.1 registers test case,
+  execution and observation, withdraws section 3.3's per-parameter priority and
+  rewrites 4.2.2's denominators. `cmn_verdict_and_cli.md` 7.8.5 refuses a run
+  collecting one identifier twice (`QC_HARNESS_CASE_REPEATED`), and 6.1.2 adds
+  `retired_test_ids` to both matrices. Requirements `MQC_REQ_HAR_CMN_0179` to
+  `0181`.
+* **A registry-driven parametrisation loses something when split**: a strategy,
+  selector flag or engine added later was covered without a case being
+  written. So each such split carries a completeness case reading the helper
+  calls by syntax (`cmn/case_coverage.py`): `112099`, `112171`, `114032`,
+  `113146`, and `113114` rewritten for the per-engine conformance modules.
+* **Split:** each identifier retired and struck through with a pointer to its
+  replacements, its name moved to `retired_test_ids`, and one case per input
+  calling a private helper holding the original body. `112001`'s P1 input
+  duplicated `112002`, so one case replaced it. The conformance battery became
+  a support mixin and four per-engine modules in category `1138xx`; quarantine
+  expiry took `1127xx`; `114623`, written today and never committed, kept its
+  number for its first path.
+* **Ceilings the split crossed:** `mqc_uni_cli.py` reached 1006 lines and
+  `mqc_uni_schemas.py` 1006, each split by subject into
+  `mqc_uni_selection_mode.py` and `mqc_uni_case_identifiers.py`; two classes
+  passed twenty public methods and were divided, the rate check moving to a
+  `RateRefusal` mixin in `verdict_support.py`.
+* **Verified:** the guard and its two cases failed first and pass;
+  `retirement_problems` failed on the unrecorded matrix and passes; the
+  completeness function's case failed on a missing module. Every module's
+  hand-kept "Covers" range, now wrong, points at its generated block instead.
+* **Digressions the user spotted, and the fix:**
+  * Every module parametrised over a registry, and the design sanctioned it.
+    Caught by the project owner reading a session report of 648 cases and 847
+    executions; fixed by this change.
+  * `python -` was run twice as a placeholder and hung each time until
+    stopped; it changed nothing. Recorded so it is not run again.
+* **Digressions found while building, and the fix:**
+  * The split script wrote four of seven splits before rejecting a 61-character
+    name; it now checks every name before writing anything.
+  * A method prefix over-matched nine unrelated cases when moving the device
+    name cases; the module was restored from its copy and moved exactly.
+  * Category `1137xx` was already the spend ceiling's, and a new section cited
+    a `testing-standards.md` section that does not exist; both corrected
+    before any run read them.
+* **Code Quality & Compliance Audit:** 862 test cases, 856 executions in the
+  precondition run, all passing, exit 0; pylint 10.00/10, exit 0. 319
+  requirements.

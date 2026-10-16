@@ -19,6 +19,22 @@ Two logs, split by audience. Writing to the wrong one is a process error.
 * **No Self-Referential Or Audience-Facing Framing In The Tracked Log**: `CLAUDE_LOG.md` is publicly visible. It records decisions and their reasoning, never commentary on how the work should be perceived, who might read it, or what it demonstrates about its author. Such notes belong in `.claude/logs/PROMPT_LOG.md`, which is not tracked.
 * **Write For An External Reader**: `CLAUDE_LOG.md` entries record what was decided, what was rejected, and why, for someone evaluating the work who was not present. The record demonstrates the reasoning on its own; it does not need to point at itself.
 
+* **Digressions Are Recorded With Their Fix**: an entry whose work departed from the design, the rules or the documented order carries a section headed **"Digressions the user spotted, and the fix"**. Each item names the departure, where it was (the document, rule or code segment), who or what caught it, and the fix applied. Added 2026-10-16 at the project owner's instruction, replacing the unwritten habit of a "Where I Was Wrong" heading, which named no subject and recorded a confession rather than a departure and its remedy. Earlier entries keep the heading they were written with.
+
+### 1.1 A test report in session separates the harness from the model
+
+Added 2026-10-16 at the project owner's instruction.
+
+**A result reported in a working session states the harness and the model on separate lines**, never one merged count. A harness failure implicates the instrument and a model failure implicates a vendor's model (`framework-rules.md` section 3.1), and a merged line hides which of the two a reader is looking at.
+
+| Line | Carries |
+|---|---|
+| `Harness:` | `AP-Harness-QC` preconditions, unit and system, and pylint |
+| `Model:` | `AP-Model-QC` preconditions and pylint |
+| One line per engine beneath `Model:` | The graded bands or cases run against that engine, and the mode, replay or live |
+
+Each line carries total, executed, passed, failed and skipped in that order, and the exit code, which is the vocabulary `code-style.md` section 7.1 sets for a measured run. A line for something that was not run says so rather than being left out.
+
 ## 2. Feature Development Lifecycle
 
 ### Phase 0: Ambiguity Resolution & Clarification

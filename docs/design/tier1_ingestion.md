@@ -834,7 +834,10 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111310` | N | `rejects_rubric_with_empty_criteria` (G2) |
 | `111311` | N | `rejects_anchors_missing_level_three` (G3) |
 | `111312` | B | `accepts_anchors_with_only_one_three_five` (G3) |
-| `111313` | N | `rejects_anchor_level_outside_one_to_five` (G3) |
+| ~~`111313`~~ | | ~~`rejects_anchor_level_outside_one_to_five`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `111333`, `111334`, `111335`. One case per level |
+| `111333` | B | `an_anchor_level_of_zero_is_rejected` |
+| `111334` | B | `an_anchor_level_of_six_is_rejected` |
+| `111335` | N | `an_anchor_level_of_minus_one_is_rejected` |
 | `111314` | N | `rejects_overlapping_required_and_forbidden_tools` (G4) |
 | `111200` | P | `csv_loader_parses_flat_task_rows` |
 | `111201` | N | `csv_loader_rejects_duplicate_column_headers` |
@@ -863,13 +866,27 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111317` | N | `rejects_priority_above_matched_condition_ceiling` (G6) |
 | `111318` | B | `accepts_priority_demoted_below_matched_ceiling` (G6) |
 | `111319` | N | `rejects_mandatory_field_supplied_as_empty_string` |
-| `111320` | N | `rejects_mandatory_field_supplied_as_whitespace_only` |
+| ~~`111320`~~ | | ~~`rejects_mandatory_field_supplied_as_whitespace_only`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `111336`, `111337`, `111338`. One case per blank spelling |
+| `111336` | N | `a_mandatory_field_left_empty_is_rejected` |
+| `111337` | N | `a_mandatory_field_of_spaces_is_rejected` |
+| `111338` | N | `a_mandatory_field_of_tabs_and_newlines_is_rejected` |
 | `111321` | N | `rejects_mandatory_list_field_supplied_empty` |
 | `111322` | P | `distinguishes_missing_from_empty_in_emitted_code` |
 | `111323` | P | `non_ascii_content_survives_an_explicit_encoding_read` |
 | `111324` | N | `case_ids_differing_only_by_letter_case_are_rejected` |
-| `111325` | N | `case_id_matching_a_windows_reserved_device_name_is_rejected` |
-| `111332` | B | `a_case_id_one_past_a_reserved_device_range_is_accepted` |
+| ~~`111325`~~ | | ~~`case_id_matching_a_windows_reserved_device_name_is_rejected`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `111339`, `111340`, `111341`, `111342`, `111343`, `111344`, `111345`. One case per reserved spelling |
+| `111339` | N | `a_case_id_of_nul_is_rejected` |
+| `111340` | N | `a_case_id_of_upper_con_is_rejected` |
+| `111341` | B | `a_case_id_of_com1_is_rejected` |
+| `111342` | B | `a_case_id_of_upper_com9_is_rejected` |
+| `111343` | B | `a_case_id_of_lpt1_is_rejected` |
+| `111344` | B | `a_case_id_of_upper_lpt9_is_rejected` |
+| `111345` | N | `a_case_id_of_aux_with_an_extension_is_rejected` |
+| ~~`111332`~~ | | ~~`a_case_id_one_past_a_reserved_device_range_is_accepted`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `111346`, `111347`, `111348`, `111349`. One case per spelling |
+| `111346` | B | `a_case_id_of_com10_is_accepted` |
+| `111347` | B | `a_case_id_of_upper_lpt10_is_accepted` |
+| `111348` | B | `a_case_id_of_console_is_accepted` |
+| `111349` | B | `a_case_id_of_nul_task_is_accepted` |
 | `111326` | N | `assertion_severity_is_declared_not_inferred` |
 | `111327` | N | `tool_definition_requires_a_parameters_schema` |
 | `111328` | B | `anchor_exemplar_is_optional_and_preserved` |
@@ -885,12 +902,22 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111000` | P | `yaml_loader_builds_rule_sets_from_a_document` |
 | `111001` | N | `csv_with_no_header_row_is_rejected` |
 | `111002` | N | `empty_yaml_document_is_rejected` |
-| `111003` | P | `csv_boolean_column_is_coerced_from_text` |
+| ~~`111003`~~ | | ~~`csv_boolean_column_is_coerced_from_text`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `111015`, `111016`, `111017`, `111018`, `111019`, `111020`, `111021`. One case per spelling |
+| `111015` | P | `a_csv_boolean_of_true_reads_as_true` |
+| `111016` | P | `a_csv_boolean_of_upper_true_reads_as_true` |
+| `111017` | P | `a_csv_boolean_of_yes_reads_as_true` |
+| `111018` | P | `a_csv_boolean_of_one_reads_as_true` |
+| `111019` | P | `a_csv_boolean_of_false_reads_as_false` |
+| `111020` | P | `a_csv_boolean_of_no_reads_as_false` |
+| `111021` | P | `a_csv_boolean_of_zero_reads_as_false` |
 | `111004` | B | `context_document_title_is_optional` |
 | `111005` | N | `tool_definition_rejects_a_non_mapping_schema` |
 | `111006` | P | `assertion_carries_its_taxonomy_code_and_severity` |
 | `111007` | P | `tool_expectation_accepts_disjoint_sets` |
-| `111008` | N | `priority_outside_zero_to_four_is_rejected` |
+| ~~`111008`~~ | | ~~`priority_outside_zero_to_four_is_rejected`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `111022`, `111023`, `111024`. One case per value |
+| `111022` | B | `a_priority_of_minus_one_is_rejected` |
+| `111023` | B | `a_priority_of_five_is_rejected` |
+| `111024` | N | `a_priority_of_ninety_nine_is_rejected` |
 | `111009` | P | `screen_corpus_spans_every_task` |
 | `111010` | P | `system_instruction_is_screened_alongside_the_prompt` |
 | `111011` | P | `registries_expose_their_registered_contents` |
@@ -971,7 +998,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 94 cases, 51 negative, 31 positive, 12 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 115 cases, 55 negative, 37 positive, 23 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

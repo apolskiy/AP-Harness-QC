@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """V5 and the quarantine model it reads: expiry, provenance and the record.
 
-Covers ``MQC_CMN_UNI_112010`` to ``112012``, ``112037``, ``112038`` to ``112042``,
-inventoried in ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
+Its cases are listed in the block below, inventoried in
+``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
 section 4.6.
 
 **Extracted 2026-10-02**, when reworking the quarantine model took
@@ -21,7 +21,10 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCQuarantine
 #   112010  red_when_quarantine_entry_expired
 #   112011  green_when_quarantine_entry_current
-#   112012  expiry_boundary_evaluated_against_injected_date
+#   112700  an_entry_nineteen_days_old_is_still_valid
+#   112701  an_entry_twenty_days_old_is_still_valid
+#   112702  an_entry_twenty_one_days_old_has_expired
+#   112703  an_entry_twenty_two_days_old_has_expired
 #   112037  an_entry_whose_model_changed_is_expired
 #   112038  an_unconfirmed_entry_is_honoured_and_never_red
 # TestMQCQuarantineFiles
@@ -96,11 +99,39 @@ class TestMQCQuarantine:
         assert result.quarantined == [QUARANTINED_CASE]
         assert not result.unconfirmed_quarantine
 
-    @pytest.mark.parametrize(
-        "elapsed,expired",
-        [(19, False), (20, False), (21, True), (22, True)],
-    )
-    def MQC_CMN_UNI_112012_expiry_boundary_evaluated_against_injected_date(
+    def MQC_CMN_UNI_112700_an_entry_nineteen_days_old_is_still_valid(self) -> None:
+        """Nineteen days after its date the entry still holds.
+
+        Returns:
+            None
+        """
+        self._expired_after(19, False)
+
+    def MQC_CMN_UNI_112701_an_entry_twenty_days_old_is_still_valid(self) -> None:
+        """Twenty days after its date the entry still holds.
+
+        Returns:
+            None
+        """
+        self._expired_after(20, False)
+
+    def MQC_CMN_UNI_112702_an_entry_twenty_one_days_old_has_expired(self) -> None:
+        """Twenty-one days after its date the entry has lapsed: day 21 is the first expired day.
+
+        Returns:
+            None
+        """
+        self._expired_after(21, True)
+
+    def MQC_CMN_UNI_112703_an_entry_twenty_two_days_old_has_expired(self) -> None:
+        """Twenty-two days after its date the entry has lapsed.
+
+        Returns:
+            None
+        """
+        self._expired_after(22, True)
+
+    def _expired_after(
         self, elapsed: int, expired: Any
     ) -> None:
         """The window boundary is testable only because the date is injected.
