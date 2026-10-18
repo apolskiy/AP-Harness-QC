@@ -405,6 +405,15 @@ def required_result_fields() -> tuple[str, ...]:
 _ESCALATION: Final[int] = 2
 
 
+def escalation_size() -> int:
+    """Return how many observations one escalation adds.
+
+    Returns:
+        int: Two. Design ``cmn_verdict_and_cli.md`` section 4.9.2.2.
+    """
+    return _ESCALATION
+
+
 def further_observations(outcomes: list[bool]) -> int:
     """Return how many more observations a pattern of outcomes earns.
 

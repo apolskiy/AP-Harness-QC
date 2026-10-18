@@ -63,6 +63,10 @@ from evaluation.pipeline import (
 )
 from ingestion.schemas import GoldenRuleSet, ToolDefinition, ToolExpectation
 
+from tests.evaluation.pipeline_support import (
+    RecordingJudge, observation_context, rule_set_with_rubric,
+)
+
 pytestmark = pytest.mark.unit
 
 _CASE_ID = "MQC_TASK_alpha::MQC_RULE_grounding"
@@ -116,79 +120,6 @@ def fixture_fatal_rules(sample_rule_payload: dict[str, Any]) -> GoldenRuleSet:
     return GoldenRuleSet.from_dict(payload)
 
 
-def _context(rules: Any, text: str, **overrides: Any) -> ObservationContext:
-    """Build an observation context over a benign base.
-
-    Args:
-        rules (Any): The rule set to evaluate against.
-        text (str): The candidate output.
-        **overrides (Any): Fields to replace.
-
-    Returns:
-        ObservationContext: The built record.
-    """
-    payload: dict[str, Any] = {
-        "case_id": _CASE_ID,
-        "rules": rules,
-        "material": UnauthoredMaterial(
-            candidate_output=text,
-            task_instruction="Summarise the posting.",
-        ),
-    }
-    payload.setdefault("produced_output", bool(text.strip()))
-    payload.update(overrides)
-    return ObservationContext(**payload)
-
-
-class _RecordingJudge:
-    """A judge that records every request rather than answering one.
-
-    Attributes:
-        requests (list): Every composed request it was handed.
-        score (int): What it awards each criterion.
-    """
-
-    def __init__(self, score: int = 4) -> None:
-        """Start with an empty record.
-
-        Args:
-            score (int): What to award each criterion.
-
-        Returns:
-            None
-        """
-        self.requests: list[Any] = []
-        self.score = score
-
-    def __call__(self, request: Any) -> dict[str, Any]:
-        """Record the request and return a well-formed reply.
-
-        Args:
-            request (Any): The composed judge request.
-
-        Returns:
-            dict: A reply scoring every criterion the schema names.
-        """
-        self.requests.append(request)
-        return {
-            "scores": {
-                criterion_id: {"score": self.score, "rationale": "Recorded."}
-                for criterion_id in
-                request.reply_schema["properties"]["scores"]["required"]
-            }
-        }
-
-    def binding(self) -> JudgeBinding:
-        """Return a binding that invokes this judge.
-
-        Returns:
-            JudgeBinding: The binding.
-        """
-        return JudgeBinding(
-            invoke=self, judge_engine="gemini", candidate_engine="openai"
-        )
-
-
 class TestMQCOrderOfOperations:
     """Which step runs, and which steps a decision forecloses."""
 
@@ -207,9 +138,9 @@ class TestMQCOrderOfOperations:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(rules, "It requires five years of Python."), judge.binding()
+            observation_context(rules, "It requires five years of Python."), judge.binding()
         )
         assert result.assertion_results
         assert result.assertion_results[0].passed is True
@@ -231,8 +162,8 @@ class TestMQCOrderOfOperations:
         Returns:
             None
         """
-        judge = _RecordingJudge()
-        result = evaluate_observation(_context(rules, _PAYLOAD), judge.binding())
+        judge = RecordingJudge()
+        result = evaluate_observation(observation_context(rules, _PAYLOAD), judge.binding())
 
         assert result.screen.aborts is True
         assert not result.assertion_results
@@ -253,9 +184,9 @@ class TestMQCOrderOfOperations:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(rules, "It requires some experience."), judge.binding()
+            observation_context(rules, "It requires some experience."), judge.binding()
         )
 
         assert result.assertion_results[0].passed is False
@@ -276,9 +207,9 @@ class TestMQCOrderOfOperations:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(rules, "It requires some experience."), judge.binding(),
+            observation_context(rules, "It requires some experience."), judge.binding(),
             judge_on_failure=True,
         )
 
@@ -298,41 +229,15 @@ class TestMQCOrderOfOperations:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(fatal_rules, "not json at all"), judge.binding(),
+            observation_context(fatal_rules, "not json at all"), judge.binding(),
             judge_on_failure=True,
         )
 
         assert not judge.requests
         assert result.judge_skipped_reason == "fatal_assertion_failure"
         assert result.judge_on_failure is True
-
-
-
-def _rule_set_with_rubric(payload_source: dict[str, Any]) -> GoldenRuleSet:
-    """Return a rule set that authors a rubric, for the unscored path.
-
-    Args:
-        payload_source (dict): The minimal rule payload, which carries a
-            rubric.
-
-    Returns:
-        GoldenRuleSet: One assertion and a rubric. ``canary_rule_set`` cannot
-        serve here: it deliberately authors none, because a declared
-        adversarial case reaches no judge and R6 refuses the pair.
-    """
-    payload = dict(payload_source)
-    payload["assertions"] = [
-        {
-            "assertion_id": "MQC_ASR_no_canary",
-            "kind": "not_contains",
-            "parameters": {"value": _CANARY},
-            "taxonomy_code": "QC_LLM_INJECTION_SUSCEPTIBLE",
-            "severity": "violation",
-        }
-    ]
-    return GoldenRuleSet.from_dict(payload)
 
 
 class TestMQCAdversarialCasesAreNeverJudged:
@@ -354,9 +259,9 @@ class TestMQCAdversarialCasesAreNeverJudged:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(rules, _PAYLOAD, declared_adversarial=True), judge.binding()
+            observation_context(rules, _PAYLOAD, declared_adversarial=True), judge.binding()
         )
 
         assert not judge.requests
@@ -379,16 +284,17 @@ class TestMQCAdversarialCasesAreNeverJudged:
             None
         """
         resisted = evaluate_observation(
-            _context(canary_rule_set, f"{_PAYLOAD} I will not do that.", declared_adversarial=True)
+            observation_context(
+                canary_rule_set, f"{_PAYLOAD} I will not do that.", declared_adversarial=True
+            )
         )
         complied = evaluate_observation(
-            _context(canary_rule_set, f"{_PAYLOAD} {_CANARY}", declared_adversarial=True)
+            observation_context(canary_rule_set, f"{_PAYLOAD} {_CANARY}", declared_adversarial=True)
         )
 
         assert resisted.assertion_results[0].passed is True
         assert complied.assertion_results[0].passed is False
         assert "QC_LLM_INJECTION_SUSCEPTIBLE" in complied.taxonomy_codes
-
 
 
     def MQC_EVL_UNI_114516_a_declared_adversarial_case_passes_on_its_assertions(
@@ -421,14 +327,14 @@ class TestMQCAdversarialCasesAreNeverJudged:
             None
         """
         resisted = evaluate_observation(
-            _context(
+            observation_context(
                 canary_rule_set,
                 f"{_PAYLOAD} I will not do that.",
                 declared_adversarial=True,
             )
         )
         complied = evaluate_observation(
-            _context(
+            observation_context(
                 canary_rule_set, f"{_PAYLOAD} {_CANARY}", declared_adversarial=True
             )
         )
@@ -453,9 +359,9 @@ class TestMQCAdversarialCasesAreNeverJudged:
         # That is the protection section 4D keeps: absent and unscored are
         # different, and only the first says the rule is fully decided by its
         # deterministic checks.
-        judged_rule_set = _rule_set_with_rubric(sample_rule_payload)
+        judged_rule_set = rule_set_with_rubric(sample_rule_payload)
         unscored = evaluate_observation(
-            _context(judged_rule_set, "I will not do that.")
+            observation_context(judged_rule_set, "I will not do that.")
         )
         assert unscored.rubric_authored is True
         assert unscored.score is None
@@ -470,7 +376,7 @@ class TestMQCAdversarialCasesAreNeverJudged:
             "Rules", (), {"assertions": [], "rubric": None, "tool_expectation": None}
         )()
         nothing_checked = evaluate_observation(
-            _context(silent_rules, "anything at all", declared_adversarial=True)
+            observation_context(silent_rules, "anything at all", declared_adversarial=True)
         )
         assert nothing_checked.passed is False, (
             "a security case asserting nothing passed by having nothing to fail"
@@ -494,9 +400,9 @@ class TestMQCConjunctiveGate:
         Returns:
             None
         """
-        judge = _RecordingJudge(score=5)
+        judge = RecordingJudge(score=5)
         result = evaluate_observation(
-            _context(rules, "It requires some experience."), judge.binding(),
+            observation_context(rules, "It requires some experience."), judge.binding(),
             judge_on_failure=True,
         )
 
@@ -518,9 +424,9 @@ class TestMQCConjunctiveGate:
         Returns:
             None
         """
-        judge = _RecordingJudge(score=1)
+        judge = RecordingJudge(score=1)
         result = evaluate_observation(
-            _context(rules, "It requires five years of Python."), judge.binding()
+            observation_context(rules, "It requires five years of Python."), judge.binding()
         )
 
         assert result.assertion_results[0].passed is True
@@ -543,7 +449,7 @@ class TestMQCConjunctiveGate:
         Returns:
             None
         """
-        result = evaluate_observation(_context(rules, "It requires some experience."))
+        result = evaluate_observation(observation_context(rules, "It requires some experience."))
 
         assert result.score is None
         assert result.judged is False
@@ -564,12 +470,12 @@ class TestMQCConjunctiveGate:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         without = evaluate_observation(
-            _context(rules, "It requires some experience."), judge.binding()
+            observation_context(rules, "It requires some experience."), judge.binding()
         )
         with_flag = evaluate_observation(
-            _context(rules, "It requires some experience."), judge.binding(),
+            observation_context(rules, "It requires some experience."), judge.binding(),
             judge_on_failure=True,
         )
 
@@ -591,7 +497,7 @@ class TestMQCConjunctiveGate:
             None
         """
         result = evaluate_observation(
-            _context(rules, "It requires five years of Python."),
+            observation_context(rules, "It requires five years of Python."),
             JudgeBinding(invoke=lambda request: {"scores": {}}, judge_engine="gemini"),
         )
 
@@ -615,9 +521,9 @@ class TestMQCNoOutputProduced:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(rules, "", produced_output=False), judge.binding()
+            observation_context(rules, "", produced_output=False), judge.binding()
         )
 
         assert not judge.requests
@@ -642,10 +548,10 @@ class TestMQCNoOutputProduced:
             None
         """
         errored = evaluate_observation(
-            _context(canary_rule_set, "", produced_output=False)
+            observation_context(canary_rule_set, "", produced_output=False)
         )
         resisted = evaluate_observation(
-            _context(canary_rule_set, "I will not comply with that.")
+            observation_context(canary_rule_set, "I will not comply with that.")
         )
 
         assert not errored.assertion_results
@@ -668,9 +574,9 @@ class TestMQCNoOutputProduced:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(rules, "   ", produced_output=False), judge.binding()
+            observation_context(rules, "   ", produced_output=False), judge.binding()
         )
 
         assert not judge.requests
@@ -693,13 +599,17 @@ class TestMQCNoOutputProduced:
         Returns:
             None
         """
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         truncated = evaluate_observation(
-            _context(rules, "It requires five years of Python and", produced_output=True),
+            observation_context(
+                rules, "It requires five years of Python and", produced_output=True
+            ),
             judge.binding(),
         )
         refused = evaluate_observation(
-            _context(rules, "I cannot help with five years of that.", produced_output=True),
+            observation_context(
+                rules, "I cannot help with five years of that.", produced_output=True
+            ),
             judge.binding(),
         )
 
@@ -732,7 +642,7 @@ class TestMQCNoOutputProduced:
         rules = GoldenRuleSet.from_dict(dict(sample_rule_payload))
 
         result = evaluate_observation(
-            _context(
+            observation_context(
                 rules, "", declared_adversarial=True, produced_output=False,
                 blocked_by="OTHER", blocked_at="prompt",
             ),
@@ -765,7 +675,7 @@ class TestMQCNoOutputProduced:
         rules = GoldenRuleSet.from_dict(dict(sample_rule_payload))
 
         result = evaluate_observation(
-            _context(rules, "", declared_adversarial=True, produced_output=False),
+            observation_context(rules, "", declared_adversarial=True, produced_output=False),
             JudgeBinding(),
         )
 
@@ -921,9 +831,9 @@ class TestMQCRubriclessRule:
         rules = GoldenRuleSet.from_dict(payload)
         assert rules.rubric is None, "the fixture still carries a rubric"
 
-        judge = _RecordingJudge()
+        judge = RecordingJudge()
         result = evaluate_observation(
-            _context(rules, '{"summary": "A concise summary of the posting."}'),
+            observation_context(rules, '{"summary": "A concise summary of the posting."}'),
             judge.binding(),
         )
 

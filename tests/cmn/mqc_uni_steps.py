@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The numbered steps an observation passes through, and where it stopped.
+"""A graded case's steps, the phases beneath each, and where it stopped.
 
-Covers ``MQC_CMN_UNI_112336`` and ``112337``, inventoried in
+Covers ``MQC_CMN_UNI_112336``, ``112337`` and ``112388`` to ``112390``, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 12 and specified by
 ``docs/design/harness_test_taxonomy.md`` section 8.
 
@@ -21,21 +21,29 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCStepLedger
 #   112336  a_ledger_names_every_step_and_the_phase_it_stopped_at
 #   112337  a_rule_without_a_rubric_reports_its_judge_steps_inapplicable
+# TestMQCCaseSteps
+#   112388  an_observation_step_verifies_one_request
+#   112389  escalation_steps_not_taken_are_recorded_as_not_run
+#   112390  the_last_step_verifies_only_the_agreement
 # TestMQCCaseAnnouncement
 #   112347  a_case_announces_its_node_identifier_before_running
 # ------------------------------------------------------------ end of cases
 
-from types import SimpleNamespace
 from typing import Final
 
 import logging
 
 import pytest
 
+from cmn.observations import escalation_size
 from cmn.pytest_support import announce_test
-from cmn.steps import ledger, stopped_at, stopped_line, summary
+from cmn.steps import (
+    case_steps, ledger, observation_step, step_lines, stopped_at, stopped_line, summary,
+)
 
-from tests.cmn.steps_support import Announced, dispatched, evaluated
+from tests.cmn.steps_support import (
+    Announced, dispatched, evaluated, failed_check, mixed_observations, unmeasured,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -83,17 +91,7 @@ class TestMQCStepLedger:
 
         # AN ASSERTION THAT DID NOT HOLD: the verification fails and the judge
         # steps never run.
-        failed = ledger(dispatched(), evaluated(
-            assertion_results=[
-                SimpleNamespace(
-                    passed=False, assertion_id="A_ALPHA",
-                    detail="required substring absent",
-                    taxonomy_code="QC_LLM_SOURCE_ALTERATION",
-                )
-            ],
-            score=None,
-            judge_skipped_reason="assertions failed",
-        ))
+        failed = ledger(dispatched(), failed_check())
         halt = stopped_at(failed)
         assert halt is not None and halt.number == 5 and halt.phase == "VERIFY", (
             f"the stop is not reported at the verification of step 5: {halt}"
@@ -134,8 +132,13 @@ class TestMQCStepLedger:
             "a line omits the case identifier, so a collector cannot attribute "
             "it"
         )
-        assert all("STEP_" in line for line in lines[:_PHASES]), (
-            "a phase line carries no STEP_ name, so nothing parses it"
+        assert all("PHASE_" in line for line in lines[:_PHASES]), (
+            "a phase line carries no PHASE_ name, so nothing parses it"
+        )
+        # A PHASE IS NEVER CALLED A STEP, which is section 8.2.2: a step is a
+        # dispatch, and "STEP_05" naming a phase is what that section retired.
+        assert not any("STEP_" in line for line in lines), (
+            f"a pipeline phase is still labelled as a step: {lines[0]}"
         )
 
     def MQC_CMN_UNI_112337_a_rule_without_a_rubric_reports_its_judge_steps_inapplicable(
@@ -188,6 +191,154 @@ class TestMQCStepLedger:
         assert halt.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING", (
             f"the missing judgement does not name its code: {halt}"
         )
+
+
+class TestMQCCaseSteps:
+    """A graded case's steps are its dispatches, then one comparison."""
+
+    def MQC_CMN_UNI_112388_an_observation_step_verifies_one_request(self) -> None:
+        """One dispatch is one step: an action, one verification, its phases beneath.
+
+        Design: ``harness_test_taxonomy.md`` section 8.2.2.
+
+        Returns:
+            None
+        """
+        step = observation_step(2, dispatched(), evaluated())
+        assert step.number == 2, step
+        assert step.action.label.startswith("STEP_02_ACTION: "), step.action.label
+        assert step.verification.label.startswith("STEP_02_VERIFY: "), (
+            step.verification.label
+        )
+        assert (step.action.outcome, step.verification.outcome) == ("ok", "ok"), step
+
+        # THE PIPELINE PHASES SIT BENEATH THE STEP, dispatch under the action
+        # and evaluation under the verification, and none is called a step.
+        assert len(step.phases) == _PHASES, len(step.phases)
+        assert all(entry.label.startswith("PHASE_") for entry in step.phases), (
+            [entry.label for entry in step.phases]
+        )
+        assert [entry.number for entry in step.action_phases] == [1, 1, 2, 2, 3, 3]
+        assert {entry.number for entry in step.verification_phases} == {4, 5, 6, 7}
+
+        # A WRONG ANSWER FAILS THE VERIFICATION with the model's code, and the
+        # dispatch that produced it stands.
+        wrong = observation_step(1, dispatched(), failed_check())
+        assert wrong.action.outcome == "ok", wrong.action
+        assert wrong.verification.outcome == "failed", wrong.verification
+        assert wrong.verification.taxonomy_code == "QC_LLM_SOURCE_ALTERATION", (
+            wrong.verification
+        )
+        # AND THE STEP NAMES THE PHASE, never what the model wrote.
+        assert "PHASE_05_VERIFY" in wrong.verification.detail, wrong.verification
+        assert "required substring" not in wrong.verification.detail, (
+            "the step detail quotes the assertion's finding, which on a security "
+            "case is the model's own text"
+        )
+
+        # A DISPATCH THAT PRODUCED NOTHING FAILS THE ACTION, a harness event,
+        # and leaves the verification unrun rather than failed (section 8.1).
+        stale = observation_step(
+            1,
+            dispatched(taxonomy_code="QC_HARNESS_FIXTURE_STALE", response=None),
+            None,
+        )
+        assert stale.action.outcome == "failed", stale.action
+        assert stale.action.taxonomy_code == "QC_HARNESS_FIXTURE_STALE", stale.action
+        assert stale.verification.outcome == "not run", stale.verification
+        # AND IT SAYS WHY, rather than naming a phase nobody reached.
+        assert "PHASE_" not in stale.verification.detail, stale.verification
+        assert "no measurement" in stale.verification.detail, stale.verification
+
+        # ONE VERIFICATION LINE PER STEP, every line carrying the case.
+        lines = step_lines(_CASE, [wrong])
+        assert all(line.startswith(_CASE) for line in lines), lines
+        verifications = [line for line in lines if "STEP_" in line and "_VERIFY" in line]
+        assert len(verifications) == 1, verifications
+
+    def MQC_CMN_UNI_112389_escalation_steps_not_taken_are_recorded_as_not_run(
+        self,
+    ) -> None:
+        """Steps k+1 and k+2 appear whether or not the case escalated.
+
+        Design: ``harness_test_taxonomy.md`` section 8.2.2.
+
+        Returns:
+            None
+        """
+        size = escalation_size()
+        assert size == 2, size
+
+        # THREE AGREED, SO NOTHING WAS EARNED, and the two steps say so.
+        agreed = case_steps([(dispatched(), evaluated())] * 3, configured=3)
+        assert [step.number for step in agreed] == [1, 2, 3, 4, 5, 6], (
+            [step.number for step in agreed]
+        )
+        for step in agreed[3:5]:
+            assert (step.action.outcome, step.verification.outcome) == (
+                "not run", "not run"
+            ), step
+            assert "agreed" in step.action.detail, step.action
+            assert not step.phases, "a step that dispatched nothing carries phases"
+
+        # ONE FAILED, SO TWO WERE EARNED AND TAKEN, as observation steps.
+        mixed = mixed_observations()
+        escalated = case_steps(mixed, configured=3)
+        assert len(escalated) == 6, len(escalated)
+        for step in escalated[3:5]:
+            assert step.action.outcome == "ok", step.action
+            assert step.phases, "a taken escalation step carries no phases"
+
+        # EARNED AND NOT DISPATCHED is not agreement, and the record says which.
+        short = case_steps(mixed[:3], configured=3)
+        assert len(short) == 6, len(short)
+        assert short[3].action.outcome == "not run", short[3].action
+        assert "agreed" not in short[3].action.detail, short[3].action
+        assert "not dispatched" in short[3].action.detail, short[3].action
+
+    def MQC_CMN_UNI_112390_the_last_step_verifies_only_the_agreement(self) -> None:
+        """The comparison fails on disagreement alone and touches no request.
+
+        Design: ``harness_test_taxonomy.md`` section 8.2.2.
+
+        Returns:
+            None
+        """
+        agreed = case_steps([(dispatched(), evaluated())] * 3, configured=3)
+        last = agreed[-1]
+        assert last.action.label.startswith("STEP_06_ACTION: "), last.action.label
+        assert last.verification.outcome == "ok", last.verification
+        assert not last.phases, "the comparison step verifies a request"
+
+        # A DISAGREEMENT FAILS THE COMPARISON ONLY. The observation that failed
+        # keeps its own code and the others stay verified.
+        mixed = case_steps(mixed_observations(), configured=3)
+        assert mixed[-1].verification.outcome == "failed", mixed[-1].verification
+        assert mixed[-1].verification.taxonomy_code == "QC_LLM_INCONSISTENT", (
+            mixed[-1].verification
+        )
+        assert "4 of 5" in mixed[-1].verification.detail, mixed[-1].verification
+        assert [step.verification.outcome for step in mixed[:5]] == [
+            "ok", "failed", "ok", "ok", "ok"
+        ], [step.verification.outcome for step in mixed[:5]]
+        assert mixed[1].verification.taxonomy_code == "QC_LLM_SOURCE_ALTERATION"
+
+        # FAILING EVERY TIME IS AGREEMENT. The observation steps carry the
+        # failure; the comparison verifies only that they concur.
+        failing = case_steps([(dispatched(), failed_check())] * 5, configured=3)
+        assert failing[-1].verification.outcome == "ok", failing[-1].verification
+        assert all(step.verification.outcome == "failed" for step in failing[:5])
+
+        # AN OBSERVATION THAT MEASURED NOTHING IS NOT A DISAGREEMENT.
+        holed = case_steps(
+            [(dispatched(), evaluated()), (dispatched(), unmeasured())]
+            + [(dispatched(), evaluated())] * 3,
+            configured=3,
+        )
+        assert holed[1].verification.outcome == "not run", holed[1].verification
+        assert holed[-1].verification.outcome == "ok", holed[-1].verification
+        assert "4 measured" in holed[-1].verification.detail, holed[-1].verification
+
 
 
 class TestMQCCaseAnnouncement:

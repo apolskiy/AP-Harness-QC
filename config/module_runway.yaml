@@ -27,12 +27,6 @@ past_the_runway:
   cmn/verdict.py:
     reason: "The nine verdict rules and the soundness conditions, one subject. 991 lines when the rule was written on 2026-10-05"
     expires_on: 2026-12-31
-  ingestion/schemas.py:
-    reason: "Every ingested record's validator, one subject. 989 lines when the rule was written on 2026-10-05"
-    expires_on: 2026-12-31
-  tests/evaluation/mqc_uni_pipeline.py:
-    reason: "The evaluation order end to end. 907 lines when the rule was written on 2026-10-05"
-    expires_on: 2026-12-31
   tests/execution/mqc_uni_dispatch.py:
     reason: "Dispatch, pacing and the spend ceiling. 917 lines when the rule was written on 2026-10-05"
     expires_on: 2026-12-31

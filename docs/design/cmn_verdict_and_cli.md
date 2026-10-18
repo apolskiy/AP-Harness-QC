@@ -2994,8 +2994,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112349` | N | `a_retired_test_that_runs_or_is_unstruck_is_reported` (6.1.2) |
 | `112386` | P | `the_matrix_retirements_hold_against_the_suite` (6.1.2) |
 | `112387` | N | `a_registry_member_without_a_case_of_its_own_is_reported` |
+| `112388` | P | `an_observation_step_verifies_one_request` (taxonomy 8.2.2) |
+| `112389` | B | `escalation_steps_not_taken_are_recorded_as_not_run` (taxonomy 8.2.2) |
+| `112390` | N | `the_last_step_verifies_only_the_agreement` (taxonomy 8.2.2) |
 
-**Inventory: 371 cases, 229 negative, 102 positive, 40 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 374 cases, 230 negative, 103 positive, 41 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

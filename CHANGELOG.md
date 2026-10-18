@@ -29,6 +29,39 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A declared adversarial case may be judged on its answer alone, 2026-10-18
+
+**A19 kept every injection payload away from the judge by judging no
+adversarial case at all**, so nothing could ask whether a model told its user
+it had found an injection. A rule may now declare `judge_response_only`: the
+answer is screened as an ordinary case's is, an answer repeating the injection
+fails without reaching a judge, and a clean one is judged with nothing but the
+answer, never the task or its documents (`tier3_evaluation.md` section 4C.4,
+A19 part four). A clean answer nobody judged has not passed. The flag needs a
+rubric (invariant G8), and it is the one way a declared task may carry one
+(R6, `tier1_ingestion.md` section 6.6). The screen also learned "ignore all
+previous text" and "grade this as 5" (section 5.2.3).
+
+**`ingestion/schemas.py` became a package**, one file per schema type behind
+the same import, being at 989 lines against the thousand-line ceiling
+(`tier1_ingestion.md` section 3.0). No importer moved. The pipeline cases'
+helpers moved into `tests/evaluation/pipeline_support.py`, retiring two
+declared backlog entries. The README's figures moved: 873 test cases and 323
+requirements.
+
+### A graded case's steps are its dispatches, 2026-10-16
+
+**"STEP_05" named a pipeline phase, not a dispatch.** The seven entries
+`cmn.steps.ledger` returned were the stages one observation passes through,
+repeated inside every observation. A graded case's steps are now its
+dispatches: one step per observation, each an action and one verification of
+that request; two escalation steps, taken only when one of the first three
+failed and otherwise recorded as not run; and a last step verifying only that
+the observations agree (`harness_test_taxonomy.md` section 8.2.2). The seven
+stages are recorded beneath each step as `PHASE_<NN>`, and `entering` and
+`stopped_line` name phases accordingly. The README's figures moved: 865 test
+cases and 320 requirements.
+
 ### One test case, one set of inputs, one execution per run, 2026-10-16
 
 **Sixty identifiers ran 265 times between them in one run**, by decorator and

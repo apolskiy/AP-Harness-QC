@@ -45,8 +45,9 @@ The `test_` prefix is prohibited at every level. A `test_`-named artifact is a l
 Decided 2026-10-16 by the project owner, after a session report gave the
 harness as "648 cases, 847 executions".
 
-**A test case is preconditions and then numbered steps, each step an action and
-one verification**, and it tests one set of inputs. Two sets of inputs are two
+**A test case may have preconditions, and has numbered steps, each step an
+action and one verification** (section 8, the same in both repositories), and
+it tests one set of inputs. Two sets of inputs are two
 test cases, whether or not they call the same support function: the API was
 moved out of the case modules so that cases share functions, never identities.
 
@@ -1455,6 +1456,76 @@ having stopped short.
 **Allure stays out of the harness.** The harness computes the ledger and the
 case repository records it, which is the same boundary the cases owning no
 harness code already draws.
+
+### 8.2.2 A graded case's steps are its dispatches, each verifying one request
+
+Decided 2026-10-16 by the project owner: each dispatch in a graded case is a
+step of its own, steps 4 and 5 run only if one of the first three fails, and no
+step verifies more than one request.
+
+**What section 8.2.1 built numbered phases, not steps.** Its seven entries are
+the pipeline one observation passes through, repeated inside every
+observation, so a case of three observations logged STEP_01 to STEP_07 three
+times and "STEP_05" named a pipeline phase rather than a dispatch.
+
+| Step | ACTION | VERIFY | Runs |
+|---|---|---|---|
+| 1 to *k* | Dispatch observation *n*: form, send and ingest | Observation *n* met the rule: screen, assertions and judgement | Always; *k* is the configured count, 3 by default |
+| *k*+1 to *k*+2 | Dispatch the escalation observation | It met the rule | **Only when one of steps 1 to *k* failed**, by `cmn.observations.further_observations`. Otherwise recorded as not run, the first *k* having agreed |
+| *k*+3 | Compare every observation taken | They agree | Always, as the last step |
+
+**One verification per step, against one request.** An observation's step
+verifies that observation alone; the comparison is a step of its own and
+verifies only the agreement, which is the consistency finding
+(`QC_LLM_INCONSISTENT`). A case passes only when every observation step and the
+comparison verified.
+
+**The two phases keep their meaning** (section 8.1). An ACTION that fails is a
+dispatch that produced no measurement, a `QC_HARNESS_*` event and a skip; a
+VERIFY that fails is a model that answered and answered wrongly.
+
+**The pipeline phases survive inside each step.** Form, send, ingest, screen,
+check, judge send and judge receive are recorded beneath their observation's
+step as `PHASE_<NN>_<ACTION|VERIFY>`, so a stop or a crash still names where it
+happened, and "STEP" is never a phase again.
+
+**Escalation steps that did not run are still recorded**, carrying why, because
+a reader counting steps must see that the case was not escalated rather than
+infer it from an absence.
+
+**Implemented in `cmn.steps`.** `observation_step` builds one dispatch's step
+from the phase ledger, `consistency_step` the comparison, and `case_steps` the
+whole case, deciding the escalation steps by `further_observations` and its
+size by `cmn.observations.escalation_size`. `step_lines` writes each phase
+beneath its half. `MQC_CMN_UNI_112388` to `112390` assert it, each verified by
+injection.
+
+**A step's detail names the phase it stopped at and never that phase's
+detail**, because an assertion's detail quotes the model and a security case
+prints its steps.
+
+**The ungraded cases are a separate question**, recorded in section 8.2.3.
+
+### 8.2.3 Every case, in both repositories, by the same rule
+
+**This is section 8's rule, stated long before section 8.2.2, and it was always
+the same for both repositories.** A test case may have preconditions and has
+steps; every step is an action and its verification, so an action without a
+verification is not a step. **A case's preconditions are optional; its steps
+are not.**
+
+**Graded cases carry it from section 8.2.2. The ungraded cases of both
+repositories do not**: the harness's 835 `UNI` and 24 `SYS` cases and the
+Model Repository's precondition cases have steps that are the statements of a
+test body and verifications that are its assertions, recorded nowhere as
+steps. The gap is the same in both, so the remedy is one design for both, and
+it is a change to every such case rather than to one mechanism.
+
+**Two senses of "precondition" meet here and are kept apart.** The `UNI` and
+`SYS` layers are precondition layers of a run: they must pass before anything
+graded executes (`framework-rules.md` section 3.1). A case's preconditions are
+what that one case needs to hold before its first step, and a case may have
+none.
 
 ### 8.3 It reaches the durable record for free
 

@@ -47,6 +47,26 @@ The same tool appears in both, and that is correct rather than duplication: test
 
 All schemas are `@dataclass(frozen=True)` with a `from_dict` classmethod. Frozen because an ingested record is evidence, not working state.
 
+### 3.0 One file per schema type, behind one import
+
+Split 2026-10-18 at the project owner's instruction. `ingestion/schemas.py` held
+every record at 989 lines against the thousand-line ceiling, so a field added
+to `GoldenRuleSet` had nowhere to go. It is now a package, divided along the
+boundary section 1 already draws:
+
+| File | Holds |
+|---|---|
+| `ingestion/schemas/fields.py` | The validation every record shares: normalising text, refusing unknown keys, requiring fields, coercing numbers, safe identifiers |
+| `ingestion/schemas/task.py` | What you send: `Constraint`, `ContextDocument`, `ToolDefinition`, `TaskDataSet` |
+| `ingestion/schemas/rubric.py` | The judged half: `Anchor`, `RubricCriterion`, `Rubric` |
+| `ingestion/schemas/rules.py` | How you judge: `ProgrammaticAssertion`, `ToolExpectation`, `GoldenRuleSet` |
+| `ingestion/schemas/case.py` | The join: `EvaluationCase` |
+
+**`from ingestion.schemas import ...` is unchanged.** The package's `__init__`
+re-exports every public name, so neither repository's importers move, and the
+consumer pins the harness rather than tracking its file layout. No behaviour
+changed; the whole suite is the check.
+
 ### 3.1 `TaskDataSet`
 
 | Field | Type | Required | Default | Notes |
@@ -102,10 +122,13 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 | `requirement_ids` | `list[str]` | | `[]` | RTM traceability; emitted to result metadata |
 | `vectors` | `dict[str, bool]` | | `{}` | Attack vectors the payload carries, set and unset. Security rules only |
 | `primary` | `Optional[str]` | | `None` | Which declared vector the case is about |
+| `judge_response_only` | `bool` | | `False` | A declared adversarial case judged on its answer alone once the answer screens clean (`tier3_evaluation.md` section 4C.4). Requires a rubric. See G8 |
 
 **Invariant G1:** at least one of `assertions`, `rubric`, `tool_expectation` must be present. A rule set that judges nothing is a silent no-op reporting green.
 
 **Invariant G7, added 2026-10-01:** where `primary` is present it names a key of `vectors` whose value is true. A rule declaring an intent it does not declare as a carried vector states two different things about itself.
+
+**Invariant G8, added 2026-10-18:** `judge_response_only` true requires a `rubric`. The flag says how a rule is judged, so a rule carrying nothing to judge with states something about itself that cannot happen. `MQC_ING_UNI_111350` holds it.
 
 **`vectors` is a mapping and not a list**, which is the project owner's shape and buys two things. A vector explicitly `false` records that somebody considered it, where absence from a list records nothing. And only the true entries need carrying into a log or an artifact, so the record is the size of what is true rather than the size of the registry. `AP-Model-QC` `model_evaluation_test_plan.md` section 9.10.3.1 carries the decision and what it cost to reach.
 
@@ -446,7 +469,13 @@ red.
 |---|---|---|
 | Adversarial | No | Fine. Graded by assertion, which is the design |
 | Adversarial | **Yes** | **`QC_DATA_INVARIANT_VIOLATION`. The rubric is dead** |
+| Adversarial | Yes, and the rule declares `judge_response_only` | Fine since 2026-10-18. The answer is judged alone once it screens clean (`tier3_evaluation.md` section 4C.4), so the rubric is live |
 | Not adversarial | Either | Fine. The judge runs or the rule is deterministic |
+
+**The exception is narrow by construction.** A rubric on a declared case is
+live only when the rule says how it reaches a judge without the payload, and
+`judge_response_only` is the one way that exists. `111351` holds that the
+flagged pair loads and the unflagged pair is still refused.
 
 **It is an ingest check rather than a Tier 3 one** because it needs both halves
 of the join: whether the task declares a payload and whether the rule authors a
@@ -927,6 +956,8 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111112` | P | `a_finding_names_its_task_field_vector_and_excerpt` |
 | `111329` | P | `count_and_ordering_are_registered_constraint_kinds` |
 | `111330` | N | `a_declared_adversarial_task_with_a_rubric_is_refused` |
+| `111350` | N | `a_response_only_rule_without_a_rubric_is_refused` (3.5, G8) |
+| `111351` | B | `a_declared_task_with_a_response_only_rubric_loads` (6.6) |
 | `111331` | N | `a_rule_set_naming_an_unregistered_family_is_reported` |
 
 ### 13.2 `MQC_ING_SYS_`: integration
@@ -998,7 +1029,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 115 cases, 55 negative, 37 positive, 23 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 117 cases, 56 negative, 37 positive, 24 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

@@ -1,11 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The numbered steps a graded observation passes through, and where it stopped.
+"""A graded case's steps, the pipeline phases beneath each, and where it stopped.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` section 8, which has carried this
-since the project began and which nothing implemented: a step is a verifiable
-action and a verification, logged apart, because a step can fail in either
-phase and the two are different diagnoses.
+Specified by ``docs/design/harness_test_taxonomy.md`` section 8: a step is a
+verifiable action and one verification, logged apart, because a step can fail
+in either and the two are different diagnoses.
+
+**A step is a dispatch** (section 8.2.2). Steps 1 to *k* are the configured
+observations, the next two the escalation, taken only when one of the first
+*k* failed and otherwise recorded as not run, and the last compares them. The
+seven pipeline phases one observation passes through are recorded beneath its
+step as ``PHASE_<NN>_<ACTION|VERIFY>``.
 
 | Phase | Failure means | Family | Outcome |
 |---|---|---|---|
@@ -25,12 +30,14 @@ also why it can be applied to a result that was produced before it existed.
 import logging
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Final, Iterator, Optional
+from typing import Any, Final, Iterator, Optional, Sequence
+
+from cmn.observations import escalation_size, further_observations
 
 logger = logging.getLogger(__name__)
 
-# WHAT EACH STEP DOES AND WHAT IT ASSERTS. The pair is the unit: section 8.2
-# requires both names, and a step declaring only an action is a step nobody
+# WHAT EACH PHASE DOES AND WHAT IT ASSERTS. The pair is the unit: section 8.2
+# requires both names, and a phase declaring only an action is one nobody
 # verified.
 _STEPS: Final[tuple[tuple[str, str], ...]] = (
     ("form the request",
@@ -61,18 +68,30 @@ _NOT_RUN: Final[str] = "not run"
 # twenty-one rules as having halted early.
 _NOT_APPLICABLE: Final[str] = "not applicable"
 
+# WHAT A LABEL NAMES. A step is a dispatch or the comparison; a phase is one
+# stage of the pipeline inside an observation's step (section 8.2.2).
+_STEP: Final[str] = "STEP"
+_PHASE: Final[str] = "PHASE"
+
+# THE LAST DISPATCH PHASE. Phases 1 to 3 form, send and ingest, and sit under
+# an observation step's action; 4 to 7 sit under its verification.
+_LAST_DISPATCH_PHASE: Final[int] = 3
+
+_INCONSISTENT: Final[str] = "QC_LLM_INCONSISTENT"
+
 
 @dataclass(frozen=True)
 class StepOutcome:
-    """One phase of one numbered step.
+    """One phase, ACTION or VERIFY, of a step or of a pipeline phase.
 
     Attributes:
-        number (int): The step's position, from 1 within the case.
+        number (int): The position, from 1 within the case or the observation.
         phase (str): ``ACTION`` or ``VERIFY``.
         name (str): What is performed, or what is asserted.
-        outcome (str): ``ok``, ``failed`` or ``not run``.
+        outcome (str): ``ok``, ``failed``, ``not run`` or ``not applicable``.
         detail (str): What was found, empty where there is nothing to add.
         taxonomy_code (str): The code this phase emitted, empty where none.
+        prefix (str): ``PHASE`` for a pipeline phase, ``STEP`` for a step.
     """
 
     number: int
@@ -81,15 +100,16 @@ class StepOutcome:
     outcome: str
     detail: str = ""
     taxonomy_code: str = ""
+    prefix: str = _PHASE
 
     @property
     def label(self) -> str:
         """Return the name section 8.2 requires, parseable mechanically.
 
         Returns:
-            str: ``STEP_<NN>_<PHASE>: <name>``.
+            str: ``<PREFIX>_<NN>_<PHASE>: <name>``.
         """
-        return f"STEP_{self.number:02d}_{self.phase}: {self.name}"
+        return f"{self.prefix}_{self.number:02d}_{self.phase}: {self.name}"
 
     @property
     def line(self) -> str:
@@ -120,7 +140,7 @@ def entering(case_id: str, number: int, phase: str, detail: str = "") -> Iterato
     records nothing about where the run was. This writes the location first.
 
     **What it buys is time to repair.** "Something failed in this case" sends a
-    reader to the whole pipeline; "it was inside STEP_02_ACTION: send the
+    reader to the whole pipeline; "it was inside PHASE_02_ACTION: send the
     request" sends them to one call.
 
     Args:
@@ -137,7 +157,7 @@ def entering(case_id: str, number: int, phase: str, detail: str = "") -> Iterato
             location is logged. **Nothing is swallowed**: this records where a
             failure happened and never decides what it means.
     """
-    label = f"STEP_{number:02d}_{phase}"
+    label = f"{_PHASE}_{number:02d}_{phase}"
     opening = f"{case_id} | {label} | entering"
     logger.info("%s", f"{opening} | {detail}" if detail else opening)
     try:
@@ -223,7 +243,7 @@ def stopped_line(entries: list[StepOutcome]) -> str:
         if unrun else ""
     )
     return (
-        f"stopped at STEP_{halt.number:02d}_{halt.phase} "
+        f"stopped at {halt.prefix}_{halt.number:02d}_{halt.phase} "
         f"({halt.outcome}{code}){tail}"
     )
 
@@ -263,6 +283,222 @@ def summary(case_id: str, entries: list[StepOutcome]) -> list[str]:
         )
     )
     return lines
+
+
+@dataclass(frozen=True)
+class CaseStep:
+    """One step of a graded case: an action, one verification, its phases.
+
+    Attributes:
+        number (int): The step's position, from 1 within the case.
+        action (StepOutcome): What was performed.
+        verification (StepOutcome): The one thing verified.
+        phases (tuple): The pipeline phases beneath an observation step, empty
+            for a step that dispatched nothing.
+    """
+
+    number: int
+    action: StepOutcome
+    verification: StepOutcome
+    phases: tuple[StepOutcome, ...] = ()
+
+    @property
+    def action_phases(self) -> tuple[StepOutcome, ...]:
+        """Return the phases beneath the action: form, send and ingest.
+
+        Returns:
+            tuple: Phases 1 to 3, both halves of each.
+        """
+        return tuple(
+            entry for entry in self.phases if entry.number <= _LAST_DISPATCH_PHASE
+        )
+
+    @property
+    def verification_phases(self) -> tuple[StepOutcome, ...]:
+        """Return the phases beneath the verification: screen, check and judge.
+
+        Returns:
+            tuple: Phases 4 to 7, both halves of each.
+        """
+        return tuple(
+            entry for entry in self.phases if entry.number > _LAST_DISPATCH_PHASE
+        )
+
+
+def observation_step(number: int, outcome: Any, result: Any) -> CaseStep:
+    """Return the step one dispatch is, verifying that request alone.
+
+    Args:
+        number (int): The step number, which is the observation's, from 1.
+        outcome (Any): The ``DispatchOutcome``, or None.
+        result (Any): The ``EvaluationResult``, or None.
+
+    Returns:
+        CaseStep: The ACTION reads phases 1 to 3 and the VERIFY phases 4 to 7.
+        **A failed action leaves the verification not run**, a dispatch that
+        measured nothing having nothing to verify (section 8.1). A step's
+        detail names the phase it stopped at and never a phase's detail, which
+        for an assertion quotes the model.
+    """
+    phases = tuple(ledger(outcome, result))
+    action = StepOutcome(
+        number, _ACTION, f"dispatch observation {number}: form, send and ingest",
+        *_halted([entry for entry in phases if entry.number <= _LAST_DISPATCH_PHASE]),
+        prefix=_STEP,
+    )
+    verify_name = f"observation {number} met the rule: screen, assertions and judgement"
+    if action.outcome != _REACHED:
+        verification = StepOutcome(
+            number, _VERIFY, verify_name, _NOT_RUN,
+            "the dispatch produced no measurement", "", _STEP,
+        )
+    else:
+        verification = StepOutcome(
+            number, _VERIFY, verify_name,
+            *_halted([entry for entry in phases if entry.number > _LAST_DISPATCH_PHASE]),
+            prefix=_STEP,
+        )
+    return CaseStep(number, action, verification, phases)
+
+
+def consistency_step(number: int, outcomes: Sequence[Optional[bool]]) -> CaseStep:
+    """Return the last step, verifying only that the observations agree.
+
+    Args:
+        number (int): The step number, the last in the case.
+        outcomes (Sequence): Each observation's result in order: True passed,
+            False failed, None measured nothing.
+
+    Returns:
+        CaseStep: A VERIFY that fails with ``QC_LLM_INCONSISTENT`` when the
+        measured observations differ, and passes when they concur, **failing
+        every time included**: the observation steps carry that failure.
+        Unmeasured observations are left out; with none measured the
+        verification is not run.
+    """
+    measured = [value for value in outcomes if value is not None]
+    action = StepOutcome(
+        number, _ACTION, "compare every observation taken", _REACHED,
+        f"{len(outcomes)} observation(s), {len(measured)} measured", "", _STEP,
+    )
+    name = "the observations agree"
+    if not measured:
+        state, detail, code = _NOT_RUN, "no observation produced a measurement", ""
+    elif len(set(measured)) == 1:
+        state, detail, code = _REACHED, f"{len(measured)} measured observation(s) agree", ""
+    else:
+        state, detail, code = (
+            _FAILED,
+            f"{sum(measured)} of {len(measured)} measured observations passed",
+            _INCONSISTENT,
+        )
+    return CaseStep(
+        number, action, StepOutcome(number, _VERIFY, name, state, detail, code, _STEP)
+    )
+
+
+def case_steps(
+    observations: Sequence[tuple[Any, Any]], *, configured: int
+) -> list[CaseStep]:
+    """Return every step of a graded case, in order.
+
+    Args:
+        observations (Sequence): Each observation's dispatch outcome and
+            evaluation result, in the order taken.
+        configured (int): How many observations the run takes before any
+            escalation, *k* in section 8.2.2.
+
+    Returns:
+        list[CaseStep]: Steps 1 to *k*, the escalation steps, then the
+        comparison. **An escalation step not taken is recorded as not run**,
+        saying whether it was not earned or earned and not dispatched; the
+        rule deciding which is :func:`cmn.observations.further_observations`.
+    """
+    steps = [
+        observation_step(number, outcome, result)
+        for number, (outcome, result) in enumerate(observations, start=1)
+    ]
+    earned = further_observations(
+        [step.verification.outcome == _REACHED for step in steps[:configured]]
+    )
+    reason = (
+        f"{earned} further observation(s) earned and not dispatched"
+        if earned
+        else f"not earned, the first {configured} observation(s) having agreed"
+    )
+    missing = escalation_size() - max(0, len(steps) - configured)
+    for _ in range(max(0, missing)):
+        number = len(steps) + 1
+        steps.append(CaseStep(
+            number,
+            StepOutcome(
+                number, _ACTION, "dispatch the escalation observation", _NOT_RUN,
+                reason, "", _STEP,
+            ),
+            StepOutcome(number, _VERIFY, "it met the rule", _NOT_RUN, reason, "", _STEP),
+        ))
+    outcomes = [
+        _measured_outcome(step.verification.outcome)
+        for step in steps if step.phases
+    ]
+    steps.append(consistency_step(len(steps) + 1, outcomes))
+    return steps
+
+
+def step_lines(case_id: str, steps: Sequence[CaseStep]) -> list[str]:
+    """Return the log lines for a case's steps, each phase beneath its half.
+
+    Args:
+        case_id (str): Which case, carried on every line per section 8.2.
+        steps (Sequence): The steps.
+
+    Returns:
+        list[str]: Per step, its ACTION line, the dispatch phases, its VERIFY
+        line, then the evaluation phases.
+    """
+    lines: list[str] = []
+    for step in steps:
+        lines.append(f"{case_id} | {step.action.line}")
+        lines += [f"{case_id} |   {entry.line}" for entry in step.action_phases]
+        lines.append(f"{case_id} | {step.verification.line}")
+        lines += [f"{case_id} |   {entry.line}" for entry in step.verification_phases]
+    return lines
+
+
+def _halted(entries: list[StepOutcome]) -> tuple[str, str, str]:
+    """Return a step half's state from the phases beneath it.
+
+    Args:
+        entries (list): The phases, in order.
+
+    Returns:
+        tuple: The first failed or unrun phase's state, a detail naming that
+        phase, and its code; ``ok`` where every phase ran or did not apply.
+    """
+    halt = stopped_at(entries)
+    if halt is None:
+        return _REACHED, "", ""
+    return (
+        halt.outcome,
+        f"stopped at {halt.prefix}_{halt.number:02d}_{halt.phase}",
+        halt.taxonomy_code,
+    )
+
+
+def _measured_outcome(state: str) -> Optional[bool]:
+    """Return an observation's result as the comparison reads it.
+
+    Args:
+        state (str): The observation step's verification outcome.
+
+    Returns:
+        Optional[bool]: True verified, False failed, None measured nothing.
+    """
+    if state == _REACHED:
+        return True
+    if state == _FAILED:
+        return False
+    return None
 
 
 # ONE HANDLER PER STEP, keyed by number. A single function reading all seven

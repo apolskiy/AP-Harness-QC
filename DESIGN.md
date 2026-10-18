@@ -50,7 +50,8 @@ Tier 3 never receives `priority`, so it is structurally incapable of producing a
 
 ```
 ingestion/                    ING: files to validated, typed objects. No network
-  schemas.py                  Frozen dataclasses; from_dict with strict key checking
+  schemas/                    Frozen dataclasses; from_dict with strict key checking,
+                              one file per schema type behind one import
   loaders.py                  CSV and YAML readers. No type inference, blank is not null
   integrity.py                The five cross-schema checks, R1 to R5
   screening.py                Boundary injection screen, unless declared adversarial
@@ -227,11 +228,11 @@ Read these before any other document; the rest assume them.
 
 | Document | Covers | Status |
 |---|---|---|
-| `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 115 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 371 cases | **Implemented** |
+| `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 117 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 374 cases | **Implemented** |
 | `docs/design/harness_ci_pipeline.md` | The eight workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 212 cases | **Implemented** |
-| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 164 cases | **Implemented** |
+| `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 170 cases | **Implemented** |
 
 `harness_ci_pipeline.md` is the one entry here that specifies no module. It describes how the four modules are executed rather than what any of them does, and it sits in this table because a reader looking for specifications should find all of them in one place.
 
@@ -447,7 +448,7 @@ exactly as much as overstating it**.
 | Phase 2 | **Complete.** Four module designs, two test plans and two matrices |
 | Phase 3 | **Underway.** The design is implemented, the corpus is authored, and **every graded case is recorded live against all four engines**: gemini, openai, claude and grok, re-recorded on 2026-10-15 |
 | Implementation code | 67 modules, roughly 23,700 lines across `ingestion/`, `execution/`, `evaluation/` and `cmn/` |
-| Harness test cases | **862**: 832 precondition (`UNI`), 24 system (`SYS`) and 6 mutation audits (`MUT`), across `ING`, `EXE`, `EVL` and `CMN`. Each executes once per run, so a precondition run is 856 executions, all passing (`harness_test_taxonomy.md` section 1.1) |
+| Harness test cases | **873**: 843 precondition (`UNI`), 24 system (`SYS`) and 6 mutation audits (`MUT`), across `ING`, `EXE`, `EVL` and `CMN`. Each executes once per run, so a precondition run is 867 executions, all passing (`harness_test_taxonomy.md` section 1.1) |
 | Case-repository preconditions | **130** (`CAS_UNI`), guarding the corpus, the excerpts, the pin, the findings registers and the ticket pages |
 | Model evaluation cases | **74, inventory and suite agreeing**: 45 `EVAL`, 8 `TOOL`, 21 `SEC` |
 | Requirements traced | 315 harness, 146 model, both directions checked by `MQC_CMN_UNI_112313`, and each requirement read the same in its plan and its matrix by `112382`. **These two figures are checked by nothing here**; `112323` checks the README's equivalents |

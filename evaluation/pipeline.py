@@ -242,6 +242,20 @@ class _Progress:
 
 
 
+def _response_only(rules: Any) -> bool:
+    """Return whether a rule is judged on its answer alone.
+
+    Design: ``tier3_evaluation.md`` section 4C.4.
+
+    Args:
+        rules (Any): The evaluation-relevant subset of the rule set.
+
+    Returns:
+        bool: The rule's ``judge_response_only``, False where it carries none.
+    """
+    return bool(getattr(rules, "judge_response_only", False))
+
+
 def _declared_checks(rules: Any) -> tuple[bool, bool]:
     """Return what the rule set declared, for the verdict to read.
 
@@ -291,11 +305,16 @@ def evaluate_observation(
     """
     bound = binding or JudgeBinding()
     declared, rubric_authored = _declared_checks(context.rules)
+    # A RULE JUDGED ON ITS ANSWER ALONE is screened as an ordinary case: an
+    # answer repeating the injection aborts and fails, so it never reaches the
+    # judge (section 4C.4).
     progress = _Progress(
         screen=screen_response(
             context.case_id,
             context.material.candidate_output,
-            declared_adversarial=context.declared_adversarial,
+            declared_adversarial=(
+                context.declared_adversarial and not _response_only(context.rules)
+            ),
         )
     )
     if progress.screen.taxonomy_code is not None:
@@ -413,9 +432,10 @@ def _judge_skip_reason(
     Returns:
         Optional[str]: The reason to record, or ``None`` when the judge runs.
     """
-    if context.declared_adversarial:
+    if context.declared_adversarial and not _response_only(context.rules):
         # A19: the exposure is removed rather than mitigated. No judge is
-        # invoked, so no payload reaches one.
+        # invoked, so no payload reaches one. A rule judged on its answer
+        # alone sends only an answer the screen passed (section 4C.4).
         return DECLARED_ADVERSARIAL
     if has_fatal_failure(results):
         # Never judged, flag or not. There is nothing coherent to score and the
@@ -458,8 +478,14 @@ def _judge_and_aggregate(
     """
     declared, rubric_authored = _declared_checks(context.rules)
     rubric = context.rules.rubric
+    # THE ANSWER ALONE for a rule judged on it: the task and its documents are
+    # where a declared payload lives, so they are withheld (section 4C.4).
+    material = (
+        UnauthoredMaterial(candidate_output=context.material.candidate_output)
+        if _response_only(context.rules) else context.material
+    )
     request = compose_judge_request(
-        context.case_id, rubric, context.material,
+        context.case_id, rubric, material,
         observation_index=context.observation_index,
     )
 

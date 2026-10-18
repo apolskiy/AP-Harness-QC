@@ -194,7 +194,11 @@ def _check_adversarial_has_no_rubric(
         list[str]: One violation when a declared task pairs with a rubric,
         empty otherwise.
     """
+    # A RULE JUDGED ON ITS ANSWER ALONE keeps its rubric live: the answer
+    # reaches a judge once it screens clean (tier1_ingestion.md section 6.6).
     if not task.contains_adversarial_content or rule.rubric is None:
+        return []
+    if rule.judge_response_only:
         return []
     logger.error(
         "QC_DATA_INVARIANT_VIOLATION %s declares adversarial content and %s "

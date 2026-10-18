@@ -59,6 +59,50 @@ def evaluated(**overrides: Any) -> SimpleNamespace:
     return SimpleNamespace(**fields)
 
 
+def failed_check() -> SimpleNamespace:
+    """Return an evaluation result whose one assertion did not hold.
+
+    Returns:
+        SimpleNamespace: The result, unjudged because the assertion failed.
+    """
+    return evaluated(
+        assertion_results=[
+            SimpleNamespace(
+                passed=False, assertion_id="A_ALPHA",
+                detail="required substring absent",
+                taxonomy_code="QC_LLM_SOURCE_ALTERATION",
+            )
+        ],
+        score=None,
+        judge_skipped_reason="assertions failed",
+    )
+
+
+def unmeasured() -> SimpleNamespace:
+    """Return an evaluation result whose judgement was never recorded.
+
+    Returns:
+        SimpleNamespace: The result, carrying the fixture code.
+    """
+    return evaluated(
+        score=None,
+        judge_skipped_reason="judgement_unavailable",
+        taxonomy_codes=["QC_HARNESS_FIXTURE_MISSING"],
+    )
+
+
+def mixed_observations() -> list[tuple[SimpleNamespace, SimpleNamespace]]:
+    """Return five observations, the second failing.
+
+    Returns:
+        list: Dispatch outcome and evaluation result pairs.
+    """
+    return (
+        [(dispatched(), evaluated()), (dispatched(), failed_check())]
+        + [(dispatched(), evaluated())] * 3
+    )
+
+
 class Announced:
     """An item carrying only the identifier the announcement reads."""
 

@@ -60,6 +60,8 @@ JUnit file resolves back to the inventory row without a lookup table.
 #   111329  count_and_ordering_are_registered_constraint_kinds
 # TestMQCAdversarialRubric
 #   111330  a_declared_adversarial_task_with_a_rubric_is_refused
+#   111350  a_response_only_rule_without_a_rubric_is_refused
+#   111351  a_declared_task_with_a_response_only_rubric_loads
 # ------------------------------------------------------------ end of cases
 
 from typing import Any
@@ -815,3 +817,66 @@ class TestMQCAdversarialRubric:
         deterministic = GoldenRuleSet.from_dict(deterministic_payload)
         assert deterministic.rubric is None
         check_referential_integrity([adversarial], [deterministic])
+
+    def MQC_ING_UNI_111350_a_response_only_rule_without_a_rubric_is_refused(
+        self, sample_rule_payload: dict[str, Any]
+    ) -> None:
+        """A rule declaring how it is judged carries something to judge with.
+
+        Design: ``tier1_ingestion.md`` section 3.5, invariant G8.
+
+        Args:
+            sample_rule_payload (dict): Minimal valid rule payload, carrying a
+                rubric.
+
+        Returns:
+            None
+        """
+        flagged = {**sample_rule_payload, "judge_response_only": True}
+        assert GoldenRuleSet.from_dict(flagged).judge_response_only is True
+
+        rubricless = dict(flagged)
+        rubricless.pop("rubric", None)
+        rubricless["assertions"] = [
+            {
+                "assertion_id": "MQC_ASR_probe",
+                "kind": "not_contains",
+                "parameters": {"value": "MQC-CANARY"},
+                "taxonomy_code": "QC_LLM_INJECTION_SUSCEPTIBLE",
+                "severity": "violation",
+            }
+        ]
+        with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION") as raised:
+            GoldenRuleSet.from_dict(rubricless)
+        assert "judge_response_only" in str(raised.value), str(raised.value)
+
+    def MQC_ING_UNI_111351_a_declared_task_with_a_response_only_rubric_loads(
+        self,
+        sample_task_payload: dict[str, Any],
+        sample_rule_payload: dict[str, Any],
+    ) -> None:
+        """R6 admits a rubric on a declared task only when the rule judges the answer alone.
+
+        Design: ``tier1_ingestion.md`` section 6.6.
+
+        Args:
+            sample_task_payload (dict): Minimal valid task payload.
+            sample_rule_payload (dict): Minimal valid rule payload, carrying a
+                rubric.
+
+        Returns:
+            None
+        """
+        flagged = GoldenRuleSet.from_dict({**sample_rule_payload, "judge_response_only": True})
+        declared = TaskDataSet.from_dict({
+            **sample_task_payload,
+            "contains_adversarial_content": True,
+            "rubric_ids": [flagged.rule_id],
+        })
+        # RETURNING WITHOUT RAISING IS THE ASSERTION: the rubric is live.
+        check_referential_integrity([declared], [flagged])
+
+        # AND THE UNFLAGGED PAIR IS STILL REFUSED, or the exception is general.
+        unflagged = GoldenRuleSet.from_dict(dict(sample_rule_payload))
+        with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION"):
+            check_referential_integrity([declared], [unflagged])

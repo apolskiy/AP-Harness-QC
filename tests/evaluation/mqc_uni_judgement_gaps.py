@@ -35,9 +35,9 @@ from tests.evaluation.judge_doubles import refusing_judge
 # copy of a fixture builder is the drift this project keeps paying for, and
 # importing the decorated function registers the fixture it declares.
 from tests.evaluation.mqc_uni_pipeline import (  # pylint: disable=unused-import
-    _context,
     fixture_rules,  # the `rules` fixture this module's case requests
 )
+from tests.evaluation.pipeline_support import observation_context
 
 pytestmark = pytest.mark.unit
 
@@ -81,7 +81,7 @@ class TestMQCJudgementAvailability:
              "QC_HARNESS_FIXTURE_STALE"),
         ):
             result = evaluate_observation(
-                _context(
+                observation_context(
                     rules,
                     "It requires five years of Python.",
                     produced_output=True,
@@ -124,7 +124,7 @@ class TestMQCJudgementAvailability:
             None
         """
         outage = evaluate_observation(
-            _context(rules, "It requires five years of Python.", produced_output=True),
+            observation_context(rules, "It requires five years of Python.", produced_output=True),
             refusing_judge(ValueError(
                 "QC_HARNESS_PROVIDER_UNAVAILABLE: the judge could not be reached for x"
             )),
@@ -137,7 +137,7 @@ class TestMQCJudgementAvailability:
         assert "QC_HARNESS_PARSER_ERROR" not in outage.taxonomy_codes, outage.taxonomy_codes
 
         garbled = evaluate_observation(
-            _context(rules, "It requires five years of Python.", produced_output=True),
+            observation_context(rules, "It requires five years of Python.", produced_output=True),
             refusing_judge(ValueError("QC_HARNESS_PARSER_ERROR: the reply was not JSON")),
         )
         assert garbled.judge_skipped_reason == "judge_reply_unusable", garbled.judge_skipped_reason
