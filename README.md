@@ -40,8 +40,9 @@ enforced mechanically rather than by intention.
 ## What A Green Suite Here Means, And What It Does Not
 
 **Every test in this repository is a test of the instrument.** A green run says
-the harness dispatches, judges, records and reports correctly. **It says nothing
-whatsoever about any model.**
+the harness dispatches, judges, records and reports correctly. What this means it that
+harness is ready for model testing and can be used as default harness to run regression tests
+**It says nothing whatsoever about any model.**
 
 | Layer | Defined in | Subject | A failure is |
 |---|---|---|---|
