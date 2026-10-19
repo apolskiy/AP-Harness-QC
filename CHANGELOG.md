@@ -29,6 +29,46 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Every precondition case records its steps, through the engine graded cases use, 2026-10-18
+
+**Only graded cases recorded steps.** Every `UNI` and `SYS` case in both
+repositories was a test body whose assertions were recorded nowhere, the gap
+section 8.2.3 had named and left. `cmn.case_steps` now records each assertion
+a precondition reaches, in its body, a helper or a support module, and each
+`pytest.raises` block as `STEP_NN_VERIFY`, and the step the case names with
+`step("...")`, or the code since the previous verification, as
+`STEP_NN_ACTION`, through the `CaseStep` records graded steps use. A case
+verifying nothing, or naming a step no verification follows, fails as
+`QC_HARNESS_NO_VERIFICATION`. A step declares its number, `step(2, "...")`, and one
+out of place fails as `QC_HARNESS_STEP_MISNUMBERED`, so an inserted step that
+was not renumbered cannot slip by. No case is in a backlog: both repositories'
+suites pass under it, and two cases verifying only by not raising were given
+explicit verifications (`harness_test_taxonomy.md` section 8.2.4). The
+README's figures moved: 891 test cases and 326 requirements.
+
+### An injection test verifies against a pattern the harness owns, 2026-10-18
+
+**Any instruction to grade is an injection, whatever the value**, and the
+screen caught only top marks, kept narrow so ordinary answers are not aborted.
+The assertion kind `injection_absent` names a registered pattern, and
+`grading_instruction`, which the screens never run, catches grade, score, rate,
+award or give aimed at the response with any value. The injection test names
+the pattern as a step's verification and holds none of its own
+(`tier3_evaluation.md` section 5.2.4). The README's figures moved: 881 test
+cases and 325 requirements.
+
+### A category or block near its limit is warned of, 2026-10-18
+
+**Nothing said when an identifier category filled.** `1120xx` held all 100 of
+its numbers and `1123xx` 91 when this was measured. `cmn.identifier_capacity`
+now counts every inventory row, retired ones included because a retired number
+is never reused, and the suite raises a warning, not a failure, for a category
+at 90 or a block past 800 (`harness_test_taxonomy.md` section 11.9.6). The same
+section now records how a family that outgrows its room is separated: a full
+category takes the next free one, and a family is split only where the part
+leaving passes the procedure for adding a family (section 11.9). The README's
+figures moved: 877 test cases and 324 requirements.
+
 ### A declared adversarial case may be judged on its answer alone, 2026-10-18
 
 **A19 kept every injection payload away from the judge by judging no

@@ -284,7 +284,8 @@ against ten slots, so there the category is the subject they share.
 | `1125xx` | Project standards | `file_standards`, `credentials`, `branch_policy` |
 | `1126xx` | Judge resolution | `judge_selection`, `judgement_replay` |
 | `1127xx` | Quarantine expiry, one case per boundary day. `1120xx` filled when its parametrised cases were split on 2026-10-16 (section 1.1) | `quarantine` |
-| `1128xx`-`1129xx` | Unallocated | |
+| `1128xx` | Identifier capacity: how full each category and block is (section 11.9.6). Allocated 2026-10-18, `1123xx` holding 91 | `identifier_capacity` |
+| `1129xx` | Precondition steps: the recorder giving every `UNI` and `SYS` case its steps (section 8.2.4). Allocated 2026-10-18 | `case_steps` |
 
 **Grouped by subject rather than split by file count**, because a category a
 reader cannot name is a category nobody will allocate from correctly. The
@@ -874,6 +875,8 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
 | `QC_HARNESS_CASE_REPEATED` | One case identifier was collected more than once in a run, so it would execute several test cases under one name. Refuses the run, exit 3 (`cmn_verdict_and_cli.md` section 7.8.5) |
+| `QC_HARNESS_NO_VERIFICATION` | A precondition case finished having recorded no verification step, so it checked nothing. The case fails (section 8.2.4) |
+| `QC_HARNESS_STEP_MISNUMBERED` | A case declared a step number other than the step's place in the run, so an insertion was not renumbered. The case fails (section 8.2.4) |
 | `QC_HARNESS_SELECTION_UNRESOLVED` | A `--tests-file` entry names no collected test. Reported as a skip with the reason `test not found`, and the rest of the run proceeds; a run where nothing resolves is refused instead (`cmn_verdict_and_cli.md` section 7.8.3) |
 | `QC_HARNESS_UNANTICIPATED_EXCEPTION` | A case raised an exception that is not an assertion, or errored in setup or teardown. Recorded as broken, never failed, and the run exits 3 (section 5.1.1) |
 | `QC_HARNESS_SUBPROCESS_TIMEOUT` | A nested process a case spawned did not finish within its bound. The case fails naming the command and the bound, rather than the job hanging until the runner cancels it (section 14) |
@@ -1526,6 +1529,78 @@ it is a change to every such case rather than to one mechanism.
 graded executes (`framework-rules.md` section 3.1). A case's preconditions are
 what that one case needs to hold before its first step, and a case may have
 none.
+
+#### 8.2.4 One engine records every case's steps, graded or not
+
+Decided 2026-10-18 by the project owner, refusing a backlog: "the whole point
+of the demo is to show that we have a single-handed approach to both graded
+and ungraded tests, and the harness utilizes the same engine for its own unit
+tests." **The gap of section 8.2.3 is closed for every case at once**, because
+left open it stops being an implementation gap and becomes a design one.
+
+**Cases are shaped as steps on purpose**, for the log and for the architecture
+a reader judges the suite by, never as generic assertions. The recorder below
+guarantees no case goes without steps; it does not replace naming them.
+
+| Part | What it records | Through |
+|---|---|---|
+| A verification | Every `assert` a precondition case reaches, in its body, in a helper in its module, or in a `*_support` module, as `STEP_NN_VERIFY: <the assertion>`, passed or failed | pytest's assertion-pass report, and the failure report for a failing one |
+| An expected exception | Every `pytest.raises` block, as a verification that the exception arrived | A wrapper around `pytest.raises` for the duration of each precondition case |
+| The action | `STEP_NN_ACTION`: the case's own words where it names the step with `cmn.case_steps.step("...")`, otherwise the code that ran since the previous verification | The case's source, split at each verification when it is collected |
+| The case's preconditions | Its fixtures, as a block before step 1, where it has any | The item's fixture names |
+
+**One verification per step holds by construction**: one assertion or one
+expected exception is one step, numbered as it runs, so a loop verifying three
+items records three steps.
+
+**The same engine as graded cases.** A step is a `cmn.steps.CaseStep` carrying
+two `StepOutcome` halves, labelled `STEP_NN_ACTION` and `STEP_NN_VERIFY`,
+written to Allure and the log exactly as section 8.2.2's are. A graded case is
+not recorded twice: its steps are its dispatches, and the precondition recorder
+runs only on `UNI` and `SYS` items.
+
+**A case recording no verification fails**, as
+`QC_HARNESS_NO_VERIFICATION`. With assertions and expected exceptions recorded
+automatically, that catches only a case checking nothing, which is a defect in
+any reading. **There is no backlog**: every case in both repositories is
+recorded from the day this ships.
+
+**Named steps are the shape new cases take.** A case written after
+2026-10-18 names its actions with `step(n, "...")`; an existing case reads its
+action as code until it is next touched, and is named then.
+
+**A step's number is declared in the source and checked.** Decided the same
+day by the project owner: test design tools number steps, an inserted step
+renumbers the rest, and "while it's mechanical work, this would prevent
+incorrect insertions from slipping by." So `step(2, "build the cases")` says
+this is the second step, and the recorder fails the case as
+`QC_HARNESS_STEP_MISNUMBERED`, naming both numbers, when the step is not the
+second to run. A loop declares the number it computes, `step(index, ...)`.
+
+| Case | Asserts |
+|---|---|
+| `112900` | A passing assertion is recorded as a verification step carrying its text, numbered from 1 |
+| `112901` | A failing assertion is recorded as a failed verification step, and the case still fails |
+| `112902` | A step's action is the code between the previous verification and this one |
+| `112903` | A step named with `step(n, "...")` carries that name as its action |
+| `112904` | A `pytest.raises` block is recorded as a verification, passed or failed |
+| `112905` | An assertion in a support module is recorded |
+| `112906` | A precondition case recording no verification fails with `QC_HARNESS_NO_VERIFICATION` |
+| `112907` | A graded case is not recorded by the precondition recorder |
+| `112908` | A step named with `step(n, "...")` that no verification follows fails the case, naming the step, rather than being overwritten by the next one |
+| `112909` | A step declaring a number other than its place fails the case as `QC_HARNESS_STEP_MISNUMBERED`, naming both numbers |
+
+**A named step is never dropped.** Found writing the first named cases: a
+step named and followed by another name before any verification was simply
+replaced, so the record showed one step where the case meant two. Every step
+is an action and a verification, so an unverified named step fails the case
+as `QC_HARNESS_NO_VERIFICATION`, naming the step.
+
+**Enabling the assertion report needs pytest's rewritten caches cleared once.**
+pytest caches each rewritten module, and a cache written before
+`enable_assertion_pass_hook` carries no report call, so a checkout run before
+this change records nothing until the `*-pytest-*.pyc` files under `tests`
+are removed. A fresh checkout, which every CI runner is, is unaffected.
 
 ### 8.3 It reaches the durable record for free
 
@@ -2187,6 +2262,120 @@ Three gaps, and they were one gap seen from three places.
 `SEC` and `TOOL` because those layers map one to one, and `EVAL` spans four
 families, so the layer could never have answered for them. The declaration is
 the source the layer was standing in for.
+
+### 11.9 Separating a family that outgrows its room
+
+Added 2026-10-18 at the project owner's instruction, while the hidden-passage
+relay cases were kept inside `injection_resistance` and the question of a
+family of their own was left open.
+
+**A family has no identifier allocation of its own.** Identifiers are
+positional by layer, module and category (section 3.2.1), so a family's cases
+fill categories inside one module's block for each layer it is graded in. Its
+room is therefore the same two limits every case meets:
+
+| Limit | Size | Measured today, 2026-10-18 |
+|---|---|---|
+| A category | 100 cases | Largest `injection_resistance` category, `1541xx`, holds 12 |
+| A module's block in one layer | 10 categories, 1,000 cases | `injection_resistance` in `SEC`/`EVL`, `154000`-`154999`, holds 33 once `1545xx` is built |
+
+**Running out of a category and outgrowing a family are different events**,
+and taking one for the other is the mistake this section exists to prevent.
+
+#### 11.9.1 A full category takes the next free category
+
+A category is a subject (section 3.2.1.1). When one fills, the subject's next
+cases open the next free category in the same block, and the category table
+records the continuation with its date and reason, as `1127xx` records taking
+over from `1120xx`. **Nothing is renumbered and no family changes**: a full
+category is a numbering event, not a statement about what the model was asked
+to do.
+
+#### 11.9.2 A family is separated only where section 11.2 says a family exists
+
+Size alone never makes a family. **The separated part must pass section 11.2
+step 1 on its own**: its input shape or its source of ground truth differs from
+what remains. Where it does not, the cases are more fixtures or more
+formulations of the same task, and the answer is a category, never a family.
+
+| What grew | What it is |
+|---|---|
+| More payloads, same input shape, same ground truth | Categories inside the existing family |
+| A delivery channel or a vector the family already covers | Categories inside the existing family |
+| **A task with its own ground truth**, such as an instruction the answer must not pass downstream, settled by the screen over the answer and judged otherwise | **A candidate family**, taken through section 11.2 from step 1 |
+
+#### 11.9.3 How the separation is carried out
+
+1. **Take the separated part through section 11.2**, all ten steps, as any new
+   family. A family that fails step 1 or step 2 is not separated.
+2. **Existing cases keep their identifiers.** An identifier is never rebound
+   (section 3.2), so a case moving to the new family moves by its declaration,
+   not its number.
+3. **A moved case declares the new family primary and keeps the old one
+   secondary** (section 11.7). Per-family history recorded before the
+   separation still resolves, and a regression set selected by the old family
+   still reaches the case.
+4. **New cases take the next free categories** in the block they belong to,
+   and the category table names the new family as their subject.
+5. **The scope sections of both families are revised in the same change**: the
+   old one gains a line saying what left and when, so a reader of its history
+   knows the denominator moved.
+6. **The separation is entered in the change log of the repository holding the
+   cases**, with the cases moved and the date, because a per-family pass rate
+   that changes denominator overnight reads as a regression or a recovery.
+
+#### 11.9.4 A full block, which is not a family event either
+
+**A module's block filling in one layer is the limit section 3.2.1 sized to be
+remote**, and it is reached by a module, not by a family. Should one fill, the
+remedy is an allocation decision recorded in section 3.2.1 before any case
+takes a number past it, never an identifier squeezed into another module's
+block, which is the failure section 3.2.1 was rewritten to end.
+
+#### 11.9.5 What is checked
+
+| Assertion | Enforced by |
+|---|---|
+| Every identifier sits inside its layer and module block | `MQC_CMN_UNI_112146`, section 3.2.1.4 |
+| An identifier is never bound to two behaviours | `MQC_CMN_UNI_112326` in the suite, `MQC_CMN_UNI_112226` in an inventory |
+| Every declared family is registered, primary first | `MQC_CMN_UNI_112216`, invariant on `GoldenRuleSet.families` |
+| A separated family passed section 11.2 | Section 11.2 step 10, the same checks |
+
+#### 11.9.6 Nearness to either limit is warned of, not failed
+
+Added 2026-10-18 at the project owner's instruction. Without it the remedies
+above are applied when an allocation finds no free number, which is the
+moment the hundred-slot partition was found broken in three places (section
+3.2.1). **Measured the day it was written: `1120xx` held 100 of 100 and
+`1123xx` 91, and nothing had said so.**
+
+| Warned when | Threshold | Why there |
+|---|---|---|
+| A category's assigned identifiers reach | **90** of 100 | Ten free numbers is one more subject's worth of cases, which is when the next category should be chosen |
+| A block's assigned identifiers pass | **800** of 1,000 | Two categories' worth left, which is when an allocation decision in section 3.2.1 is due |
+
+**Assigned, not live.** A struck inventory row is a retired identifier, never
+reused, so it occupies its slot exactly as a live one does and is counted.
+`cmn.identifier_capacity.assigned_identifiers` reads every inventory row,
+struck or not, and `capacity_warnings` reports each category and block at its
+threshold.
+
+**A warning, not a failure.** Nearness is a planning fact, not a defect:
+failing the run at 90 would make the warning a ceiling of 90, and the
+categories already past it would turn the suite red over numbers nobody can
+take back. So the case passes and raises one `UserWarning` per crowded
+category or block, which pytest prints in its warnings summary.
+
+**Each repository counts what it owns**, the one-implementation-two-callers
+arrangement: the harness counts the precondition blocks of `ING`, `CMN`, `EXE`
+and `EVL`, and the case repository counts `CAS` and the graded blocks.
+
+| Case | Asserts |
+|---|---|
+| `112800` | A category is warned of at 90 assigned and not at 89 |
+| `112801` | A block is warned of at 801 assigned and not at 800 |
+| `112802` | A struck inventory row counts as assigned |
+| `112803` | This repository's own crowded categories and blocks are warned of, and the run still passes |
 
 ## 12. The Document Register
 

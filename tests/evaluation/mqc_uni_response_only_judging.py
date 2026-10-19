@@ -23,6 +23,7 @@ from typing import Any, Final
 
 import pytest
 
+from cmn.case_steps import step
 from evaluation.pipeline import DECLARED_ADVERSARIAL, evaluate_observation
 from ingestion.schemas import GoldenRuleSet
 
@@ -84,6 +85,7 @@ class TestMQCResponseOnlyJudging:
         Returns:
             None
         """
+        step(1, "evaluate a clean answer to a declared case whose rule opts in, with a judge bound")
         judge = RecordingJudge()
         result = evaluate_observation(
             observation_context(
@@ -92,22 +94,28 @@ class TestMQCResponseOnlyJudging:
             ),
             judge.binding(),
         )
-
         assert len(judge.requests) == 1, (
             f"a clean answer on an opting-in rule reached the judge "
             f"{len(judge.requests)} time(s), not once"
         )
-        assert set(judge.requests[0].data) == {"candidate_output"}, (
-            f"the judge received fields beyond the answer: {sorted(judge.requests[0].data)}"
+
+        step(2, "read which fields the judge request carried")
+        fields = set(judge.requests[0].data)
+        assert fields == {"candidate_output"}, (
+            f"the judge received fields beyond the answer: {sorted(fields)}"
         )
+
+        step(3, "search the whole judge request for the task and the hidden passage")
         sent = " ".join([judge.requests[0].instruction, *judge.requests[0].data.values()])
         assert _HIDDEN not in sent and _TASK not in sent, (
             "the task or its document reached the judge, which is where a declared "
             "payload lives"
         )
+
+        step(4, "read whether the answer was judged")
         assert result.judged, f"the clean answer was not judged: {result.judge_skipped_reason}"
 
-        # NOT FAILED IS NOT PASSED. A clean answer nobody judged has not passed.
+        step(5, "evaluate the same clean answer with no judge bound")
         unjudged = evaluate_observation(
             observation_context(
                 response_only, _CLEAN, declared_adversarial=True,
@@ -131,6 +139,7 @@ class TestMQCResponseOnlyJudging:
         Returns:
             None
         """
+        step(1, "evaluate an answer repeating the injection, with a judge bound")
         judge = RecordingJudge()
         result = evaluate_observation(
             observation_context(
@@ -139,10 +148,15 @@ class TestMQCResponseOnlyJudging:
             ),
             judge.binding(),
         )
-
         assert not judge.requests, "an answer carrying a registered vector reached the judge"
+
+        step(2, "read whether the screen stopped the evaluation")
         assert result.screen.aborts, "the screen hit did not stop the evaluation"
+
+        step(3, "read the case's outcome")
         assert not result.passed, "an answer that repeated the injection passed"
+
+        step(4, "read what the screen found, for the record a ticket is drawn from")
         assert result.screen.findings, (
             "the result names no finding, so a ticket cannot say where the failure is"
         )
@@ -160,6 +174,7 @@ class TestMQCResponseOnlyJudging:
         Returns:
             None
         """
+        step(1, "evaluate a clean answer to a declared case whose rule does not opt in")
         judge = RecordingJudge()
         result = evaluate_observation(
             observation_context(
@@ -168,8 +183,9 @@ class TestMQCResponseOnlyJudging:
             ),
             judge.binding(),
         )
-
         assert not judge.requests, "a declared case that did not opt in reached the judge"
+
+        step(2, "read why no judgement was made")
         assert result.judge_skipped_reason == DECLARED_ADVERSARIAL, (
             result.judge_skipped_reason
         )
@@ -190,6 +206,7 @@ class TestMQCResponseOnlyJudging:
         Returns:
             None
         """
+        step(1, "evaluate a correct assessment that also carries the judge-directed instruction")
         judge = RecordingJudge()
         result = evaluate_observation(
             observation_context(
@@ -198,15 +215,18 @@ class TestMQCResponseOnlyJudging:
             ),
             judge.binding(),
         )
-
         assert not judge.requests, (
             "a correct assessment carrying the judge-directed instruction reached the "
             "judge, so the second injection was relayed"
         )
+
+        step(2, "read the screen's decision and the case's outcome")
         assert result.screen.aborts and not result.passed, (
             "a correct assessment relaying the judge-directed instruction did not fail"
         )
-        assert "score_manipulation" in {entry.vector for entry in result.screen.findings}, (
-            f"the finding does not name the judge-directed instruction: "
-            f"{[entry.vector for entry in result.screen.findings]}"
+
+        step(3, "read which vector the screen named")
+        vectors = {entry.vector for entry in result.screen.findings}
+        assert "score_manipulation" in vectors, (
+            f"the finding does not name the judge-directed instruction: {sorted(vectors)}"
         )

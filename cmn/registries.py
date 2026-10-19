@@ -115,6 +115,12 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     # aggregate over identifiers is wrong while one stands for several test
     # cases. Design `cmn_verdict_and_cli.md` section 7.8.5.
     "QC_HARNESS_CASE_REPEATED",
+    # A PRECONDITION CASE THAT RECORDED NO VERIFICATION checked nothing, and
+    # fails. Design `harness_test_taxonomy.md` section 8.2.4.
+    "QC_HARNESS_NO_VERIFICATION",
+    # A STEP DECLARING A NUMBER OTHER THAN ITS PLACE: an insertion that was
+    # not renumbered. Design `harness_test_taxonomy.md` section 8.2.4.
+    "QC_HARNESS_STEP_MISNUMBERED",
     "QC_HARNESS_UPSTREAM_UNVERIFIED",
     "QC_HARNESS_BRANCH_NAME",
     "QC_HARNESS_BRANCH_STALE",

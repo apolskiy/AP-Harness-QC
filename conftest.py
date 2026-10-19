@@ -35,6 +35,7 @@ from cmn.environments import (
 )
 from cmn.band_summary import Alarms, result_lines, skipped_cases_from
 from cmn.broken import broken_count, broken_detail_lines, mark_broken, refuse_broken
+from cmn.case_steps import begin_case_steps, record_assertion, record_call
 from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
 from cmn.selection import (
@@ -63,6 +64,11 @@ from ingestion.cases import build_case_id
 from ingestion.schemas import EvaluationCase, GoldenRuleSet, Rubric, TaskDataSet
 
 logger = logging.getLogger(__name__)
+
+# EVERY ASSERTION A PRECONDITION REACHES IS A RECORDED STEP, including those in
+# the support modules, which pytest reports only once it rewrites them.
+# Registered before collection imports them (taxonomy section 8.2.4).
+pytest.register_assert_rewrite("tests")
 
 # The marker an injection payload instructs a model to emit. Declared once
 # because both the unit and system layers assert against it, and a second
@@ -171,7 +177,43 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
     # response leaves the case's name and module behind. A traceback
     # names the line that raised, not the case that reached it.
     announce_test(item)
+    # ITS STEPS ARE RECORDED FROM HERE, by the engine graded cases use
+    # (taxonomy section 8.2.4).
+    begin_case_steps(item)
     enforce_dependencies(item)
+
+
+def pytest_assertion_pass(item: pytest.Item, lineno: int, orig: str, expl: str) -> None:
+    """Record a passing assertion as the case's next verification step.
+
+    Args:
+        item (pytest.Item): The test running.
+        lineno (int): The assertion's line.
+        orig (str): Its condition as written.
+        expl (str): pytest's explanation, which a passing assertion does not need.
+
+    Returns:
+        None
+    """
+    del expl
+    record_assertion(item, lineno, orig)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item: pytest.Item) -> Iterator[None]:
+    """Record a failing assertion, or fail a precondition that verified nothing.
+
+    Args:
+        item (pytest.Item): The test running.
+
+    Yields:
+        None: The call runs inside the record.
+
+    Returns:
+        None
+    """
+    outcome = yield
+    record_call(item, outcome)
 
 
 @pytest.hookimpl(hookwrapper=True)

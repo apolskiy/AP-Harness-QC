@@ -2997,8 +2997,22 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112388` | P | `an_observation_step_verifies_one_request` (taxonomy 8.2.2) |
 | `112389` | B | `escalation_steps_not_taken_are_recorded_as_not_run` (taxonomy 8.2.2) |
 | `112390` | N | `the_last_step_verifies_only_the_agreement` (taxonomy 8.2.2) |
+| `112800` | B | `a_category_at_ninety_assigned_is_warned_of` (taxonomy 11.9.6) |
+| `112801` | B | `a_block_past_eight_hundred_assigned_is_warned_of` (taxonomy 11.9.6) |
+| `112802` | N | `a_struck_inventory_row_still_counts_as_assigned` (taxonomy 11.9.6) |
+| `112803` | P | `this_repository_warns_of_its_own_crowded_blocks` (taxonomy 11.9.6) |
+| `112900` | P | `a_passing_assertion_is_recorded_as_a_verification_step` (taxonomy 8.2.4) |
+| `112901` | N | `a_failing_assertion_is_recorded_and_the_case_fails` (taxonomy 8.2.4) |
+| `112902` | P | `an_action_is_the_code_since_the_previous_verification` (taxonomy 8.2.4) |
+| `112903` | P | `a_named_step_carries_its_name_as_the_action` (taxonomy 8.2.4) |
+| `112904` | N | `an_expected_exception_is_recorded_as_a_verification` (taxonomy 8.2.4) |
+| `112905` | P | `an_assertion_in_a_support_module_is_recorded` (taxonomy 8.2.4) |
+| `112906` | N | `a_case_recording_no_verification_fails` (taxonomy 8.2.4) |
+| `112907` | B | `a_graded_case_is_not_recorded_as_a_precondition` (taxonomy 8.2.4) |
+| `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
+| `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 374 cases, 230 negative, 103 positive, 41 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 388 cases, 236 negative, 108 positive, 44 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

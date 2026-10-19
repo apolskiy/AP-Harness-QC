@@ -69,6 +69,7 @@ import pytest
 
 from cmn.registries import is_registered_constraint_kind
 
+from cmn.case_steps import step
 from ingestion.integrity import check_referential_integrity
 from ingestion.schemas import (
     Anchor,
@@ -832,9 +833,11 @@ class TestMQCAdversarialRubric:
         Returns:
             None
         """
+        step(1, "load a rule that carries a rubric and declares judge_response_only")
         flagged = {**sample_rule_payload, "judge_response_only": True}
         assert GoldenRuleSet.from_dict(flagged).judge_response_only is True
 
+        step(2, "load the same rule with its rubric removed")
         rubricless = dict(flagged)
         rubricless.pop("rubric", None)
         rubricless["assertions"] = [
@@ -848,6 +851,8 @@ class TestMQCAdversarialRubric:
         ]
         with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION") as raised:
             GoldenRuleSet.from_dict(rubricless)
+
+        step(3, "read whether the refusal names the flag")
         assert "judge_response_only" in str(raised.value), str(raised.value)
 
     def MQC_ING_UNI_111351_a_declared_task_with_a_response_only_rubric_loads(
@@ -873,10 +878,15 @@ class TestMQCAdversarialRubric:
             "contains_adversarial_content": True,
             "rubric_ids": [flagged.rule_id],
         })
-        # RETURNING WITHOUT RAISING IS THE ASSERTION: the rubric is live.
-        check_referential_integrity([declared], [flagged])
+        step(1, "check a declared task paired with a rubric rule that judges the answer alone")
+        refused: list[str] = []
+        try:
+            check_referential_integrity([declared], [flagged])
+        except ValueError as error:
+            refused.append(str(error))
+        assert not refused, f"R6 refused a rubric whose answer reaches a judge: {refused}"
 
-        # AND THE UNFLAGGED PAIR IS STILL REFUSED, or the exception is general.
+        step(2, "check the same task paired with a rubric rule that does not opt in")
         unflagged = GoldenRuleSet.from_dict(dict(sample_rule_payload))
         with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION"):
             check_referential_integrity([declared], [unflagged])

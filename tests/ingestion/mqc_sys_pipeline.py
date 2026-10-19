@@ -38,6 +38,7 @@ from typing import Any
 
 import pytest
 
+from cmn.case_steps import step
 from ingestion.cases import build_case_id, build_evaluation_cases, count_unique_case_definitions
 from ingestion.integrity import check_referential_integrity
 from ingestion.schemas import GoldenRuleSet, TaskDataSet
@@ -276,15 +277,24 @@ class TestMQCReferentialIntegrity:
         Returns:
             None
         """
-        check_referential_integrity(
-            [_task(constraints=[_CONSTRAINT], available_tools=[_TOOL])],
-            [
-                _rule(
-                    rubric=_rubric("C_NO_INVENTION"),
-                    tool_expectation={"required_tools": ["search"]},
-                )
-            ],
-        )
+        tasks = [_task(constraints=[_CONSTRAINT], available_tools=[_TOOL])]
+        rules = [
+            _rule(
+                rubric=_rubric("C_NO_INVENTION"),
+                tool_expectation={"required_tools": ["search"]},
+            )
+        ]
+        step(1, "run all five referential checks over a corpus satisfying every one")
+        refused: list[str] = []
+        try:
+            check_referential_integrity(tasks, rules)
+        except ValueError as error:
+            refused.append(str(error))
+        assert not refused, f"a corpus satisfying every check was refused: {refused}"
+
+        step(2, "build the cases the checked corpus defines")
+        cases = build_evaluation_cases(tasks, rules)
+        assert len(cases) == 1, f"a consistent corpus of one pair built {len(cases)} cases"
 
 
 class TestMQCCaseConstruction:
@@ -346,16 +356,30 @@ class TestMQCCaseConstruction:
         Returns:
             None
         """
-        check_referential_integrity(
-            [_task(constraints=[_CONSTRAINT], available_tools=[_TOOL])],
-            [
-                _rule(
-                    tool_expectation={
-                        "required_tools": ["search"],
-                        "constraint_ref": "C_NO_INVENTION",
-                    }
-                )
-            ],
+        tasks = [_task(constraints=[_CONSTRAINT], available_tools=[_TOOL])]
+        rules = [
+            _rule(
+                tool_expectation={
+                    "required_tools": ["search"],
+                    "constraint_ref": "C_NO_INVENTION",
+                }
+            )
+        ]
+        step(1, "run the referential checks with the constraint checked only by the expectation")
+        refused: list[str] = []
+        try:
+            check_referential_integrity(tasks, rules)
+        except ValueError as error:
+            refused.append(str(error))
+        assert not refused, (
+            f"a constraint checked only by a tool expectation was reported unchecked: {refused}"
+        )
+
+        step(2, "build the case and read which constraint its expectation checks")
+        cases = build_evaluation_cases(tasks, rules)
+        checked = cases[0].golden_rules.tool_expectation.constraint_ref
+        assert checked == "C_NO_INVENTION", (
+            f"the expectation's constraint did not survive the join: {checked!r}"
         )
 
     def MQC_ING_SYS_121008_case_building_requires_integrity_to_have_run(self) -> None:

@@ -11575,3 +11575,96 @@ design with a one-line pointer, which is where reasoning belongs anyway.
 * **Code Quality & Compliance Audit:** 873 test cases, 867 executions in the
   precondition run, all passing, exit 0; pylint 10.00/10, exit 0; 323
   requirements. No mutation-audited module changed.
+
+## 2026-10-18: Separating a family, and warning before an identifier category fills
+
+* **Asked for by the project owner**: a method for separating a family that
+  grows to its limit, and, once designed, a warning before a limit is reached.
+* **The method, `harness_test_taxonomy.md` section 11.9.** A family has no
+  identifier allocation of its own; its cases fill categories of 100 inside a
+  module's block of 1,000 per layer. A full category takes the next free one
+  and nothing is renumbered. A family is separated only where the part leaving
+  passes section 11.2 on its own, a different input shape or source of ground
+  truth: moved cases keep their identifiers, take the new family as primary
+  and keep the old one secondary, and both scope sections and the case
+  repository's change log record the move. A full block is an allocation
+  decision in section 3.2.1, never a number squeezed into another block.
+* **The warning, section 11.9.6, `MQC_REQ_HAR_CMN_0183`.**
+  `cmn.identifier_capacity` counts every inventory row, struck ones included
+  because a retired number is never reused, and warns of a category at 90 or a
+  block past 800 without failing the run. **Measured the day it was written:
+  `1120xx` held 100 of 100 and `1123xx` 91**, and nothing had said so. Its
+  cases took the empty `1128xx` for that reason. Each repository counts the
+  blocks it owns; the case repository's caller is `MQC_CAS_UNI_115762`.
+* **Cases, each failing first:** `MQC_CMN_UNI_112800` to `112803`. Four
+  injections, each caught: a category warned only past 90, a block warned at
+  800, a struck row not counted, and the harness's own blocks deselected.
+* **Digressions the user spotted, and the fix:** none. The first draft of
+  section 11.9 cited `112326` for the block check, which counts callables
+  binding an identifier; corrected to `112146` before anything ran. Pylint
+  refused a two-letter variable in `112800`, renamed.
+* **Code Quality & Compliance Audit:** 877 test cases: 871 in the
+  precondition run, all passing with two capacity warnings, exit 0, and 6
+  mutation cases, which run only in their own audit; no mutation-audited module
+  changed, so none ran. Pylint 10.00/10, exit 0; 324 requirements.
+
+## 2026-10-18: Injection checks owned by the API, and one step engine for every case
+
+* **Decided by the project owner**, in order: any instruction to grade is an
+  injection whatever the value, paraphrased or not; the check belongs to the
+  injection test and not the global screen; "functions testing for injection,
+  explicitly or generally, should be inside the API, not the test case"; and
+  the test "just calls it as a verification to a step".
+* **Built, `tier3_evaluation.md` section 5.2.4, `MQC_REQ_HAR_EVL_0069`:** the
+  assertion kind `injection_absent` names a registered pattern, and
+  `grading_instruction` in `cmn.vectors`, a verification pattern the screens
+  never run, catches grade, score, rate, award or give aimed at the response
+  with any value. Cases `114125` to `114127` and `114644`, four injections
+  caught. Found writing `114644`: the global screen already aborts "I would
+  rate this candidate 3 out of 5", reading the 5 of "out of 5" as a top mark;
+  recorded in section 5.2.4 for its own change.
+* **Decided by the project owner, refusing a backlog:** "the whole point of the
+  demo is to show that we have a single-handed approach to both graded and
+  ungraded tests, and the harness utilizes the same engine for its own unit
+  tests", and step numbers are declared in the source because "this would
+  prevent incorrect insertions from slipping by".
+* **Built, `harness_test_taxonomy.md` section 8.2.4, `MQC_REQ_HAR_CMN_0184`:**
+  `cmn.case_steps` records every assertion a precondition reaches, in its
+  body, a helper or a support module, and every `pytest.raises` block, as a
+  `STEP_NN_VERIFY` through the `CaseStep` records graded steps use, with the
+  case's declared `step(n, "...")` or the code before it as the action. A case
+  verifying nothing, or naming a step no verification follows, fails as
+  `QC_HARNESS_NO_VERIFICATION`; a step declared out of place fails as
+  `QC_HARNESS_STEP_MISNUMBERED`. Both codes are registered in
+  `cmn/registries.py`, whose digest was re-declared and audited. Both
+  repositories' `conftest` files delegate three hooks to it, and every case in
+  both suites passes under it with no backlog.
+* **Cases, each failing first:** `112900` to `112909`, ten injections caught.
+  `121007` and `121010` verified only by not raising and were given explicit
+  verifications; every case written today was rewritten with numbered steps.
+* **The capacity warning and section 11.9** are recorded in the entry before
+  this one.
+* **Digressions the user spotted, and the fix:**
+  * The step rule was applied to graded cases only and every precondition
+    written today was in the old shape. The project owner asked why
+    `MQC_CAS_UNI_115763` had no steps; the recorder followed, with no backlog.
+  * Steps were numbered at runtime only; the owner had them declared in the
+    source and checked.
+  * The first recorder dropped a named step that no verification followed,
+    replacing it with the next name; found by the first named case and fixed
+    as `112908`.
+* **Found while building, and fixed or recorded:**
+  * pytest caches rewritten modules, and caches written before
+    `enable_assertion_pass_hook` carry no report call: 606 cases failed until
+    the caches were cleared. Recorded in section 8.2.4; CI checkouts are fresh.
+  * **Stopping a mutation audit mid-run left `cmn/layers.py` mutated** in the
+    working tree, unparsed with its header stripped and one outcome property
+    flipped; two unrelated checks happened to notice, and the module was
+    restored from the last commit. The tool defect is raised with the owner
+    for a fix.
+* **Code Quality & Compliance Audit:** 891 test cases: 885 in the
+  precondition run, all passing with two capacity warnings, exit 0, and 6
+  mutation cases, which run only in their own audit; the 4 for
+  `cmn/registries.py` ran after its digest was re-declared and passed with no
+  undeclared survivor, exit 0, leaving the module intact at its declared
+  digest. Pylint 10.00/10, exit 0; 326 requirements.

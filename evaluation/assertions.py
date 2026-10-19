@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Final, Optional
 
 from cmn.markup import normalise_markup
+from cmn.vectors import match_named
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +306,30 @@ def _check_not_contains(text: str, parameters: dict[str, Any]) -> tuple[bool, st
     return not present, f"prohibited substring {'present' if present else 'absent'}"
 
 
+def _check_injection_absent(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
+    """Check that no registered injection pattern the case names matches.
+
+    Design: ``tier3_evaluation.md`` section 5.2.4.
+
+    Args:
+        text (str): The candidate output.
+        parameters (dict): ``vector``, the name of a screen vector or a
+            verification pattern.
+
+    Returns:
+        tuple: Whether the check held, and the excerpt that matched.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when no registry holds the
+            name.
+    """
+    name = str(parameters["vector"])
+    found = match_named(name, text)
+    if not found:
+        return True, f"{name} absent"
+    return False, f"{name} matched: {found[0].excerpt}"
+
+
 # One entry per kind named in design section 5. A kind is a registry entry, so
 # adding one is data plus a function rather than a change to the runner.
 _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, str]]]] = {
@@ -314,6 +339,7 @@ _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, st
     "contains": _check_contains,
     "not_contains": _check_not_contains,
     "claim": _check_claim,
+    "injection_absent": _check_injection_absent,
 }
 
 # WHICH KINDS READ NORMALISED TEXT, per design section 5.1. The two excluded
@@ -323,7 +349,7 @@ _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, st
 # parses the body, so altering the text before parsing changes what is
 # validated.
 _MARKUP_SENSITIVE: Final[frozenset[str]] = frozenset(
-    {"regex", "contains", "not_contains", "claim"}
+    {"regex", "contains", "not_contains", "claim", "injection_absent"}
 )
 
 
