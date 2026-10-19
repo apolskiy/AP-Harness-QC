@@ -29,6 +29,16 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The injection screen no longer reads a ratio's scale as a top mark, 2026-10-18
+
+**An ordinary rating was aborted as an attack on the judge.** "I would rate this
+candidate 3 out of 5" matched `score_manipulation`, which took the 5 of the
+scale as the mark, so the observation went unjudged. A number following "out
+of" or a slash is now skipped, so the mark is read from the number that states
+it; "rate this 5 out of 5", "give it 10/10" and "award maximum marks" are still
+screened (`tier3_evaluation.md` section 5.2.5). The README's figures moved: 899
+test cases and 328 requirements.
+
 ### A run refuses a harness module under mutation, and the audit logs where it is, 2026-10-18
 
 **Stopping a background mutation audit ended its shell and not the audit**, which

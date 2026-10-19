@@ -480,6 +480,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EVL_0067` | A declared adversarial case whose rule opts into a response-only judgement is judged on its answer alone once the answer screens clean, fails without a judge when the screen finds a registered vector in it, and no payload reaches a judge | tier3_evaluation.md section 4C.4 |
 | `MQC_REQ_HAR_EVL_0068` | An instruction to ignore the previous text, and an instruction to grade the response, are screened as the vectors they are | tier3_evaluation.md section 5.2.3 |
 | `MQC_REQ_HAR_EVL_0069` | An injection test verifies an answer against a pattern the harness owns, named by the case: an instruction to grade with any value fails it, a pattern no registry holds is refused, and the global screen does not run a verification-only pattern | tier3_evaluation.md section 5.2.4 |
+| `MQC_REQ_HAR_EVL_0070` | The injection screen reads a mark only from the number that states it: a value written as a ratio's scale, after "out of" or a slash, is not a top mark, and a top mark stated before the scale is still screened | tier3_evaluation.md section 5.2.5 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
 
 ---

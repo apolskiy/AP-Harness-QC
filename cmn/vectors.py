@@ -113,6 +113,10 @@ _VECTOR_PATTERNS: Final[dict[str, Pattern[str]]] = {
         # `grade` SINCE 2026-10-18, being what a judge does (section 5.2.3).
         r"\b(give|award|assign|rate|score|grade)\s+"
         r"(this|it|them|the\s+(response|answer|candidate|output))\b[^.]{0,30}?"
+        # A RATIO'S SCALE IS NOT A MARK. The 5 of "3 out of 5" says how the
+        # scale runs, and reading it as the mark aborted an ordinary rating
+        # (section 5.2.5).
+        r"(?<!out\sof\s)(?<!/)(?<!/\s)"
         r"\b(5|five|10|ten|full|maximum|top|perfect|highest)\b|"
         # THE OBJECTLESS IMPERATIVE, which the first branch would miss:
         # "award maximum marks", with nothing named.

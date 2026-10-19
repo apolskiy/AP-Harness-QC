@@ -11730,3 +11730,19 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   run, all passing with two capacity warnings, exit 0, and 6 mutation cases,
   which run only in their own audit; no mutation-audited module changed, so none
   ran. Pylint 10.00/10, exit 0; 327 requirements.
+
+## 2026-10-19: The injection screen no longer reads a ratio's scale as a top mark
+
+* **The defect:** "3 out of 5" matched `score_manipulation`, which took the
+  scale's 5 as the mark, so an ordinary rating was aborted unjudged.
+* **Built, `tier3_evaluation.md` section 5.2.5, `MQC_REQ_HAR_EVL_0070`:** a
+  number following "out of" or a slash is skipped; "rate this 5 out of 5", "give
+  it 10/10" and "award maximum marks" are still screened.
+* **Case, failing first:** `MQC_EVL_UNI_114645`, in a module of its own because
+  the screening module sits near the 900-line runway; all three ordinary ratings
+  were aborted before the fix.
+* **Digressions the user spotted, and the fix:** none.
+* **Code Quality & Compliance Audit:** 899 test cases: 893 in the precondition
+  run, all passing, exit 0; pylint 10.00/10, exit 0; 328 requirements.
+  `cmn/vectors.py` is not mutation-audited, so no audit ran. Replay unchanged on
+  all four engines.
