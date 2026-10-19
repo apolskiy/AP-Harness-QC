@@ -38,6 +38,7 @@ from cmn.broken import broken_count, broken_detail_lines, mark_broken, refuse_br
 from cmn.case_steps import begin_case_steps, record_assertion, record_call
 from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
+from cmn.mutation_guard import imported_harness_root, refuse_if_mutating
 from cmn.selection import (
     refuse_repeated_cases,
     select_modules,
@@ -467,7 +468,7 @@ def fixture_canary_rule_set(sample_rule_payload: dict[str, Any]) -> GoldenRuleSe
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
-    """Adopt base outcomes an earlier band of this job published.
+    """Refuse a harness under mutation, then adopt what an earlier band published.
 
     Args:
         session (pytest.Session): The starting session.
@@ -475,6 +476,8 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     Returns:
         None
     """
+    # FIRST, because every later step would read a mutant (taxonomy 15.12).
+    refuse_if_mutating(imported_harness_root())
     adopt_prerequisites(session.config)
 
 

@@ -2700,6 +2700,13 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112383` | N | `an_audit_run_reads_no_standard_input` (taxonomy 15.5.1) |
 | `112384` | N | `a_control_that_raises_leaves_no_backup` (taxonomy 15.5.1) |
 | `112385` | N | `a_case_that_crashes_is_broken_and_the_run_exits_3` (taxonomy 5.1.1) |
+| `112391` | N | `a_run_refuses_a_module_a_live_audit_holds_but_its_own` (taxonomy 15.12.1) |
+| `112392` | N | `an_abandoned_backup_is_restored_verified_and_the_run_refused` (taxonomy 15.12.2) |
+| `112393` | N | `a_failed_restore_keeps_the_backup_and_names_both_recoveries` (taxonomy 15.12.2) |
+| `112394` | N | `a_restore_not_matching_its_declared_digest_keeps_the_backup` (taxonomy 15.12.2) |
+| `112395` | P | `each_audit_event_is_flushed_to_a_log_named_for_its_start` (taxonomy 15.12.3) |
+| `112396` | P | `a_finished_audit_keeps_its_log_and_removes_every_older_one` (taxonomy 15.12.3) |
+| `112397` | N | `a_refusal_quotes_the_last_progress_line_and_its_age` (taxonomy 15.12.3) |
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
 | `112347` | P | `a_case_announces_its_node_identifier_before_running` |
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
@@ -3012,7 +3019,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 388 cases, 236 negative, 108 positive, 44 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 395 cases, 241 negative, 110 positive, 44 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

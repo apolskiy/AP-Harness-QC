@@ -479,6 +479,32 @@ authoring-order rule already gives:
 | Both are in the document register | The register check, in both directions |
 | **The two were edited together** | **Nothing here. A gate step compares the paths a pull request touched** |
 
+#### 7.4.1 An entry states the purpose, then the change, and never who made it
+
+Added 2026-10-18 at the project owner's instruction.
+
+**The changelog tracks changes to the README, the scripts and the harness, not
+their authorship.** The README and the changelog describe the project, its
+structure, the repository and its tests as they are now, and the path they took
+to get here. Who made a change says nothing about any of that.
+
+**Authorship is already recorded, by the commit and the push.** The person
+who commits or authorizes the push is responsible for the change, whoever or
+whatever implemented it, and is the one who fixes what it breaks, with an
+assistant or without. Naming an implementer in the changelog restates the git
+history less reliably and blurs that responsibility.
+
+| | Belongs in |
+|---|---|
+| Why the change was needed: the gap, the defect, what a reader could not learn | The changelog entry, first |
+| What changed, and any figure that moved | The changelog entry, second |
+| Who asked for it, in what words, and why they asked | `CLAUDE_LOG.md` and `.claude/logs/PROMPT_LOG.md` |
+
+**A purpose the author does not agree with is discussed before it is written**,
+not recorded as somebody else's reason. An entry attributing a change ("at the
+owner's request", "rewritten by hand") has left out its purpose and put a
+party in its place.
+
 ## 8. Cross-Platform Rules
 
 The harness is verified on Ubuntu and Windows (A18). These are not style preferences: each one names a defect that occurs on exactly one platform and is silent on the other.

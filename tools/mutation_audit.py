@@ -27,8 +27,6 @@ left unparsed passes the control gate trivially, since unparsing is idempotent
 
 import argparse
 import ast
-import ctypes
-import hashlib
 import json
 import logging
 import os
@@ -41,6 +39,15 @@ from pathlib import Path
 from typing import Any, Final, Optional
 
 import yaml
+
+from cmn.mutation_guard import (
+    AUDIT_ENV,
+    BACKUP_SUFFIX,
+    LOCK_SUFFIX,
+    ProgressLog,
+    module_digest,
+    process_alive,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,18 +86,12 @@ _NOTHING_COLLECTED: Final[int] = 5
 
 # WHERE THE REAL FILE WAITS while a mutant is in place. A kill between the write
 # and the restore leaves the mutant on disk and only this says what was there.
-_BACKUP_SUFFIX: Final[str] = ".mutation-backup"
+# Shared with the run check of section 15.12, which looks for the same files.
+_BACKUP_SUFFIX: Final[str] = BACKUP_SUFFIX
 
 # WHO HOLDS A MODULE NOW, beside the backup, which says only that someone did.
 # Section 15.11.
-_LOCK_SUFFIX: Final[str] = ".mutation-lock"
-
-# WINDOWS PROCESS QUERY, used because the POSIX liveness signal terminates a
-# process there. The access right, the error for a process we may not open,
-# and the exit code a running process reports.
-_QUERY_LIMITED_INFORMATION: Final[int] = 0x1000
-_ACCESS_DENIED: Final[int] = 5
-_STILL_ACTIVE: Final[int] = 259
+_LOCK_SUFFIX: Final[str] = LOCK_SUFFIX
 
 # WHERE THE BASELINE IS DECLARED. Read from the root rather than passed, for
 # the same reason the backup suffix is a constant: it is a property of the
@@ -206,20 +207,6 @@ def _mutate(tree: ast.Module, point: MutationPoint) -> bool:
     return False
 
 
-def module_digest(text: str) -> str:
-    """Return the digest of a module's content, newlines normalized.
-
-    Args:
-        text (str): The module source.
-
-    Returns:
-        str: The hex SHA-256 of the content with newlines as LF, so a digest
-        does not depend on how the file was checked out.
-    """
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-
-
 def baseline_problem(manifest: Path, module: str, text: str) -> Optional[str]:
     """Report why this content may not serve as a baseline, or None.
 
@@ -274,59 +261,6 @@ def recover(module: Path) -> Optional[str]:
         f"{module} was left mutated by an earlier run and has been restored "
         f"from {backup.name}; verify the suite before mutating again"
     )
-
-
-def process_alive(pid: int) -> bool:
-    """Report whether a process is running, without signalling it.
-
-    Args:
-        pid (int): The process identifier.
-
-    Returns:
-        bool: True when the process exists. **On Windows the process is opened
-        for a query and its exit code read**, because there the POSIX liveness
-        signal terminates the process it names (section 15.11).
-    """
-    if pid <= 0:
-        return False
-    if sys.platform == "win32":
-        return _windows_process_alive(pid)
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
-
-
-def _windows_process_alive(pid: int) -> bool:
-    """Report whether a Windows process is running, by querying its exit code.
-
-    Args:
-        pid (int): The process identifier.
-
-    Returns:
-        bool: True when the process exists. A process that may not be opened
-        exists; one that cannot be found has exited.
-    """
-    kernel = getattr(ctypes, "WinDLL")("kernel32", use_last_error=True)
-    # A HANDLE IS POINTER-WIDE, and ctypes returns a C int unless told
-    # otherwise, which truncates it on a 64-bit process.
-    kernel.OpenProcess.restype = ctypes.c_void_p
-    kernel.OpenProcess.argtypes = (ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong)
-    kernel.GetExitCodeProcess.argtypes = (ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong))
-    kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
-    handle = kernel.OpenProcess(_QUERY_LIMITED_INFORMATION, False, pid)
-    if not handle:
-        return ctypes.get_last_error() == _ACCESS_DENIED
-    try:
-        code = ctypes.c_ulong()
-        if not kernel.GetExitCodeProcess(handle, ctypes.byref(code)):
-            return True
-        return code.value == _STILL_ACTIVE
-    finally:
-        kernel.CloseHandle(handle)
 
 
 def acquire_lock(module: Path) -> None:
@@ -401,6 +335,9 @@ def run_targets(
         # NO INHERITED INPUT. A background session has none to duplicate,
         # and the run failed to start there (section 15.5.1).
         stdin=subprocess.DEVNULL,
+        # THE RUN IS THIS AUDIT'S OWN, so the check of section 15.12 lets it
+        # import the module this audit holds.
+        env={**os.environ, AUDIT_ENV: str(os.getpid())},
     )
 
 
@@ -469,14 +406,25 @@ def survivors(
     # THE LOCK COMES FIRST, before even the recovery, because a live audit's
     # backup is indistinguishable from a dead one's (section 15.11).
     acquire_lock(module)
+    # THE PROGRESS LOG SAYS WHERE AN AUDIT IS, which the lock cannot: a run
+    # refused by section 15.12 quotes its last line.
+    progress = ProgressLog.begin(root, module.relative_to(root).as_posix())
     try:
-        return _survivors_held(root, module, targets, limit=limit)
+        found = _survivors_held(root, module, targets, progress, limit=limit)
+    except MutationRefusal as refusal:
+        progress.line(f"refused: {refusal}")
+        raise
+    except BaseException as error:
+        progress.line(f"failed: {type(error).__name__}: {error}")
+        raise
     finally:
         release_lock(module)
+    progress.finish(f"restored, {len(found)} survivor(s)")
+    return found
 
 
 def _survivors_held(
-    root: Path, module: Path, targets: list[str], *, limit: int = 0
+    root: Path, module: Path, targets: list[str], progress: ProgressLog, *, limit: int = 0
 ) -> list[MutationPoint]:
     """Return every change the suite failed to notice, the lock already held.
 
@@ -484,6 +432,7 @@ def _survivors_held(
         root (Path): The repository root.
         module (Path): The production module to mutate.
         targets (list[str]): The pytest arguments naming what to run.
+        progress (ProgressLog): Where each event is written as it happens.
         limit (int): Stop after this many points, or zero for all of them.
 
     Returns:
@@ -512,38 +461,69 @@ def _survivors_held(
     backup = module.with_suffix(module.suffix + _BACKUP_SUFFIX)
     backup.write_text(original, encoding="utf-8", newline="\n")
 
-    _run_control(root, module, targets, original)
-
     points = mutation_points(original)
     if limit:
         points = points[:limit]
+    progress.line(f"baseline {module_digest(original)[:8]}, {len(points)} points")
 
-    survived: list[MutationPoint] = []
+    progress.line("control started")
+    _run_control(root, module, targets, original)
+    progress.line("control passed")
+
     try:
-        for point in points:
-            tree = ast.parse(original)
-            if not _mutate(tree, point):
-                continue
-            ast.fix_missing_locations(tree)
-            try:
-                mutant = ast.unparse(tree)
-            except (ValueError, RecursionError):
-                continue
-            module.write_text(mutant, encoding="utf-8", newline="\n")
-
-            done = run_targets(root, targets, stop_early=True)
-            if done.returncode == _NOTHING_COLLECTED:
-                raise MutationRefusal(
-                    f"QC_HARNESS_AUDIT_REFUSED: pytest collected nothing at "
-                    f"{point.describe()}, so no result from this run means "
-                    f"anything"
-                )
-            if done.returncode == 0:
-                survived.append(point)
-                logger.warning("SURVIVED %s", point.describe())
+        return _measure_points(root, module, targets, original, points, progress)
     finally:
         module.write_text(original, encoding="utf-8", newline="\n")
         backup.unlink(missing_ok=True)
+
+
+def _measure_points(
+    root: Path, module: Path, targets: list[str], original: str,
+    points: list[MutationPoint], progress: ProgressLog,
+) -> list[MutationPoint]:
+    """Write each mutant in turn and run the suite against it, the backup already on disk.
+
+    Args:
+        root (Path): The repository root.
+        module (Path): The module under audit.
+        targets (list[str]): The pytest arguments.
+        original (str): The baseline each mutant is made from.
+        points (list[MutationPoint]): The changes to make, in order.
+        progress (ProgressLog): Where each point's start and outcome are written.
+
+    Returns:
+        list[MutationPoint]: The survivors, in walk order. The caller restores
+        the module.
+
+    Raises:
+        MutationRefusal: With ``QC_HARNESS_AUDIT_REFUSED`` when a run collected
+            nothing.
+    """
+    survived: list[MutationPoint] = []
+    for number, point in enumerate(points, start=1):
+        tree = ast.parse(original)
+        if not _mutate(tree, point):
+            continue
+        ast.fix_missing_locations(tree)
+        try:
+            mutant = ast.unparse(tree)
+        except (ValueError, RecursionError):
+            continue
+        place = f"point {number} of {len(points)}"
+        progress.line(f"{place} started: {point.describe()}")
+        module.write_text(mutant, encoding="utf-8", newline="\n")
+
+        done = run_targets(root, targets, stop_early=True)
+        if done.returncode == _NOTHING_COLLECTED:
+            raise MutationRefusal(
+                f"QC_HARNESS_AUDIT_REFUSED: pytest collected nothing at "
+                f"{point.describe()}, so no result from this run means "
+                f"anything"
+            )
+        if done.returncode == 0:
+            survived.append(point)
+            logger.warning("SURVIVED %s", point.describe())
+        progress.line(f"{place} {'survived' if done.returncode == 0 else 'killed'}")
     return survived
 
 

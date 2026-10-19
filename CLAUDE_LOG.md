@@ -11668,3 +11668,65 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   `cmn/registries.py` ran after its digest was re-declared and passed with no
   undeclared survivor, exit 0, leaving the module intact at its declared
   digest. Pylint 10.00/10, exit 0; 326 requirements.
+
+## 2026-10-18: A run refuses a harness module under mutation, and the audit logs where it is
+
+* **Found in this session**: stopping a background mutation audit ended its
+  shell and not the audit. The audit went on mutating `cmn/layers.py` while
+  ordinary runs of both repositories imported its mutants. The lock of section
+  15.11 refused the next audit in 0.04 seconds, correctly; nothing refused the
+  ordinary runs. No backup was left behind, because the orphaned audit
+  eventually finished and cleaned up after itself, which is how the cause was
+  established from the transcript.
+* **Decided by the project owner**: a backup is never expected, since an audit
+  removes its own; a restore needs a fallback for when it fails; the audit
+  leaves a progress log with its start time in the file name, "so if it gets
+  stuck or is abandoned, you know exactly where it went down"; the logs kept are
+  the last good audit's and the current one's. A session-wide digest check was
+  rejected because it would refuse hand edits to audited modules.
+* **Built, `harness_test_taxonomy.md` section 15.12, `MQC_REQ_HAR_CMN_0185`:**
+  * `cmn.mutation_guard.mutation_state` looks for a backup or a lock beside any
+    module of the harness a run imports, and both repositories'
+    `pytest_sessionstart` call `refuse_if_mutating` first.
+  * A module a live audit holds refuses every run but that audit's own, which
+    carries `MQC_MUTATION_AUDIT`.
+  * A backup no live process holds is restored, the restore hashed against the
+    declared digest, and the run refused with exit 3 and
+    `QC_HARNESS_PREFLIGHT_FAILURE` either way. A restore that raises or does not
+    match keeps the backup and names both ways out.
+  * The audit writes `reports/mutation/<module>.mutation-progress-<UTC start>`,
+    one flushed line per event; a finished audit deletes every older log of its
+    module, and a refusal quotes the newest log's last line and its age.
+  * The backup and lock suffixes, the liveness query and the digest moved from
+    `tools/mutation_audit.py` into the shared module, so the audit and the check
+    read the same files.
+* **Cases, each failing first:** `MQC_CMN_UNI_112391` to `112397`, eight
+  injections caught with the case repository's `115764`. Verified end to end
+  by planting an abandoned backup of `cmn/layers.py`: both repositories exited
+  3, restored the module to its committed bytes and removed the backup. A real
+  one-point audit passed its own runs through the check and logged every event
+  to its restore.
+* **The changelog rule moved into the rules**, `code-style.md` section 7.4.1:
+  an entry states the purpose of a change, then the change, and never who made
+  it. The project owner: authorship is recorded by the commit and push, and the
+  person who commits is responsible for the change "using claude or not". Nine
+  passages across both changelogs that named the owner now state the purpose.
+* **The README's section on a green suite** was rewritten by the project owner
+  to say what a green harness run means; its changelog entry was added and three
+  typos in it corrected.
+* **Digressions the user spotted, and the fix:**
+  * The first changelog entry for the README named the project owner as its
+    author; rewritten to the purpose, and the rule written into the rules after
+    the owner pointed out a memory alone does not survive a crash.
+  * The fix first proposed, a `finally` restore and a digest refusal, already
+    existed; reading the tool showed the real gap was at the ordinary run's
+    entry, not the audit's.
+* **Found while building, and fixed:** the step recorder refused four of the new
+  cases as misnumbered, since every assertion is a step and two followed one
+  declared step; each declared step now carries one verification. Three case
+  names exceeded the naming pattern, a helper sat in a case module, and the
+  index restated the CMN inventory as 388.
+* **Code Quality & Compliance Audit:** 898 test cases: 892 in the precondition
+  run, all passing with two capacity warnings, exit 0, and 6 mutation cases,
+  which run only in their own audit; no mutation-audited module changed, so none
+  ran. Pylint 10.00/10, exit 0; 327 requirements.

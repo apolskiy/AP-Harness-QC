@@ -2928,6 +2928,112 @@ the cross-platform rule of `code-style.md` section 8 in its sharpest form: the
 portable-looking call is the destructive one on one platform.
 `MQC_CMN_UNI_112377` and `112378` assert both outcomes.
 
+### 15.12 An ordinary run refuses a module under mutation, and the audit says where it is
+
+Added 2026-10-18. **Stopping a background audit ended its shell and not the
+audit.** The audit went on mutating `cmn/layers.py` while ordinary runs of
+both repositories imported its mutants, and two unrelated checks noticed only
+because a mutant stripped the file's header. The lock of section 15.11 refused
+the next audit, correctly, in 0.04 seconds. **Nothing refused the ordinary
+runs**, because every protection in this section sits at the audit's own entry.
+
+**A backup is never expected.** An audit removes its backup when it ends, so a
+backup on disk means an audit is running or one died. Either way, a run
+importing that module measures code nobody wrote.
+
+#### 15.12.1 What a run checks before it starts
+
+`cmn.mutation_guard.mutation_state` looks for a backup or a lock beside any
+module of `ingestion`, `execution`, `evaluation`, `cmn` or `tools`, in the root
+of the harness the run imports, which `imported_harness_root` returns. That is
+the checkout's own in this repository, and the installed or sibling harness in
+the case repository. An installed wheel carries neither, so there the check
+finds nothing and costs nothing. Both repositories' `pytest_sessionstart` call
+`refuse_if_mutating` with it first, the one-implementation-two-callers
+arrangement of `code-style.md` section 8.2.
+
+| Found | The run |
+|---|---|
+| Nothing | Starts |
+| A lock held by a live process, and this run is that audit's own | Starts. The audit sets `MQC_MUTATION_AUDIT` to its process id for every run it launches |
+| A lock held by a live process, any other run | **Refuses**, naming the module, the process and its progress (15.12.3) |
+| A backup no live process holds | Restores the module from it, then **refuses**: `conftest` has already imported the mutant, so nothing this run measured could be trusted |
+
+Every refusal exits 3 with `QC_HARNESS_PREFLIGHT_FAILURE`, which is the
+registered meaning: a check failed and the run aborted before execution. It is
+a precondition failure and not a measurement, the same reason an audit refusal
+skips (section 15.2.1).
+
+#### 15.12.2 A restore is verified, and one that fails keeps the backup
+
+**Restoring is not enough on its own, because a restore can fail.** A file held
+open on Windows, a disk that is full, or a backup that was itself cut short each
+leaves the module in a state the restore did not intend. So the restored module
+is read back and hashed against the digest `config/mutation_survivors.yaml`
+declares for it. The backup was written only after that digest matched
+(section 15.10), so a match proves the restore is the declared baseline.
+
+| Outcome | Backup | Message |
+|---|---|---|
+| Restored and the digest matches | Removed | The module was restored; run again |
+| The restore raised | **Kept** | Both ways out: copy the backup over the module, or `git restore` it |
+| Restored and the digest does not match, or none is declared | **Kept** | As above, naming both digests |
+
+**A kept backup is the evidence**, and removing it on a failed restore would
+leave nothing that says what the module should hold. The next run finds it
+again and refuses again, which is correct until somebody acts.
+
+#### 15.12.3 The audit leaves a progress log, named for when it started
+
+**The lock says an audit is running, not what it is doing or where it died.**
+So the audit writes `reports/mutation/<module>.mutation-progress-<UTC start>`,
+the module's path flattened with dots, one line per event, each flushed as it
+is written so that a killed process loses at most the line in flight:
+
+```
+2026-10-18T14:23:01Z started pid 18324
+2026-10-18T14:23:01Z baseline 3246dacc, 51 points
+2026-10-18T14:23:02Z control started
+2026-10-18T14:24:10Z control passed
+2026-10-18T14:24:11Z point 12 of 51 started: line 456: 1 to 2
+2026-10-18T14:24:19Z point 12 of 51 killed
+2026-10-18T15:30:40Z finished: restored, 3 survivor(s)
+```
+
+**An abandoned audit ends on a "started" line**, which names the mutant that was
+on disk when it died. A stuck one shows the same line with a time far behind
+the clock. A refusal in section 15.12.1 quotes the newest log's last line and
+how long ago it was written, so "point 12 of 51, started 40 minutes ago" is in
+the message rather than in a file somebody has to find.
+
+**The start time is in the name**, so two runs never share a file and a
+listing sorts them by start. `reports/` is untracked.
+
+| A module's logs | Kept |
+|---|---|
+| The audit now running | Until it ends |
+| The last audit that finished | Until the next one finishes |
+| A failed, refused or abandoned audit | **Until the next audit of that module finishes**, which deletes every older log but its own |
+
+**So a module holds one log unless something went wrong**, and the evidence of
+what went wrong stays until a clean run shows it resolved. Deleting only the
+previous good log would let failed ones accumulate beside it.
+
+#### 15.12.4 What this does not do
+
+**It does not stop the orphaned audit.** A run cannot safely end another
+process, and on Windows the call that asks about one is the call that ends it
+(section 15.11). The refusal names the process, so the person who stopped the
+task can end it.
+
+**It does not compare every audited module to its digest on every run.** Since
+section 15.5 the backup is written before the first rewrite, so no moment
+exists in which a module is mutated and no backup is beside it, and a digest
+check on ordinary runs would refuse every hand edit to an audited module.
+
+`MQC_CMN_UNI_112391` to `112397` assert it, and `MQC_CAS_UNI_115764` asserts
+the case repository's call.
+
 ---
 
 ## 14. Every Subprocess A Case Spawns Carries A Timeout

@@ -29,6 +29,31 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A run refuses a harness module under mutation, and the audit logs where it is, 2026-10-18
+
+**Stopping a background mutation audit ended its shell and not the audit**, which
+went on mutating a module while ordinary runs imported its mutants; every
+protection sat at the audit's own entry. A run in either repository now checks,
+before anything else, for a backup or a lock beside a harness module. A module a
+live audit holds refuses every run but that audit's own, and one an abandoned
+audit left is restored, verified against its declared digest and the run
+refused; a restore that fails or does not match keeps the backup and names both
+ways out. The audit writes a progress log named for its start, one flushed line
+per event, which a refusal quotes, and keeps it until the next audit of the
+module finishes (`harness_test_taxonomy.md` section 15.12). The README's
+figures moved: 898 test cases and 327 requirements.
+
+### The README says what a green harness run is for, 2026-10-18
+
+**A reader could learn what a green run does not mean, and not what it does
+mean.** The README's section on a green suite now says that a green run means
+the harness is ready for model testing and can serve as the default harness
+for regression runs. It says green harness CI jobs are a precondition for
+running the regression tests against the models, not a result alongside them,
+and that the other repository holds the model tests as well as their results.
+A missing word, a missing full stop and a trailing space in that section were
+corrected. No figure moved.
+
 ### Every precondition case records its steps, through the engine graded cases use, 2026-10-18
 
 **Only graded cases recorded steps.** Every `UNI` and `SYS` case in both
@@ -136,7 +161,7 @@ harness cases.
 
 **A crash was a failure in every output but Allure.** The final mutation audit
 reported an `OSError` as "1 failed", the word the taxonomy keeps for a model
-finding. At the project owner's instruction, a case raising anything other than
+finding. A case raising anything other than
 an assertion or a deliberate `pytest.fail`, or erroring in setup or teardown, is
 now counted as `broken`, named with `QC_HARNESS_UNANTICIPATED_EXCEPTION` and its
 exception in the result block, and makes the run exit 3: nothing trustworthy
@@ -285,7 +310,7 @@ nowhere. **36 of 479 recorded judgements passed on a minimum score of exactly
 3.0** and would fail at any higher mark, concentrated in `mat_at_floor` (11),
 `mat_experience_stated` (5) and `cod_aggregate_from_table` (5).
 
-**Decided by the project owner: keep 3.0.** Recorded in
+**The pass mark stays at 3.0.** Recorded in
 `tier3_evaluation.md` section 9 and `DESIGN.md` section 5, with the argument
 against it on the record rather than rediscovered later: on a five-point judge
 scale a 3 reads as mediocre, and the level-3 anchors here say so, one of them
@@ -321,8 +346,9 @@ and `DESIGN.md` rather than only in `isolation.py`.
 
 ### A mutation suite, and the nine gaps it found in its first pass, 2026-10-13
 
-**Added at the project owner's instruction**, "mutation run can be a test suite
-for the harness. To make sure harness works."
+**A green harness run said nothing tested failed, not that the harness works.**
+The mutation suite tests the harness's own cases: it changes the code they
+cover and asks whether any of them notices.
 
 **`MUT` is a registered layer**, marker `mutation`, block `161000-169999`.
 Ungraded, and **not blocking**: a surviving mutant says some behaviour is
@@ -690,7 +716,7 @@ labelled, so a number is found without parsing a sentence.
 
 **Every skip names its own case and its own cause.** The line it replaces read
 `4 for a reason of ours`, which covered nineteen registered codes taking five
-different remedies. The project owner read it and inferred the wrong cause: four
+different remedies. Read as written, it pointed to the wrong cause: four
 cases with no recorded response were taken for four blocked by a failure in P0.
 A code with no description is reported as itself rather than swallowed.
 
