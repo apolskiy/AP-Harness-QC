@@ -58,11 +58,12 @@ that handles graded results — the plumbing is tested with synthetic data and
 never with a provider.
 
 **That separation is the reason there are two repositories.** A finding about a
-model is only worth filing if the instrument that produced it is known-good, and
-establishing that is this repository's entire job. It is a precondition for the
-findings, not a result alongside them.
+model is only worth filing if the instrument that produced the finding is known to
+be working correctly. Establishing that harness is working correctly is the job
+of the tests in this repository. Harness CI jobs being green is a precondition for 
+execution of regression tests against the models, not a result alongside them.
 
-**The model results live in the other repository**, where four gates are
+**The model tests and results live in the other repository**, where four gates are
 expected to be red because they found something. Its README states how many
 cases run against each model and what each red means.
 
