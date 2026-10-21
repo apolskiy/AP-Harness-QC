@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Registries that the rest of the harness reads rather than hardcodes.
+"""Shared registries, the codes, conditions and families the harness looks up.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains the priority conditions (``priority_condition_level``,
+``registered_priority_conditions``); the failure taxonomy codes by family
+(``is_registered_harness_code``, ``is_registered_llm_code``, ``is_registered_sec_code``,
+``is_registered_data_code``, ``data_code_severity``, ``registered_codes``) with their
+ranking (``code_criticality``, ``most_critical``, ``unranked_codes``); aggregation
+strategies; evaluation families (``EvaluationFamily`` and its register functions); and
+the adapter error, constraint kind, status and Windows reserved name lookups.
+
+Ingestion invariant G6, ``cmn.metadata``, the evaluation tier and the case repository's
+tools ask these whether an identifier is registered and at what level, and the rule that
+uses each answer lives with the component it constrains.
 
 A registry here is the executable form of a table in a design document. The
 document remains the single normative source; this module exists so that a
@@ -99,6 +114,7 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     "QC_HARNESS_PREFLIGHT_FAILURE",
     "QC_HARNESS_QUARANTINED",
     "QC_HARNESS_QUARANTINE_UNCONFIRMED",
+    "QC_HARNESS_JUDGE_WITHHELD",
     "QC_HARNESS_VERSION_UNAVAILABLE",
     "QC_HARNESS_FIXTURE_MISSING",
     "QC_HARNESS_FIXTURE_STALE",

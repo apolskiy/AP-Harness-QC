@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The domain every threshold lives in, and the refusal when one leaves it.
+"""Threshold validation, which refuses a configured threshold outside its domain.
+
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+This file contains ``check_rate``, which refuses a rate outside ``0 < value <= 1``;
+``check_count``, which refuses a population count below one or not whole; and
+``check_domain``, which applies the right check to every field of a thresholds record.
+
+``cmn.verdict`` calls ``check_domain`` when a ``Thresholds`` record is built, and the
+case repository's band floor tool calls ``check_rate``, so a floor of zero or a string
+is refused before any verdict is computed from it.
 
 Designed in ``docs/design/cmn_verdict_and_cli.md`` section 8.1, which records
 what was measured before this existed: a ``pass_floor`` of ``0`` or ``-1``

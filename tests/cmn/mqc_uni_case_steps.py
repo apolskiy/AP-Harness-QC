@@ -1,13 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Every precondition case's steps, recorded by the engine graded cases use.
+"""Unit preconditions for the step recorder that logs each precondition case's steps.
 
-Covers ``MQC_CMN_UNI_112900`` to ``112907``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 12 and designed in
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+The cases here check ``cmn.case_steps``: that each assertion a ``UNI`` or
+``SYS`` case reaches, passing or failing, and each expected exception is
+recorded as a verification step, that the action is the named ``step`` or the
+code since the previous verification, that an assertion in a support module is
+recorded, that a case recording no verification or a named step without one
+fails, that a step declaring the wrong number fails, and that a graded case is
+not recorded as a precondition.
+
+Those steps are what Allure and the log show for a precondition case, in the
+same ``STEP_NN`` form a graded case's take. The recorder lives in pytest's
+hooks, so these read what a small nested suite, run by
+``case_steps_support.py``, logged when it ran under them.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 12 and
 ``docs/design/harness_test_taxonomy.md`` section 8.2.4.
-
-The recorder lives in pytest's hooks, so these read what a small nested suite
-logged when it ran under them.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.

@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The fixture store, and the hash that keeps replay honest.
+"""Records model responses and judge replies to disk and replays them in later runs.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains the candidate side of the fixture store, ``record_fixture``
+and ``load_fixture`` keyed by a ``FixtureKey`` and checked against
+``hash_request``, with ``retire_stale_siblings`` and
+``stored_observation_count``; the judge side, ``record_judgement`` and
+``load_judgement`` keyed by a ``JudgementKey``; the ``FixtureMissing`` and
+``FixtureStale`` errors a load raises; and ``fixture_credential_problems``,
+which reports any stored fixture carrying a credential.
+
+**Dispatch and the judge channel read and write it.** A live run with
+recording on writes each observation here, and a replay run reads it back
+instead of calling a provider. A missing or
+stale fixture becomes a skip with its harness code, never a live call.
 
 Specified by ``docs/design/tier2_execution.md`` section 7.
 
@@ -579,9 +595,10 @@ def load_judgement(
 
 
 def record_judgement(
-    root: Path, key: JudgementKey, request_hash: str, judge_model: str, reply: Any
+    root: Path, key: JudgementKey, request_hash: str, judge_model: str, reply: Any,
+    *, prompt: str = "",
 ) -> Path:
-    """Store a judgement for later replay.
+    """Store a judgement for later replay, with the prompt it scored.
 
     Args:
         root (Path): The fixture root.
@@ -589,19 +606,24 @@ def record_judgement(
         request_hash (str): Hash of the judge request that produced it.
         judge_model (str): The resolved model that produced it.
         reply (Any): The judge reply.
+        prompt (str): The rendered request the judge was sent, stored beside
+            the hash and read by nothing that loads it (section 7.9.4).
 
     Returns:
         Path: Where it was written.
     """
     path = key.path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
+    stored: dict[str, Any] = {
+        "request_hash": request_hash,
+        "judge_model": judge_model,
+        "reply": reply,
+    }
+    if prompt:
+        stored["prompt"] = prompt
     path.write_text(
         json.dumps(
-            {
-                "request_hash": request_hash,
-                "judge_model": judge_model,
-                "reply": reply,
-            },
+            stored,
             indent=2,
             sort_keys=True,
         )

@@ -1,9 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A case identifier executes once per run.
+"""Unit preconditions that a case identifier executes once per run.
 
-Covers ``MQC_CMN_UNI_112153`` and ``112154``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in section 7.8.5.
+Created: 2026-10-16
+Last updated: 2026-10-21
+
+The cases here check ``cmn.selection``: that ``refuse_repeated_cases`` refuses
+a run in which one identifier was collected more than once, naming it and its
+count, and that the repository's collection hook calls it. They also check that
+``select_named_tests`` keeps one item per identifier named, and that a
+parametrised case carrying one identifier twice is still refused.
+
+A result is filed under its identifier, so two executions of one identifier
+would leave the record unable to say which one it holds.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and section
+7.8.5.
 
 A failure here is **not a model finding**, so the module carries no priority marker.
 """
@@ -22,7 +34,7 @@ from pathlib import Path
 import pytest
 
 from cmn.selection import refuse_repeated_cases, select_named_tests
-from tests.cmn.selection_support import FakeConfig, FakeItem
+from tests.cmn.selection_support import SimulatedConfig, SimulatedItem
 
 pytestmark = pytest.mark.unit
 
@@ -43,14 +55,16 @@ class TestMQCExecutionIdentity:
         Returns:
             None
         """
-        distinct = [FakeItem("MQC_CMN_UNI_112056_a_rate"), FakeItem("MQC_CMN_UNI_112057_b")]
+        distinct = [
+            SimulatedItem("MQC_CMN_UNI_112056_a_rate"), SimulatedItem("MQC_CMN_UNI_112057_b")
+        ]
         refuse_repeated_cases(distinct)
 
         repeated = [
-            FakeItem("MQC_CMN_UNI_112056_a_rate[-0.5]"),
-            FakeItem("MQC_CMN_UNI_112056_a_rate[1.5]"),
-            FakeItem("MQC_CMN_UNI_112056_a_rate[2.0]"),
-            FakeItem("MQC_CMN_UNI_112057_b"),
+            SimulatedItem("MQC_CMN_UNI_112056_a_rate[-0.5]"),
+            SimulatedItem("MQC_CMN_UNI_112056_a_rate[1.5]"),
+            SimulatedItem("MQC_CMN_UNI_112056_a_rate[2.0]"),
+            SimulatedItem("MQC_CMN_UNI_112057_b"),
         ]
         with pytest.raises(ValueError, match="QC_HARNESS_CASE_REPEATED") as raised:
             refuse_repeated_cases(repeated)
@@ -81,13 +95,13 @@ class TestMQCExecutionIdentity:
         Returns:
             None
         """
-        items = [FakeItem(f"MQC_CMN_UNI_11205{digit}_case") for digit in range(6)]
-        select_named_tests(FakeConfig({"--tests": "112050,112052,112054"}), items)
+        items = [SimulatedItem(f"MQC_CMN_UNI_11205{digit}_case") for digit in range(6)]
+        select_named_tests(SimulatedConfig({"--tests": "112050,112052,112054"}), items)
         refuse_repeated_cases(items)
         assert len(items) == 3, [item.name for item in items]
 
-        doubled = [FakeItem("MQC_CMN_UNI_112050_case[one]"),
-                   FakeItem("MQC_CMN_UNI_112050_case[two]")]
-        select_named_tests(FakeConfig({"--tests": "112050"}), doubled)
+        doubled = [SimulatedItem("MQC_CMN_UNI_112050_case[one]"),
+                   SimulatedItem("MQC_CMN_UNI_112050_case[two]")]
+        select_named_tests(SimulatedConfig({"--tests": "112050"}), doubled)
         with pytest.raises(ValueError, match="QC_HARNESS_CASE_REPEATED"):
             refuse_repeated_cases(doubled)

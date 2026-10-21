@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A graded case's steps, the pipeline phases beneath each, and where it stopped.
+"""Case steps, the record of what a graded case did and where it stopped.
+
+Created: 2026-10-07
+Last updated: 2026-10-21
+
+This file contains ``ledger``, which reads one observation's dispatch outcome
+and evaluation result into the ``StepOutcome`` of each pipeline phase;
+``stopped_at``, ``stopped_line`` and ``summary``, which say where execution
+stopped; ``CaseStep`` with ``observation_step``, ``consistency_step`` and
+``case_steps``, which build a graded case's steps in order; ``step_lines``,
+which renders them for the log; and ``entering``, which logs a phase on entry
+and exit.
+
+The case repository's graded support builds and logs these as each graded case
+runs, and ``cmn.case_steps`` records precondition cases in the same form, so a
+failure names the step and phase it stopped at and whether that is a harness
+skip or a model failure.
 
 Specified by ``docs/design/harness_test_taxonomy.md`` section 8: a step is a
 verifiable action and one verification, logged apart, because a step can fail
@@ -630,6 +646,12 @@ def _step_check(phase: str, result: Any) -> tuple[str, str, str]:
         tuple: The state, what was found, and the taxonomy code.
     """
     results = list(getattr(result, "assertion_results", ()) or ())
+    if not results and getattr(result, "score", None) is not None:
+        # A DECLARED ASSERTION ALWAYS REPORTS, so a judged result carrying none
+        # declared none and is decided by its rubric (section 8.2.1).
+        return (
+            _NOT_APPLICABLE, "the rule declares no assertion and is decided by its rubric", ""
+        )
     if phase == _ACTION:
         if not results:
             return _NOT_RUN, "no assertion ran", ""
@@ -676,6 +698,10 @@ def _step_judge_receive(phase: str, result: Any) -> tuple[str, str, str]:
         skipped = str(getattr(result, "judge_skipped_reason", "") or "")
         return _NOT_RUN, skipped or "no judgement returned", _skip_code(result)
     value = getattr(score, "value", "?")
+    steered = str(getattr(result, "planted_score_returned", "") or "")
+    if steered:
+        # THE JUDGEMENT FAILED, not an assertion (tier3_evaluation.md 4C.5).
+        return _FAILED, steered, "QC_SEC_INJECTION_ATTEMPT"
     if not getattr(score, "passed", True):
         return (
             _FAILED,

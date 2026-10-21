@@ -1,11 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A judge double, written once because two system suites need the same one.
+"""Stand-in judges for the cases that need a judge without calling a provider.
 
-`mqc_sys_evaluation.py` proves the dual pass invokes a judge and `mqc_sys_whole
-_chain.py` needs one inside a longer chain. Both had the same factory, which
-pylint reported as duplication and which would have drifted the first time one
-copy learned something: the request log in particular is the kind of detail one
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains two factories returning a ``JudgeBinding`` from
+:mod:`evaluation.judge`. :func:`scoring_judge` awards one fixed score to every
+criterion and returns the log of requests it received; :func:`refusing_judge`
+raises the exception it was built with instead of judging.
+
+``mqc_sys_evaluation.py`` uses the scoring judge to prove the dual pass invokes
+a judge, ``mqc_sys_whole_chain.py`` needs one inside a longer chain, and
+``mqc_uni_judgement_gaps.py`` uses the refusing judge to stand in for a missing
+or stale recording. One factory serves them all, since copies would drift the
+first time one learned something, the request log being the kind of detail one
 caller extends and the other silently does not.
 
 **A double rather than a stub.** It answers the schema the composer actually

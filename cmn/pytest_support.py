@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The pytest hooks every repository running MQC cases needs.
+"""Shared pytest hook bodies, which each repository's ``conftest.py`` delegates to.
+
+Created: 2026-09-23
+Last updated: 2026-10-21
+
+This file contains ``add_mqc_options``, which registers the execution flags
+from the shared option registry; ``configure_invocation``, which records what
+the run was invoked with and adopts the corpus selection and artifact
+destinations; ``require_rostered_engine``; ``label_priority_severity``, which
+turns a priority marker into an Allure severity; and the readers
+``case_module``, ``case_identifier``, ``item_priority`` and ``announce_test``.
+
+pytest calls these through the hooks of both repositories' ``conftest.py`` at
+option parsing, configuration, collection and setup, so both suites accept the
+same flags and label the same way before any case runs.
 
 Extracted 2026-09-23, when the split made a second ``conftest.py`` necessary.
 

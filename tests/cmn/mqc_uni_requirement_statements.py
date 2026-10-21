@@ -1,9 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A requirement states the same thing in the test plan and in the matrix.
+"""Unit test that a requirement reads the same in the test plan and in the matrix.
 
-Covers `MQC_CMN_UNI_112382`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-15
+Last updated: 2026-10-21
+
+Its one case checks ``statement_problems`` in ``cmn/traceability.py``, which
+reports a requirement whose statement in ``harness_test_plan.md`` differs from
+its statement in ``rtm_harness.csv``.
+
+A reader can reach a requirement through either document, so two statements
+would leave the cases tracing to it answerable to different wording.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker.

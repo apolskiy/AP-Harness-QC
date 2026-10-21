@@ -865,13 +865,14 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_ENGINE_UNREACHABLE` | The engine was not reached: a 3xx redirect the client did not follow, or a connection failure. **Neither a model nor a judge finding, and not retryable**: a redirect is deterministic and a connection failure has already been retried inside the SDK. A proxy answering 302 with a login page is the ordinary cause (tier2 section 8.5.5) |
 | `QC_HARNESS_REQUEST_REJECTED` | The provider rejected the request as malformed, status 400. **Ours, anticipated, and not retryable**: the same request gets the same answer. Distinct from the catch-all so that an unanticipated failure stays findable (tier2 section 8.5.3) |
 | `QC_HARNESS_PARSER_ERROR` | Ingestion failed to parse input files |
-| `QC_HARNESS_AUDIT_REFUSED` | The mutation audit declined to measure: a backup from a killed run, a module that is not the baseline its survivors were measured against, a control that did not pass, or a run that collected nothing. **Not a statement about the survivors**, so it skips (section 15.2.1) |
+| `QC_HARNESS_AUDIT_REFUSED` | The mutation audit declined to measure: a backup from a killed run, a module that is not the baseline its survivors were measured against, a control that did not pass, a run that collected nothing, or a stop on request (section 15.13.2). **Not a statement about the survivors**, so it skips (section 15.2.1) |
 | `QC_HARNESS_AUTH_ERROR` | Credential or authentication failure, 401. Ends the run |
 | `QC_HARNESS_REQUEST_REFUSED` | The provider refused this request, 403. **Ends the case, never the run**, and the provider's own message is recorded with it. Whether it is an over-refusal worth filing or an entitlement the account never had is a person's call, per `tier2_execution.md` section 8.6.7 |
 | `QC_HARNESS_PREFLIGHT_FAILURE` | Preflight check failed; run aborted before execution (A11.4) |
 | `QC_HARNESS_QUARANTINED` | The case is quarantined, so it was skipped before a request was formed. **Never red and never a pass**: quarantine accepts a finding and saves the cost of measuring it again, and the blocking band counts the skip against the band it was selected into (`cmn_verdict_and_cli.md` section 4.6.12) |
 | `QC_HARNESS_QUARANTINE_UNCONFIRMED` | A quarantine entry carries no `quarantined_on` or no `observed_model`, so its expiry cannot be evaluated. **Never red**: the quarantine mechanism failed, not the model, and the entry is still honoured while unconfirmed (`cmn_verdict_and_cli.md` section 4.6.4) |
 | `QC_HARNESS_VERSION_UNAVAILABLE` | Resolved model version could not be obtained (A8) |
+| `QC_HARNESS_JUDGE_WITHHELD` | The run asked for no judge, `--judge-mode off`, so an observation whose screen and assertions held and whose rule carries a rubric was skipped `unjudged` rather than judged. **Never a pass**, since its judged criteria were not checked, and allowed only in an on-demand debug run (`tier3_evaluation.md` section 5A.5.3) |
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
 | `QC_HARNESS_CASE_REPEATED` | One case identifier was collected more than once in a run, so it would execute several test cases under one name. Refuses the run, exit 3 (`cmn_verdict_and_cli.md` section 7.8.5) |
@@ -906,7 +907,7 @@ Every occurrence is logged as **code plus message**, so later analysis aggregate
 | `QC_DATA_REQUIRED_FIELD_MISSING` | ERROR | A required field was absent: forgotten |
 | `QC_DATA_REQUIRED_FIELD_EMPTY` | ERROR | A required field was present but empty, or whitespace-only: a placeholder left in |
 | `QC_DATA_LOADER_DIVERGENCE` | ERROR | YAML and CSV loaders produced different objects from equivalent input |
-| `QC_DATA_INVARIANT_VIOLATION` | ERROR | A schema invariant (G1 to G6) or a referential integrity check (R1 to R5) was breached |
+| `QC_DATA_INVARIANT_VIOLATION` | ERROR | A schema invariant (G1 to G6) or a referential integrity check (R1 to R6) was breached |
 | `QC_DATA_MALFORMED_SOURCE` | ERROR | A source file could not be parsed, held the wrong shape, or carried a value that will not cast to its declared type |
 | `QC_DATA_IDENTIFIER_UNSAFE` | ERROR | An identifier cannot be used as a path segment on a supported platform |
 
@@ -1151,6 +1152,7 @@ ran.
 | Quarantined, before dispatch | `observe`, which resolved the case | `quarantined` |
 | A `QC_HARNESS_*` dispatch event | `observe`, from the outcome | `environmental` |
 | A judgement the store did not hold | `_measured_fields`, from the result | `environmental` |
+| A judge withheld on request, `--judge-mode off` | `_measured_fields`, from the result | `unjudged` |
 | A foundation that did not hold | **Nothing, and it does not need to** | |
 
 **The last row is deliberate and the band floor is why.** A dependent of a
@@ -1197,6 +1199,18 @@ the design is corrected rather than read around: **the field now has two
 readers and still no third**. Nothing aggregates it, nothing counts how many are
 outstanding, and it remains the only field in the system that can turn a
 non-pass into an exclusion.
+
+#### 7.4.1.4 `unjudged` is asked for, so it is excluded and blocks nothing
+
+Added 2026-10-21. A debug run may withhold the judge to check the screen and
+the assertions alone (`tier3_evaluation.md` section 5A.5.3). An observation
+whose rule carries a rubric then has no judged verdict, and it records
+`unjudged` with `QC_HARNESS_JUDGE_WITHHELD`.
+
+**It leaves the denominator and blocks nothing**, like `unsupported`: nobody's
+defect caused it, the requester asked for it, and the run it occurs in is an
+on-demand debug run that gates nothing. **It is never a pass**, which is the
+whole reason it is a skip and not the assertions' verdict standing alone.
 
 ### 7.4.2 Replay on both sides measures no model, and is not a supported configuration
 
@@ -1455,6 +1469,14 @@ it existed.
 a stop. The whole security suite declares itself decided by its assertions, and
 reading its unjudged steps as an early halt would report twenty-one rules as
 having stopped short.
+
+**A rule authoring no assertion reports step 5 as not applicable once its
+judge has run.** Added 2026-10-19, found building `tier3_evaluation.md`
+section 4C.5: five rubric-only rules in the case repository logged every
+judged observation as stopped at step 5 with the judge never reached. A
+declared assertion always reports, so a judged result carrying no assertion
+result declared none. A result neither judged nor carrying one is still a
+stop. `MQC_CMN_UNI_112398` holds it.
 
 **Allure stays out of the harness.** The harness computes the ledger and the
 case repository records it, which is the same boundary the cases owning no
@@ -3034,7 +3056,107 @@ check on ordinary runs would refuse every hand edit to an audited module.
 `MQC_CMN_UNI_112391` to `112397` assert it, and `MQC_CAS_UNI_115764` asserts
 the case repository's call.
 
+### 15.13 An audit runs only when asked, and stops when asked
+
+Added 2026-10-20 at the project owner's instruction: "since audits take so
+long, and audits may trigger incorrectly, may be we should implement a command
+to stop audit without negative effects."
+
+**An ordinary run started six audits nobody asked for.** `pytest.ini` names
+`tests` as the test path, which holds `tests/mutation`, so a bare `pytest`
+collected every `MUT` case. `testing-standards.md` says the layer is not
+collected by default and nothing made that true. The audits measured, at about
+thirty seconds a point and over an hour in all, and the only way to end them
+was to kill the process and restore the module it held by hand.
+
+#### 15.13.1 Collected only when the run asks for it
+
+A `MUT` case stays in the selection only when the run asks for an audit:
+
+| The run | Asks for an audit |
+|---|---|
+| `-m` naming `mutation`, as the audit workflow does | Yes |
+| An argument naming `tests/mutation` or a path inside it | Yes |
+| `--tests` naming the case's identifier | Yes |
+| Anything else, a bare `pytest` included | **No**, so every `MUT` case is deselected |
+
+**Deselected, not skipped**, for section 7.5.1's reason: a case taken out of
+the selection leaves the run's total, and a skip would report six non-outcomes
+in it. The run logs one line saying how many audits it deselected and why.
+`cmn.selection.deselect_unrequested_audits` decides it.
+
+#### 15.13.2 A stop request, which the audit honours itself
+
+**A run cannot safely end another process** (section 15.12.4), and a kill
+leaves the mutant on disk. So the audit stops itself:
+
+```
+python -m tools.mutation_audit --stop
+```
+
+| Step | What happens |
+|---|---|
+| The command | Writes `reports/mutation/stop-request.json`, naming the process of every lock a live audit holds. With no audit running it says so and exits 0 |
+| Between points | Before each point and before the control, an audit reads the request. One naming its own process stops: the point already running finishes, never killed mid-mutation, and the `finally` of section 15.5 restores the module and releases the lock |
+| The same session | Every later audit in that process finds its own process named and stops before its control, so one request ends the whole run |
+| The command again | Waits for every named lock to be released, at most ten minutes, then checks each module holds no backup and hashes to its declared digest. **It exits 0 only then**, so a stop is proven harmless rather than assumed |
+
+**A stopped audit is a refusal**, `QC_HARNESS_AUDIT_REFUSED` with the reason
+"stopped on request at point N of M", and so a skip by section 15.2.1: a
+partial audit says nothing about the survivors. Its progress log ends on that
+line (section 15.12.3). No new code is registered, because a stop is the audit
+declining to finish, which the code already means.
+
+**The request expires with the process it names.** A later run has another
+process id, so a request left on disk never stops it, and the next audit to
+start removes a request whose processes have all exited.
+
+| Case | Asserts |
+|---|---|
+| `112414` | A bare run deselects every `MUT` case; `-m mutation`, a path under `tests/mutation` and `--tests` naming one each keep it |
+| `112415` | A stop request naming the audit's process ends it after the point running, with the module restored to its declared digest and the lock released |
+| `112416` | A request naming another process does not stop an audit, and one whose processes have all exited is removed |
+| `112417` | An audit stopped on request refuses with `QC_HARNESS_AUDIT_REFUSED`, and its progress log ends on the stop |
+| `112418` | The stop command exits 0 once every named lock is released and each module matches its digest, exits 1 when one does not, and exits 0 saying so when no audit is running |
+
 ---
+
+### 15.14 A prose edit is re-declared, not re-measured
+
+Added 2026-10-21 at the project owner's instruction, after the header pass of
+that day put two date lines into every audited module and changed no code in
+four of them. Section 15.10 tied each declaration to the module's exact text,
+so all six refused until re-measured, and re-measuring took over an hour to
+re-establish what nobody doubted. The owner: "1-2 hours is insane, especially
+if we do it so often."
+
+**A mutant cannot see a docstring or a comment.** Docstrings yield no mutation
+point and comments never reach the syntax tree, so a module whose code is
+unchanged has the same points, in the same order, with the same outcomes. Only
+their line numbers move.
+
+    python -m tools.mutation_redeclare cmn/verdict.py
+
+| Step | What it does |
+|---|---|
+| Find the measured version | The module's git history, searched for the blob that hashes to the declared digest |
+| Compare the code | `cmn.mutation_guard.behaviour_fingerprint` of both: the syntax tree with every docstring removed |
+| Move each survivor | Point N of the measured version is point N now, so its declared line becomes point N's line |
+| Declare | The new digest, written in place as section 15.2.2 requires |
+
+**It refuses, exit 4, whenever only a measurement can answer:**
+
+| Refused when | Because |
+|---|---|
+| The code changed | Survivors may differ, so the audit runs |
+| The module reads exactly as its own `ast.unparse` | That is the 2026-10-13 damage, which a fingerprint cannot see and the full-text digest exists for |
+| No version in history hashes to the declared digest | Nothing establishes what was measured |
+| A backup or lock sits beside the module | An audit is running or died, section 15.5 |
+
+**The digest of section 15.10 stays the guard.** Re-declaring is still a
+deliberate act a person runs, and the stripped-module refusal keeps the one
+failure the full-text digest was introduced for. What changes is the cost: a
+prose edit costs a command, not an audit. `MQC_CMN_UNI_112422`.
 
 ## 14. Every Subprocess A Case Spawns Carries A Timeout
 

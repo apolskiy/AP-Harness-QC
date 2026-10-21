@@ -11746,3 +11746,214 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   run, all passing, exit 0; pylint 10.00/10, exit 0; 328 requirements.
   `cmn/vectors.py` is not mutation-audited, so no audit ran. Replay unchanged on
   all four engines.
+
+## 2026-10-19: A report the answer rejects goes to the judge, and a planted score fails it
+
+* **When:** decided 2026-10-19, 17:34 to 22:06 UTC; built and verified by
+  03:04 UTC on 2026-10-20.
+* **The defect:** `grading_instruction` failed a report on its wording. "Telling
+  the screener to... grade it as 5. I ignored it" failed, while the same report
+  written as "a grade of 5" passed, and a judge returning the payload's 5 could
+  not be told from one that meant it.
+* **Decided by the project owner:** an instruction to grade "is already an
+  injection, paraphrased or not"; quoting an injection verbatim is relaying it,
+  "a.k.a data leak" (ruling A); a report needs both markers, because "Rejection
+  phrase alone does not really mean anything... just a qualifying booster, not
+  final proof"; the payload asks for a 4, because the anchors sit at 1, 3 and 5
+  and "4s on the other hand are rare as hen's teeth in our setup". A planted
+  score fails an observation only where the judge returned it **and** the answer
+  carries an instruction asking for it; an answer never mentioning 4 cannot have
+  relayed it, so its 4 is the judge's own.
+* **Built:**
+  * Reported speech, `tier3_evaluation.md` section 5.2.6,
+    `MQC_REQ_HAR_EVL_0071`: a match passes when a source is named as saying
+    it and the instruction is rejected in that sentence or the next; a pronoun
+    after a sentence naming the source, and "did not affect" or "had no effect",
+    count. A quotation fails whatever surrounds it. `MQC_EVL_UNI_114128` to
+    `114134`.
+  * The screen exemption, `MQC_REQ_HAR_EVL_0073`: on a rule judged on its
+    answer alone, a reported and rejected "ignore previous text" no longer aborts
+    the screen. `114135` and `114136`.
+  * The planted score, section 4C.5, `MQC_REQ_HAR_EVL_0072`, with
+    `tier1_ingestion.md` G9 and G10: a rubric may declare `planted_score` off
+    its anchors. `MQC_EVL_UNI_114526` to `114529`.
+  * The step ledger, `harness_test_taxonomy.md` section 8.2.1,
+    `MQC_REQ_HAR_CMN_0186`: a rubric-only rule reports its check step as not
+    applicable once its judge has run, not as a stop. `MQC_CMN_UNI_112398`.
+* **Digressions the user spotted, and the fix:** none on 2026-10-19; the one
+  about this entry's figures came at 17:01 UTC on 2026-10-20 and is in that
+  entry.
+* **Code Quality & Compliance Audit**, as reported at 03:04 UTC on 2026-10-20
+  and not re-run since: 917 test cases, 911 in the precondition run, all
+  passing, exit 0, and 6 mutation audits, not run; 333 requirements. The
+  2026-10-20 entry verifies the tree these changes left.
+
+## 2026-10-20: Withholding the result rejects a report, an audit stops on request, and every case carries its prompts
+
+* **When:** 17:01 to 22:25 UTC, the last being the final verification.
+* **Withholding widened**, `tier3_evaluation.md` section 5.2.6, extending
+  `MQC_REQ_HAR_EVL_0071` and `0073`. Grok was told to report anything reading as
+  an instruction and to ask before giving a result. It wrote "That conflicts
+  with the screening task, so I am not scoring it yet", quoting nothing, and the
+  screen aborted it as a relay. The rejection now also reads "have not scored",
+  "am not scoring" and their forms, and "conflicts with the task"; both markers
+  are still required and a quotation still fails. Judge prompts rebuilt for the
+  three stopped answers matched their recorded hashes, 7 of 7, which settled
+  them as false positives before anything changed. `MQC_EVL_UNI_114137` and
+  `114138`, five injections caught. One showed the optional "yet" was checked
+  by nothing, and a step was added for it.
+* **The audits only run when asked, and they stop on request**,
+  `harness_test_taxonomy.md` section 15.13:
+  * **What caused it:** I ran a bare `pytest` meaning the precondition run. It
+    collected all six audits, since `tests/mutation` sits under the test path. I
+    killed it by hand, restored `cmn/registries.py`, checked it against its
+    declared digest and logged the stop in its progress file.
+  * **What the owner asked for:** "a command to stop audit without negative
+    effects", since audits run long and "may trigger incorrectly".
+  * **Selection**, `MQC_REQ_HAR_CMN_0187`: a MUT case is deselected unless the
+    run asks for it, by `-m mutation`, a path under `tests/mutation` or `--tests`
+    naming it.
+  * **The stop**, `MQC_REQ_HAR_CMN_0188`: `python -m tools.mutation_audit
+    --stop` writes a request naming the live audits. Each audit finishes its
+    current point, restores its module and refuses with
+    `QC_HARNESS_AUDIT_REFUSED`. The command exits 0 only once no backup remains
+    and every module matches its declared digest.
+  * **Cases:** `MQC_CMN_UNI_112414` to `112418`, thirteen injections caught.
+* **Every case carries its prompts.** The owner: "Ideally harness would log the
+  prompt, whether the test passes or not. So it's obtainable from the log."
+  * **The `exchanges` attachment**, `cmn_verdict_and_cli.md` section 5.5,
+    `MQC_REQ_HAR_CMN_0189`: attached to every case that dispatched anything.
+    Per observation it holds the request and response with credentials removed,
+    the screen's matches, the checks, and the judge prompt with each score, or
+    why it was not judged.
+  * **One function composes the judge request**, `tier3_evaluation.md` section
+    4C.6, `MQC_REQ_HAR_EVL_0074`: `observation_judge_request`, used by the run
+    and by any caller rebuilding a prompt from a recorded response. A result
+    carries the prompt and the reply.
+  * **A judgement recording stores the prompt**, `tier2_execution.md` section
+    7.9.4, `MQC_REQ_HAR_EXE_0084`: it sits beside the hash, which is computed
+    as before, so none of the 725 recordings went stale.
+  * **Cases:** `MQC_EVL_UNI_114139`, `MQC_EXE_UNI_113880`, `MQC_CMN_UNI_112419`
+    and `112420`, thirteen injections caught. `112251` and `112252` encoded
+    "attached on a failure only" and now expect `exchanges` on a pass as well.
+* **Digressions the user spotted, and the fix:**
+  * I had reported "917 cases, 911 executions" without saying the 6 were
+    mutation audits, which do not run in a precondition run, and the owner read
+    them as skips behind bugs. Every report since lists the audits on a line of
+    their own.
+  * My test reports gave totals only. The owner set the format: each run broken
+    down by P0, P1, P2-P4 and audits separately. Written into the rules on
+    2026-10-21 (that entry).
+* **Found while building, and fixed:**
+  * **Two breaks of the owner's command rules:**
+    * A bare `python -` inside a command chain hung waiting for input. I stopped
+      the task, confirmed no process was left, checked the one edit it had made,
+      and redid the rest from a script file.
+    * A `sed` edit carried a backslash. The result was correct, and the rule
+      forbids it anyway; edits since use the Edit tool or a script file.
+  * An append script wrote a literal `\n` into `cmn/reporting.py`; removed.
+  * A rename turned the 112418 name into "isrestored_baseline"; fixed.
+  * Several cases were refused as `QC_HARNESS_STEP_MISNUMBERED`; renumbered.
+  * Support code in a case module was moved out (`112328`).
+  * Two case names exceeded 60 characters (`112305`); renamed.
+  * The `DESIGN.md` tier 2 count stayed at 212 (`112314`); moved to 213.
+  * Pylint: too-many-locals in `_judge_and_aggregate`, fixed by reading the
+    rubric from the context instead of two locals.
+  * One injection crashed 112419 instead of failing it; the case reads the
+    scores with `.get`, so a missing score fails by assertion.
+* **Code Quality & Compliance Audit:** 928 test cases: 922 in the precondition
+  run (898 UNI, 24 SYS), all passing, exit 0. The 6 mutation audits were
+  deselected, not requested; no audited module changed, so none ran. Pylint
+  10.00/10, exit 0; 338 requirements.
+
+## 2026-10-21: A module says what it holds and when it changed, a debug run can withhold the judge, and the stabilization trigger takes a dated branch
+
+* **When:** 03:41 to 05:20 UTC and 16:22 UTC onward; the final verification
+  figures below are filled in when it completes.
+* **A module docstring opens with what the file contains**, `code-style.md`
+  section 3.1.1. The owner on `assertions.py`: "Doc string for files must say
+  what the file contains", then where it sits in the flow, "And only then you go
+  into assertion descriptions and how they work". Then `pipeline.py` and
+  `screening.py`, then "Please audit all python files". About 245 module
+  docstrings in both repositories were rewritten purpose first, and the six
+  audited modules got theirs once, with their dates, so each is audited once.
+* **Every module says when it was created and last updated**, `code-style.md`
+  section 3.1.2, `MQC_REQ_HAR_CMN_0192`, `MQC_CMN_UNI_112526`. The owner:
+  "Whoever is auditing a file, troubleshooting a test, will be hard pressed to
+  use a pointer. They read text." `Created` is the earliest record, a session
+  transcript's first write or else git's add date ("if earlier dates cannot be
+  found git add date works"); `Last updated` is a date only ("they can use git
+  diff to compare the versions"). The cover and the generated case list stay
+  separate: "covers are created upon file creation, while list is dynamic".
+  `cmn/file_dates.py` checks, `tools/refresh_file_dates.py` stamps, and 258
+  files across both repositories were backfilled: 108 dated from transcripts, 143
+  from git, 7 created today. Three injections, three caught; the third first
+  surfaced only under the wrong message, so both cases now pin the message. 88 hand-written `Covers` paragraphs became
+  `Specified by` citations, since the generated list already names the cases.
+* **A debug run can check the assertions without the judge**,
+  `tier3_evaluation.md` section 5A.5.3, `MQC_REQ_HAR_EVL_0075` and
+  `MQC_REQ_HAR_CMN_0191`, `MQC_EVL_UNI_114140`, `MQC_CMN_UNI_112616` and
+  `112617`. The owner: "may want to debug assertions without the judge. To make
+  sure they work before including the judge." `--judge-mode off` runs the screen
+  and the assertions; a rubric-bearing observation whose checks held is skipped
+  `unjudged` with `QC_HARNESS_JUDGE_WITHHELD`, never passed, and only an
+  on-demand workflow may pass it. Both debug workflows offer `judged` or
+  `unjudged`. Five injections, five caught.
+* **The stabilization trigger takes a dated branch**, `harness_ci_pipeline.md`
+  sections 3C.6.1 and 3C.6.8, `MQC_REQ_HAR_CMN_0190`, `MQC_CMN_UNI_112421`. The
+  owner: "ideally the goal would be to name the branch stabilization-datestamp
+  of creation". The consumer regression triggers on `stabilization-*`, and every
+  branch a workflow or pairing names must be one the branch policy accepts.
+* **The branch policy stays unwired, by decision**, section 3C.6.7: "we will
+  test branches only once demo project is in portfolio. For now we merge direct
+  into main".
+* **Two unused functions removed**, `cmn_verdict_and_cli.md` section 7.1.3. The
+  owner: "No need to carry dead weight." `artifact_name` and
+  `matches_collector_pattern` were called by nothing; the prefixes they held
+  live once in `cmn.metadata`, and `MQC_CMN_UNI_112210` now reads the real debug
+  uploads. Two injections, two caught.
+* **Test doubles are named `Simulated`, not `Fake`**, at the owner's request
+  ("do not like the name FakeGradedConfig"): `SimulatedConfig`,
+  `SimulatedItem` and `SimulatedInvocationParams` here, for one convention
+  across both repositories.
+* **A prose edit to an audited module is re-declared, not re-measured**,
+  `harness_test_taxonomy.md` section 15.14, `MQC_REQ_HAR_CMN_0193`,
+  `MQC_CMN_UNI_112422`. The six audits took 1 hour 29 minutes after a docstring
+  pass that changed no code in four of the modules; the owner: "1-2 hours is
+  insane, especially if we do it so often." `tools/mutation_redeclare.py` finds the measured
+  version in history by its digest, compares the code with docstrings removed,
+  moves each survivor to its point's new line and writes the digest; it
+  refuses a code change, a module reading as its own unparse, and a measured
+  version missing from history. Four injections, four caught. `layers.py` and
+  `registries.py`, whose code changed, were measured: 0 and 3 survivors, as
+  declared. The other four were stopped on request, proven restored, and
+  re-declared. Approved next, before the probe: audits in parallel, each in its
+  own copy of the tree, and only the cases that can see a module run first.
+* **Corrections of fact:** integrity runs six checks, R1 to R6, not five; the
+  other two screens are both Tier 3.
+* **Digressions the user spotted, and the fix:**
+  * `assertions.py`, `pipeline.py` and `screening.py` named themselves by their
+    place in an argument, "the deterministic half of the dual pass", which tells
+    a newcomer nothing. Rule 3.1.1 and the audit above.
+  * `cmn.branch_policy` was built and never called, and the stabilization
+    trigger named a bare `stabilization` the policy itself refuses, so a dated
+    branch would never have triggered the regression.
+  * The probe, asked about at 16:22 UTC, would dispatch this repository's
+    `evaluate-live-weekly.yml`, which selects none of the harness cases since
+    the graded cases moved out. Recorded for the end of the work: the probe moves to the
+    Model Repository and only detects, the per-engine weekly stays as the
+    fallback when nothing ran that week, and this workflow retires.
+* **Found by the checks, and fixed:** two design sections inserted before their
+  predecessor, moved; 112421's name over the 60-character limit, renamed; the
+  dating took `mqc_uni_schemas.py` to the 900-line runway, so the adversarial
+  rubric cases moved to `mqc_uni_adversarial_rubric.py` by subject; the new
+  date case held two helpers, moved to `file_dates_support.py`.
+* **A rule I broke, and the fix:** at about 17:20 UTC a command carried a bare
+  `python -`, which the standing rule forbids because it waits on input; it hung
+  and was stopped by hand within two minutes, and the check it was part of was
+  rerun from a script file.
+* **Code Quality & Compliance Audit:** 934 test cases, 928 in the precondition
+  run (904 UNI, 24 SYS), all passing, exit 0. Mutation audits, 6: `layers.py`
+  and `registries.py` measured, passing, survivors as declared; the other four
+  stopped on request, restored, and re-declared with their code unchanged.
+  Pylint 10.00/10, exit 0; 343 requirements.

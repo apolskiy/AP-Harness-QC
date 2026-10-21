@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The dependency cascade: ordering, enforcement, probing and the carry file.
+"""Case dependencies, which run foundational cases first and skip what rests on a failure.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains the dependency cascade. ``arrange_dependencies`` orders the
+collected cases so every ``base`` case runs ahead of its dependents and refuses
+an unknown or unresolvable dependency; ``record_from_report`` records whether
+each foundation held; and ``enforce_dependencies`` skips a dependent of a
+failed foundation with ``QC_HARNESS_DEPENDENCY_UNMET``, or dispatches it
+unattributed when the run opens an inquest. ``adopt_prerequisites`` and
+``publish_prerequisites`` read and write the carry file one priority band hands
+the next.
+
+Both repositories' ``conftest.py`` call these at session start, collection,
+setup, reporting and session end, so a dependent's skip names the foundation it
+waited on rather than reporting a second failure for the same defect.
 
 Specified by ``cmn_verdict_and_cli.md`` section 10.28.
 

@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Running a nested suite under a bound, because a hang reports nothing.
+"""Test helper that runs a nested pytest suite under a time limit.
+
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+This file provides ``run_bounded``, which runs a command and fails with the
+command and its budget when it outlasts ``NESTED_SUITE_TIMEOUT``, five minutes
+unless a caller passes another.
+
+It serves the cases in ``mqc_uni_dependency.py``, ``mqc_uni_emission.py`` and
+``mqc_uni_selection.py``, and the helpers in ``case_steps_support.py``, wherever
+a case spawns a nested suite to observe what its own process cannot.
 
 Specified by ``harness_test_taxonomy.md`` section 14.
 

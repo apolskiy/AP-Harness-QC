@@ -1,6 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The xAI (Grok) engine.
+"""The adapter that sends cases to xAI's Grok models, over the Chat Completions protocol.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains :class:`GrokAdapter`, which names the ``grok`` engine, its
+default model, xAI's endpoint and the ``XAI_API_KEY`` credential variable, and
+inherits everything else from
+:class:`~execution.adapters.openai_protocol.OpenAICompatibleAdapter`. The
+registry enrols it, so dispatch and the judge channel reach it whenever a run
+names ``grok``.
 
 **This module is the evidence for section 3.3.** It carries no protocol code,
 no request composition, no normalization, no error mapping and no judging, and

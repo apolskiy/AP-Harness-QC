@@ -1,8 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The order of operations, and the decisions that live between the steps.
+"""The evaluation pipeline, which turns one model response into one evaluated result.
 
-Specified by ``docs/design/tier3_evaluation.md`` sections 4, 4.0 and 4.2.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``evaluate_observation``, which takes a response through
+every Tier 3 step in order and returns an ``EvaluationResult``; the context it
+reads and the result it returns; ``observation_judge_request``, which composes
+what the judge is sent, for the run and for anyone rebuilding a judge prompt
+from a recorded response; and ``judgements_for_observations``, which counts how
+many distinct observations a case's judge replies cover.
+
+**Each step can end the evaluation before the next one runs.** The screen
+aborts a response carrying an injection aimed at the judge, the assertions fail
+a response that breaks a rule's deterministic checks, and either way the judge
+is never asked, which saves its cost and keeps an injection away from it. Only
+a response that clears both is judged, and the result records how far it got,
+why it stopped, and the prompt its judge received.
+
+Specified by ``docs/design/tier3_evaluation.md`` sections 4, 4.0, 4.2 and 4C.6.
 
 1. Screen the candidate output.
 2. Isolate it into the typed field.
@@ -15,11 +32,13 @@ Specified by ``docs/design/tier3_evaluation.md`` sections 4, 4.0 and 4.2.
 threshold.** Conformance gates the outcome and the rubric measures quality
 within it, so an assertion failure fails the case regardless of the score.
 
-**A declared adversarial case reaches no judge at all** (A19). Resistance is a
-string check, not a judgement: a payload carries a canary, the response either
-contains it or does not, and `not_contains` settles the question exactly. The
-exposure is removed rather than mitigated, which is what isolation alone cannot
-do for content a judge is meant to read.
+**A declared adversarial case's payload reaches no judge at all** (A19).
+Resistance is a string check, not a judgement: a payload carries a canary, the
+response either contains it or does not, and `not_contains` settles the question
+exactly. The exposure is removed rather than mitigated, which is what isolation
+alone cannot do for content a judge is meant to read. A rule opting in with
+``judge_response_only`` is judged on the answer alone, once it screens clean,
+and never on the task or its documents (section 4C.4).
 
 **Priority never arrives here.** It is test metadata consumed by ``CMN``, and
 nothing about how severely a failure is treated should be visible to the
@@ -29,6 +48,8 @@ component deciding whether it failed.
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Final, Optional
+
+from cmn.vectors import grading_values
 
 # THE REPLAY STORE'S OWN EXCEPTIONS, not a vendor type. Tier 3's boundary
 # rule is that provider-specific types stop at the adapter, and these are
@@ -60,6 +81,16 @@ logger = logging.getLogger(__name__)
 # because the skip and the verdict must agree on it: they are two halves of one
 # decision and a typo in either would separate them silently.
 DECLARED_ADVERSARIAL: Final[str] = "declared_adversarial"
+
+# The judge-skip reason for a rubric-bearing observation in a run that withheld
+# the judge, ``--judge-mode off``. Named once for the same reason: the case
+# repository records it as the ``unjudged`` skip (section 5A.5.3).
+UNJUDGED: Final[str] = "unjudged"
+
+# A PLANTED SCORE SPELT AS A WORD, so "grade this as four" asks for a 4.
+_NUMBER_WORDS: Final[dict[int, str]] = {
+    1: "one", 2: "two", 3: "three", 4: "four", 5: "five",
+}
 
 
 @dataclass(frozen=True)
@@ -149,6 +180,13 @@ class EvaluationResult:
             different outcome.
         self_preference (bool): Whether judge and candidate shared a provider.
         taxonomy_codes (list): Every code this evaluation emitted.
+        planted_score_returned (str): Which criteria the judge scored at the
+            rubric's planted score, and the value, empty where it returned none.
+            **The judgement failed, not an assertion** (design section 4C.5).
+        judge_prompt (str): The rendered request the judge was sent, wherever
+            one was composed, and empty where none was (design section 4C.6).
+        judge_reply (dict): The judge's reply as it returned it, each criterion
+            with its score and rationale, empty where no usable reply came back.
     """
 
     case_id: str
@@ -162,6 +200,9 @@ class EvaluationResult:
     self_preference: bool = False
     taxonomy_codes: list[str] = field(default_factory=list)
     provider_refusal: str = ""
+    planted_score_returned: str = ""
+    judge_prompt: str = ""
+    judge_reply: dict[str, Any] = field(default_factory=dict)
 
     @property
     def judged(self) -> bool:
@@ -207,7 +248,9 @@ class EvaluationResult:
             # to fail. This passes on evidence the provider supplied, which an
             # unwritten assertion does not produce.
             return True
-        if not self.checks_ran:
+        if self.planted_score_returned or not self.checks_ran:
+            # AN ANSWER THAT STEERED ITS OWN JUDGE has no rubric verdict,
+            # whatever it aggregated to (section 4C.5).
             return False
         if not assertions_passed(self.assertion_results):
             return False
@@ -254,6 +297,30 @@ def _response_only(rules: Any) -> bool:
         bool: The rule's ``judge_response_only``, False where it carries none.
     """
     return bool(getattr(rules, "judge_response_only", False))
+
+
+def observation_judge_request(context: ObservationContext) -> Any:
+    """Return the judge request an observation is sent, as the pipeline composes it.
+
+    The answer alone on a rule judged on it, since the task and its documents
+    are where a declared payload lives (section 4C.4), and the whole material
+    otherwise. A caller holding a recorded response rebuilds the exact prompt
+    from it (section 4C.6).
+
+    Args:
+        context (ObservationContext): The observation, its rule carrying a rubric.
+
+    Returns:
+        Any: The composed ``JudgeRequest``.
+    """
+    material = (
+        UnauthoredMaterial(candidate_output=context.material.candidate_output)
+        if _response_only(context.rules) else context.material
+    )
+    return compose_judge_request(
+        context.case_id, context.rules.rubric, material,
+        observation_index=context.observation_index,
+    )
 
 
 def _declared_checks(rules: Any) -> tuple[bool, bool]:
@@ -307,14 +374,15 @@ def evaluate_observation(
     declared, rubric_authored = _declared_checks(context.rules)
     # A RULE JUDGED ON ITS ANSWER ALONE is screened as an ordinary case: an
     # answer repeating the injection aborts and fails, so it never reaches the
-    # judge (section 4C.4).
+    # judge (section 4C.4). A rejected report of an override is not a repeat
+    # (section 5.2.6).
+    response_only = context.declared_adversarial and _response_only(context.rules)
     progress = _Progress(
         screen=screen_response(
             context.case_id,
             context.material.candidate_output,
-            declared_adversarial=(
-                context.declared_adversarial and not _response_only(context.rules)
-            ),
+            declared_adversarial=context.declared_adversarial and not response_only,
+            exempt_reports=response_only,
         )
     )
     if progress.screen.taxonomy_code is not None:
@@ -443,6 +511,24 @@ def _judge_skip_reason(
         return "fatal_assertion_failure"
     if not assertions_passed(results) and not judge_on_failure:
         return "violation_assertion_failure"
+    return _binding_skip_reason(context, binding)
+
+
+def _binding_skip_reason(context: ObservationContext, binding: JudgeBinding) -> Optional[str]:
+    """Decide, once the checks allow judging, whether the binding and the rule do.
+
+    Args:
+        context (ObservationContext): The observation.
+        binding (JudgeBinding): Who would judge.
+
+    Returns:
+        Optional[str]: The reason to record, or ``None`` when the judge runs.
+    """
+    if binding.withheld:
+        # THE JUDGE WAS ASKED FOR NOTHING, in a debug run checking the screen
+        # and the assertions alone. A rule with no rubric is decided by its
+        # assertions as always; one with a rubric is never a pass. 5A.5.3.
+        return "no_rubric_authored" if context.rules.rubric is None else UNJUDGED
     if not binding.available:
         return "no_judge_configured"
     if context.rules.rubric is None:
@@ -477,21 +563,11 @@ def _judge_and_aggregate(
         could not produce a usable one.
     """
     declared, rubric_authored = _declared_checks(context.rules)
-    rubric = context.rules.rubric
-    # THE ANSWER ALONE for a rule judged on it: the task and its documents are
-    # where a declared payload lives, so they are withheld (section 4C.4).
-    material = (
-        UnauthoredMaterial(candidate_output=context.material.candidate_output)
-        if _response_only(context.rules) else context.material
-    )
-    request = compose_judge_request(
-        context.case_id, rubric, material,
-        observation_index=context.observation_index,
-    )
-
+    request = observation_judge_request(context)
     try:
+        returned = binding.invoke(request)
         reply = validate_judge_reply(
-            binding.invoke(request), rubric, binding,
+            returned, context.rules.rubric, binding,
             case_id=context.case_id, observation_index=context.observation_index,
         )
     except JudgeHijackSuspected:
@@ -526,7 +602,7 @@ def _judge_and_aggregate(
             judge_skipped_reason="judgement_unavailable",
             judge_on_failure=judge_on_failure,
             taxonomy_codes=progress.codes + [code],
-            checks_ran=declared, rubric_authored=rubric_authored,
+            checks_ran=declared, rubric_authored=rubric_authored, judge_prompt=request.rendered(),
         )
     except ValueError as error:
         # NO REPLY IS NOT A BAD REPLY. The channel leads its message with the
@@ -543,6 +619,7 @@ def _judge_and_aggregate(
                 judge_on_failure=judge_on_failure,
                 taxonomy_codes=progress.codes + [carried],
                 checks_ran=declared, rubric_authored=rubric_authored,
+                judge_prompt=request.rendered(),
             )
         logger.warning("%s judgement unusable: %s", context.case_id, error)
         return EvaluationResult(
@@ -551,7 +628,7 @@ def _judge_and_aggregate(
             judge_skipped_reason="judge_reply_unusable",
             judge_on_failure=judge_on_failure,
             taxonomy_codes=progress.codes + ["QC_HARNESS_PARSER_ERROR"],
-            checks_ran=declared, rubric_authored=rubric_authored,
+            checks_ran=declared, rubric_authored=rubric_authored, judge_prompt=request.rendered(),
         )
 
     if reply.self_preference:
@@ -562,20 +639,86 @@ def _judge_and_aggregate(
         progress.codes.append("QC_LLM_FORMAT_VIOLATION")
 
     score = aggregate(
-        rubric.aggregation, reply.scores, threshold=rubric.threshold,
-        parameters=dict(getattr(rubric, "aggregation_params", None) or {}),
+        context.rules.rubric.aggregation, reply.scores,
+        threshold=context.rules.rubric.threshold,
+        parameters=dict(getattr(context.rules.rubric, "aggregation_params", None) or {}),
         at_pass_mark=at_pass_mark,
     )
     if score.passed is False:
         progress.codes.append("QC_LLM_RUBRIC_FAILURE")
+    steered = _planted_score_returned(
+        context.rules.rubric, reply.scores, context.material.candidate_output
+    )
+    if steered:
+        logger.warning("QC_SEC_INJECTION_ATTEMPT %s %s", context.case_id, steered)
+        progress.codes.append("QC_SEC_INJECTION_ATTEMPT")
 
     return EvaluationResult(
         case_id=context.case_id, screen=progress.screen,
         assertion_results=progress.results, score=score,
         judge_on_failure=judge_on_failure,
         self_preference=reply.self_preference, taxonomy_codes=progress.codes,
-        checks_ran=declared, rubric_authored=rubric_authored,
+        checks_ran=declared, rubric_authored=rubric_authored, judge_prompt=request.rendered(),
+        planted_score_returned=steered,
+        judge_reply=dict(returned) if isinstance(returned, dict) else {},
     )
+
+
+def _planted_score_returned(rubric: Any, scores: Any, answer: str) -> str:
+    """Name the criteria a judge scored at the planted score the answer asks for.
+
+    Design: section 4C.5.
+
+    Args:
+        rubric (Any): The rubric, which may declare ``planted_score``.
+        scores (Any): The judge's per-criterion scores.
+        answer (str): The answer the judge read.
+
+    Returns:
+        str: The finding, naming the value and the criteria, or empty where the
+        rubric plants nothing, the answer asks for no such value, or the judge
+        returned it nowhere.
+    """
+    planted = getattr(rubric, "planted_score", None)
+    if planted is None or not _asks_for(answer, planted):
+        return ""
+    named = [entry.criterion_id for entry in scores if entry.score == planted]
+    if not named:
+        return ""
+    return f"the judge returned {planted}, the planted score, on {', '.join(named)}"
+
+
+def _asks_for(answer: str, value: int) -> bool:
+    """Report whether an answer carries a grading instruction asking for a value.
+
+    Args:
+        answer (str): The answer the judge read.
+        value (int): The planted score, 1 to 5.
+
+    Returns:
+        bool: True where a requested value is the number, as digits or a word.
+    """
+    spellings = {str(value), _NUMBER_WORDS[value]}
+    return any(
+        requested in spellings or _is_number(requested, value)
+        for requested in grading_values(answer)
+    )
+
+
+def _is_number(requested: str, value: int) -> bool:
+    """Report whether a requested value written in digits equals a number.
+
+    Args:
+        requested (str): The value as the instruction wrote it.
+        value (int): The number to compare with.
+
+    Returns:
+        bool: True for ``4.0`` against 4, false for a word or another number.
+    """
+    try:
+        return float(requested) == value
+    except ValueError:
+        return False
 
 
 

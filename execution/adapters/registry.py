@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The registry mapping an engine name to the adapter serving it.
+"""The registry that finds the adapter class for an engine name such as ``gemini``.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``register_adapter``, which enrols an adapter class under
+the engine name it declares, and enrols the four shipped adapters;
+``adapter_for``, which returns the class serving one engine;
+``registered_engines``, ``registered_adapters`` and ``engines_for_role``,
+which list what is enrolled; ``credential_variables``, the environment
+variables those engines read; and ``reproduction_snippet`` and
+``reproduction_curl``, which turn a recorded request into code that re-issues
+it.
+
+**Every lookup of an engine goes through here.** Dispatch and the judge
+channel build their adapter from ``adapter_for``, the conformance battery
+parametrizes over the enrolled classes, and the reproduction helpers serve the
+reports a failure is filed from.
 
 Specified by ``docs/design/tier2_execution.md`` section 3.2.
 

@@ -1,10 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Doubles for the evaluation pipeline cases, in a sibling module collection does not reach.
+"""Shared builders and a recording judge for the evaluation pipeline cases.
 
-A case module holds only cases (``harness_test_taxonomy.md`` section 13), so the
-context builder, the recording judge and the rubric-carrying rule set that
-several pipeline modules need live here.
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains :func:`declared_material`, the unauthored material of a
+declared case, :func:`observation_context`, an ``ObservationContext`` over a
+benign base, :class:`RecordingJudge`, a judge that records every request, and
+:func:`rule_set_with_rubric`, a rule set authoring a rubric.
+
+``mqc_uni_pipeline.py``, ``mqc_uni_judge_prompt.py``,
+``mqc_uni_judgement_gaps.py``, ``mqc_uni_reported_injection.py`` and
+``mqc_uni_response_only_judging.py`` build their inputs from these. A case
+module holds only cases (``harness_test_taxonomy.md`` section 13), so they live
+in this sibling module, which collection does not reach.
 """
 
 from typing import Any, Final

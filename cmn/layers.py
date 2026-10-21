@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The layer registry, and the outcome registry the verdict reads denominators from.
+"""The layer and outcome registries, what each test layer and result outcome means.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``LayerProperties`` and ``OutcomeProperties``; ``layer_properties``,
+``registered_layers``, ``register_layer`` and ``unregister_layer`` for layers;
+``outcome_properties``, ``registered_outcomes``, ``register_outcome`` and
+``unregister_outcome`` for outcomes, with ``require_denominator_declaration``; and the
+skip readers ``skip_counts_as_failure``, ``skip_counts_toward_rate``, ``skip_blocks``,
+``registered_skip_reasons`` and ``is_registered_skip_reason``.
+
+``cmn.verdict``, ``cmn.observations`` and ``cmn.demotion`` ask these whether a layer is
+graded and how an outcome counts, so adding a layer or outcome is a registration and
+never an edit to the verdict.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` section 9 and
 ``docs/design/harness_test_taxonomy.md`` sections 2 and 9.
@@ -152,14 +166,21 @@ _OUTCOMES: Final[dict[str, OutcomeProperties]] = {
 #
 # A declared capability gap is not an environmental failure, and leaving it in
 # the denominator would trip V3 for a reason that is not a defect (A13).
-_EXCLUDED_SKIP_REASONS: Final[frozenset[str]] = frozenset({"dependency", "unsupported"})
+_EXCLUDED_SKIP_REASONS: Final[frozenset[str]] = frozenset(
+    {"dependency", "unsupported", "unjudged"}
+)
 
 # `quarantined` was added 2026-10-08, when a quarantined case began skipping
 # before dispatch (`cmn_verdict_and_cli.md` section 4.6.12) and arrived with no
 # reason of its own. An unattributed skip counts as a failure, which is the
 # right answer by accident; this makes it the answer by declaration.
+#
+# `unjudged` was added 2026-10-21, for a debug run that withheld the judge to
+# check the screen and the assertions alone. The requester asked for it, so it
+# leaves the denominator like `unsupported` and is never a pass
+# (`harness_test_taxonomy.md` section 7.4.1.4).
 _SKIP_REASONS: Final[frozenset[str]] = frozenset(
-    {"environmental", "dependency", "unsupported", "incomplete", "quarantined"}
+    {"environmental", "dependency", "unsupported", "incomplete", "quarantined", "unjudged"}
 )
 
 # WHICH SKIPS ARE NOT THE MODEL'S FAULT, by the project owner's instruction of
@@ -171,7 +192,7 @@ _SKIP_REASONS: Final[frozenset[str]] = frozenset(
 # that could not be reached. `unsupported` is a declared capability gap and the
 # failure of nobody. Everything else did not pass and the rate says so.
 _SKIPS_NOT_THE_MODELS_FAULT: Final[frozenset[str]] = frozenset(
-    {"environmental", "unsupported"}
+    {"environmental", "unsupported", "unjudged"}
 )
 
 # A SKIP IS NOT ONE THING, AND THE REASON SAYS WHICH. A provider outage and an

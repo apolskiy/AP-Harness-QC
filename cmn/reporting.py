@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a run publishes about each observation, and about a failing case.
+"""Report builders, what a run publishes about each observation and a failing case.
+
+Created: 2026-10-02
+Last updated: 2026-10-21
+
+This file contains ``observation_parameters``, which turns an observation and
+its run context into one report parameter per required result field;
+``vendor_report``, the reproduction a provider ticket is written from; and
+``exchange_report``, every exchange a case made with what was sent, what came
+back and how it was read. The last two are returned with credentials redacted.
+
+``cmn.emission`` calls these when it publishes a case's result, and they only
+return mappings, so what a report holds is decided here and written there.
 
 Specified in ``docs/design/cmn_verdict_and_cli.md`` sections 5.1 to 5.4.
 
@@ -124,3 +136,73 @@ def vendor_report(
         "observations_passed": sum(1 for passed in outcomes if passed),
         "calls": observations,
     })
+
+
+def exchange_report(
+    case_id: str, calls: Sequence[Any], results: Sequence[Any], outcomes: Sequence[bool]
+) -> dict[str, Any]:
+    """Return every exchange a case made: what was sent, what came back, and how it was read.
+
+    Design: ``cmn_verdict_and_cli.md`` section 5.5. Built for every case that
+    dispatched anything, passing or failing, so a prompt is obtainable from
+    the artefact whatever the verdict.
+
+    Args:
+        case_id (str): Which case the exchanges belong to.
+        calls (Sequence): The dispatch outcomes, in observation order.
+        results (Sequence): Each observation's evaluation result, None where
+            it was not evaluated.
+        outcomes (Sequence[bool]): Whether each observation passed.
+
+    Returns:
+        dict: The case and one entry per observation, credentials redacted.
+    """
+    exchanges = []
+    for index, call in enumerate(calls):
+        response = getattr(call, "response", None)
+        result = results[index] if index < len(results) else None
+        entry: dict[str, Any] = {
+            "observation_index": getattr(call, "observation_index", index),
+            "engine": str(getattr(call, "engine", "") or ""),
+            "mode": str(getattr(call, "mode", "") or ""),
+            "passed": bool(outcomes[index]) if index < len(outcomes) else None,
+            "taxonomy_code": getattr(call, "taxonomy_code", None),
+            "request": getattr(call, "request", None),
+            "response": response.as_mapping() if hasattr(response, "as_mapping") else None,
+        }
+        if result is not None:
+            entry.update(_evaluation_fields(result))
+        exchanges.append(entry)
+    return redact({"case_id": case_id, "exchanges": exchanges})
+
+
+def _evaluation_fields(result: Any) -> dict[str, Any]:
+    """Return what an evaluation decided about one observation: screen, checks and judge.
+
+    Args:
+        result (Any): The observation's ``EvaluationResult``.
+
+    Returns:
+        dict: ``screen``, ``assertions`` and ``judge``, the judge carrying its
+        prompt and the reply's scores, or ``not_judged`` with the reason.
+    """
+    screen = getattr(result, "screen", None)
+    prompt = str(getattr(result, "judge_prompt", "") or "")
+    judge: dict[str, Any] = (
+        {"prompt": prompt,
+         "scores": dict((getattr(result, "judge_reply", None) or {}).get("scores") or {})}
+        if prompt else
+        {"not_judged": str(getattr(result, "judge_skipped_reason", "") or "no judge request")}
+    )
+    return {
+        "screen": {
+            "aborts": bool(getattr(screen, "aborts", False)),
+            "matches": [{"vector": finding.vector, "excerpt": finding.excerpt}
+                        for finding in getattr(screen, "findings", None) or []],
+        },
+        "assertions": [
+            {"assertion_id": item.assertion_id, "passed": item.passed, "detail": item.detail}
+            for item in getattr(result, "assertion_results", None) or []
+        ],
+        "judge": judge,
+    }

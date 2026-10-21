@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for result emission, the code registry and the fixtures.
+"""Unit tests for what each emitted result carries, and for the failure-code registry.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check ``cmn/metadata.py``, ``cmn/observations.py`` and the code and
+family registries. They cover ``emit_result`` and ``require_registered_code``
+refusing a result that lacks a field or carries an unregistered code,
+``latency_statistics`` leaving out a truncated duration, ``artifact_name`` and
+``matches_collector_pattern`` keeping a debug run out of the record,
+``DiagnosticSummary`` and ``changed_areas_from`` describing a debug run, and
+``assemble_observation`` building one observation from tier results and case
+metadata. Further cases check the registry and inventories through
+``unemitted_codes``, ``inventory_count_problems`` and
+``duplicate_inventory_bindings``.
+
+Every result a run publishes passes through these functions, so a defect here
+reaches the JUnit and Allure artifacts a downstream collector reads.
 
 Its cases are listed in the block below, inventoried in ``docs/design/cmn_verdict_and_cli.md``
 section 10.
@@ -77,13 +94,13 @@ from cmn.document_standards import (
     inventory_count_problems,
 )
 from cmn.metadata import (
+    COLLECTED_PREFIX,
+    DEBUG_PREFIX,
     DiagnosticSummary,
-    artifact_name,
     changed_areas_from,
     current_platform,
     emit_result,
     latency_statistics,
-    matches_collector_pattern,
     require_registered_code,
     unemitted_codes,
 )
@@ -93,6 +110,7 @@ from cmn.observations import (
     assemble_observation,
     required_result_fields,
 )
+from cmn.workflow_standards import collectable_debug_uploads
 from cmn.registries import (
     evaluation_family,
     registered_codes,
@@ -424,28 +442,56 @@ class TestMQCLatencyStatistics:
 class TestMQCArtifactSeparation:
     """Two independent mechanisms keeping a debug run out of the record."""
 
-    def MQC_CMN_UNI_112210_debug_artifact_name_does_not_match_collector_pattern(self) -> None:
-        """Structural separation, the first of the two mechanisms.
+    def MQC_CMN_UNI_112210_debug_artifact_name_does_not_match_collector_pattern(
+        self, tmp_path: Path
+    ) -> None:
+        """Structural separation, the first of the two mechanisms, read from the workflows.
 
-        Marking alone fails if nobody filters on it, and structural separation
-        alone fails the day someone widens the pattern. Both exist because
-        either one is a single point of failure.
+        Asserts every upload in this repository's on-demand workflows starts
+        with the debug prefix, then that a planted debug upload under the
+        collected prefix is reported while a gated workflow's is not.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.1.3.
 
         Returns:
             None
         """
-        debug = RunContext("ci_debug", "full", True)
-        gated = RunContext("ci", "full", True)
+        root = Path(__file__).resolve().parents[2]
 
-        assert matches_collector_pattern(artifact_name(gated)) is True
-        assert matches_collector_pattern(artifact_name(debug)) is False
+        problems = collectable_debug_uploads(root)
+        assert not problems, (
+            f"{len(problems)} debug upload(s) a collector would pick up:\n  "
+            + "\n  ".join(problems)
+        )
 
-        # THE LITERAL PREFIX, which the pattern check alone does not pin: both
-        # prefixes renamed together would satisfy the two assertions above.
-        # Absorbed from a second callable that duplicated this identifier,
-        # design section 10.10.1.
-        assert artifact_name(debug).startswith("diagnostic-local")
-        assert not matches_collector_pattern(artifact_name(debug, suffix="ubuntu"))
+        # THE LITERAL PREFIXES, which a renaming of both together would
+        # otherwise carry past every check reading them.
+        assert COLLECTED_PREFIX == "mqc-reports-"
+        assert DEBUG_PREFIX == "scratch-"
+
+        # IT REPORTS A DEBUG UPLOAD UNDER THE COLLECTED PREFIX, which the
+        # repository passing says nothing about, and leaves a gated one alone.
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        upload = (
+            "jobs:\n"
+            "  run:\n"
+            "    steps:\n"
+            "      - uses: actions/upload-artifact@v6\n"
+            "        with:\n"
+            "          name: {name}\n"
+        )
+        (workflows / "diagnose-on-demand.yml").write_text(
+            upload.format(name="mqc-reports-unit-replay"), encoding="utf-8"
+        )
+        (workflows / "gate-on-change.yml").write_text(
+            upload.format(name="mqc-reports-unit-replay"), encoding="utf-8"
+        )
+
+        reported = collectable_debug_uploads(tmp_path)
+
+        assert len(reported) == 1, reported
+        assert reported[0].startswith("diagnose-on-demand.yml job run uploads")
 
     def MQC_CMN_UNI_112211_debug_rows_carry_ci_debug_context_and_ungated_flag(self) -> None:
         """Row marking, the second mechanism, on every row rather than once.

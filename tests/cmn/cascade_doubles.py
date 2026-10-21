@@ -1,13 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""An item double for the cascade cases, in a sibling module.
+"""A stand-in pytest item for the dependency cascade cases.
 
-A case module holds only cases (``harness_test_taxonomy.md`` section 13), so the item
-double the cascade-policy cases need lives here.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+This file contains ``cascade_item``, which returns an item double carrying an
+invocation and the dependencies its marker declares. The cases in
+``mqc_uni_cascade_policy.py`` hand it to the cascade functions in
+``cmn.dependencies`` and ``cmn.emission`` in place of a collected item.
 
 **It carries a mode and its declared dependencies**, which is what the cascade
 reads: whether to dispatch unattributed comes from the invocation, and what to wait for comes
 from the marker.
+
+It lives in a sibling module because a case module holds only cases
+(``harness_test_taxonomy.md`` section 13).
 """
 
 from types import SimpleNamespace

@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Write each test module's case block from the module's own syntax tree.
+"""Rewrites the generated list of cases at the top of each test module.
+
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+This file contains ``refresh``, which rebuilds every test module's ``cases in
+here`` comment block from that module's own syntax tree and returns the
+modules it changed, and ``main``, the command line, which writes the blocks or,
+under ``--check``, only reports the modules that disagree. The parsing itself
+lives in :mod:`cmn.case_summary`.
+
+**An author runs it after adding, renaming or removing a case**, so the block
+lists what the module holds before the change is committed.
 
 Run from a repository root::
 

@@ -1,9 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a branch may be called, how long it may live, and where it may merge.
+"""Unit preconditions for the branch naming, staleness and merge-route policy.
 
-Covers ``MQC_CMN_UNI_112505`` through ``112509``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.23 and specified by
+Created: 2026-09-24
+Last updated: 2026-10-21
+
+The cases here check ``cmn.branch_policy``: that ``name_problems`` and
+``referent_problems`` report a branch name outside the grammar or with an
+unregistered referent, that ``staleness_problems`` is silent, then warned, then
+red at its bounds, that ``route_problems`` and ``back_merge_problems`` report a
+development branch targeting ``main`` and a merge of ``main`` into a branch,
+and that an integration branch may omit its referent.
+
+Each function returns the problems it found with one branch, so a defect here
+lets a misnamed, stale or misrouted branch pass the policy unreported.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.23 and
 ``docs/design/harness_ci_pipeline.md`` section 3C.6.
 
 **Every case here runs offline against synthetic input**, because the policy is
@@ -26,9 +38,12 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112509  a_merge_bringing_main_into_a_branch_is_reported
 # TestMQCIntegrationBranchNaming
 #   112510  an_integration_branch_may_omit_its_referent
+# TestMQCNamedBranches
+#   112421  workflow_and_pairing_branches_are_ones_the_policy_accepts
 # ------------------------------------------------------------ end of cases
 
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -43,6 +58,7 @@ from cmn.branch_policy import (
     staleness,
     staleness_problems,
 )
+from cmn.workflow_standards import unaccepted_branch_names
 
 pytestmark = pytest.mark.unit
 
@@ -249,3 +265,59 @@ class TestMQCIntegrationBranchNaming:
         # AND A BARE STAMP IS NOT A CASE REFERENT, so nothing resolves it
         # against an inventory.
         assert not referent_problems(bare, frozenset())
+
+
+class TestMQCNamedBranches:
+    """The branches the repository's own files name are ones the policy accepts."""
+
+    def MQC_CMN_UNI_112421_workflow_and_pairing_branches_are_ones_the_policy_accepts(
+        self, tmp_path: Path
+    ) -> None:
+        """Every workflow branch filter and pairing key is main, accepted or a kind pattern.
+
+        Asserts this repository's workflows and consumer pairings first, then
+        that a planted bare ``stabilization`` is reported in both places while
+        ``main``, a dated stabilization branch and ``stabilization-*`` are not.
+
+        Design: ``harness_ci_pipeline.md`` section 3C.6.8.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+
+        problems = unaccepted_branch_names(root)
+        assert not problems, (
+            f"{len(problems)} branch name(s) the policy refuses:\n  " + "\n  ".join(problems)
+        )
+
+        # IT REPORTS THE NAME BOTH FILES CARRIED, which the repository passing
+        # says nothing about.
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        (workflows / "merge.yml").write_text(
+            "on:\n"
+            "  push:\n"
+            "    branches: [main, '**']\n"
+            "  pull_request:\n"
+            "    branches: [stabilization-10-21-2026]\n"
+            "  workflow_run:\n"
+            "    workflows: [gate]\n"
+            "    branches: [stabilization, stabilization-*]\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "consumers.yaml").write_text(
+            "consumers:\n"
+            "  - name: Cases\n"
+            "    refs:\n"
+            "      main: main\n"
+            "      stabilization: stabilization\n",
+            encoding="utf-8",
+        )
+
+        reported = unaccepted_branch_names(tmp_path)
+
+        assert len(reported) == 2, reported
+        assert reported[0].startswith("merge.yml on.workflow_run.branches: 'stabilization'")
+        assert reported[1].startswith("consumers.yaml Cases refs: 'stabilization'")

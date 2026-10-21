@@ -1,9 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Storing and replaying a judgement.
+"""Unit cases for recording a judge's reply and replaying it in later runs.
 
-Covers ``MQC_CMN_UNI_112607`` through ``112610``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.19. The design is
+Created: 2026-09-25
+Last updated: 2026-10-21
+
+Its cases check :mod:`execution.replay` and :class:`execution.judge_channel.JudgeChannel`.
+A recorded judgement replays for the same request, goes stale when the judge
+model or request hash moves, and is never replaced by a live call when missing.
+The channel honours ``--judge-mode``, records one judgement per observation with
+the prompt it scored, fills only the gaps, and contains a provider failure while
+judging.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.19. The design is
 ``tier2_execution.md`` section 7.4.
 
 **Tier 3 is unchanged by any of this.** ``JudgeBinding.invoke`` is an injected
@@ -29,11 +38,13 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113301  a_live_judgement_is_recorded_for_later_replay
 #   113304  each_observation_records_its_own_judgement
 #   113305  fill_gaps_judges_only_what_is_not_recorded
+#   113880  a_judgement_recording_stores_the_prompt_it_scored
 # TestMQCJudgeFailureContainment
 #   113302  a_provider_failure_while_judging_is_contained
 #   113303  the_judge_channel_imports_no_evaluation_module
 # ------------------------------------------------------------ end of cases
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -622,6 +633,59 @@ class TestMQCJudgeChannelMode:
         )
         assert filling.invoke(moved) == awarded
         assert len(calls) == 3, "a judgement recorded against another rubric was reused"
+
+    def MQC_EXE_UNI_113880_a_judgement_recording_stores_the_prompt_it_scored(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """A recorded judgement holds the rendered prompt, its hash unchanged, and old ones load.
+
+        Design: ``tier2_execution.md`` section 7.9.4.
+
+        Args:
+            tmp_path (Path): A directory for the judgement store.
+            monkeypatch (Any): pytest's patcher.
+
+        Returns:
+            None
+        """
+        awarded = {"scores": {"MQC_CRIT_grounding": {"score": 5, "rationale": "Good."}}}
+
+        def answer(self: Any, request: Any) -> Any:
+            """Return a schema-constrained reply.
+
+            Args:
+                self (Any): The adapter.
+                request (Any): The composed request.
+
+            Returns:
+                Any: A Gen AI response double carrying the judgement.
+            """
+            assert request is not None and self is not None
+            return gemini_judgement(awarded)
+
+        monkeypatch.setattr(GeminiAdapter, "dispatch", answer)
+        live = JudgeChannel(
+            "gemini", model=_MODEL,
+            plan=JudgementPlan(mode="live", fixture_root=tmp_path, candidate_engine="gemini",
+                               record=True),
+        )
+        request = self._request()
+        live.invoke(request)
+        key = JudgementKey(case_id=request.case_id, candidate_engine="gemini",
+                           judge_engine="gemini", observation_index=0)
+        stored = json.loads(key.path(tmp_path).read_text(encoding="utf-8"))
+        assert stored.get("prompt") == request.rendered(), (
+            "the recording does not hold the prompt the judge scored"
+        )
+        assert stored["request_hash"] == hash_request(
+            live.adapter.compose_judgement(request.rendered(), request.reply_schema)
+        ), "storing the prompt changed the hash, which would make every recording stale"
+
+        # A RECORDING MADE BEFORE THE FIELD still loads, so nothing re-records.
+        older = tmp_path / "older"
+        record_judgement(older, key, _REQUEST, _MODEL, awarded)
+        assert load_judgement(older, key, _REQUEST, _MODEL).reply == awarded
+
 
 class TestMQCJudgeFailureContainment:
     """A provider failure while judging, which used to escape."""

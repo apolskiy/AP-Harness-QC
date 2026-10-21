@@ -1,11 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The Anthropic adapter.
+"""The adapter that sends cases to Anthropic's Claude models and reads their replies.
 
-Implements the interface in :mod:`execution.adapters.base` against the
-Anthropic Messages API. Replay-only under A3 until a key is provisioned, which
-changes nothing here: every operation except :meth:`ClaudeAdapter.dispatch` runs
-against a response object and needs no credential.
+Created: 2026-09-24
+Last updated: 2026-10-21
+
+This file contains :class:`ClaudeAdapter`, which implements the interface in
+:mod:`execution.adapters.base` against the Anthropic Messages API. It composes
+and dispatches the request, normalizes the response with any provider refusal
+and its token usage, captures tool calls, and composes and parses a judge
+request answered through a forced tool call.
+
+**The registry enrols it under its engine name**, so dispatch and the judge
+channel reach it whenever a run names this engine, as the candidate or as the
+judge.
+
+Replay-only under A3 until a key is provisioned, which changes nothing here:
+every operation except :meth:`ClaudeAdapter.dispatch` runs against a response
+object and needs no credential.
 
 **One request per case. No loop, no tool execution.** A tool call is captured as
 intent and never acted on, because tool usage is behaviour under test rather

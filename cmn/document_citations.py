@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Citations between documents, and whether each one resolves.
+"""Document citation check, whether each section a document cites exists, once.
+
+Created: 2026-10-12
+Last updated: 2026-10-21
+
+This file contains ``document_sections``, the section numbers a document
+defines; ``duplicate_sections``, which reports a document numbering one section
+twice; ``citations_in``, the document and section pairs a document cites; and
+``unresolved_citations``, which reports a citation whose target document is in
+the repository and whose section is not.
+
+Precondition cases in both repositories call these with their own root, so a
+dangling or ambiguous citation fails the unit layer.
 
 The designs cite each other roughly two hundred times, because a citation is how
 this project avoids restating a decision in two places. **A citation that

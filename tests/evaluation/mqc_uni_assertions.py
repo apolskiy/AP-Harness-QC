@@ -1,7 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the deterministic half of the dual pass.
+"""Unit cases for the programmatic assertions run against a model's response.
 
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`evaluation.assertions`. Each registered kind is exercised
+in both directions, ``contains``, ``not_contains``, ``regex``, ``json_schema``,
+``length``, ``claim`` and ``injection_absent``, and an unregistered kind or unit
+is a harness error rather than a failure. They also check what a result
+carries, that every assertion runs rather than stopping at the first, and that
+``fatal`` is told apart from ``violation``.
+
+These assertions run before any judge and their severity decides whether the
+judge is reached, so a defect here changes which responses are judged at all.
 Its cases are listed in the block below, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.1.
 

@@ -1,6 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Adapter conformance for ``gemini``, one case per check.
+"""Unit cases checking the ``gemini`` adapter against the shared adapter contract.
+
+Created: 2026-10-16
+Last updated: 2026-10-21
+
+Its cases check ``GeminiAdapter`` in :mod:`execution.adapters.gemini`, one case
+per check in ``conformance_checks.py``. They cover composing a request,
+normalizing a response with no vendor type left, capturing a tool call without
+executing it, reading the model version, mapping each error and status to its
+harness code, declaring capabilities and round-tripping a judgement.
 
 Inventoried in ``docs/design/tier2_execution.md`` section 10.1; the checks
 live in ``tests/execution/conformance_checks.py`` (design section 9).

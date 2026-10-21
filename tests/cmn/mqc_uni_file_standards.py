@@ -1,9 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What every file in the repository must look like.
+"""Unit preconditions for what every file in the repository must look like.
 
-Covers ``MQC_CMN_UNI_112500`` through ``112502`` and ``112503``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` sections 10.6, 10.7 and 10.20.
+Created: 2026-09-24
+Last updated: 2026-10-21
+
+The cases here check the file rules no linter enforces, mostly through
+``cmn.code_standards``: annotations on every callable and no PEP 563 import,
+SPDX headers on Python, markup and data files, a declared encoding on every
+file open, and a timeout on every subprocess. They also check what case modules
+may define and the module runway in ``cmn.module_size``, the document register
+and runbook in ``cmn.document_standards``, the artifact contract, pylint
+parity and duplicated YAML keys in ``cmn.workflow_standards``, flag coverage,
+and that a consumer run fails its job only on the harness's own codes.
+
+They run with every unit precondition run, so a file breaking one of these
+rules fails the build, naming the file, rather than waiting for a reviewer.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 10.6, 10.7 and
+10.20.
 
 **Pylint checks none of these.** It has no opinion on whether an annotation is
 present, on which annotation semantics a module selects, or on whether a file

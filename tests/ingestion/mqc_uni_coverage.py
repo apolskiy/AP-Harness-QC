@@ -1,6 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for paths a branch-coverage run found unexercised.
+"""Unit cases for ingestion paths that a branch-coverage run found no test reaching.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`ingestion.loaders`, :mod:`ingestion.schemas`,
+:mod:`ingestion.screening` and the data-code registry in :mod:`cmn.registries`.
+They cover the YAML rule-set loader, a CSV with no header, an empty YAML
+document and CSV boolean spellings, the record refusals for a non-mapping
+schema, an out-of-range or non-numeric priority and listed anchors, and
+:func:`screen_corpus` reaching every task and its system instruction.
 
 Its cases are listed in the block below, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.5.

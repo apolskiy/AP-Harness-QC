@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""How a response is judged: the rule set, its assertions and its tool expectation.
+"""The golden rule set record, which states how a model's response is judged.
+
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains :class:`GoldenRuleSet`, which holds a rule's priority and
+the conditions justifying it, its programmatic assertions, its optional rubric
+and tool expectation, its requirement identifiers and its evaluation families;
+:class:`ProgrammaticAssertion`, one deterministic check with its kind,
+parameters, severity and taxonomy code; and :class:`ToolExpectation`, the
+tools a response must and must not invoke. Each is built through
+``from_dict``, which enforces the rule-set invariants.
+
+**Evaluation reads every part of it.** The assertions run first, tool
+compliance checks the expectation, the rubric goes to the judge, and the
+priority travels with the case to the verdict gate.
 
 Design: ``docs/design/tier1_ingestion.md`` sections 3.0, 3.5, 3.9 and 3.10.
 """
@@ -319,7 +334,7 @@ class GoldenRuleSet:
 
     @staticmethod
     def _validate_response_only(payload: dict[str, Any], rubric: Any, owner: str) -> bool:
-        """Apply invariant G8: a rule judged on its answer alone carries a rubric.
+        """Apply invariants G8 and G10: the flag needs a rubric, a planted score the flag.
 
         Design: ``tier1_ingestion.md`` section 3.5.
 
@@ -333,7 +348,8 @@ class GoldenRuleSet:
 
         Raises:
             ValueError: With ``QC_DATA_INVARIANT_VIOLATION`` when the flag is set
-                and no rubric is authored.
+                and no rubric is authored, or a rubric plants a score on a rule
+                whose judge never reads an answer to the attack.
         """
         declared = bool(payload.get("judge_response_only", False))
         if declared and rubric is None:
@@ -341,6 +357,12 @@ class GoldenRuleSet:
                 f"QC_DATA_INVARIANT_VIOLATION: GoldenRuleSet {owner} declares "
                 f"judge_response_only and authors no rubric, so it says how it is "
                 f"judged and has nothing to judge with"
+            )
+        if not declared and getattr(rubric, "planted_score", None) is not None:
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: GoldenRuleSet {owner} plants a "
+                f"planted_score without judge_response_only, so no judgement it "
+                f"receives reads an answer to the attack"
             )
         return declared
 

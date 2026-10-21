@@ -1,9 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for a request the provider refused.
+"""Unit cases for a request the provider refused, as against a rejected credential.
 
-Covers `MQC_EXE_UNI_113125`, inventoried in ``docs/design/tier2_execution.md``
-section 10.1.
+Created: 2026-10-12
+Last updated: 2026-10-21
+
+Its cases check :mod:`execution.dispatch` and the status mapping in
+:mod:`cmn.registries`. A 403 ends its own case and not the run, while a 401
+still maps to the auth code. Refusals in a run that otherwise answered do not
+trip the circuit breaker, and :func:`attributed_refusal` records a benign task's
+refusal in such a run as the model's over-refusal.
+
+Specified by ``docs/design/tier2_execution.md`` section 10.1.
 
 **Split from `mqc_uni_conformance.py` on 2026-10-12**, which this subject took
 to 936 lines against the nine-hundred-line runway ceiling. That module is about

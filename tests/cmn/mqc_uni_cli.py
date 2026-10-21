@@ -2,11 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the option registry, exit codes and what a subset costs.
 
-Covers the option registry, the verdict tool's exit codes, diagnostic runs,
-threshold recording and the consumer registry, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10; the block below lists the
-cases. Selection mode and the gated flag moved to
-``mqc_uni_selection_mode.py`` on 2026-10-16.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+The cases here check the command-line surface. ``cmn.options`` must feed the
+same flags and refuse the same values on the pytest and argparse surfaces, and
+record its defaults. ``cmn.verdict_tool`` must recompute a verdict from stored
+artifacts, keep green, red, precondition failure, refusal and argument error
+apart in its exit code, and refuse ungated or manual artifacts. A diagnostic
+run returns no verdict code, and the effective thresholds and rule-set hash are
+recorded. ``cmn.config`` loads the consumer registry and
+``cmn.pytest_support`` resolves the corpus selection.
+
+The exit code is what a caller of the verdict tool acts on, so these cases
+decide whether a red, a refusal and a precondition failure stay
+distinguishable downstream.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10. Selection mode
+and the gated flag moved to ``mqc_uni_selection_mode.py`` on 2026-10-16.
 
 **Testers may run any subset. What a subset costs is the verdict, not the
 ability to run.** A hand-typed selection is arbitrary and has no backstop, while
@@ -93,7 +106,7 @@ from cmn.verdict_tool import (
     thresholds_from,
 )
 
-from tests.cmn.cli_doubles import FakeConfig, plugin_registrations
+from tests.cmn.cli_doubles import SimulatedConfig, plugin_registrations
 from tests.cmn.verdict_support import TODAY, gated_artifact
 pytestmark = pytest.mark.unit
 
@@ -272,7 +285,7 @@ class TestMQCOptionRegistry:
             ["-m", "sec", "--engine", "gemini"],
             ["-m", "sec", "--engine=gemini"],
         ):
-            config = FakeConfig(arguments, {"engine": "gemini", "mode": "replay"})
+            config = SimulatedConfig(arguments, {"engine": "gemini", "mode": "replay"})
             configure_invocation(config)
             assert not config.mqc_invocation.warnings, (
                 f"naming the default engine as {arguments[-1]!r} still reported "
@@ -281,7 +294,7 @@ class TestMQCOptionRegistry:
 
         # AND THE WARNING STILL FIRES WHERE IT SHOULD, which is the half the
         # original case did cover and this must not break.
-        unchosen = FakeConfig(["-m", "sec"], {"engine": "gemini", "mode": "replay"})
+        unchosen = SimulatedConfig(["-m", "sec"], {"engine": "gemini", "mode": "replay"})
         configure_invocation(unchosen)
         assert len(unchosen.mqc_invocation.warnings) == 1
         assert "QC_DATA_ENGINE_DEFAULTED" in unchosen.mqc_invocation.warnings[0]
@@ -485,7 +498,7 @@ class TestMQCDiagnosticRuns:
         named = tmp_path / "diagnostic"
         both = {"xmlpath": None, "allure_report_dir": None}
 
-        config = FakeConfig([], {"out_dir": str(named)}, dict(both))
+        config = SimulatedConfig([], {"out_dir": str(named)}, dict(both))
         adopt_artifact_destinations(config)
 
         assert config.option.xmlpath == str(named / "junit.xml")
@@ -494,7 +507,7 @@ class TestMQCDiagnosticRuns:
         # EXPLICIT REDIRECTS ONE AND SUPPRESSES NEITHER. The consumer-regression
         # steps are why: they give each JUnit file a distinct name so four
         # matrix legs do not overwrite one file, and must still emit Allure.
-        config = FakeConfig(
+        config = SimulatedConfig(
             [], {"out_dir": str(named)},
             {"xmlpath": "elsewhere/mine.xml", "allure_report_dir": None},
         )
@@ -503,7 +516,7 @@ class TestMQCDiagnosticRuns:
         assert config.option.xmlpath == "elsewhere/mine.xml"
         assert config.option.allure_report_dir == str(named / "allure-results")
 
-        config = FakeConfig(
+        config = SimulatedConfig(
             [], {"out_dir": str(named)},
             {"xmlpath": None, "allure_report_dir": "elsewhere/allure"},
         )
@@ -513,14 +526,14 @@ class TestMQCDiagnosticRuns:
         assert config.option.allure_report_dir == "elsewhere/allure"
 
         # NO FLAG DERIVES NOTHING, so an ordinary run is unaffected.
-        config = FakeConfig([], {}, dict(both))
+        config = SimulatedConfig([], {}, dict(both))
         assert not adopt_artifact_destinations(config)
         assert config.option.xmlpath is None
         assert config.option.allure_report_dir is None
 
         # AN ABSENT PLUGIN IS SKIPPED, NOT FAILED: allure-pytest is a `[dev]`
         # dependency and the consumer installs the harness `--no-deps`.
-        config = FakeConfig([], {"out_dir": str(named)}, {"xmlpath": None})
+        config = SimulatedConfig([], {"out_dir": str(named)}, {"xmlpath": None})
         adopt_artifact_destinations(config)
 
         assert config.option.xmlpath == str(named / "junit.xml")
@@ -600,7 +613,7 @@ class TestMQCConsumerRegistry:
             None
         """
         adopt_corpus_selection(
-            FakeConfig([], {"--golden-rules": "/elsewhere/data",
+            SimulatedConfig([], {"--golden-rules": "/elsewhere/data",
                              "--extra-columns": "drop"})
         )
         root, policy = corpus_selection()
@@ -609,7 +622,7 @@ class TestMQCConsumerRegistry:
         assert policy == "drop"
 
         # UNNAMED IS NONE, NOT A DEFAULT. The consumer substitutes its own.
-        adopt_corpus_selection(FakeConfig([], {}))
+        adopt_corpus_selection(SimulatedConfig([], {}))
         root, policy = corpus_selection()
 
         assert root is None, (
@@ -648,10 +661,11 @@ class TestMQCConsumerRegistry:
     ) -> None:
         """Stabilization work is verified against stabilization work.
 
-        A harness extension lives on ``stabilization`` before it lives anywhere
-        else, and the cases needing it live on the consumer's stabilization
-        branch. Pairing both to ``main`` would verify each against a branch that
-        has not received the other.
+        The shipped registry pairs ``main`` with the consumer's ``main``. A
+        cycle's dated stabilization branch adds its literal entry when it is cut
+        (``harness_ci_pipeline.md`` section 3C.6.8), and that entry is what a
+        named branch resolves through, so harness and cases of one cycle are
+        verified against each other.
 
         Returns:
             None
@@ -663,7 +677,14 @@ class TestMQCConsumerRegistry:
         cases = registry["AP-Model-QC"]
 
         assert cases.ref_for("main") == "main"
-        assert cases.ref_for("stabilization") == "stabilization"
+
+        cycle = Consumer(
+            name="Example",
+            repository="owner/example",
+            refs={"main": "main", "stabilization-10-21-2026": "stabilization-10-21-2026"},
+            default_ref="main",
+        )
+        assert cycle.ref_for("stabilization-10-21-2026") == "stabilization-10-21-2026"
 
     def MQC_CMN_UNI_112141_an_unnamed_harness_branch_falls_back_to_the_default_ref(
         self,
@@ -682,13 +703,13 @@ class TestMQCConsumerRegistry:
         consumer = Consumer(
             name="Example",
             repository="owner/example",
-            refs={"stabilization": "stabilization"},
+            refs={"stabilization-10-21-2026": "stabilization-10-21-2026"},
             default_ref="main",
         )
 
         assert consumer.ref_for("feature/anything") == "main"
         assert consumer.ref_for("") == "main"
-        assert consumer.ref_for("stabilization") == "stabilization"
+        assert consumer.ref_for("stabilization-10-21-2026") == "stabilization-10-21-2026"
 
     def MQC_CMN_UNI_112138_a_consumer_entry_without_a_repository_is_rejected(
         self, tmp_path: Path

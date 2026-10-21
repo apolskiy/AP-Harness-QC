@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a run cost, computed from tokens and a dated price table.
+"""Run cost, what a run spent, computed from token counts and a dated price table.
+
+Created: 2026-09-28
+Last updated: 2026-10-21
+
+This file contains ``load_price_table``, which reads the dated table into a
+``PriceTable`` of ``ModelPrice`` windows; ``cost_of``, the cost of one usage on
+one date; ``stale_prices``, the models whose window has closed; and
+``cost_report``, which builds a ``CostReport`` of one ``CostLine`` per case,
+candidate and judge apart, and the run total.
+
+``execution/dispatch.py`` prices each dispatch with ``cost_of`` to keep a
+budgeted run inside its spend ceiling, the table being loaded only where a
+ceiling is set, and ``cost_report`` turns a run's observations into what each
+case cost.
 
 **A pure function of usage, prices and an injected date**, for the same reason
 the verdict is: no clock, no network, no filesystem beyond the one load. A cost

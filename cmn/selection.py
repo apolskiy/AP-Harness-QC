@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Choosing which cases a run executes, and refusing a choice that selects none.
+"""Case selection, which cases a run executes, and refusing a choice that selects none.
+
+Created: 2026-10-03
+Last updated: 2026-10-21
+
+This file contains the collection filters, each deselecting what the run did
+not ask for: ``select_priority_bands`` by priority band, ``select_modules`` by
+module, ``select_traced_cases`` by family, requirement or tag through the
+traceability matrix and case index, ``select_named_tests`` by an explicit list,
+and ``deselect_unrequested_audits`` for mutation audits not named. It also holds
+``refuse_repeated_cases``, ``report_unresolved_selection`` and
+``selected_bands``.
+
+Both repositories' ``conftest.py`` call these at collection, before the
+dependency ordering, so a selected case keeps the foundations it rests on and a
+selection that matches nothing stops the run rather than passing it.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 7.7 and 7.8.
 
@@ -790,3 +805,64 @@ def select_modules(config: pytest.Config, items: list[pytest.Item]) -> None:
         "modules %s selected %d case(s), keeping %d foundation(s)",
         ",".join(sorted(wanted)), len(chosen), foundations,
     )
+
+
+# WHERE THE AUDITS LIVE, and the marker that asks for them (taxonomy 15.13.1).
+_AUDIT_DIR: Final[str] = "tests/mutation"
+_AUDIT_MARKER: Final[re.Pattern] = re.compile(r"\bmutation\b")
+
+
+def _audit_path_named(config: Any) -> bool:
+    """Report whether an argument names the audit directory or a path inside it.
+
+    Args:
+        config (Any): pytest's configuration, read for its arguments and root.
+
+    Returns:
+        bool: True when a positional argument resolves under ``tests/mutation``.
+    """
+    audits = (Path(config.rootpath) / _AUDIT_DIR).resolve()
+    base = Path(config.invocation_params.dir)
+    for argument in config.args:
+        named = (base / str(argument).split("::", 1)[0]).resolve()
+        if named == audits or audits in named.parents:
+            return True
+    return False
+
+
+def deselect_unrequested_audits(config: Any, items: list[Any]) -> int:
+    """Deselect every mutation audit a run did not ask for.
+
+    Design: ``harness_test_taxonomy.md`` section 15.13.1. A run asks by a marker
+    expression naming ``mutation``, a path under ``tests/mutation``, or
+    ``--tests`` naming the case. Deselected rather than skipped, so an audit
+    nobody asked for leaves the total.
+
+    Args:
+        config (Any): pytest's configuration.
+        items (list): The collected items, filtered in place.
+
+    Returns:
+        int: How many audits were deselected.
+    """
+    audits = [item for item in items if item.get_closest_marker("mutation") is not None]
+    if not audits:
+        return 0
+    if _AUDIT_MARKER.search(str(config.getoption("markexpr", "") or "")):
+        return 0
+    if _audit_path_named(config):
+        return 0
+    inline = str(config.getoption("--tests", "") or "")
+    named_file = str(config.getoption("--tests-file", "") or "")
+    named: dict[str, str] = {}
+    if inline or named_file:
+        named = _entry_identifiers(_requested_entries(inline, named_file)[0])
+    drop = [item for item in audits if case_identifier(item.name) not in named]
+    if not drop:
+        return 0
+    config.hook.pytest_deselected(items=drop)
+    items[:] = [item for item in items if item not in drop]
+    logger.info(
+        "%d mutation audit(s) deselected: the run did not ask for them", len(drop)
+    )
+    return len(drop)

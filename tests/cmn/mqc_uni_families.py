@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What the record says when a case belongs to more than one family.
+"""Unit preconditions for what the record says when a case belongs to more than one family.
 
-Covers ``MQC_CMN_UNI_112241`` and ``112243``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
+Created: 2026-10-03
+Last updated: 2026-10-21
+
+The cases here check that ``cmn.metadata.emit_result`` publishes every family a
+graded observation carries, in the order given with the first as primary, and
+that ``cmn.observations.Observation`` refuses a repeated family, an
+unregistered one, and a family on a precondition, which performs no task.
+
+The emitted record is what a downstream collector reads about a result, so a
+case traced to two families has to publish both, with ``primary_family`` naming
+the first.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and
 ``harness_test_taxonomy.md`` section 11.7.
 
 **Written 2026-10-03, when the relation was stated to be many to many.** The

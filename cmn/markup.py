@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Reading prose a model formatted, without reading the formatting.
+"""Markup removal, so a check reads what a model said and not how it formatted it.
+
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+This file contains ``normalise_markup``, which strips code fences, backticks and
+bold markers from a response and folds typographic quotes and apostrophes to
+their ASCII forms.
+
+The assertions in ``evaluation/assertions.py`` call it at match time, so a right
+answer formatted as code still matches its pattern. The recorded response is
+never altered, only the copy a check reads.
 
 Specified by ``docs/design/tier3_evaluation.md`` section 5.1.
 

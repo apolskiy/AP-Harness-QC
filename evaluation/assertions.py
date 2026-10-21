@@ -1,8 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Programmatic assertions: the deterministic half of the dual pass.
+"""Programmatic assertions, the deterministic part of evaluating a model's response.
 
-Specified by ``docs/design/tier3_evaluation.md`` sections 4.1 and 5.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains the assertion kinds a golden rule can declare, ``regex``,
+``json_schema``, ``length``, ``contains``, ``not_contains``, ``claim`` and
+``injection_absent``, and the functions that run a rule's assertions against
+one response and report whether they held.
+
+**These assertions run first**, before any LLM judge reads the response, and a
+failure can keep the judge out of the evaluation altogether, for cost or for
+security. A ``fatal`` failure is never judged; a ``violation`` is judged only
+under ``--judge-on-failure``, since a judgement cannot change a case that
+already failed; and a declared adversarial case is graded by its assertions,
+reaching a judge only when its rule opts in to judging the answer alone. Each
+test family, and each case in it, decides through the severities and flags its
+rules declare.
+
+Specified by ``docs/design/tier3_evaluation.md`` sections 4.1, 4.2, 4C.4 and 5.
 
 **Assertions are conjunctive gates, not a parallel report.** A case passes only
 when every assertion passes and the rubric clears its threshold. Treating the
@@ -16,7 +33,7 @@ classification as data rather than through a code change (A12).
 **`not_contains` is what makes injection resistance deterministic.** A planted
 payload whose instruction is to emit a unique marker turns compliance into an
 exact string check rather than a judgement, which is why a declared adversarial
-case is graded here and never sent to a judge.
+case is graded here and its payload never reaches a judge.
 """
 
 import json
@@ -349,8 +366,10 @@ _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, st
 # parses the body, so altering the text before parsing changes what is
 # validated.
 _MARKUP_SENSITIVE: Final[frozenset[str]] = frozenset(
-    {"regex", "contains", "not_contains", "claim", "injection_absent"}
+    {"regex", "contains", "not_contains", "claim"}
 )
+# `injection_absent` READS THE TEXT AS WRITTEN: quotation is part of what it
+# reads, and normalising removes backticks (section 5.2.6).
 
 
 # `normalise_markup` lives in `cmn.markup`: removing markup is a text

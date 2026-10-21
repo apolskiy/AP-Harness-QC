@@ -1,24 +1,42 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Refuse a run while a harness module is under mutation, and log an audit's progress.
+"""Mutation guard, which keeps an ordinary run off a harness module under mutation.
 
-Design: ``docs/design/harness_test_taxonomy.md`` section 15.12.
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains ``refuse_if_mutating`` and ``mutation_state``, which abort a
+session while a backup or lock sits beside a harness module, restoring a module
+an abandoned audit left; ``ProgressLog`` and ``latest_progress`` for an audit's
+progress log; ``request_stop``, ``stop_requested`` and ``stop_audits``, which
+stop running audits and prove each module restored; and the helpers
+``module_digest``, ``behaviour_fingerprint``, ``process_alive`` and
+``imported_harness_root``.
+
+Both repositories' ``conftest.py`` call ``refuse_if_mutating`` first at session
+start, and ``tools/mutation_audit.py`` uses the rest, so a run never measures a
+mutant it did not ask for.
+
+Design: ``docs/design/harness_test_taxonomy.md`` sections 15.12 and 15.13.
 
 A backup or a lock beside a module means a mutation audit is running or one
 died. A run started by that audit proceeds; any other run refuses with
 ``QC_HARNESS_PREFLIGHT_FAILURE``, after restoring and verifying a module an
 abandoned audit left. The audit writes a progress log, one flushed line per
-event, which a refusal quotes.
+event, which a refusal quotes. A stop request names the processes of running
+audits, which stop themselves, and the stop command proves each module restored.
 """
 
+import ast
 import ctypes
 import hashlib
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Final, Mapping, Optional
+from typing import Callable, Final, Mapping, Optional
 
 import pytest
 import yaml
@@ -33,6 +51,8 @@ AUDIT_ENV: Final[str] = "MQC_MUTATION_AUDIT"
 # WHERE THE BASELINE IS DECLARED and where the progress logs go, from the root.
 MANIFEST: Final[str] = "config/mutation_survivors.yaml"
 PROGRESS_DIR: Final[str] = "reports/mutation"
+# WHERE A STOP IS ASKED FOR, naming the processes it applies to (section 15.13.2).
+STOP_REQUEST: Final[str] = f"{PROGRESS_DIR}/stop-request.json"
 _PROGRESS_INFIX: Final[str] = ".mutation-progress-"
 _STAMP: Final[str] = "%Y%m%dT%H%M%SZ"
 
@@ -60,6 +80,32 @@ def module_digest(text: str) -> str:
     """
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def behaviour_fingerprint(text: str) -> str:
+    """Return a digest of a module's code alone, its docstrings and comments left out.
+
+    Comments never reach the syntax tree, and each docstring is removed from
+    it, so two versions differing only in prose share a fingerprint and have
+    the same mutation points in the same order.
+
+    Design: ``docs/design/harness_test_taxonomy.md`` section 15.14.
+
+    Args:
+        text (str): The module source.
+
+    Returns:
+        str: The hex SHA-256 of the docstring-free syntax tree.
+    """
+    tree = ast.parse(text)
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        body = node.body
+        if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) \
+                and isinstance(body[0].value.value, str):
+            node.body = body[1:] or [ast.Pass()]
+    return hashlib.sha256(ast.dump(tree).encode("utf-8")).hexdigest()
 
 
 def process_alive(pid: int) -> bool:
@@ -421,3 +467,133 @@ def refuse_if_mutating(root: Path) -> None:
     refusal = mutation_state(root)
     if refusal is not None:
         pytest.exit(refusal, returncode=3)
+
+
+def _live_holds(root: Path) -> list[tuple[str, int]]:
+    """Return every module a live audit holds, with the process holding it.
+
+    Args:
+        root (Path): The harness root.
+
+    Returns:
+        list[tuple[str, int]]: The module path relative to the root, and the pid.
+    """
+    holds: list[tuple[str, int]] = []
+    for module in _held_modules(root):
+        lock = module.with_name(module.name + LOCK_SUFFIX)
+        pid, _ = _lock_holder(lock)
+        if lock.is_file() and process_alive(pid):
+            holds.append((module.relative_to(root).as_posix(), pid))
+    return holds
+
+
+def request_stop(root: Path, *, now: Optional[datetime] = None) -> list[tuple[str, int]]:
+    """Ask every running audit to stop, by writing a request naming its process.
+
+    Design: ``harness_test_taxonomy.md`` section 15.13.2.
+
+    Args:
+        root (Path): The harness root.
+        now (Optional[datetime]): When the request is made, or None for now.
+
+    Returns:
+        list[tuple[str, int]]: Each module a live audit holds and its pid. Empty,
+        and nothing written, when no audit is running.
+    """
+    holds = _live_holds(root)
+    if not holds:
+        return []
+    request = root / STOP_REQUEST
+    request.parent.mkdir(parents=True, exist_ok=True)
+    request.write_text(
+        json.dumps({
+            "pids": sorted({pid for _, pid in holds}),
+            "requested": (now or _utc_now()).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }),
+        encoding="utf-8", newline="\n",
+    )
+    return holds
+
+
+def stop_requested(root: Path, pid: int) -> bool:
+    """Report whether a stop request names a process, removing one that names only exited ones.
+
+    Args:
+        root (Path): The harness root.
+        pid (int): The audit's process.
+
+    Returns:
+        bool: True when the request names the process.
+    """
+    request = root / STOP_REQUEST
+    try:
+        named = [int(entry) for entry in json.loads(request.read_text(encoding="utf-8"))["pids"]]
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    if pid in named:
+        return True
+    if not any(process_alive(entry) for entry in named):
+        request.unlink(missing_ok=True)
+    return False
+
+
+def _stop_problems(root: Path, modules: list[str]) -> list[str]:
+    """Return why each stopped module is not its declared baseline, if it is not.
+
+    Args:
+        root (Path): The harness root.
+        modules (list[str]): The modules the stopped audits held.
+
+    Returns:
+        list[str]: One line per module left wrong, empty when every one is restored.
+    """
+    problems: list[str] = []
+    for relative in modules:
+        module = root / relative
+        backup = module.with_name(module.name + BACKUP_SUFFIX)
+        if backup.exists():
+            problems.append(f"{relative}: its backup {backup.name} is still on disk")
+            continue
+        found = module_digest(module.read_text(encoding="utf-8"))
+        declared = _declared_digest(root, relative)
+        if found != declared:
+            problems.append(
+                f"{relative}: hashes to {found} and {MANIFEST} declares the digest "
+                f"{declared}, so the module is not its baseline. {_recoveries(module, backup)}"
+            )
+    return problems
+
+
+def stop_audits(
+    root: Path, *, wait: float = 600.0, sleep: Callable[[float], None] = time.sleep,
+    clock: Callable[[], float] = time.monotonic,
+) -> tuple[int, list[str]]:
+    """Stop every running audit, wait for it, and prove each module it held is restored.
+
+    Design: ``harness_test_taxonomy.md`` section 15.13.2.
+
+    Args:
+        root (Path): The harness root.
+        wait (float): The longest wait for the locks, in seconds.
+        sleep (Callable): Waits between checks.
+        clock (Callable): The monotonic clock the wait is measured on.
+
+    Returns:
+        tuple[int, list[str]]: ``0`` when no audit was running or every module is
+        its declared baseline, ``1`` otherwise, with one line per module or problem.
+    """
+    holds = request_stop(root)
+    if not holds:
+        return 0, ["no mutation audit is running, so nothing was stopped"]
+    pids = {pid for _, pid in holds}
+    deadline = clock() + wait
+    while (waiting := [relative for relative, pid in _live_holds(root) if pid in pids]):
+        if clock() >= deadline:
+            return 1, [f"{relative}: still held after {wait:g} seconds" for relative in waiting]
+        sleep(1.0)
+    modules = [relative for relative, _ in holds]
+    problems = _stop_problems(root, modules)
+    if problems:
+        return 1, problems
+    return 0, [f"{relative}: stopped, restored and matching its declared digest"
+               for relative in modules]

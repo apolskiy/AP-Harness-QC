@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A case that crashes is broken, never failed, and the run exits 3.
+"""Broken cases, a case that crashed rather than failed, and the exit 3 it forces.
+
+Created: 2026-10-15
+Last updated: 2026-10-21
+
+This file contains ``mark_broken``, which marks a phase report broken when its
+exception was not an assertion or a deliberate ``pytest.fail``, logging it under
+``QC_HARNESS_UNANTICIPATED_EXCEPTION``; ``is_broken``, ``broken_count`` and
+``broken_detail_lines``, which read and report the marks; and
+``refuse_broken``, which makes the run exit 3 where any case broke.
+
+Both repositories' ``conftest.py`` call these from the report, session-end and
+summary hooks, so a crash is never counted as a model failure and the run says nothing
+trustworthy was measured.
 
 Design: ``docs/design/harness_test_taxonomy.md`` section 5.1.1.
 """

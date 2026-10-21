@@ -30,7 +30,7 @@ Four modules. Each exposes a stable interface; crossing a boundary means satisfy
 ### Tier 1: Ingestion (`ING`)
 * **Boundary rule**: `TaskDataSet` is **what you send**; `GoldenRuleSet` is **how you judge what comes back**. Every field placement follows from this. Tool definitions are input, tool expectations are judgement, and the same tool legitimately appears in both.
 * **Schema enforcement**: all ingested data passes through frozen `@dataclass` validators with strict key checking, explicit casting, and rejection of unknown fields.
-* **Referential integrity**: five cross-schema checks run after the join, including that every constraint sent to a model has a corresponding check.
+* **Referential integrity**: six cross-schema checks run after the join, including that every constraint sent to a model has a corresponding check.
 * **No network, no engine knowledge.** Tier 1 does not know that engines exist.
 
 ### Tier 2: Execution (`EXE`)

@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the canonical shapes Tier 3 receives.
+"""Unit cases for the provider-neutral records every adapter's output is converted into.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier2_execution.md`` section 10.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check ``ToolCall`` and ``NormalizedResponse`` in
+:mod:`execution.normalize`. Tool arguments are parsed from a JSON string or an
+object, anything else is a model finding, and call order is kept. A response
+missing a canonical field, or carrying an unregistered mode or finish reason, is
+rejected, and a valid one records the resolved model version, no vendor type and
+a pointer to the raw payload rather than the payload.
+
+Every adapter returns these records and Tier 3 reads nothing else, so a defect
+here reaches every evaluation. Its cases are listed in the block below,
+inventoried in ``docs/design/tier2_execution.md`` section 10.1.
 
 **These shapes are the whole boundary.** A vendor object reaching Tier 3 would
 make the judge depend on which provider produced the output it is judging, so

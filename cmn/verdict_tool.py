@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The standalone tool that computes a verdict from stored artifacts.
+"""The verdict command line tool, which scores a stored results file after a run.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``main``, run as ``python -m cmn.verdict_tool <results>``,
+and the steps it takes: ``build_parser`` from the shared option registry,
+``load_artifacts``, ``refuse_if_ungated``, ``observations_from`` and
+``thresholds_from`` to rebuild the run, ``compute`` to call ``cmn.verdict``, and
+``report_exclusions`` to state what quarantine removed.
+
+It runs after the test session, on the artifact the run emitted, and its exit
+code is what a CI step gates on: green, red, argument error, precondition
+failure or refusal.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 7.2 and 7.3.
 

@@ -1225,6 +1225,44 @@ the mapping passed while nothing published it.
 | `families`, `primary_family` | Present on a `SEC` or `TOOL` case, absent on `EVAL`, which is the gap `harness_test_taxonomy.md` section 11.5.1 carries |
 | `vendor-report` | Attached on a failing case, carrying every observation with its request and response |
 
+### 5.5 Every case carries its exchanges, passing or failing
+
+Added 2026-10-20 at the project owner's instruction: "Ideally harness would log
+the prompt, whether the test passes or not. So it's obtainable from the log."
+
+**This reverses one row of section 5.3, for one attachment.** That section
+attached the reproduction to a failing case only, on the ground that nothing is
+filed about a passing one and prompts are large. The owner's ruling is that a
+failure's prompt is needed to file it and a passing case's prompt is needed to
+judge whether a failure elsewhere is a false positive, which is the review that
+found the consumer's `154511` was one. The `vendor-report` attachment is
+unchanged; this is a second one.
+
+**`exchanges`, attached to every case that dispatched anything**, one entry per
+observation in index order:
+
+| Field | Holds |
+|---|---|
+| `request`, `response` | The candidate request as sent and the response as normalized, credentials redacted as in section 5.3 |
+| `screen` | Whether it aborted, and each vector with the text it matched |
+| `assertions` | Each check with whether it passed and what it found |
+| `judge` | The judge prompt (`tier3_evaluation.md` section 4C.6) and each criterion's score and rationale, or `not_judged` with the reason no request was sent |
+| `passed`, `taxonomy_code` | The observation's outcome and its code |
+
+**Not on a case that dispatched nothing**, a quarantined or environmental skip:
+there is no exchange to show. **An Allure attachment, as section 5.3 decided**,
+so it travels in the published artefact and no file format is invented.
+
+**The consumer records the evaluation beside the call.** `record_observation`
+takes the result as a third argument, and the reporting hook builds the
+attachment with `cmn.reporting.exchange_report`, a pure builder as section 5.4
+requires.
+
+| Case | Asserts |
+|---|---|
+| `112419` | The report carries each observation's request, response, screen matches, checks, and the judge prompt with its scores, or why it was not judged, with credentials redacted |
+| `112420` | A passing case and a failing case each attach `exchanges`; a case that dispatched nothing attaches none, and the vendor report still attaches on a failure only |
+
 ---
 
 ## 6. RTM Integrity
@@ -1651,6 +1689,22 @@ A `workflow_dispatch` job taking selection inputs, for troubleshooting a failure
 | **Row marking** | Every row carries `run_context: ci_debug`, `gated: false`, `selection_mode: manual`. Even if an artifact were collected, by a loosened regex or a manual upload, its rows are identifiable and excludable |
 
 Structural separation alone would fail the day someone widens the collector's pattern. Marking alone would fail if nobody filters on it. Together, either one catches what the other misses.
+
+**The naming lives in the workflows, and is checked there.** Corrected
+2026-10-21. A workflow writes each artifact name inline, so the mechanism is the
+`upload-artifact` steps themselves; `cmn.metadata` holds the two prefixes once,
+`COLLECTED_PREFIX` (`mqc-reports-`) and `DEBUG_PREFIX` (`scratch-`), for every
+check in either repository to import. **Every upload in a workflow whose cadence
+is `on-demand` (`harness_ci_pipeline.md` section 2) starts with `scratch-`**, so
+no debug run can publish under the collected prefix.
+`cmn.workflow_standards.collectable_debug_uploads` reports each that does not,
+and `112210` calls it with this root.
+
+The functions `artifact_name` and `matches_collector_pattern` were removed the
+same day: no workflow, tool or pipeline step called them, they held prefixes no
+workflow published (`mqc-results`, `diagnostic-local`), and `112210` asserted
+only that the two disagreed with each other, so the requirement read as
+satisfied while a debug upload named `mqc-reports-` would have passed.
 
 **Quota interaction:** a debug job running live shares the engine concurrency group, so it queues behind real runs rather than competing with them.
 
@@ -2707,6 +2761,14 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112395` | P | `each_audit_event_is_flushed_to_a_log_named_for_its_start` (taxonomy 15.12.3) |
 | `112396` | P | `a_finished_audit_keeps_its_log_and_removes_every_older_one` (taxonomy 15.12.3) |
 | `112397` | N | `a_refusal_quotes_the_last_progress_line_and_its_age` (taxonomy 15.12.3) |
+| `112414` | N | `an_audit_is_deselected_unless_the_run_asks_for_it` (taxonomy 15.13.1) |
+| `112415` | P | `a_stop_request_ends_an_audit_and_restores_its_module` (taxonomy 15.13.2) |
+| `112416` | N | `a_stop_request_for_another_process_does_not_stop_an_audit` (taxonomy 15.13.2) |
+| `112417` | P | `an_audit_stopped_on_request_refuses_and_logs_the_stop` (taxonomy 15.13.2) |
+| `112418` | B | `the_stop_command_passes_only_once_every_module_is_restored` (taxonomy 15.13.2) |
+| `112422` | N | `a_prose_edit_is_redeclared_and_a_code_edit_refused` (taxonomy 15.14) |
+| `112419` | N | `an_exchange_report_holds_each_observation_and_judge_prompt` (5.5) |
+| `112420` | N | `every_case_that_dispatched_attaches_its_exchanges` (5.5) |
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
 | `112347` | P | `a_case_announces_its_node_identifier_before_running` |
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
@@ -2876,6 +2938,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112226` | N | `an_identifier_appearing_twice_in_one_inventory_is_reported` |
 | `112326` | N | `an_identifier_bound_by_two_callables_is_reported` |
 | `112525` | N | `a_workflow_emitting_one_mandated_artifact_is_reported` |
+| `112526` | N | `a_file_date_line_missing_or_stale_is_reported` |
 | `112037` | N | `an_entry_whose_model_changed_is_expired` |
 | `112038` | P | `an_unconfirmed_entry_is_honoured_and_never_red` |
 | `112039` | P | `an_absent_quarantine_file_is_an_empty_quarantine` |
@@ -2941,6 +3004,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112144` | P | `the_corpus_selection_is_resolved_at_configure_time` |
 | `112611` | P | `judge_mode_defaults_to_whatever_mode_is` |
 | `112612` | N | `a_live_candidate_with_a_replayed_judge_is_refused` |
+| `112616` | P | `the_judge_can_be_withheld_with_either_candidate_mode` |
+| `112617` | N | `only_a_debug_workflow_can_withhold_the_judge` |
 | `112504` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
 | `112505` | N | `a_branch_name_outside_the_grammar_is_reported` |
 | `112506` | N | `a_referent_of_no_registered_kind_is_reported` |
@@ -2951,6 +3016,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112031` | N | `an_incomplete_skip_blocks_however_few_there_are` |
 | ~~`112032`~~ | | ~~`an_environmental_skip_is_tolerated_to_its_ceiling`~~. **Retired 2026-10-08**, `harness_test_taxonomy.md` section 7.4.1. It asserted a run over a ceiling was red, and an outage is not the model's failure at any rate; `112045` states the replacement |
 | `112510` | P | `an_integration_branch_may_omit_its_referent` |
+| `112421` | N | `workflow_and_pairing_branches_are_ones_the_policy_accepts` |
 | `112400` | N | `a_dependent_of_a_failed_base_case_is_skipped_not_failed` |
 | `112401` | P | `a_dependent_of_a_passing_base_case_runs_normally` |
 | `112402` | N | `a_dependency_naming_no_collected_case_is_reported` |
@@ -2991,6 +3057,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112335` | N | `a_case_whose_recordings_disagree_on_the_request_is_reported` |
 | `112336` | P | `a_ledger_names_every_step_and_the_phase_it_stopped_at` |
 | `112337` | B | `a_rule_without_a_rubric_reports_its_judge_steps_inapplicable` |
+| `112398` | B | `a_rubric_only_rule_reports_its_check_step_inapplicable` (taxonomy 8.2.1) |
 | `112338` | N | `a_quarantined_case_reaching_dispatch_is_reported` |
 | ~~`112339`~~ | | ~~`a_dependent_of_a_failure_is_probed_in_replay`~~. **Retired 2026-10-11**, section 10.28.2.3. Replay no longer probes: CI reports pass, fail and skip only, and the mechanism moved out of CI rather than being excluded from its denominators |
 | ~~`112340`~~ | | ~~`a_probe_is_counted_in_no_denominator`~~. **Retired 2026-10-11**, section 10.28.2.2. It asserted the registry entry and not that anything produced it, and nothing did |
@@ -3019,7 +3086,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 395 cases, 241 negative, 110 positive, 44 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 408 cases, 249 negative, 113 positive, 46 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3301,6 +3368,25 @@ field name and the value, because the point is that the run stops, and a
 message assertion would make a reworded error a failing test.
 
 ---
+
+### 10.39 The file date check
+
+`112526` asserts what `code-style.md` section 3.1.2 requires of a module
+docstring: a `Created:` and a `Last updated:` line in third and fourth place,
+each a real date, the first no later than the second, neither in the future,
+and a file that differs from its last commit carrying a `Last updated` of today
+or after that commit. It plants each defect in a scratch repository, reads
+`cmn.code_standards.file_date_problems`, then reads this repository's own root.
+
+**The staleness half needs local edits to compare, and a CI checkout has none**,
+so there it checks nothing and passes. It bites on a working tree before a
+commit, which is where a date goes stale. `tools/refresh_file_dates.py` is the
+remedy the failure names: it stamps today on every changed file and gives a new
+file both lines.
+
+**`Created` is never moved by the tool.** It records the earliest trace of the
+file, its first write in a session transcript or else the day git first added
+it, and was backfilled once from both.
 
 ## 11. Test Inventory: `MQC_CMN_SYS_`
 
@@ -3623,6 +3709,10 @@ mechanism and already tests both directions; it gains the literal prefix and the
 suffixed form, and the duplicate and the tautology go. Minting `11210` for what
 is left would have given an accidental duplicate an identifier of its own and
 recorded a 208th case that re-asserts a 207th.
+
+**Superseded 2026-10-21** (section 7.1.3). The prefix `112210` pinned,
+`diagnostic-local`, was one no workflow published, and the functions it tested
+had no caller. `112210` now reads the workflows' own upload steps.
 
 | Was | Now |
 |---|---|
@@ -3994,6 +4084,12 @@ machinery would report it as staleness on every case, which reads as a corpus
 problem rather than an impossible request, so it is refused at parsing with
 exit 2.
 
+**`112616` and `112617` cover `--judge-mode off`**, added 2026-10-21
+(`tier3_evaluation.md` section 5A.5.3). `112616` accepts it under either
+candidate mode and registers `QC_HARNESS_JUDGE_WITHHELD`; `112617` reports any
+workflow outside the on-demand cadence that passes it or offers `unjudged`, so
+only a debug run can check the assertions without the judge.
+
 
 ### 10.22 The operator runbook
 
@@ -4034,6 +4130,13 @@ remedy would be a check nobody could reason about.
 **The referent kinds are a registry rather than a literal list.** Adding a kind
 is a row, in the sense `testing-standards.md` uses for layer tokens, and
 `112506` reports a referent matching none of them.
+
+**`112421` reads the names the repository itself uses**, added 2026-10-21: every
+branch in a workflow's `push`, `pull_request` or `workflow_run` filter and every
+key of a consumer's `refs` is `main`, `**`, an accepted name or a `<kind>-*`
+pattern over a registered kind (`harness_ci_pipeline.md` section 3C.6.8). It runs the shipped
+files, and proves itself on a planted bare `stabilization`, the name both files
+carried.
 
 
 ### 10.24 Broken blocks, and the reason decides what a skip means

@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What the CI definitions must hold, checked before a push rather than by it.
+"""Workflow standards checks, what the CI definitions must hold, checked before a push.
+
+Created: 2026-10-04
+Last updated: 2026-10-21
+
+This file contains ``uncapped_spending_steps``, which reports a workflow step
+that can spend on a provider and names no ``--max-spend`` ceiling;
+``pylint_invocations`` and ``disagreeing_pylint_invocations``, which report a
+pylint command differing from its copies; ``duplicate_yaml_keys``;
+``engine_list_gaps``, a workflow engine list disagreeing with the roster; and
+``unoffered_credentials``, a live-capable workflow missing a credential.
+
+Precondition cases in both repositories call these with their own root, so a
+workflow defect fails the unit layer locally instead of surfacing in CI.
 
 Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.2, 8.3, 8.5 and
 8.5.4.
@@ -23,6 +36,9 @@ from typing import Any, Final, Iterable
 
 import yaml
 
+from cmn.branch_policy import BRANCH_KINDS, MAIN, name_problems
+from cmn.metadata import DEBUG_PREFIX
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +54,21 @@ _CEILING_FLAG: Final[str] = "--max-spend"
 # and `--judge-mode live` dispatches to the judge whatever the candidate mode.
 # Either spends. Design `harness_ci_pipeline.md` section 8.2.
 _SPENDING_FLAGS: Final[tuple[str, ...]] = ("--mode live", "--judge-mode live")
+
+# The triggers whose ``branches`` filter names a branch, and the filter that
+# names every branch at once.
+_BRANCH_FILTERED_EVENTS: Final[tuple[str, ...]] = ("push", "pull_request", "workflow_run")
+_EVERY_BRANCH: Final[str] = "**"
+
+# The cadence suffix of a workflow that runs only when somebody dispatches it,
+# which is what makes it a debug workflow (harness_ci_pipeline.md section 2).
+_ON_DEMAND_SUFFIX: Final[str] = "-on-demand.yml"
+_UPLOAD_ACTION: Final[str] = "actions/upload-artifact"
+
+# A run withholding the judge, written literally, and the input value a debug
+# workflow offers to ask for one (tier3_evaluation.md section 5A.5.3).
+_JUDGE_OFF: Final[re.Pattern] = re.compile(r"--judge-mode[ =]+[\"']?off\b")
+_UNJUDGED_CHOICE: Final[str] = "unjudged"
 
 # AND THE ONE THAT BOUNDS IT. `--max-spend` aborts before a request would take
 # the run past a figure, and fails closed on an unpriced model.
@@ -270,6 +301,134 @@ def engine_list_gaps(root: Path, roster: Iterable[str]) -> list[str]:
                     f"{missing}, not on the roster {extra}"
                 )
     return problems
+
+
+def collectable_debug_uploads(root: Path) -> list[str]:
+    """Report every artifact a debug workflow uploads without the debug prefix.
+
+    A debug workflow is one whose cadence is ``on-demand``. Each of its
+    ``actions/upload-artifact`` steps must name the artifact with
+    :data:`cmn.metadata.DEBUG_PREFIX`, so a collector matching the collected
+    prefix never picks a debug run up.
+
+    Design: ``cmn_verdict_and_cli.md`` section 7.1.3.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per offending upload, naming the workflow, the
+        job and the artifact name. Empty when every debug upload is prefixed.
+    """
+    problems: list[str] = []
+    for workflow in sorted((root / ".github" / "workflows").glob(f"*{_ON_DEMAND_SUFFIX}")):
+        definition = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+        for job_name, job in (definition.get("jobs") or {}).items():
+            for step in (job or {}).get("steps") or []:
+                if not str(step.get("uses", "")).startswith(_UPLOAD_ACTION):
+                    continue
+                name = str((step.get("with") or {}).get("name", "")).strip()
+                if not name.startswith(DEBUG_PREFIX):
+                    problems.append(
+                        f"{workflow.name} job {job_name} uploads {name!r}, which does not "
+                        f"start with {DEBUG_PREFIX!r}"
+                    )
+    return problems
+
+
+def unjudged_gated_runs(root: Path) -> list[str]:
+    """Report every workflow outside the on-demand cadence that can withhold the judge.
+
+    A workflow is reported when it is not ``on-demand`` and either passes
+    ``--judge-mode off`` or offers a ``judge`` dispatch input listing
+    ``unjudged``. Only a debug run may check the assertions without the judge,
+    so a gated workflow never reports a rubric-bearing case as unjudged.
+
+    Design: ``tier3_evaluation.md`` section 5A.5.3.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per offending workflow, naming what it does.
+        Empty when only on-demand workflows can withhold the judge.
+    """
+    problems: list[str] = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        if workflow.name.endswith(_ON_DEMAND_SUFFIX):
+            continue
+        text = workflow.read_text(encoding="utf-8")
+        if _JUDGE_OFF.search(text):
+            problems.append(f"{workflow.name} passes --judge-mode off outside a debug run")
+        definition = yaml.safe_load(text) or {}
+        triggers = definition.get("on", definition.get(True)) or {}
+        inputs = ((triggers.get("workflow_dispatch") or {}) if isinstance(triggers, dict)
+                  else {}).get("inputs") or {}
+        offered = (inputs.get("judge") or {}).get("options") or []
+        if _UNJUDGED_CHOICE in [str(option) for option in offered]:
+            problems.append(f"{workflow.name} offers a judge input of 'unjudged' outside a "
+                            f"debug run")
+    return problems
+
+
+def unaccepted_branch_names(root: Path) -> list[str]:
+    """Report every branch a workflow filter or a consumer pairing names wrongly.
+
+    Reads the ``branches`` list of each workflow's ``push``, ``pull_request``
+    and ``workflow_run`` trigger, and each key of a consumer's ``refs`` in
+    ``config/consumers.yaml``. A name is accepted when it is ``main``, ``**``
+    for every branch, passes :func:`cmn.branch_policy.name_problems`, or is a
+    ``<kind>-*`` pattern over a registered kind.
+
+    Design: ``harness_ci_pipeline.md`` section 3C.6.8.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per unaccepted name, naming the file and where it
+        sits. Empty when every name is accepted.
+    """
+    named: list[tuple[str, str]] = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        definition = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+        triggers = definition.get("on", definition.get(True)) or {}
+        if not isinstance(triggers, dict):
+            continue
+        for event in _BRANCH_FILTERED_EVENTS:
+            filters = triggers.get(event)
+            if not isinstance(filters, dict):
+                continue
+            for branch in filters.get("branches") or []:
+                named.append((f"{workflow.name} on.{event}.branches", str(branch)))
+    consumers = root / "config" / "consumers.yaml"
+    if consumers.exists():
+        declared = yaml.safe_load(consumers.read_text(encoding="utf-8")) or {}
+        for entry in declared.get("consumers") or []:
+            for branch in (entry.get("refs") or {}):
+                named.append((f"consumers.yaml {entry.get('name')} refs", str(branch)))
+    return [
+        f"{where}: {branch!r} is not main, **, an accepted branch name or a <kind>-* pattern"
+        for where, branch in named
+        if not _accepted_branch(branch)
+    ]
+
+
+def _accepted_branch(branch: str) -> bool:
+    """Report whether a named branch or branch pattern is one the policy accepts.
+
+    Args:
+        branch (str): A branch name, or a pattern ending ``-*``.
+
+    Returns:
+        bool: True for ``main``, ``**``, an accepted name or a pattern over a
+        kind.
+    """
+    if branch in (MAIN, _EVERY_BRANCH):
+        return True
+    if branch.endswith("-*"):
+        return branch[:-2] in BRANCH_KINDS
+    return not name_problems(branch)
 
 
 def unoffered_credentials(root: Path, variables: Iterable[str]) -> list[str]:

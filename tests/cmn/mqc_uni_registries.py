@@ -1,9 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What every registry contains, pinned so growth is deliberate.
+"""Unit tests that pin the contents of the harness registries.
 
-Covers ``MQC_CMN_UNI_112319`` and ``112343``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.33.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check the registries in ``cmn/registries.py``, ``cmn/layers.py`` and
+``cmn/observations.py``, such as the failure codes, the evaluation families, the
+skip reasons, the run contexts and the selection modes. One case reports a
+change to a registry's membership that no case records, and one registers an
+evaluation family with ``register_evaluation_family``, reads it back and removes
+it with ``unregister_evaluation_family``, leaving no trace.
+
+The harness checks the codes and families it emits against these registries,
+so a membership change made in passing would alter what a run accepts without
+any case saying so.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.33.
 
 **Split from the metadata module on 2026-09-25**, when that module crossed the
 thousand line ceiling. The split follows the subject: this is about what a
@@ -70,7 +83,7 @@ class TestMQCRegistryMembership:
         """
         assert registered_skip_reasons() == frozenset(
             {"dependency", "environmental", "incomplete", "quarantined",
-             "unsupported"}
+             "unjudged", "unsupported"}
         ), "the skip reasons changed, and each one decides a different treatment"
 
         assert registered_run_contexts() == frozenset({"ci", "ci_debug", "local"})

@@ -1,10 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for aggregation strategies and the scales they declare.
+"""Unit cases for how per-criterion judge scores are combined into one rubric score.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier3_evaluation.md`` section 11.1, and the strategy conformance
-battery of section 10.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`evaluation.aggregation`. Every registered strategy,
+``all_must_pass``, ``min``, ``threshold_count``, ``unweighted_mean`` and
+``weighted_mean``, emits its scale identifier, is deterministic and handles one
+criterion or none. They also check that an unregistered strategy is refused, that
+a score exactly at the pass mark passes, that weighting changes the result, and
+that scores on differing scales are never combined.
+
+The aggregate is what the pipeline compares against the rubric threshold, so a
+defect here passes or fails a case on arithmetic. Its cases are listed in the
+block below, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1,
+and the strategy conformance battery of section 10.
 
 **Scores across different scale identifiers are not comparable.** The strategy
 declares its scale, which travels with the result, making incomparability a

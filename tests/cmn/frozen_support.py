@@ -1,14 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Reading the dataclass decorators, with the accumulator declaration ignored.
+"""A helper that lists every production dataclass not declared frozen.
 
-**A sibling module collection does not reach**, per `MQC_CMN_UNI_112328`: a
-collected module holds cases and nothing else.
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+This file contains ``unfrozen_class_names``, which reads the dataclass
+decorators under a root and returns every one that is not frozen, ignoring the
+declaration of records mutable by design. ``mqc_uni_frozen_records.py`` compares
+its answer with that declaration.
 
 This exists so `MQC_CMN_UNI_112359` can assert that the declaration in
 `cmn.code_standards` names exactly the records that need it. The checker
 applies the declaration, so a case calling the checker cannot tell a correct
 declaration from one that has outlived its reason.
+
+**A sibling module collection does not reach**, per `MQC_CMN_UNI_112328`: a
+collected module holds cases and nothing else.
 """
 
 import ast

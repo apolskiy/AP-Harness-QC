@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The judge's own connection, kept apart from the candidate's.
+"""The connection the LLM judge is called through, kept apart from the model under test.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains :class:`JudgeChannel`, which owns one judge engine's
+adapter and connection, paces its own requests, and through ``invoke`` returns
+a live or a recorded judgement for a composed judge request;
+:class:`JudgementPlan`, the run's choice of live or replay, fixture root and
+recording; and ``judge_channel_from_roster``, which builds the channel for the
+judge engine the roster configures.
+
+**The consumer's graded suite builds a channel once and hands its ``invoke``
+to evaluation**, which calls it at the judging step for every response that
+clears the screen and the assertions. A judgement missing in replay raises,
+and the run records a skip rather than calling the judge live.
 
 Specified by ``docs/design/tier2_execution.md`` section 7.7.3.
 
@@ -319,7 +334,7 @@ class JudgeChannel:
         if self._plan.record and self._plan.fixture_root is not None:
             record_judgement(
                 self._plan.fixture_root, key, request_hash,
-                self._adapter.requested_model, reply,
+                self._adapter.requested_model, reply, prompt=request.rendered(),
             )
         return reply
 

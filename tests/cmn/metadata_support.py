@@ -1,6 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Builders the metadata cases assert against.
+"""Builders the metadata and packaging cases assert against.
+
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+This file contains ``graded_observation``, which builds a valid graded
+``Observation`` with any fields replaced, and ``requirement_name``, which
+returns the distribution name a requirement string begins with. The cases in
+``mqc_uni_metadata.py`` vary the observation to check what a result record
+emits, and ``mqc_uni_packaging.py`` reads dependency entries by name.
 
 Specified by ``harness_test_taxonomy.md`` section 13.
 

@@ -2,8 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit precondition for the block naming the cases a test module holds.
 
-Covers `MQC_CMN_UNI_112348`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+The case here checks ``cmn.case_summary``: that ``summary_problems`` finds every
+module in this repository agreeing with its generated case block, and reports
+a module with no block, a block missing a case and a block in a module that
+defines none, while a module rewritten by ``refreshed_source`` reports nothing.
+
+``tools/refresh_case_summaries.py`` writes the block, and this check is what
+fails a run when a case was added or deleted without refreshing it.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Split from `mqc_uni_file_standards.py` on 2026-10-08**, which this subject
 took to 960 lines against the nine-hundred-line runway ceiling. That module is

@@ -50,6 +50,12 @@ on:
         default: replay
         type: choice
         options: [replay, live]
+      judge:
+        description: "judged, or unjudged to run the screen and assertions alone"
+        required: false
+        default: judged
+        type: choice
+        options: [judged, unjudged]
 
 run-name: "DEBUG (no verdict) on ${{ inputs.ref || github.ref_name }}"
 
@@ -143,6 +149,7 @@ jobs:
               --max-spend "${{ inputs.max_spend }}" \
                  --engine "${{ inputs.engine }}" \
                  --mode "${{ inputs.mode }}" \
+                 ${{ inputs.judge == 'unjudged' && '--judge-mode off' || '' }} \
                  --out-dir debug-artifacts/ \
                  --junitxml="debug-artifacts/junit-${attempt}.xml"; then
               passes=$((passes + 1))

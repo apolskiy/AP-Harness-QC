@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Where a test module's supporting code is allowed to live.
+"""Test module layout checks, where support code may live and how subprocesses wait.
+
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+This file contains ``inline_support``, which lists the module-level support
+definitions a collected test module carries; ``extraction_problems``, which
+reports such a module that no registry entry declares, and an entry that lapsed
+or outlived its gap; and ``unbounded_subprocess_calls``, which reports a
+subprocess call that passes no timeout.
+
+Precondition cases in both repositories call these, so a helper defined in an
+``mqc_*.py`` module, or a subprocess that can wait forever, fails the unit
+layer.
 
 Specified by ``docs/design/harness_test_taxonomy.md`` section 13.
 
@@ -13,7 +26,7 @@ imported and never collected.
 **This is a separate module from ``code_standards.py`` on purpose.** That one is
 about the source a reader writes, this one about where test support lives, and
 putting the second reader in the first would have taken it past the
-thousand-line ceiling — which is the same pressure this rule exists to relieve,
+thousand-line ceiling, which is the same pressure this rule exists to relieve,
 one level up.
 
 **Named for case modules rather than test modules**, because ``.pylintrc``

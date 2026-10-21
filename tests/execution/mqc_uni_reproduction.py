@@ -1,6 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""How a recorded call is re-issued, for every registered adapter.
+"""Unit cases for the snippet that re-issues a recorded provider call, per engine.
+
+Created: 2026-10-15
+Last updated: 2026-10-21
+
+Its cases check :func:`reproduction_snippet` and :func:`reproduction_curl` in
+:mod:`execution.adapters.registry`. For each registered engine the snippet
+re-issues the recorded call verbatim and parses back to its arguments, curl is
+offered only on the wire protocol, and a client on another base URL gets its
+own key. A ticket filed from a finding carries this reproduction.
 
 Inventoried in ``docs/design/tier2_execution.md`` section 10.1. Moved out of
 ``mqc_uni_conformance.py`` when it reached the runway ceiling, the reproduction

@@ -1,8 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""System preconditions for the dual pass and the judge engine contract.
+"""System cases for evaluating a response with both assertions and a judge, in replay mode.
 
-Covers `MQC_EVL_SYS_124000` through `124003`, inventoried in
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :func:`evaluation.pipeline.evaluate_observation` over a real rule
+set and a registered adapter. A response comes back with both programmatic and
+judged results, a declared adversarial case is graded on its resistance rather
+than aborted, a judge engine without structured output is rejected, and
+calibration runs on the schedule rather than on a pull request.
+
+These run at Gate 3, after the unit preconditions, and a failure stops the
+graded layers. Covers `MQC_EVL_SYS_124000` through `124003`, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.2.
 
 **Replay mode, as Gate 3 requires.** A precondition that can flake is not a

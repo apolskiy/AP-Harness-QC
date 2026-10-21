@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Whether a document's filename says which repository it belongs to.
+"""Document naming check, whether a document's filename names its repository.
+
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+This file contains ``repository_token``, the token a repository's document
+names carry; ``documents_under``, the tracked Markdown under a folder;
+``undifferentiated_documents``, which reports a document under ``docs`` whose
+name names no repository; and ``root_conventions``, the root filenames exempt
+by convention.
+
+Precondition cases in both repositories call ``undifferentiated_documents``
+with their own root, so a document whose name could belong to either checkout
+fails the unit layer.
 
 Specified in ``.claude/rules/code-style.md`` section 7.2.
 

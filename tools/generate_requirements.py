@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Generate the requirements files from the single declaration in pyproject.
+"""Writes ``requirements.txt`` and ``requirements-dev.txt`` from ``pyproject.toml``.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``read_declaration``, which reads the runtime and ``dev``
+dependency lists from ``pyproject.toml``; ``render``, which puts one list
+under its generated-file header; ``generate``, which returns the contents both
+files should hold without writing them; and ``main``, which writes them.
+
+**A contributor runs it after changing a dependency**, and
+``MQC_CMN_UNI_112222`` regenerates the contents and fails the run when the
+committed files no longer match the declaration.
 
 Specified by ``DESIGN.md`` section 5.0.1.
 

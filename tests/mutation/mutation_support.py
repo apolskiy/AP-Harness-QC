@@ -1,8 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Running one module's mutation audit, for the cases that assert its result.
+"""Runs one module's mutation audit and compares its survivors with their declaration.
 
-**A sibling module collection does not reach**, per `MQC_CMN_UNI_112328`.
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+This file contains :func:`audit`, which mutates a module, runs the unit suite
+and returns every undeclared survivor and every declaration that no longer
+survives, skipping when the audit's control refuses. ``AUDITED`` lists the
+modules this layer audits and ``MANIFEST`` points at
+``config/mutation_survivors.yaml``.
+
+``mqc_mut_verdict.py`` and ``mqc_mut_registries.py`` assert on what
+:func:`audit` returns, the setup check in ``conftest.py`` reads ``AUDITED``, and
+``tests/cmn/mqc_uni_mutation_tool.py`` reads it too. **A sibling module
+collection does not reach**, per `MQC_CMN_UNI_112328`.
 
 Specified in ``docs/design/harness_test_taxonomy.md`` section 15.
 """

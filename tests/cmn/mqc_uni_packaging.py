@@ -1,9 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for what this project declares it depends on and ships.
+"""Unit tests for the project's declared dependencies and its build configuration.
 
-Covers `MQC_CMN_UNI_112222` through `112225` and `112231`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+Its cases check ``pyproject.toml`` against what is installed and on disk, using
+``generate`` and ``read_declaration`` from ``tools/generate_requirements.py``. The
+requirements files must match what ``pyproject.toml`` declares, an installed
+gating tool must sit inside its pin, every imported package must be declared,
+random test ordering must be declared, and every package on disk must be
+configured for the build.
+
+A consumer installs this harness as a pinned dependency, so a failure here means
+that install, or the CI gates run on it, would not behave as the repository
+describes.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Split from `mqc_uni_metadata.py` on 2026-10-08**, which the generated case
 block took to 1016 lines against the thousand-line hard ceiling. That module

@@ -1,14 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The doubles `mqc_uni_environments.py` drives the environment scope with.
+"""Stand-ins for the pytest objects the environment scope cases drive.
 
-**A sibling module collection does not reach**, per `MQC_CMN_UNI_112328`: a
-case module holds cases, and a double defined beside one is support code the
-suite would otherwise try to collect.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+This file contains ``Marker``, ``Item``, ``Hook``, ``Config``, ``Report``,
+``Reporter``, ``Manager`` and ``Session``, each a minimal double of a pytest
+object or hook. The cases in ``mqc_uni_environments.py`` hand them to
+``cmn.environments`` to check deselection and the zero-skip gate, and
+``mutation_tool_support.py`` reuses ``Hook``.
 
 Each class carries only the surface the code under test reads: a marker's args
 and kwargs, an item's identifier and markers, a hook that records what it was
 handed, and a session whose exit status the gate may raise.
+
+**A sibling module collection does not reach**, per `MQC_CMN_UNI_112328`: a
+case module holds cases, and a double defined beside one is support code the
+suite would otherwise try to collect.
 """
 
 from typing import Any

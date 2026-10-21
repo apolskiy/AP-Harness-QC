@@ -1,12 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The conformance checks every registered adapter must pass, keyed by engine.
+"""The shared contract checks that every provider adapter must pass.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains :class:`ConformanceChecks`, whose methods each take an engine
+name and check one part of the adapter contract against that engine's provider
+double. They cover composing a request, normalizing a response, capturing tool
+calls without executing them, reading the model version, mapping each error
+and status to its harness code, and round-tripping a judgement. ``CHECKS`` names
+every check, and :func:`adapter_named` returns an engine's registered adapter.
+
+Each ``mqc_uni_conformance_<engine>.py`` holds one case per check, and a
+completeness case in ``mqc_uni_conformance.py`` reads ``CHECKS`` to require
+every registered engine to call each one. ``mqc_uni_reproduction.py`` also uses
+:func:`adapter_named`.
 
 Design: ``docs/design/tier2_execution.md`` section 9, and
 ``harness_test_taxonomy.md`` section 1.1 for why the battery is not
-parametrised. Each ``mqc_uni_conformance_<engine>.py`` holds one case per
-check, and ``CHECKS`` names them so a completeness case can require every
-registered engine to call each one.
+parametrised.
 """
 
 import dataclasses

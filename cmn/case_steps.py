@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Every precondition case's steps, recorded by the engine graded cases use.
+"""Precondition case steps, each assertion a unit or system case reaches, recorded.
+
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains ``step``, which a case calls to name its next action;
+``CaseStepRecorder``, which collects one case's steps as it runs;
+``begin_case_steps``, which starts recording at setup and wraps
+``pytest.raises``; ``record_assertion``, which records each passing assertion;
+``record_call``, which closes the case by recording a failing assertion or
+failing a case that verified nothing; and ``verification_actions``, which reads
+from the source the code each verification follows.
+
+Both repositories' ``conftest.py`` call these from the setup, assertion-pass
+and call hooks, so every precondition case writes the same step lines a
+graded case does and a case asserting nothing fails.
 
 A verification is each assertion a ``UNI`` or ``SYS`` case reaches and each
 ``pytest.raises`` block it opens; the action is the step the case names with

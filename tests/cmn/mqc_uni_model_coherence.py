@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for one corpus naming one model.
+"""Unit tests for the verdict's check that a run measured one model per engine.
 
-Covers `MQC_CMN_UNI_112320` through `112322`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 4.9.6.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check ``mixed_model_engines`` and ``verdict`` in ``cmn/verdict.py``. Two
+model versions on one engine make the run unsound, one model on each of several
+engines is sound, and an observation recording no model is not counted as a
+second version.
+
+The verdict runs this check with its soundness conditions, apart from the nine
+rules that decide red against green, and reports a corpus mixing two versions of
+one engine as ``RUN_UNSOUND``.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 4.9.6.
 
 **Split out of ``mqc_uni_verdict.py`` on 2026-09-26**, which had reached 1043
 lines against a 1000-line limit. The split is by subject rather than by size:

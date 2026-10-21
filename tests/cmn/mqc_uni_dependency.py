@@ -1,9 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A failing foundational case stops its dependents rather than failing them.
+"""Unit preconditions for the dependency cascade, priority bands and carried prerequisites.
 
-Covers ``MQC_CMN_UNI_112400`` through ``112402``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.28 and specified by
+Created: 2026-09-25
+Last updated: 2026-10-21
+
+The cases here check the cascade in ``cmn.dependencies``, where a dependent of
+a failed ``base`` case skips rather than fails and is ordered after its base,
+band selection in ``cmn.selection``, outcomes carried between bands in
+``cmn.prerequisites``, ``--with-prerequisites``, and the homoglyph vector in
+``cmn.vectors``. A skipped dependent is never counted as a model failure.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.28 and
 ``framework-rules.md`` section 3.4.
 
 **The rule predated the implementation by the whole project.** The ``base``
@@ -82,7 +90,7 @@ from cmn.dependencies import (
     reset_dependency_state,
     unknown_dependencies,
 )
-from tests.cmn.selection_support import FakeConfig, FakeItem
+from tests.cmn.selection_support import SimulatedConfig, SimulatedItem
 
 from tests.cmn.subprocess_support import run_bounded
 
@@ -364,19 +372,19 @@ class TestMQCDependencyCascade:
         """
         reset_dependency_state()
         record_base_outcome(
-            FakeItem("MQC_CMN_UNI_90001_the_foundation_holds", base=True), True
+            SimulatedItem("MQC_CMN_UNI_90001_the_foundation_holds", base=True), True
         )
 
         # Returning without raising is the whole assertion: no skip, no fail.
         enforce_dependencies(
-            FakeItem("MQC_CMN_UNI_90002_dependent", depends=("90001",))
+            SimulatedItem("MQC_CMN_UNI_90002_dependent", depends=("90001",))
         )
 
         # AN UNMARKED CASE IS NOT RECORDED, so it cannot be depended upon by
         # accident. Only a case declaring itself foundational becomes one.
         reset_dependency_state()
-        record_base_outcome(FakeItem("MQC_CMN_UNI_90003_ordinary"), True)
-        assert not declared_dependencies(FakeItem("MQC_CMN_UNI_90003_ordinary"))
+        record_base_outcome(SimulatedItem("MQC_CMN_UNI_90003_ordinary"), True)
+        assert not declared_dependencies(SimulatedItem("MQC_CMN_UNI_90003_ordinary"))
 
         # AND THE DEPENDENT SKIPS RATHER THAN FAILING. At setup an absent
         # identifier cannot be told from one whose base has not run yet, so
@@ -384,7 +392,7 @@ class TestMQCDependencyCascade:
         # (design section 10.28.6). What is left here is the outcome.
         with pytest.raises(pytest.skip.Exception, match="90003"):
             enforce_dependencies(
-                FakeItem("MQC_CMN_UNI_90004_dependent", depends=("90003",))
+                SimulatedItem("MQC_CMN_UNI_90004_dependent", depends=("90003",))
             )
 
     def MQC_CMN_UNI_112402_a_dependency_naming_no_collected_case_is_reported(
@@ -406,8 +414,8 @@ class TestMQCDependencyCascade:
         """
         reset_dependency_state()
         population = [
-            FakeItem("MQC_CMN_UNI_90001_foundation", base=True),
-            FakeItem("MQC_CMN_UNI_90005_dependent", depends=("99999",)),
+            SimulatedItem("MQC_CMN_UNI_90001_foundation", base=True),
+            SimulatedItem("MQC_CMN_UNI_90005_dependent", depends=("99999",)),
         ]
 
         reported = unknown_dependencies(population)
@@ -421,8 +429,8 @@ class TestMQCDependencyCascade:
         # A RESOLVED DEPENDENCY IS NOT REPORTED, or the check would fire on
         # every suite and say nothing about this one.
         assert not unknown_dependencies([
-            FakeItem("MQC_CMN_UNI_90001_foundation", base=True),
-            FakeItem("MQC_CMN_UNI_90002_dependent", depends=("90001",)),
+            SimulatedItem("MQC_CMN_UNI_90001_foundation", base=True),
+            SimulatedItem("MQC_CMN_UNI_90002_dependent", depends=("90001",)),
         ])
 
         # THE IDENTIFIER IS THE HANDLE, and it is read from the name rather
@@ -621,11 +629,11 @@ class TestMQCPriorityBands:
             list: Stand-in items.
         """
         return [
-            FakeItem("MQC_EVL_SEC_154100_blocking", priority=0),
-            FakeItem("MQC_EVL_EVAL_134205_foundation", priority=1, base=True),
-            FakeItem("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",)),
-            FakeItem("MQC_EVL_EVAL_134111_informational", priority=4),
-            FakeItem("MQC_CMN_UNI_11001_precondition"),
+            SimulatedItem("MQC_EVL_SEC_154100_blocking", priority=0),
+            SimulatedItem("MQC_EVL_EVAL_134205_foundation", priority=1, base=True),
+            SimulatedItem("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",)),
+            SimulatedItem("MQC_EVL_EVAL_134111_informational", priority=4),
+            SimulatedItem("MQC_CMN_UNI_11001_precondition"),
         ]
 
     def MQC_CMN_UNI_112406_a_band_selects_only_its_own_cases(self) -> None:
@@ -640,7 +648,7 @@ class TestMQCPriorityBands:
             None
         """
         items = self._banded()
-        config = FakeConfig({"--priority": "0"})
+        config = SimulatedConfig({"--priority": "0"})
 
         select_priority_bands(config, items)
         kept = [item.name for item in items]
@@ -683,11 +691,11 @@ class TestMQCPriorityBands:
         """
         without = self._banded()
         with pytest.raises(ValueError, match="QC_HARNESS_DEPENDENCY_UNMET"):
-            select_priority_bands(FakeConfig({"--priority": "2"}), without)
+            select_priority_bands(SimulatedConfig({"--priority": "2"}), without)
 
         asked = self._banded()
         select_priority_bands(
-            FakeConfig({"--priority": "2", "--with-prerequisites": True}), asked
+            SimulatedConfig({"--priority": "2", "--with-prerequisites": True}), asked
         )
         kept = [item.name for item in asked]
 
@@ -751,14 +759,16 @@ class TestMQCCarriedPrerequisites:
 
         # THE DEPENDENT IS RESOLVABLE WITHOUT COLLECTING ITS BASE, which is
         # what lets a band run without the one before it.
-        dependent = FakeItem("MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",))
+        dependent = SimulatedItem(
+            "MQC_EVL_EVAL_134000_rests_on_it", priority=2, depends=("134205",)
+        )
         assert unknown_dependencies([dependent]) == []
         assert "134205" in carried_identifiers()
 
         # AND A FOUNDATION THAT DID NOT HOLD STILL GATES. Treating an absent
         # base as non-gating would let a case report a measurement that
         # presupposes something known to be false.
-        failing = FakeItem(
+        failing = SimulatedItem(
             "MQC_EVL_EVAL_134401_rests_on_a_failure",
             priority=2, depends=("134400",),
         )
@@ -826,7 +836,7 @@ class TestMQCCarriedPrerequisites:
             None
         """
         reset_dependency_state()
-        quiet = FakeConfig({"--carry-outcomes": ""})
+        quiet = SimulatedConfig({"--carry-outcomes": ""})
 
         adopt_prerequisites(quiet)
         publish_prerequisites(quiet)
@@ -853,7 +863,7 @@ class TestMQCPrerequisiteFlagScope:
         Returns:
             None
         """
-        config = FakeConfig({"--with-prerequisites": True, "--keyword": "134404"})
+        config = SimulatedConfig({"--with-prerequisites": True, "--keyword": "134404"})
 
         with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
             select_priority_bands(config, [])
@@ -879,7 +889,7 @@ class TestMQCPrerequisiteFlagScope:
         Returns:
             None
         """
-        config = FakeConfig({"--with-prerequisites": True})
+        config = SimulatedConfig({"--with-prerequisites": True})
 
         # NO REFUSAL, AND NO SELECTION EITHER. The band list is empty, so the
         # function returns having changed nothing.

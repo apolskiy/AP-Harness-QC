@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The observations, suites and artifacts the verdict cases are built from.
+"""Test builders for observations, suites and artifacts, for the verdict cases.
+
+Created: 2026-10-02
+Last updated: 2026-10-21
+
+This file provides ``graded``, one graded observation, ``passing_suite``, a suite
+that satisfies every rule, ``distribution_suite``, a passing suite with an exact
+priority distribution, ``scored_observations``, one case's judged observations,
+``gated_artifact``, a gated artifact over a valid base, and ``RateRefusal``, the
+check each rate threshold case runs.
+
+They serve ``mqc_uni_verdict.py``, ``mqc_uni_verdict_invariants.py``,
+``mqc_uni_quarantine.py``, ``mqc_uni_thresholds.py``, ``mqc_uni_cli.py`` and
+``mqc_uni_consistency.py``, so each builds its input from one shared copy.
 
 Extracted 2026-10-02, when splitting the quarantine cases out of
 ``mqc_uni_verdict.py`` left three modules each carrying a copy of these.

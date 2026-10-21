@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The observation record, and the run-scoped fields every result repeats.
+"""The observation record, one measured execution of one case, and the run's fields.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``Observation``, what one execution of a case produced as the
+verdict reads it; ``RunContext``, the run-scoped fields every result repeats;
+``assemble_observation``, which merges case metadata with what the tiers
+returned; ``require_complete_result``, which refuses an emitted result missing
+a required field; the registries ``registered_run_contexts``,
+``registered_selection_modes`` and ``required_result_fields``; and
+``escalation_size`` with ``further_observations``, which decide how many more
+observations a case's outcomes earn.
+
+A graded case assembles an observation after the tiers finish, and that record
+is what ``cmn.verdict`` computes the run's verdict from and what
+``cmn.metadata`` and ``cmn.reporting`` publish.
 
 Field definitions are normative in ``docs/design/harness_test_taxonomy.md`` section 9.
 ``docs/design/cmn_verdict_and_cli.md`` section 3 states what the verdict does

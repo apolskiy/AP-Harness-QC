@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for pacing, retry and the circuit breaker.
+"""Unit cases for how requests to a provider are paced, retried and stopped.
 
-Covers `MQC_EXE_UNI_113200` through `113208`, inventoried in
-``docs/design/tier2_execution.md`` section 10.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :func:`execution.dispatch.dispatch_case` and
+``DispatchSession``. Live requests are spaced at the configured interval and
+replay is not, rate limits are retried until backoff or the quota period is
+spent, timeouts carry the candidate code, and the circuit breaker aborts after
+consecutive failures or at once on an auth error. They also check that dispatch
+does not interpret output, that a connection belongs to one case and is never
+borrowed by the judge, that filling gaps dispatches only what is missing, and
+that an outcome keeps the request that produced it.
+
+Specified by ``docs/design/tier2_execution.md`` section 10.1.
 
 **Pacing decides whether a run completes at all** on a free tier (A7.3), which
 is what makes it logic rather than configuration and why it carries cases.

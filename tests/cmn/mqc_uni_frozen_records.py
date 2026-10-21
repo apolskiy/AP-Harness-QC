@@ -2,8 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for the immutability of production records.
 
-Covers `MQC_CMN_UNI_112359`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+The case here checks that ``cmn.code_standards.unfrozen_records`` finds no
+production dataclass that is neither frozen nor declared mutable by design,
+that ``cmn.verdict.Thresholds`` refuses an assignment after construction, and
+that the declared exemptions are exactly the unfrozen records
+``frozen_support.py`` finds, each with a reason.
+
+A record validates its values once, in ``__post_init__``, so an unfrozen one
+would let a run be judged against a threshold nothing validated.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Its own module because it is its own subject.** `mqc_uni_file_standards.py`
 holds what a file must look like: its header, its annotations, its encoding

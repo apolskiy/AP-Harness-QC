@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Base outcomes carried between the band executions of one job.
+"""The carry file, which hands foundational case outcomes from one band to the next.
+
+Created: 2026-09-29
+Last updated: 2026-10-21
+
+This file contains ``write_outcomes`` and ``read_outcomes``, which write and
+read the ``CarriedOutcomes`` record and refuse one whose ``Provenance`` no
+longer matches the run; and the digests that provenance is checked on,
+``rule_set_digest``, ``record_rule_set_hash`` and ``quarantine_digest``.
+
+``cmn.dependencies`` writes the file at the end of one priority band and reads
+it at the start of the next, so a later band's dependents skip or run on the
+foundations an earlier band established without re-running them.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` section 7.6.
 

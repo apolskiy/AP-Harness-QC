@@ -1,6 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The setup gate for the mutation layer.
+"""A setup check that skips the mutation cases when the repository cannot be audited.
+
+Created: 2026-10-14
+Last updated: 2026-10-21
+
+This file contains :func:`baselines_ready`, an autouse class fixture run before
+every case in ``tests/mutation/``. For each audited module it restores a backup
+left by a killed run, and checks that the module still matches the baseline its
+survivors were declared against, skipping the class with
+``QC_HARNESS_AUDIT_REFUSED`` when either fails.
 
 **A refusal is not a measurement, so it skips**, per
 ``docs/design/harness_test_taxonomy.md`` section 15.2.1.

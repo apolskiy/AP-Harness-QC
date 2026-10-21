@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Handing the record this project builds to the artifact that carries it.
+"""Result emission, which publishes each case's observations to its Allure result.
+
+Created: 2026-10-04
+Last updated: 2026-10-21
+
+This file contains ``begin_case``, which clears the previous case's record;
+``record_observation``, which stores each observation a case takes with the
+call and evaluation behind it; ``publish_result``, which writes the case's
+parameters to its Allure result once its outcome is known; ``attach_history``
+and ``attach_exchanges``, which attach the calls and prompts of a case; and
+the readers ``recorded_observations``, ``representative``,
+``published_fields`` and ``attributed_observations``.
+
+The case repository's graded support calls ``record_observation`` as a case
+runs, and both repositories' ``conftest.py`` call ``begin_case`` at setup and
+``publish_result`` from the report hook, so every published result says which
+engine and model produced it.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 5.2 to 5.4.1.
 
@@ -32,7 +48,7 @@ import allure
 
 from cmn.dependencies import inquest_dependency
 from cmn.observations import Observation, RunContext
-from cmn.reporting import observation_parameters, vendor_report
+from cmn.reporting import exchange_report, observation_parameters, vendor_report
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +56,8 @@ logger = logging.getLogger(__name__)
 # observations are taken in one call and published in the hook that reports it,
 # so the two need a place to meet that neither owns. Design section 5.4.1.
 _RECORDED: Final[list[tuple[Observation, Any]]] = []
+# EACH OBSERVATION'S EVALUATION, in the same order, for the exchanges (5.5).
+_EVALUATED: Final[list[Any]] = []
 _RUN: Final[dict[str, Optional[RunContext]]] = {"context": None}
 
 
@@ -57,12 +75,15 @@ def begin_case(run: Optional[RunContext] = None) -> None:
         None
     """
     _RECORDED.clear()
+    _EVALUATED.clear()
     if run is not None:
         _RUN["context"] = run
 
 
-def record_observation(observation: Observation, outcome: Any = None) -> None:
-    """Record one observation and the call that produced it.
+def record_observation(
+    observation: Observation, outcome: Any = None, result: Any = None
+) -> None:
+    """Record one observation, the call that produced it, and how it was evaluated.
 
     **The call is retained on every observation, passing or failing**, because
     a case's verdict is not known while its observations are being taken: the
@@ -74,11 +95,15 @@ def record_observation(observation: Observation, outcome: Any = None) -> None:
         observation (Observation): What was measured.
         outcome (Any): The dispatch outcome, carrying the request and the
             response. Absent where nothing was dispatched.
+        result (Any): The evaluation result, carrying the screen, the checks
+            and the judge prompt (section 5.5). Absent where nothing was
+            evaluated.
 
     Returns:
         None
     """
     _RECORDED.append((observation, outcome))
+    _EVALUATED.append(result)
 
 
 def recorded_observations() -> tuple[tuple[Observation, Any], ...]:
@@ -248,7 +273,39 @@ def publish_result(item: Any, report: Any) -> int:
     # response in it for a provider to read.
     if not report.passed and not getattr(report, "skipped", False):
         attach_history(item, recorded)
+    # EVERY CASE THAT DISPATCHED, whatever its verdict, so the prompt is in the
+    # artefact for a pass as for a failure (section 5.5).
+    if any(getattr(outcome, "response", None) is not None for _, outcome in recorded):
+        attach_exchanges(item, recorded, tuple(_EVALUATED))
     return len(observations)
+
+
+def attach_exchanges(
+    item: Any, recorded: tuple[tuple[Observation, Any], ...], results: tuple[Any, ...]
+) -> None:
+    """Attach every exchange a case made, its prompts and how each answer was read.
+
+    Design: section 5.5.
+
+    Args:
+        item (Any): The test that ran, whose name identifies the case.
+        recorded (tuple): Each observation with the outcome that produced it.
+        results (tuple): Each observation's evaluation result, in the same order.
+
+    Returns:
+        None
+    """
+    report = exchange_report(
+        getattr(item, "name", "unknown"),
+        [outcome for _, outcome in recorded],
+        list(results),
+        [observation.passed for observation, _ in recorded],
+    )
+    allure.attach(
+        json.dumps(report, indent=2, default=str),
+        name="exchanges",
+        attachment_type=allure.attachment_type.JSON,
+    )
 
 
 def attach_history(item: Any, recorded: tuple[tuple[Observation, Any], ...]) -> None:

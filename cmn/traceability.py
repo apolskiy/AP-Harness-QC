@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""RTM integrity: every declared thing verified, every verification traced.
+"""Traceability checks, which tie requirements in the RTM to the cases that verify them.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``load_matrix_rows``, which reads a requirements
+traceability matrix into ``MatrixRow`` records; ``check_matrix_integrity``,
+which runs checks T1 to T6 and returns ``TraceabilityFinding`` records;
+``untraced_tests`` (T7) and ``retirement_problems``; ``statement_problems``,
+which compares a requirement's statement in the test plan with the matrix;
+``register_pressure`` for a requirement register nearing its range; and the
+lookups ``cases_for_requirements``, ``cases_for_families``,
+``load_case_index`` and ``cases_for_index_values``.
+
+Precondition cases in both repositories run the checks against their own
+matrix, so an untraced case or an unverified requirement fails the unit layer,
+and ``cmn.selection`` uses the lookups to select the cases a requirement,
+family or tag names.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` section 6.
 

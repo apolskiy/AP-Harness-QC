@@ -1,6 +1,14 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A case identifier never names a Windows reserved device.
+"""Unit cases for refusing a case identifier that Windows reserves as a device name.
+
+Created: 2026-10-16
+Last updated: 2026-10-21
+
+Its cases check ``TaskDataSet`` in :mod:`ingestion.schemas`, which refuses an
+identifier such as ``NUL``, ``CON``, ``COM1`` or ``LPT9``, in any case and with
+an extension, and accepts ``com10``, ``LPT10``, ``console`` and ``nul_task``.
+A refused identifier stops at loading, before it can name a directory.
 
 Inventoried in ``docs/design/tier1_ingestion.md``. Moved from
 ``mqc_uni_schemas.py`` on 2026-10-16, when splitting its parametrised cases took

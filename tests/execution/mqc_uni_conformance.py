@@ -1,6 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The adapter registry, and the conformance cases every engine must carry.
+"""Unit cases for the adapter registry and for every engine carrying its conformance cases.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`execution.adapters.registry`. Every registered adapter is
+enrolled in the conformance battery, one case per engine and check named in
+``conformance_checks.py``, registering two adapters under one engine name fails,
+and an unregistered name is refused with the registered ones listed. They also
+check that a transient provider failure is retried by :mod:`execution.dispatch`.
 
 Inventoried in ``docs/design/tier2_execution.md`` sections 10.1 and 9.1.
 

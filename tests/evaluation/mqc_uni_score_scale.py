@@ -1,9 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A ratio's scale is not a mark, so an ordinary rating is not screened as an attack.
+"""Unit case for the response screen reading a ratio's scale as a scale, not a mark.
 
-Covers ``MQC_EVL_UNI_114645``, inventoried in ``docs/design/tier3_evaluation.md``
-section 11 and designed in section 5.2.5.
+Created: 2026-10-19
+Last updated: 2026-10-21
+
+Its one case checks :func:`evaluation.screening.screen_response`. An answer
+stating an ordinary rating out of a scale is not read as a top mark, so it is
+not screened as score manipulation and the case is not aborted.
+
+Specified by ``docs/design/tier3_evaluation.md`` section 11 and section 5.2.5.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.

@@ -23,7 +23,7 @@ on:
   workflow_run:
     workflows: [gate-on-change]
     types: [completed]
-    branches: [main, stabilization]
+    branches: [main, "stabilization-*"]
   # NO SCHEDULE UNTIL MAIN IS STABLE, decided 2026-09-26. A cron firing against
   # an unstabilized main produces a weekly red nobody acts on, and it spends
   # provider quota on a branch still moving. Weekly regression is set up once

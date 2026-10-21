@@ -1,9 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Provider-shaped response and error doubles, one per registered adapter.
+"""Fake provider responses and errors, shaped like each real SDK, for the adapter cases.
 
-Support code for the conformance battery and the per-adapter cases. Not a test
-module: `pytest.ini` collects only `mqc_*.py`, so nothing here is collected.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains builders for each provider's response, error and judgement,
+such as :func:`claude_response`, :func:`openai_error` and
+:func:`gemini_judgement`, plus :func:`gemini_blocked_prompt`. ``ADAPTER_DOUBLES``
+maps each registered engine to its builders, ``ERROR_CLASS_CODES`` gives the
+harness code each error kind must map to, and ``MQCToolWasExecuted`` is raised
+when an adapter acts on a tool call.
+
+The conformance battery, the per-adapter cases, the unit and system dispatch
+cases, the judgement-replay and spending cases and the whole-chain system case
+feed these to adapters in place of a provider. `pytest.ini` collects only
+`mqc_*.py`, so nothing here is collected.
 
 **Shapes come from each provider's published API documentation**, not from a
 recorded live call. A3 keeps the suite at zero cost, and a double built from the
@@ -423,7 +435,6 @@ class _PromptFeedback:
 @dataclass
 class _GeminiResponse:
     """A Gemini generate-content response.
-    prompt_feedback: Optional[Any] = None
 
     Attributes:
         candidates (list): One candidate, since the harness requests one.

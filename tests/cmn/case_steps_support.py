@@ -1,10 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A nested suite for the precondition step recorder, in a sibling module collection does not reach.
+"""A small nested pytest suite, and the helpers that run it, for the step recorder cases.
+
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains ``run_nested_steps_suite``, which writes a nested suite wired
+to the hooks in ``cmn.case_steps`` under a directory, runs it in a subprocess
+and returns everything it printed, and ``lines_for``, which picks out the step
+lines one nested case logged. The cases in ``mqc_uni_case_steps.py`` run the
+suite once and assert against those lines.
 
 The recorder lives in pytest's hooks, so it is exercised by running a small
-suite of its own and reading what it logged. Design
-``harness_test_taxonomy.md`` section 8.2.4.
+suite of its own and reading what it logged. It sits in a sibling module that
+collection does not reach. Design ``harness_test_taxonomy.md`` section 8.2.4.
 """
 
 import os

@@ -1,9 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a run publishes about an observation, and about a case that failed.
+"""Unit tests for what a run publishes about each case and each priority band.
 
-Covers ``MQC_CMN_UNI_112239`` and ``112240``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in sections 5.1
+Created: 2026-10-02
+Last updated: 2026-10-21
+
+Its cases check ``observation_parameters`` and ``vendor_report`` in
+``cmn/reporting.py``, ``emit_result`` in ``cmn/metadata.py`` and the band summary
+in ``cmn/band_summary.py``. Every required result field is emitted, a failing
+case reports every provider call it made, and a required field the code does not
+emit is reported against the standard's list. A band summary states its own
+denominator, every skip names its case and its cause, and a band table total
+overriding a blocking band is reported.
+
+These are what a downstream collector and an engineer reading a failure see in
+the Allure result and the band job's log, so a gap here hides which engine
+produced a result or why a case did not run.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and sections 5.1
 to 5.4.
 
 **Written 2026-10-02, after reading a real Allure result.** The mapping these

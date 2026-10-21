@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Which selections yield a verdict, and when a run is gated.
+"""Unit tests for which case selections yield a verdict, and when a run is gated.
+
+Created: 2026-10-16
+Last updated: 2026-10-21
+
+Its cases check ``build_invocation`` and ``manual_selector_flags`` in
+``cmn/options.py``. No filter yields ``selection_mode`` full, a change-scoped
+selection still yields a verdict, and each manual selector flag, from
+``--family`` to ``--tests-file``, yields none, which ``uncovered_members`` in
+``cmn/case_coverage.py`` confirms has a case per flag. Further cases derive the
+gated flag, true only for a full or change-scoped CI run, outside the debug
+context, whose preconditions passed.
+
+The selection mode and the gated flag are recorded on every result, so they
+decide whether the verdict tool will judge a run and whether a collector treats
+its rows as part of the durable record.
 
 Moved from ``mqc_uni_cli.py`` on 2026-10-16, when splitting its parametrised
 cases took that module past the thousand-line ceiling (``code-style.md``

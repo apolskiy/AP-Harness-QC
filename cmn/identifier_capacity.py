@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""How full each identifier category and block is, read from the inventories.
+"""Identifier capacity check, how full each case identifier category and block is.
+
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains ``assigned_identifiers``, which reads every identifier the
+inventory tables assign, live or retired; ``select_blocks``, which keeps those
+whose layer and module digits a repository owns; and ``capacity_warnings``,
+which reports a category or block at its warning threshold.
+
+Precondition cases in both repositories call these over their own inventories
+and raise each line as a warning rather than a failure, so an author learns a
+category is filling before it runs out of numbers.
 
 A category is the first four digits and holds 100 identifiers; a block is the
 first three, a module in one layer, and holds 1,000. Retired identifiers are

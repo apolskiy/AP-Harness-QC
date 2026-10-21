@@ -1,8 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Whether the model invoked what it was told to, and nothing it was not.
+"""Unit cases for checking that a model called the tools it was told to, and no others.
 
-Its cases are listed in the block below, inventoried and specified in
+Created: 2026-09-24
+Last updated: 2026-10-21
+
+Its cases check :func:`evaluation.tool_compliance.evaluate_tool_compliance`. A
+required tool not invoked, a forbidden tool invoked, a tool outside the offered
+set and arguments violating the declared schema are each reported, every
+forbidden tool by name, and no expectation or a satisfied one reports nothing.
+
+Its findings join the assertions as gates on the case, which is what Gate 5
+grades. Its cases are listed in the block below, inventoried and specified in
 ``docs/design/tier3_evaluation.md`` section 5B, which owns the ``EVL`` block.
 
 **Built from the real records rather than from doubles.** The evaluator takes

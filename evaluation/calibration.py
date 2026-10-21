@@ -1,12 +1,26 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Calibration: whether the judge still means what the anchors say.
+"""Checks whether the LLM judge still scores each rubric exemplar at the level it shows.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``calibrate_rubric``, which takes the scores a judge awarded
+a rubric's exemplars and returns a :class:`CalibrationResult` for each one
+judged; ``compare_to_anchor``, which compares one score to its intended level
+and passes it within ``tolerance``, one level; and ``observation_variance``,
+the spread across a case's repeat observations.
+
+**Calibration sits beside the graded run rather than inside it.** Its caller
+judges the exemplars and hands the scores here, and a failed result means the
+judge or the rubric has drifted, so scores from it cannot be compared with
+earlier ones. No step of the evaluation pipeline calls this file.
 
 Specified by ``docs/design/tier3_evaluation.md`` section 9.
 
-**An anchor states what a level means; an exemplar shows it.** This module sends
-each exemplar through the judge and compares the returned score to the level the
-exemplar was written for.
+**An anchor states what a level means; an exemplar shows it.** Each exemplar
+is sent through the judge, and this module compares the returned score to the
+level the exemplar was written for.
 
 **Deviation is recorded even when it passes.** A rubric drifting steadily by one
 level looks healthy on any single run and obvious across twenty, and only the

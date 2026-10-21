@@ -1,6 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The OpenAI engine, which is one engine on a protocol several vendors serve.
+"""The adapter that sends cases to OpenAI's models, over the Chat Completions protocol.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains :class:`OpenAIAdapter`, which names the ``openai`` engine,
+its default model and the ``OPENAI_API_KEY`` credential variable, and inherits
+everything else from
+:class:`~execution.adapters.openai_protocol.OpenAICompatibleAdapter`. The
+registry enrols it, so dispatch and the judge channel reach it whenever a run
+names ``openai``.
 
 The Chat Completions protocol lives in
 :mod:`execution.adapters.openai_protocol`. **What remains here is what is

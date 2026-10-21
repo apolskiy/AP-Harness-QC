@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The one interface every provider adapter implements.
+"""The interface every model provider adapter implements, and the code they share.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains :class:`ProviderAdapter`, the abstract interface an adapter
+fills in, composing a request from a case, dispatching it once, normalizing
+the response, extracting tool calls, resolving the model version, mapping
+errors to harness codes, and composing and parsing a judge request;
+:class:`ConfiguredAdapter`, the construction, usage reading and reproduction
+code every adapter inherits; :class:`Capabilities` and
+:class:`ProviderFacts`, what a provider declares and what an adapter read from
+one response; and the helpers ``validate_mapped_error`` and
+``require_json_object``.
+
+**Dispatch and the judge channel only ever talk to this interface.** They look
+an adapter up by engine name in the registry, and the normalized response it
+returns is the only provider output evaluation receives.
 
 Specified by ``docs/design/tier2_execution.md`` section 3.
 

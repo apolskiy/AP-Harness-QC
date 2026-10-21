@@ -1,19 +1,26 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for schema validation and the ingest invariants.
+"""Unit cases for validating task, golden rule and rubric records as they are loaded.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier1_ingestion.md`` section 13.1. Case-identifier safety moved to
-``mqc_uni_case_identifiers.py`` on 2026-10-16.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check the records in :mod:`ingestion.schemas`. ``TaskDataSet``
+rejects missing, empty and unknown fields and reports every missing one.
+``GoldenRuleSet`` checks thresholds, priority conditions and identifiers that
+differ only by case, rubric records require criteria and anchors at levels one,
+three and five within the scale, and the supporting records check tool sets,
+severities and parameter schemas. They also check the constraint-kind registry.
+
+Every record a run uses passes through these validators, so a defect here lets
+malformed data reach dispatch. Its cases are listed in the block below,
+inventoried in ``docs/design/tier1_ingestion.md`` section 13.1. Case-identifier
+safety moved to ``mqc_uni_case_identifiers.py`` on 2026-10-16, and the
+adversarial rubric cases to ``mqc_uni_adversarial_rubric.py`` on 2026-10-21.
 
 **These are preconditions, not graded tests.** A failure here is **not a
-model finding**
-rather than a finding about a model, which is why the module carries no
-priority marker: preconditions are equally mandatory and there is no budget to
-allocate. See ``framework-rules.md`` section 3.3.
-
-Each test names the identifier it satisfies in its own name, so a result in a
-JUnit file resolves back to the inventory row without a lookup table.
+model finding**, so the module carries no priority marker
+(``framework-rules.md`` section 3.3).
 """
 
 # ------------------------------------------------------------- cases in here
@@ -58,10 +65,6 @@ JUnit file resolves back to the inventory row without a lookup table.
 #   111328  anchor_exemplar_is_optional_and_preserved
 # TestMQCConstraintKindRegistry
 #   111329  count_and_ordering_are_registered_constraint_kinds
-# TestMQCAdversarialRubric
-#   111330  a_declared_adversarial_task_with_a_rubric_is_refused
-#   111350  a_response_only_rule_without_a_rubric_is_refused
-#   111351  a_declared_task_with_a_response_only_rubric_loads
 # ------------------------------------------------------------ end of cases
 
 from typing import Any
@@ -69,8 +72,6 @@ import pytest
 
 from cmn.registries import is_registered_constraint_kind
 
-from cmn.case_steps import step
-from ingestion.integrity import check_referential_integrity
 from ingestion.schemas import (
     Anchor,
     canonical_identifier,
@@ -752,141 +753,3 @@ class TestMQCConstraintKindRegistry:
         # The vocabulary stays OPEN. An unregistered kind warns and is
         # permitted, so a typo surfaces without failing a run.
         assert not is_registered_constraint_kind("prohibiton")
-
-
-class TestMQCAdversarialRubric:
-    """R6: a rubric that can never be scored is refused where it is explained."""
-
-    def MQC_ING_UNI_111330_a_declared_adversarial_task_with_a_rubric_is_refused(
-        self,
-        sample_task_payload: dict[str, Any],
-        sample_rule_payload: dict[str, Any],
-    ) -> None:
-        """The pair makes a case that cannot pass and does not say why.
-
-        A declared adversarial case reaches no judge (A19), so its rubric can
-        never be scored, and `tier3_evaluation.md` section 4D does not pass a
-        rule whose authored rubric went unscored. **The pair is therefore a
-        case that always fails, for a reason visible nowhere in the result.**
-
-        That symptom has been corrected three times in this project, so it is
-        refused at ingest where the message can name the remedy.
-
-        Args:
-            sample_task_payload (dict): Minimal valid task payload.
-            sample_rule_payload (dict): Minimal valid rule payload, carrying a
-                rubric.
-
-        Returns:
-            None
-        """
-        rule = GoldenRuleSet.from_dict(dict(sample_rule_payload))
-        assert rule.rubric is not None, "the payload must carry a rubric to test this"
-
-        declared = dict(sample_task_payload)
-        declared["contains_adversarial_content"] = True
-        declared["rubric_ids"] = [rule.rule_id]
-        adversarial = TaskDataSet.from_dict(declared)
-
-        # REFUSED AT INGEST, and the message names the remedy rather than
-        # leaving a reader to discover it from a case that always fails.
-        with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION") as raised:
-            check_referential_integrity([adversarial], [rule])
-        assert adversarial.task_id in str(raised.value)
-        assert "grade by assertion" in str(raised.value)
-
-        # THE SAME TASK WITHOUT THE DECLARATION IS FINE. The judge runs, the
-        # rubric is scored, and nothing here applies.
-        ordinary_payload = dict(sample_task_payload)
-        ordinary_payload["rubric_ids"] = [rule.rule_id]
-        check_referential_integrity([TaskDataSet.from_dict(ordinary_payload)], [rule])
-
-        # AND A DECLARED TASK WHOSE RULE AUTHORS NO RUBRIC IS THE DESIGN, not
-        # an omission: it grades resistance by assertion. Returning without
-        # raising is the assertion.
-        deterministic_payload = dict(sample_rule_payload)
-        deterministic_payload.pop("rubric", None)
-        deterministic_payload["assertions"] = [
-            {
-                "assertion_id": "MQC_ASR_probe",
-                "kind": "not_contains",
-                "parameters": {"value": "CANARY"},
-                "taxonomy_code": "QC_LLM_INJECTION_SUSCEPTIBLE",
-                "severity": "violation",
-            }
-        ]
-        deterministic = GoldenRuleSet.from_dict(deterministic_payload)
-        assert deterministic.rubric is None
-        check_referential_integrity([adversarial], [deterministic])
-
-    def MQC_ING_UNI_111350_a_response_only_rule_without_a_rubric_is_refused(
-        self, sample_rule_payload: dict[str, Any]
-    ) -> None:
-        """A rule declaring how it is judged carries something to judge with.
-
-        Design: ``tier1_ingestion.md`` section 3.5, invariant G8.
-
-        Args:
-            sample_rule_payload (dict): Minimal valid rule payload, carrying a
-                rubric.
-
-        Returns:
-            None
-        """
-        step(1, "load a rule that carries a rubric and declares judge_response_only")
-        flagged = {**sample_rule_payload, "judge_response_only": True}
-        assert GoldenRuleSet.from_dict(flagged).judge_response_only is True
-
-        step(2, "load the same rule with its rubric removed")
-        rubricless = dict(flagged)
-        rubricless.pop("rubric", None)
-        rubricless["assertions"] = [
-            {
-                "assertion_id": "MQC_ASR_probe",
-                "kind": "not_contains",
-                "parameters": {"value": "MQC-CANARY"},
-                "taxonomy_code": "QC_LLM_INJECTION_SUSCEPTIBLE",
-                "severity": "violation",
-            }
-        ]
-        with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION") as raised:
-            GoldenRuleSet.from_dict(rubricless)
-
-        step(3, "read whether the refusal names the flag")
-        assert "judge_response_only" in str(raised.value), str(raised.value)
-
-    def MQC_ING_UNI_111351_a_declared_task_with_a_response_only_rubric_loads(
-        self,
-        sample_task_payload: dict[str, Any],
-        sample_rule_payload: dict[str, Any],
-    ) -> None:
-        """R6 admits a rubric on a declared task only when the rule judges the answer alone.
-
-        Design: ``tier1_ingestion.md`` section 6.6.
-
-        Args:
-            sample_task_payload (dict): Minimal valid task payload.
-            sample_rule_payload (dict): Minimal valid rule payload, carrying a
-                rubric.
-
-        Returns:
-            None
-        """
-        flagged = GoldenRuleSet.from_dict({**sample_rule_payload, "judge_response_only": True})
-        declared = TaskDataSet.from_dict({
-            **sample_task_payload,
-            "contains_adversarial_content": True,
-            "rubric_ids": [flagged.rule_id],
-        })
-        step(1, "check a declared task paired with a rubric rule that judges the answer alone")
-        refused: list[str] = []
-        try:
-            check_referential_integrity([declared], [flagged])
-        except ValueError as error:
-            refused.append(str(error))
-        assert not refused, f"R6 refused a rubric whose answer reaches a judge: {refused}"
-
-        step(2, "check the same task paired with a rubric rule that does not opt in")
-        unflagged = GoldenRuleSet.from_dict(dict(sample_rule_payload))
-        with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION"):
-            check_referential_integrity([declared], [unflagged])

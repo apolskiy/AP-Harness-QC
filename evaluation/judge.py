@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Judge reply validation, and the tripwire the schema doubles as.
+"""Checks an LLM judge's reply and turns it into per-criterion scores.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``validate_judge_reply``, which checks a reply against the
+reply schema and the rubric's scale, requires a score for every criterion, and
+returns a :class:`JudgeReply` with scores, rationales and any formatting
+drift, raising :class:`JudgeHijackSuspected` when the reply fails in a way a
+hijacked judge would; :class:`JudgeBinding`, which judge is used and for whose
+output; ``normalize_prose``, which replaces prohibited glyphs in a rationale;
+and ``judge_timeout_outcome``, the code a judge timeout records.
+
+**The pipeline calls this right after the judge replies and before
+aggregation.** A valid reply's scores go on to be aggregated, and a suspected
+hijack propagates out of the pipeline as a blocking security finding about the
+run.
 
 Specified by ``docs/design/tier3_evaluation.md`` sections 6 and 7.
 
@@ -67,11 +83,15 @@ class JudgeBinding:
             than treated as a zero score.
         judge_engine (str): Which engine grades.
         candidate_engine (str): Which engine produced the response.
+        withheld (bool): The run asked for no judge, ``--judge-mode off``, so
+            a rubric-bearing observation is skipped ``unjudged`` rather than
+            judged (``tier3_evaluation.md`` section 5A.5.3).
     """
 
     invoke: Optional[Callable[[Any], Any]] = None
     judge_engine: str = ""
     candidate_engine: str = ""
+    withheld: bool = False
 
     @property
     def available(self) -> bool:

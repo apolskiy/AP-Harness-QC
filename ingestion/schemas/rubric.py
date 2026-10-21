@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The judged half of a rule set: the rubric, its criteria and their anchors.
+"""The rubric records, which define how an LLM judge scores a response.
+
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains :class:`Rubric`, which holds the criteria, the pass
+threshold and the aggregation strategy; :class:`RubricCriterion`, one judged
+dimension with its weight and its anchors; and :class:`Anchor`, what one level
+of a criterion's scale means, with an optional exemplar. Each is built through
+``from_dict``, which enforces the rubric invariants.
+
+**A rule set carries at most one rubric, and the judge is what reads it.** The
+criteria and anchors become the judge's instruction text, aggregation turns
+the scores into one result against the threshold, and calibration sends the
+exemplars back through the judge to check it still scores them at their level.
 
 Design: ``docs/design/tier1_ingestion.md`` sections 3.0 and 3.6 to 3.8.
 """
@@ -170,12 +184,16 @@ class Rubric:
         threshold (float): The score at or above which the rubric passes.
         aggregation (str): Registered strategy name.
         aggregation_params (dict): Parameters for that strategy.
+        planted_score (Optional[int]): The score a case's payload asks the judge
+            for, on no anchored level; a judgement returning it fails the
+            observation (``tier3_evaluation.md`` section 4C.5). Invariant G9.
     """
 
     criteria: list[RubricCriterion]
     threshold: float
     aggregation: str = "weighted_mean"
     aggregation_params: dict[str, Any] = field(default_factory=dict)
+    planted_score: Optional[int] = None
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "Rubric":
@@ -207,4 +225,41 @@ class Rubric:
             threshold=_coerce_float(payload["threshold"], "threshold", "<rubric>"),
             aggregation=aggregation,
             aggregation_params=dict(payload.get("aggregation_params", {})),
+            planted_score=cls._validate_planted(payload.get("planted_score"), criteria),
         )
+
+    @staticmethod
+    def _validate_planted(
+        supplied: Any, criteria: list[RubricCriterion]
+    ) -> Optional[int]:
+        """Validate a planted score against the scale and the anchors, invariant G9.
+
+        Args:
+            supplied (Any): The authored value, or None.
+            criteria (list): The built criteria, whose anchors it must avoid.
+
+        Returns:
+            Optional[int]: The planted score, None where none is declared.
+
+        Raises:
+            ValueError: When it falls outside 1 to 5 or a criterion anchors it,
+                since a level the rubric anchors is one the judge returns for
+                honest reasons.
+        """
+        if supplied is None:
+            return None
+        planted = _coerce_int(supplied, "planted_score", "<rubric>")
+        if planted not in _ANCHOR_PERMITTED_LEVELS:
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: Rubric planted_score {planted} falls "
+                f"outside 1 to 5"
+            )
+        anchoring = sorted(
+            entry.criterion_id for entry in criteria if planted in entry.anchors
+        )
+        if anchoring:
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: Rubric planted_score {planted} is an "
+                f"anchored level of {anchoring}, so a judgement returning it proves nothing"
+            )
+        return planted

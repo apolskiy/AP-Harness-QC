@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Configuration loading for the three files that are data rather than code.
+"""Configuration loading, the engine roster, capability gaps, quarantine and judge.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``load_yaml_config``, which reads one configuration file and
+refuses anything credential-shaped; the loaders ``load_engines``,
+``load_unsupported``, ``load_quarantine``, ``load_consumers`` and
+``load_harness_config``, which return ``EngineConfig``, ``UnsupportedPair``,
+``QuarantineEntry``, ``Consumer`` and ``HarnessConfig`` records; the judge
+resolvers ``load_judge_engine``, ``resolve_judge_engine`` and
+``load_judge_model``; and ``load_env_file`` with ``warn_orphan_credentials``
+for a local ``.env`` file.
+
+The pytest hooks, the judge channel, the verdict tool and both repositories'
+``conftest.py`` read the run's configuration through these, so an engine is
+selectable, a gap is excused and a quarantine applies only as these files
+declare.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` section 8.
 

@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""How full each identifier category and block is, warned of before it runs out.
+"""Unit tests for the warning that an identifier category or block is filling up.
 
-Covers ``MQC_CMN_UNI_112800`` to ``112803``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 12 and designed in
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+Its cases check ``cmn/identifier_capacity.py``, through ``assigned_identifiers``,
+``select_blocks`` and ``capacity_warnings``. A category at ninety assigned is
+warned of, a block past eight hundred is warned of, a struck inventory row still
+counts as assigned, and this repository's own crowded blocks produce warnings.
+
+The warning gives an author room to choose a new block before identifiers run
+out, since a retired identifier is never reused and a full block cannot take
+another case.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 12 and
 ``docs/design/harness_test_taxonomy.md`` section 11.9.6.
 
 A failure here is **not a model finding**, so the module carries no priority

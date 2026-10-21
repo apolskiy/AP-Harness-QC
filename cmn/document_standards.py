@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What the tracked documents must satisfy, as against what the code must.
+"""Document standards checks, the rules tracked documents must satisfy.
+
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+This file contains ``runbook_problems``, which reports a documented workflow
+dispatch GitHub would reject; ``duplicate_inventory_bindings`` and
+``duplicate_case_bindings``, an identifier bound to two behaviours in a design
+inventory or in the suite; ``inventory_count_problems``, a design whose stated
+case count disagrees with its rows; ``changelog_problems``, a README with no
+changelog; and ``document_register_problems``, a register disagreeing with the
+documents present, read through ``registered_documents`` and
+``tracked_documents``.
+
+Precondition cases in both repositories call these with their own root, so a
+document that has drifted from the repository fails the unit layer.
 
 **Extracted 2026-10-08**, when `cmn/code_standards.py` reached exactly nine
 hundred lines and the next subject to add was document naming. `code-style.md`

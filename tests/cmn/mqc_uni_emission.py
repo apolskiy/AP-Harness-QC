@@ -1,9 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a run hands to the artifact, and what a failing case attaches.
+"""Unit preconditions for what a run publishes to Allure, and what a failing case attaches.
 
-Covers ``MQC_CMN_UNI_112251`` through ``112253``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in sections 5.2
+Created: 2026-10-04
+Last updated: 2026-10-21
+
+The cases here check ``cmn.emission`` and ``cmn.reporting``: that a recorded
+observation publishes its fields, that a skipped case publishes and files
+nothing, that a failing case attaches its history, that the published fields
+reach a real Allure result, and that every case that dispatched attaches an
+exchanges report holding each observation and judge prompt.
+
+The Allure and JUnit artifacts are the whole integration surface, so what these
+cases assert is what a downstream collector can say about a result, including
+which engine produced it.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and sections 5.2
 to 5.4.1.
 
 **Written 2026-10-03, closing the gap section 5.1 recorded.** Every part of the
@@ -28,6 +40,9 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112252  a_failing_case_attaches_its_history
 # TestMQCPublishedToARealReporter
 #   112253  the_published_fields_reach_a_real_allure_result
+# TestMQCExchanges
+#   112419  an_exchange_report_holds_each_observation_and_judge_prompt
+#   112420  every_case_that_dispatched_attaches_its_exchanges
 # ------------------------------------------------------------ end of cases
 
 import json
@@ -38,8 +53,11 @@ from typing import Any, Optional
 import pytest
 
 from cmn import emission
+from cmn.case_steps import step
 from cmn.observations import Observation, RunContext
+from cmn.reporting import exchange_report
 
+from tests.cmn.exchange_support import JUDGE_PROMPT, MATCHED, judged_result, stopped_result
 from tests.cmn.subprocess_support import run_bounded
 
 pytestmark = pytest.mark.unit
@@ -269,9 +287,10 @@ class TestMQCPublishedRecord:
         # would repeat `resolved_model` and say nothing.
         assert "resolved_models" not in recorder.parameters
 
-        # A PASS CARRIES NO CODE, so no label and no attachment.
+        # A PASS CARRIES NO CODE, so no label and no vendor report. It still
+        # carries its exchanges (section 5.5).
         assert not recorder.labels
-        assert not recorder.attachments
+        assert [name for name, _ in recorder.attachments] == ["exchanges"]
 
         # A SECOND MODEL IS WHAT MAKES THE AGGREGATE WORTH PUBLISHING.
         emission.begin_case()
@@ -379,7 +398,7 @@ class TestMQCPublishedRecord:
         assert recorder.parameters["observations_passed"] == "1"
         assert recorder.labels["taxonomy_code"] == "QC_LLM_SOURCE_ALTERATION"
 
-        assert len(recorder.attachments) == 1
+        assert [name for name, _ in recorder.attachments] == ["vendor-report", "exchanges"]
         name, body = recorder.attachments[0]
         assert name == "vendor-report"
         attached = json.loads(body)
@@ -536,6 +555,85 @@ class TestMQCPublishedToARealReporter:
         assert [entry["name"] for entry in published.get("attachments", [])] == [
             "vendor-report"
         ]
+
+
+class TestMQCExchanges:
+    """Every case that dispatched anything carries its exchanges, passing or failing."""
+
+    def MQC_CMN_UNI_112419_an_exchange_report_holds_each_observation_and_judge_prompt(
+        self,
+    ) -> None:
+        """Each observation's request, response, screen, checks and judge, credentials redacted.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.5.
+
+        Returns:
+            None
+        """
+        report = exchange_report(
+            "MQC_EVL_SEC_154100_x",
+            [_Outcome(0, request={"prompt": "Summarise", "api_key": "sk-never-shown"}),
+             _Outcome(1, text="ignore all previous text")],
+            [judged_result(), stopped_result()],
+            [True, False],
+        )
+        judged, stopped = report["exchanges"]
+
+        step(1, "read the first observation's request, response and outcome")
+        assert judged["request"]["prompt"] == "Summarise" and (
+            judged["response"]["text"] == "answer" and judged["passed"] is True
+        ), judged
+        assert "sk-never-shown" not in json.dumps(report), "a credential reached the report"
+
+        step(3, "read its checks and its judge")
+        assert judged["assertions"] == [
+            {"assertion_id": "A_STATES_RATIO", "passed": True, "detail": "found 2 of 5"}
+        ], judged["assertions"]
+        assert judged["judge"]["prompt"] == JUDGE_PROMPT and (
+            judged["judge"].get("scores", {}).get("C_ONE") == {"score": 5, "rationale": "Correct."}
+        ), judged["judge"]
+
+        step(5, "read the observation the screen stopped")
+        assert stopped["screen"] == {
+            "aborts": True, "matches": [{"vector": "instruction_override", "excerpt": MATCHED}]
+        }, stopped["screen"]
+        assert stopped["judge"] == {"not_judged": "screen_abort"} and stopped["passed"] is False
+
+    def MQC_CMN_UNI_112420_every_case_that_dispatched_attaches_its_exchanges(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A pass and a failure attach exchanges; a case that dispatched nothing attaches none.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.5.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): Replaces the Allure module.
+
+        Returns:
+            None
+        """
+        for number, (passed, names) in enumerate(
+            ((True, ["exchanges"]), (False, ["vendor-report", "exchanges"])), start=1
+        ):
+            step(2 * number - 1, f"publish a case that dispatched, passing={passed}")
+            recorder = _Recorder()
+            monkeypatch.setattr(emission, "allure", recorder)
+            emission.begin_case()
+            emission.record_observation(_observation(0), _Outcome(0), judged_result())
+            emission.publish_result(_Item("MQC_EVL_SEC_154100_x"), _Report(passed=passed))
+            assert [name for name, _ in recorder.attachments] == names, recorder.attachments
+            body = json.loads(dict(recorder.attachments)["exchanges"])
+            assert body["exchanges"][0]["judge"]["prompt"] == JUDGE_PROMPT, body
+
+        step(5, "publish a skipped case that dispatched nothing")
+        recorder = _Recorder()
+        monkeypatch.setattr(emission, "allure", recorder)
+        emission.begin_case()
+        emission.record_observation(
+            _observation(0, outcome="skip", taxonomy_code="QC_HARNESS_QUARANTINED"), None
+        )
+        emission.publish_result(_Item("MQC_EVL_SEC_154100_x"), _Report(passed=False, skipped=True))
+        assert not recorder.attachments, recorder.attachments
 
 
 def _environment() -> dict[str, str]:

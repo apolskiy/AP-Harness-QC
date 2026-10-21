@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Whether a finding is named by the most serious thing that happened.
+"""Unit precondition that every model and security code has a rank of seriousness.
 
-Covers ``MQC_CMN_UNI_112330``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+The case here checks the code ranking in ``cmn.registries``: that
+``unranked_codes`` finds no registered model or security code without a rank.
+``code_criticality`` gives each code its rank, and ``most_critical`` uses it to
+choose the one code that names a finding when several fired.
+
+``code_criticality`` sorts an unranked code last rather than raising, so
+without this case a new code could leave a finding named by something less
+serious than what happened, and nothing would report it.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and
 ``harness_test_taxonomy.md`` section 6.4.
 
 **Split from ``mqc_uni_metadata.py`` on 2026-10-05**, which the one case took

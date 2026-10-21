@@ -1,8 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for judge reply validation and the hijack tripwire.
+"""Unit cases for checking a judge's reply before its scores are believed.
 
-Its cases are listed in the block below, inventoried in
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`evaluation.judge`. :func:`validate_judge_reply` yields one
+score per criterion from a valid reply and raises ``JudgeHijackSuspected`` on
+prose, missing scores, text scores and scores outside the scale; a missing
+criterion is a harness error and a format violation is normalized and recorded.
+They also check one judgement per observation, and that
+:func:`judge_timeout_outcome` never attributes a judge timeout to the candidate.
+
+The pipeline calls these on every judged case, and what they return decides
+whether a score is aggregated, the case skipped, or a hijack reported. Its cases
+are listed in the block below, inventoried in
 ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **The judge is a model, so its output is checked like any other.** Nothing about

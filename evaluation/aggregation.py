@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Aggregation strategies, each declaring the scale it produces.
+"""Combines a judge's per-criterion scores into one rubric score that passes or fails.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``aggregate``, which combines a rubric's
+:class:`CriterionScore` values through the strategy the rubric names and
+returns an :class:`AggregateScore` with its scale and whether it cleared the
+threshold; the registered strategies, weighted mean, unweighted mean, minimum,
+all must pass and threshold count, listed by ``registered_strategies``, each
+declaring the scale ``strategy_scale`` returns; and ``combinable``, which
+says whether two aggregate scores may be compared or combined.
+
+**Aggregation is the last step of evaluating a response.** The pipeline calls
+``aggregate`` once the judge reply has been validated, and the result decides
+the rubric half of the case outcome, which passes only when the assertions
+passed as well.
 
 Specified by ``docs/design/tier3_evaluation.md`` sections 8 and 10.
 

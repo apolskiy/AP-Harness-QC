@@ -1,8 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The pytest stand-ins every selection case needs.
+"""Test doubles for pytest's config and collected items, for the selection cases.
 
-Shared by ``mqc_uni_dependency.py`` and ``mqc_uni_selection.py``.
+Created: 2026-10-03
+Last updated: 2026-10-21
+
+This file provides ``SimulatedConfig``, which answers ``getoption`` from supplied
+values and records what a filter deselected, and ``SimulatedItem``, a collected case
+carrying the markers a selector reads, so a selector can be called without
+starting a pytest session.
+
+Shared by ``mqc_uni_dependency.py``, ``mqc_uni_execution_identity.py`` and
+``mqc_uni_selection.py``.
 
 **Extracted 2026-10-03**, when a second module needed the same two doubles. A
 copy would have been reported by pylint's duplicate-code check, and the copy
@@ -18,7 +27,7 @@ from typing import Any, Optional
 import pytest
 
 
-class FakeConfig:
+class SimulatedConfig:
     """The parts of pytest's configuration the band filter reads.
 
     Attributes:
@@ -70,7 +79,7 @@ class FakeConfig:
 
 
 
-class FakeItem:
+class SimulatedItem:
     """The parts of a pytest item the cascade reads.
 
     Attributes:

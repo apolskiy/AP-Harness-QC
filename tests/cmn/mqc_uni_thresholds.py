@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the threshold domain and its boundaries.
+"""Unit tests for the verdict thresholds, at their boundaries and outside their domains.
+
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+Its cases check ``check_domain`` in ``cmn/threshold_domain.py``, ``Thresholds``,
+``evaluate_distribution`` and ``verdict`` in ``cmn/verdict.py``, and
+``thresholds_from`` in ``cmn/verdict_tool.py``. The P0, P1 and combined share
+ceilings and the distribution minimum are each tested at exactly their value. A
+rate threshold at or below zero or above one, a count below one, and a non-numeric
+value are refused, every threshold declares a domain and has refusal cases, the
+permitted extremes are accepted, and a stored artifact carrying an impossible
+threshold is refused.
+
+The thresholds are what the verdict compares a run against, so an impossible
+one is refused before any run is judged by it.
 
 Its cases are listed in the block below, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.38.

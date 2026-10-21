@@ -1,9 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Mutation audit of the modules saying what every layer, code and count means.
+"""Mutation cases auditing whether the suite notices changes to four registry modules.
 
-Covers `MQC_CMN_MUT_162002` through `162005`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 13.
+Created: 2026-10-15
+Last updated: 2026-10-21
+
+Its cases run the mutation audit on ``cmn/layers.py``, ``cmn/registries.py``,
+``cmn/band_summary.py`` and ``cmn/environments.py``, one case each, and fail
+when a survivor is undeclared or a declared one no longer survives. They run at
+Gate 8 on a harness update and never block the graded layers.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 13.
 
 **Each case changes one operator or constant in a production module and runs
 the suite.** A change nothing fails on is a survivor, and every survivor must

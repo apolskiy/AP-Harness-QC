@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Model version resolution, and the nightly probe built on it.
+"""Checks which model version each engine is serving, before a run and on a schedule.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``require_resolved_version``, which returns the version a
+provider reported or aborts when there is none; ``probe_engine`` and
+``probe_all``, which compare each engine's version with a recorded baseline
+and return a ``ProbeOutcome`` per engine; ``load_baseline`` and
+``write_baseline``, which keep that baseline file; and ``engines_to_dispatch``,
+which names the engines whose version changed.
+
+**Preflight sits before the first case is dispatched**, so a run whose model
+identity is unknown stops before it spends anything. The probe's outcome
+decides which engines get a live run, and a probe that failed dispatches
+nothing.
 
 Specified by ``docs/design/tier2_execution.md`` section 5 and
 ``docs/design/harness_ci_pipeline.md`` section 4.

@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Judge a consumer's graded replay by taxonomy family, not by failure count.
+"""Reads a consumer's graded replay report and fails only when the harness is to blame.
+
+Created: 2026-10-01
+Last updated: 2026-10-21
+
+This file contains ``harness_faults``, which reads the consumer's JUnit XML and
+returns every test error and every failure carrying a ``QC_HARNESS_*`` code
+other than ``QC_HARNESS_DEPENDENCY_UNMET``; and ``main``, the command line that
+exits 0 when nothing is the harness's, 1 when something is, and 4 when the
+report is missing or will not parse.
+
+**The ``regress-consumers-on-merge`` workflow runs it** after replaying the
+consumer's graded suite against the changed harness, so a red job means the harness
+change broke the consumer, and a model finding in the same report leaves it
+green.
 
 Specified by ``docs/design/harness_ci_pipeline.md`` section 3B.3.
 

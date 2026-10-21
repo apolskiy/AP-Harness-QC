@@ -1,9 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Every member of a registry has a case of its own.
+"""Unit precondition that every member of a registry has a case of its own.
 
-Covers ``MQC_CMN_UNI_112387``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
+Created: 2026-10-16
+Last updated: 2026-10-21
+
+The case here checks ``cmn.case_coverage.uncovered_members``, which reads the
+arguments the split cases pass to a shared helper from a module's syntax and
+reports the registry members no case passes. It asserts that a member without
+a case of its own is reported.
+
+A registry grows by data, so a new member with no case would otherwise go
+untested while every existing case kept passing.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and
 ``harness_test_taxonomy.md`` section 1.1.
 
 A failure here is **not a model finding**, so the module carries no priority marker.

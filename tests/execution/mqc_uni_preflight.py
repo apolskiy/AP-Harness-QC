@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for model version resolution and the nightly probe.
+"""Unit cases for resolving model versions and probing whether a model changed.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier2_execution.md`` section 10.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`execution.preflight`. :func:`require_resolved_version`
+fails when a provider reports no version, an empty one or a blank one. The probe
+records a first baseline rather than treating it as a change, dispatches only an
+engine whose version changed and only once, and on a failed probe records a
+harness event, dispatches nothing and leaves the baseline untouched.
+
+What :func:`engines_to_dispatch` returns is which engines get a live run, so a
+defect here spends quota for nothing or misses a model change. Its cases are
+listed in the block below, inventoried in ``docs/design/tier2_execution.md``
+section 10.1.
 
 **The probe decides whether to spend quota**, which is logic rather than
 configuration and is why it carries cases at all. Its two boundaries are a

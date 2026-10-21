@@ -1,9 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the order of operations and what sits between steps.
+"""Unit cases for the order in which one response is screened, asserted and judged.
 
-Covers `MQC_EVL_UNI_114500` through `114502`, `114503` through `114507` and
-`114508`, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :func:`evaluation.pipeline.evaluate_observation`. Assertions run
+before the judge, a screen abort skips both, a ``violation`` skips the judge
+unless ``--judge-on-failure`` is set and a ``fatal`` failure is never judged. A
+declared adversarial case invokes no judge and is graded by its assertions. They
+also check the conjunctive gate, an errored or empty response, a tool-only rule
+and a rule without a rubric.
+
+The result this function returns is what the verdict counts, so a defect here
+passes or fails cases regardless of what each step found. Covers
+`MQC_EVL_UNI_114500` through `114502`, `114503` through `114507` and `114508`,
+inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **Assertions are conjunctive gates.** A case passes only when every assertion
 passes and the rubric clears its threshold, so these cases assert the gate and

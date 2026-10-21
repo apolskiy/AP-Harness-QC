@@ -1,6 +1,26 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Change the production code and report what the suite failed to notice.
+"""Mutation audit, which changes production code one point at a time to find what tests miss.
+
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+This file contains ``mutation_points``, which lists every operator or
+constant change it can make to a module; ``survivors``, which applies each in
+turn, runs the module's cases and returns the changes nothing failed on;
+``control_problem`` and ``baseline_problem``, which refuse to measure a module
+whose unmutated run fails or whose content is not the declared baseline;
+``recover`` and the lock functions, which restore and guard a module being
+audited; ``declared_survivors``, ``declare_digest`` and ``survivor_problems``,
+which read and compare the accepted survivors in
+``config/mutation_survivors.yaml``; and ``main``, the command line.
+``tools/mutation_redeclare.py`` re-declares a module whose code is unchanged
+without auditing it (section 15.14).
+
+**The ``MUT`` cases under ``tests/mutation`` call it**, one module each, in
+the ``audit-mutation-on-change`` workflow on a push changing the harness. A
+survivor that is not declared fails that job and never blocks the graded
+layers.
 
 Specified in ``docs/design/harness_test_taxonomy.md`` section 15.
 
@@ -47,6 +67,8 @@ from cmn.mutation_guard import (
     ProgressLog,
     module_digest,
     process_alive,
+    stop_audits,
+    stop_requested,
 )
 
 logger = logging.getLogger(__name__)
@@ -233,7 +255,9 @@ def baseline_problem(manifest: Path, module: str, text: str) -> Optional[str]:
         return (
             f"{module} hashes to {found} and {manifest.name} declares "
             f"{declared}. Either an earlier run left the module altered, or "
-            f"it was edited and the survivors need re-measuring against it"
+            f"it was edited and the survivors need re-measuring against it; "
+            f"where only its docstrings or comments changed, "
+            f"`python -m tools.mutation_redeclare {module}` is enough"
         )
     return None
 
@@ -441,6 +465,11 @@ def _survivors_held(
     Raises:
         MutationRefusal: As :func:`survivors` describes.
     """
+    # A STOP ASKED FOR THIS PROCESS ENDS THE AUDIT BEFORE IT TOUCHES ANYTHING,
+    # so every later audit in a stopped run refuses at once (section 15.13.2).
+    if stop_requested(root, os.getpid()):
+        raise MutationRefusal("QC_HARNESS_AUDIT_REFUSED: stopped on request before its control")
+
     recovered = recover(module)
     if recovered is not None:
         raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {recovered}")
@@ -501,6 +530,13 @@ def _measure_points(
     """
     survived: list[MutationPoint] = []
     for number, point in enumerate(points, start=1):
+        # BETWEEN POINTS, NEVER DURING ONE. The point that was running has
+        # finished, and the caller's `finally` restores the module (15.13.2).
+        if stop_requested(root, os.getpid()):
+            raise MutationRefusal(
+                f"QC_HARNESS_AUDIT_REFUSED: stopped on request at point {number} of "
+                f"{len(points)}"
+            )
         tree = ast.parse(original)
         if not _mutate(tree, point):
             continue
@@ -656,20 +692,27 @@ def survivor_problems(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    """Audit one module from the command line.
+    """Audit one module from the command line, or stop every running audit.
 
     Args:
         argv (Optional[list[str]]): Arguments, or None for ``sys.argv``.
 
     Returns:
         int: ``0`` when every survivor is declared, ``1`` otherwise, ``4``
-        when the audit refused to run.
+        when the audit refused to run. With ``--stop``, ``0`` once every
+        stopped module is its declared baseline and ``1`` otherwise.
     """
     parser = argparse.ArgumentParser(
         prog="mutation-audit",
         description="Report production changes the suite fails to notice",
     )
-    parser.add_argument("module", type=Path, help="The production module")
+    parser.add_argument("module", type=Path, nargs="?", help="The production module")
+    parser.add_argument(
+        "--stop", action="store_true",
+        help="Stop every running audit after its current point and verify each module",
+    )
+    parser.add_argument("--wait", type=float, default=600.0,
+                        help="With --stop, the longest wait for the audits, in seconds")
     parser.add_argument(
         "--target", action="append", default=[],
         help="A pytest argument, repeated once per argument",
@@ -680,6 +723,14 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     root = Path(__file__).resolve().parents[1]
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+    if parsed.stop:
+        code, lines = stop_audits(root, wait=parsed.wait)
+        for line in lines:
+            (logger.info if code == 0 else logger.error)("%s", line)
+        return code
+    if parsed.module is None:
+        parser.error("name a module to audit, or pass --stop")
 
     try:
         found = survivors(root, root / parsed.module, parsed.target,

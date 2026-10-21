@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the post-execution screen.
+"""Unit cases for screening a model's response for injection before it is evaluated.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier3_evaluation.md`` section 11.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`evaluation.screening`. :func:`screen_response` and
+:func:`screen_text` detect each registered vector, delimiter escape, override,
+payload splitting, extraction, role assertion, score manipulation, task
+substitution and tool coercion, and pass ordinary prose. A hit aborts an
+ordinary case and continues a declared adversarial one, and the screen makes no
+model call and shares one vector set with the ingest screen.
+
+The screen runs first in the evaluation pipeline, so its decision says whether
+assertions and a judge run at all. Its cases are listed in the block below,
+inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
 
 **Screening is a measurement; isolation is the control.** These cases assert
 what the screen detects and what a hit means, never that detection is the

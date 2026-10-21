@@ -1,8 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Referential integrity across the task and rule-set halves.
+"""Cross-checks that loaded tasks and rule sets refer to each other correctly.
 
-Specified by ``docs/design/tier1_ingestion.md`` section 6. The five checks run
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``check_referential_integrity``, which checks every task
+against the rule sets it names: each named rubric exists, each constraint a
+rule references was sent, each constraint sent is checked by some rule, each
+tool a rule names was offered and is not both required and forbidden, and a
+declared adversarial task carries no rubric that could never be scored. It
+also contains ``warn_unregistered_constraint_kinds``, which warns about a
+constraint kind outside the registered core without failing.
+
+**It runs over a loaded corpus, as a precondition of the cases built from it.**
+The consumer's suite calls it on the corpus it ships, and a violation raises,
+so the precondition fails and the graded layers never run against a corpus
+whose two halves disagree. Case building assumes it has passed.
+
+Specified by ``docs/design/tier1_ingestion.md`` section 6. The six checks run
 **after** the join, because each needs both sides: a rule set cannot be told
 whether its ``constraint_ref`` resolves until it is paired with a task.
 
@@ -29,7 +45,7 @@ logger = logging.getLogger(__name__)
 def check_referential_integrity(
     tasks: Iterable[TaskDataSet], rule_sets: Iterable[GoldenRuleSet]
 ) -> None:
-    """Run R1 through R5 over a loaded corpus, reporting every violation.
+    """Run R1 through R6 over a loaded corpus, reporting every violation.
 
     Args:
         tasks (Iterable): Every loaded task.
@@ -40,7 +56,7 @@ def check_referential_integrity(
 
     Raises:
         ValueError: Naming every violation found, with
-            ``QC_DATA_INVARIANT_VIOLATION``. Raised once, after all five checks
+            ``QC_DATA_INVARIANT_VIOLATION``. Raised once, after all six checks
             have run, so that one pass reports everything wrong.
     """
     task_list = list(tasks)

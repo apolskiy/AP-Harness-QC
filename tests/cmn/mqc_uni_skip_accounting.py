@@ -1,9 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for what a skip counts as, and what releases one.
+"""Unit tests for how a skipped case counts in the pass rate, and what releases one.
 
-Covers `MQC_CMN_UNI_112341` and `112342`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+Its cases check ``outcome_properties`` and ``skip_counts_as_failure`` in
+``cmn/layers.py``, and ``dispensed_ids`` and ``released_by_dispensation`` in
+``cmn/quarantine.py``. A skip stays in the pass-rate denominator and is never a
+pass. A quarantined, dependency, incomplete or unattributed skip counts as a
+failure, and an environmental or unsupported one does not. A quarantine entry
+releases a blocker only when it is confirmed and names a recorded dispensation.
+
+The verdict's pass rate is computed from this accounting, so a skip counted
+wrongly would charge the model for a harness fault or excuse a case that
+measured nothing.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **One subject: the accounting a skip receives.** A skip is a non-pass whatever
 its cause, and whether it is counted as a failure is decided by the reason it

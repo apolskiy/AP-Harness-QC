@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Construction of the evaluation case set from loaded tasks and rule sets.
+"""Builds the list of evaluation cases a run executes from loaded tasks and rule sets.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``build_evaluation_cases``, which joins each task to every
+rule set it names and returns one ``EvaluationCase`` per pair;
+``build_case_id``, which composes the ``<task_id>::<rule_id>`` identifier a
+case is known by; and ``count_unique_case_definitions``, which counts the
+distinct definitions the priority distribution is measured over.
+
+**This is the last step of ingestion.** It runs on the loaded corpus, and the
+cases it returns are what the consumer's graded suite looks up, dispatches and
+reports. It assumes referential integrity holds, so a task naming a rule set
+that was not loaded raises rather than being reported as a finding.
 
 Specified by ``docs/design/tier1_ingestion.md`` section 3.11. The
 (task by rubric) pair is the unit of evaluation (A11, B10), so a task naming

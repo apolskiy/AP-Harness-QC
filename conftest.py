@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Shared pytest configuration: markers, Allure labels and common fixtures.
+"""The harness's pytest configuration, which wires the run's hooks and shared fixtures.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains the pytest hooks for this repository's suite, which declare
+the execution flags, record the invocation, label each case's Allure severity
+from its priority, select the requested bands and modules, order and enforce
+dependencies between cases, record each assertion as a step, refuse a skipped
+or empty precondition, and print the band summary. It also holds the shared
+fixtures, sample anchors, rubric, task and rule payloads, minimal and furnished
+evaluation cases, a canary rule set, and a temporary-file writer. Each hook
+delegates to the :mod:`cmn` module that owns its behaviour.
+
+**Pytest loads it for every run from this repository's root**, before
+collection, so every case the suite collects runs under these hooks, and their
+outcome decides what is selected, what is skipped as an unmet dependency and
+what the run reports.
 
 Specified by ``DESIGN.md`` section 2.1 and `.claude/rules/testing-standards.md`
 section 4.
@@ -40,6 +57,7 @@ from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
 from cmn.mutation_guard import imported_harness_root, refuse_if_mutating
 from cmn.selection import (
+    deselect_unrequested_audits,
     refuse_repeated_cases,
     select_modules,
     select_priority_bands,
@@ -138,6 +156,9 @@ def pytest_collection_modifyitems(
     # is not this run's to measure, so it leaves the total rather than
     # reporting a non-outcome inside it (`harness_test_taxonomy.md` 7.5.1).
     deselect_unavailable_environments(config, items)
+    # AN AUDIT RUNS ONLY WHEN ASKED FOR, and leaves the total otherwise
+    # (`harness_test_taxonomy.md` 15.13.1).
+    deselect_unrequested_audits(config, items)
     label_priority_severity(items)
     # BEFORE THE ORDERING, because `arrange_dependencies` refuses a suite whose
     # dependencies name no collected base, and a band that had dropped its

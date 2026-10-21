@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Mode routing, pacing and the one request each case is allowed.
+"""Sends one case to one engine, live or from a recorded fixture, and returns what came back.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``dispatch_case``, which composes the request for a case,
+replays the recorded observation or issues the request live, and returns a
+``DispatchOutcome`` holding either a normalized response or a skip with its
+reason; ``DispatchPlan``, the run's fixed settings such as its mode, model,
+fixture root and whether to record; ``DispatchSession``, the run-level state
+that spaces requests, tallies spend and trips ``CircuitBreakerTripped`` when
+the provider stops answering; and ``attributed_refusal``, which decides
+whether a provider refusal is a harness code or an over-refusal finding.
+
+**This is the step between ingestion and evaluation.** The consumer's graded
+suite calls ``dispatch_case`` once per case and observation, and only a
+measured outcome goes on to the evaluation pipeline. A skip is recorded with
+its harness code, and a tripped breaker aborts the run.
 
 Specified by ``docs/design/tier2_execution.md`` sections 3.2, 8, 8.1, 8.2
 and 8.3.

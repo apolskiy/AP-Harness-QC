@@ -27,10 +27,12 @@ consumers:
     # the other rather than against a main that has not received it yet.
     #
     # The key is the branch of THIS repository that was pushed. The value is the
-    # ref of the consumer to check out.
+    # ref of the consumer to check out. A cycle's dated stabilization branch,
+    # stabilization-<MM-DD-YYYY>, adds its literal pairing here when it is cut
+    # and merging removes it, as the consumer's own harness_pin.yaml does
+    # (harness_ci_pipeline.md sections 3C.6.1 and 3C.6.8).
     refs:
       main: main
-      stabilization: stabilization
 
     # Used when a harness branch has no entry above, which is every feature
     # branch. A feature branch is verified against the consumer's main: that is

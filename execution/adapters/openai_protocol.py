@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The Chat Completions wire protocol, which is not one vendor.
+"""The shared adapter for every provider that serves the OpenAI Chat Completions API.
 
-Implements the interface in :mod:`execution.adapters.base` against the
-OpenAI Chat Completions API shape.
+Created: 2026-09-25
+Last updated: 2026-10-21
+
+This file contains :class:`OpenAICompatibleAdapter`, which implements the
+interface in :mod:`execution.adapters.base` against the Chat Completions API
+shape. It composes and dispatches the request, normalizes the response and its
+token usage, parses tool-call arguments, resolves the model version, composes
+and parses a judge request, and builds the client and the reproduction
+endpoint from the engine's declared base URL and credential variable.
+
+**It is never registered itself.** The OpenAI and Grok adapters subclass it
+with an engine name, a default model, an endpoint and a credential variable,
+and the registry enrols those subclasses.
 
 **A protocol is not a vendor**, which is the whole point of this module.
 xAI (Grok), DeepSeek, Mistral, Groq, Together and OpenRouter all serve this

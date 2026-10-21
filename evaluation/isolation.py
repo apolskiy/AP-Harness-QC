@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Structural isolation: the control, as distinct from the screen.
+"""Builds the judge's prompt, keeping text the harness did not write out of its instructions.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``compose_judge_request``, which builds a
+:class:`JudgeRequest` whose instruction text comes only from the rubric and the
+harness, with every :class:`UnauthoredMaterial` value, the candidate output,
+the task instruction and the context documents, placed in its own delimited
+data field, and which refuses a request where any of that reached the
+instruction text. It also contains ``reply_schema_for``, the structure the
+judge must reply in, ``data_notice``, the notice placed above every data
+field, and ``intermediate_level_guidance``, what the unanchored rubric levels
+mean.
+
+**Isolation applies to every response that reaches the judge.** The pipeline
+composes the request here after the screen and the assertions have passed,
+and the judge channel sends exactly what this file returns.
 
 Specified by ``docs/design/tier3_evaluation.md`` sections 3.1, 3.1.1 and 6.2.
 

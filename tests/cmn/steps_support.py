@@ -1,9 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Doubles for the step ledger, in a sibling module collection does not reach.
+"""Test doubles of dispatch outcomes and evaluation results, for the step ledger cases.
 
-A case module holds only cases (``harness_test_taxonomy.md`` section 13), so the two
-builders the ledger cases need live here.
+Created: 2026-10-07
+Last updated: 2026-10-21
+
+This file provides ``dispatched`` and ``evaluated``, a successful dispatch and a
+passing evaluation with fields overridden, ``failed_check`` and ``unmeasured``
+for an evaluation whose assertion failed or whose judgement was never recorded,
+``mixed_observations`` for five observations with the second failing, and
+``Announced``, an item carrying only a node identifier.
+
+They serve ``mqc_uni_steps.py``. A case module holds only cases
+(``harness_test_taxonomy.md`` section 13), so the builders live in this sibling
+module, which collection does not reach.
 
 **Both start from a success and take overrides.** A ledger case is about one
 step going wrong, and spelling out thirteen healthy fields to say so buries the

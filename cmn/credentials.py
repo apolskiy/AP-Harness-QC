@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Recognising a credential, by the name of a field and by the value in it.
+"""Credential recognition, by the name of a field and by the value in it.
+
+Created: 2026-10-12
+Last updated: 2026-10-21
+
+This file contains ``FORBIDDEN_KEYS``, the exact field names refused in a
+configuration file; ``credential_shaped_name``, which reports a field name that
+reads as a credential; and ``credential_shaped_value``, which reports a value
+carrying a credential's issued prefix.
+
+``cmn.config`` refuses a credential-shaped key when it loads a file, and
+``execution/replay.py`` reports every credential-shaped field or value in a
+replay fixture store, so a secret in a committed file or a recording is caught
+by the precondition suite.
 
 **Split from ``config.py`` on 2026-10-11**, when storing the composed request
 in a fixture needed the same predicates and the addition took that module to

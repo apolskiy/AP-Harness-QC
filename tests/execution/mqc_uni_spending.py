@@ -1,9 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for what a run is allowed to spend.
+"""Unit cases for the spend ceiling that stops a run before it costs too much.
 
-Covers `MQC_EXE_UNI_113700` through `113703`, inventoried in
-``docs/design/tier2_execution.md`` section 10.1.
+Created: 2026-09-28
+Last updated: 2026-10-21
+
+Its cases check :func:`execution.dispatch.dispatch_case` with the price table
+from :mod:`cmn.pricing`. A run at its ceiling dispatches nothing further, a run
+without one is unchanged, a ceiling against an unpriced model stops the run,
+and an empty balance carries its own code rather than an auth failure.
+
+Specified by ``docs/design/tier2_execution.md`` section 10.1.
 
 **Split out of ``mqc_uni_dispatch.py`` on 2026-09-28**, which had reached 1014
 lines against a 1000-line limit. The split is by subject: what a run may spend and

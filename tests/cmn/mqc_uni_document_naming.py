@@ -2,12 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit precondition for whether a document's name says where it belongs.
 
-Covers `MQC_CMN_UNI_112346`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+The case here checks ``cmn.document_naming``: that
+``undifferentiated_documents`` reports a document under ``docs/`` whose name
+carries no repository token and refuses a root that has none, that
+``repository_token`` reads the declared project name, and that
+``root_conventions`` pins the root filenames exempt by convention.
 
 **An editor tab shows a filename rather than a checkout.** Two repositories
 held a `running_jobs.md` and a `document_register.md` each, and a change made
 in the wrong one parses, lints and commits.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.

@@ -1,9 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Where a credential comes from, and where it must never come from.
+"""Unit preconditions for where a credential comes from, and where it must never come from.
 
-Covers ``MQC_CMN_UNI_112512`` through ``112515``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.34.
+Created: 2026-09-25
+Last updated: 2026-10-21
+
+The cases here check credential handling in ``cmn.config`` and the adapter
+registry. ``load_env_file`` loads a local ``.env`` without overwriting the
+environment and skips a line that is not an assignment, and a credential file
+reaching CI is reported while no workflow reads one. The file is found beside
+the roster, and the consumer conftest searches both roots.
+``orphan_credentials`` reports a credential no engine reads, and every name an
+adapter declares through ``credential_variables`` appears in ``.env.example``.
+
+The local file is how a developer's live run gets its keys, and CI takes them
+from its own store only, so a defect here either stops a live run or lets a
+key file travel where it must not.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.34.
 
 **Two cases because they run in different places.** The local loader has no
 behaviour to assert on a runner, and the boundary it must not cross has to be

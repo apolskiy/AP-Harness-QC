@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""YAML and CSV loaders for task data and golden rule sets.
+"""Reads task and golden rule files from disk into validated schema records.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``load_corpus``, which reads every file under a corpus
+directory's ``tasks`` and ``rules`` folders and returns the tasks and rule
+sets; the per-format readers it chooses between, ``load_tasks_from_yaml``,
+``load_rule_sets_from_yaml`` and ``load_tasks_from_csv``, with
+``load_yaml_document`` beneath them; ``UnknownColumnPolicy``, the reject or
+drop choice for an undeclared CSV column; and ``assert_loaders_agree``.
+
+**Loading is the first step of ingestion.** The consumer's suite calls
+``load_corpus`` on its own corpus, and the records it returns are what the
+ingest screen and referential integrity check and what case building joins. A
+file that will not parse or validate raises, as does an empty or missing
+folder, so a malformed corpus is refused rather than half loaded.
 
 Specified by ``docs/design/tier1_ingestion.md`` section 4. Two formats carry
 different things for different reasons:

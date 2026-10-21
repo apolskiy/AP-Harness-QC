@@ -1,9 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A rule carrying a tool check and a text check fails when either fails.
+"""Unit case for a rule that checks both the model's tool calls and its text.
 
-Covers ``MQC_EVL_UNI_114521``, inventoried and specified in
-``docs/design/tier3_evaluation.md`` section 5B.6.
+Created: 2026-10-16
+Last updated: 2026-10-21
+
+Its one case checks :func:`evaluation.pipeline.evaluate_observation` on a rule
+declaring a tool expectation and a programmatic assertion together. The rule
+fails when either check fails, because tool checks join the assertions as
+conjunctive gates rather than being reported beside them.
+
+Specified by ``docs/design/tier3_evaluation.md`` section 5B.6.
 
 A failure here is **not a model finding**, so the module carries no priority marker.
 """

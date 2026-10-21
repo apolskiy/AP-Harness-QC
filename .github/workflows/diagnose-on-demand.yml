@@ -51,6 +51,12 @@ on:
         default: replay
         type: choice
         options: [replay, live]
+      judge:
+        description: "judged, or unjudged to run the screen and assertions alone"
+        required: false
+        default: judged
+        type: choice
+        options: [judged, unjudged]
       selection:
         description: "Optional pytest -m expression, empty for the full suite"
         required: false
@@ -147,6 +153,7 @@ jobs:
             --max-spend "${{ inputs.max_spend }}" \
             --engine "${{ inputs.engine }}" \
             --mode "${{ inputs.mode }}" \
+            ${{ inputs.judge == 'unjudged' && '--judge-mode off' || '' }} \
             --out-dir diagnostic-artifacts/ \
             --junitxml=diagnostic-artifacts/junit.xml \
             --alluredir=diagnostic-artifacts/allure-results

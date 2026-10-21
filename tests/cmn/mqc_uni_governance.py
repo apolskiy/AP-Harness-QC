@@ -1,9 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions that hold the suite to its own governance.
+"""Unit tests that check the test suite against its own design documents.
 
-Covers `MQC_CMN_UNI_112303`, specified in ``docs/design/cmn_verdict_and_cli.md``
-section 10.2.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check the suite through ``cmn/traceability.py``, ``cmn/layers.py`` and
+the parsed source of the test modules. They report a collected test missing from
+every inventory, an inventory name or test name that drifts, an identifier bound
+by two callables, a matrix row or retirement disagreeing with the suite, an index
+or README case count disagreeing with its design, and a harness test that reads a
+credential.
+
+They sit among the unit preconditions, so a failure points at the suite rather
+than at a model, and is fixed in the tests or the designs before a measured run
+is trusted.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.2.
 
 **This module tests the project rather than the product.** Everything else here
 asserts that the harness measures a model correctly; this asserts that the

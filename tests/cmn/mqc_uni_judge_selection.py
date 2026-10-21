@@ -1,9 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Which engine grades, which model it uses, and how a change is detected.
+"""Unit tests for choosing the judge engine, its model and its mode.
 
-Covers ``MQC_CMN_UNI_112600`` through ``112603`` and ``112604`` through ``112606``,
-inventoried in ``docs/design/cmn_verdict_and_cli.md`` sections 10.13 and 10.18.
+Created: 2026-09-25
+Last updated: 2026-10-21
+
+Its cases check ``cmn/config.py`` and ``cmn/options.py``. They cover
+``resolve_judge_engine``, ``load_judge_engine`` and ``load_judge_model``, from the
+Gemini default and a configured override to the rejection of an engine missing
+from the roster or lacking structured output. They also check that
+``probe_subjects`` names the judge, that ``resolve_judge_mode`` follows the run
+mode and refuses a live candidate with a replayed judge, and that
+``packaged_roster_path`` finds the roster in the installed package.
+
+The judge channel resolves the engine at load time, before any candidate is
+dispatched, so a judge that cannot grade stops the run before it spends
+candidate quota on responses nothing could score.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 10.13 and 10.18.
 
 **Split from the CLI module on 2026-09-24**, when that module crossed the
 thousand line ceiling. The split follows the subject rather than the line
@@ -32,6 +46,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCJudgeMode
 #   112611  judge_mode_defaults_to_whatever_mode_is
 #   112612  a_live_candidate_with_a_replayed_judge_is_refused
+#   112616  the_judge_can_be_withheld_with_either_candidate_mode
+#   112617  only_a_debug_workflow_can_withhold_the_judge
 # TestMQCPackagedConfiguration
 #   112613  the_roster_is_found_through_the_installed_package
 #   112614  the_shipped_distribution_carries_the_configuration
@@ -55,6 +71,7 @@ from cmn.config import (
 )
 from cmn.options import option, resolve_judge_mode
 from cmn.registries import is_registered_harness_code
+from cmn.workflow_standards import unjudged_gated_runs
 
 pytestmark = pytest.mark.unit
 
@@ -330,6 +347,61 @@ class TestMQCJudgeMode:
             resolve_judge_mode(mode, judge)
             for mode, judge in (("replay", ""), ("live", ""), ("replay", "live"))
         } == {"replay", "live"}
+
+    def MQC_CMN_UNI_112616_the_judge_can_be_withheld_with_either_candidate_mode(
+        self,
+    ) -> None:
+        """``--judge-mode off`` is a registered choice and resolves under replay and live.
+
+        Design: ``tier3_evaluation.md`` section 5A.5.3.
+
+        Returns:
+            None
+        """
+        assert "off" in (option("judge-mode").choices or ())
+        assert resolve_judge_mode("replay", "off") == "off"
+        assert resolve_judge_mode("live", "off") == "off"
+        assert is_registered_harness_code("QC_HARNESS_JUDGE_WITHHELD")
+
+    def MQC_CMN_UNI_112617_only_a_debug_workflow_can_withhold_the_judge(
+        self, tmp_path: Path
+    ) -> None:
+        """A workflow outside the on-demand cadence passing or offering judge off is reported.
+
+        Asserts this repository's workflows first, then that a planted gate
+        passing ``--judge-mode off`` and a planted gate offering ``unjudged``
+        are reported while an on-demand workflow doing both is not.
+
+        Design: ``tier3_evaluation.md`` section 5A.5.3.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        problems = unjudged_gated_runs(root)
+        assert not problems, "\n".join(problems)
+
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+        offering = (
+            "on:\n"
+            "  workflow_dispatch:\n"
+            "    inputs:\n"
+            "      judge:\n"
+            "        type: choice\n"
+            "        options: [judged, unjudged]\n"
+            "jobs:\n"
+            "  run:\n"
+            "    steps:\n"
+            "      - run: pytest --judge-mode off\n"
+        )
+        (workflows / "gate-on-change.yml").write_text(offering, encoding="utf-8")
+        (workflows / "debug-failures-on-demand.yml").write_text(offering, encoding="utf-8")
+
+        reported = unjudged_gated_runs(tmp_path)
+
+        assert len(reported) == 2, reported
+        assert all(entry.startswith("gate-on-change.yml") for entry in reported)
 
 
 class TestMQCPackagedConfiguration:

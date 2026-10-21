@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""One option registry, feeding two surfaces that must not drift.
+"""The option registry, every command line flag a run accepts, declared once.
+
+Created: 2026-09-24
+Last updated: 2026-10-21
+
+This file contains ``Option``, one declared flag; ``registered_options``,
+``option`` and ``defaults``, which read the registry; ``validate_value``, which
+refuses a value outside a flag's choices; ``build_invocation``, which validates
+what a run was given into an ``Invocation`` recording what defaulting cost it;
+``manual_selector_flags``, the flags that make a selection manual; and
+``resolve_judge_mode``.
+
+``cmn.pytest_support`` builds the pytest options from this registry and
+``cmn.verdict_tool`` builds its parser from it, so a flag behaves the same on
+both surfaces, and every flag that can change a result is recorded with it.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 7 and 7.1.
 
@@ -121,8 +135,11 @@ _OPTIONS: Final[tuple[Option, ...]] = (
     Option(
         name="judge-mode",
         default="",
-        choices=("", "live", "replay"),
-        help_text="Whether the judge is live or replayed, empty to follow --mode",
+        choices=("", "live", "replay", "off"),
+        help_text=(
+            "Whether the judge is live, replayed or off, empty to follow --mode; "
+            "off runs the screen and assertions only, in a debug run"
+        ),
     ),
     # NO choices TUPLE, deliberately. An enumerated list here would have to be
     # edited whenever an adapter is added, which is the coupling the capability
@@ -480,7 +497,9 @@ def resolve_judge_mode(mode: str, judge_mode: str) -> str:
         judge_mode (str): What ``--judge-mode`` supplied, empty to follow.
 
     Returns:
-        str: ``live`` or ``replay``.
+        str: ``live``, ``replay`` or ``off``. ``off`` withholds the judge and
+        combines with either candidate mode, since nothing is dispatched or
+        replayed for it (``tier3_evaluation.md`` section 5A.5.3).
 
     Raises:
         ValueError: With ``QC_HARNESS_PARSER_ERROR`` for a live candidate with

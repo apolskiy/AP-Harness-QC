@@ -1,15 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Mutation audit of the modules deciding what a run is worth.
+"""Mutation cases auditing whether the suite notices changes to the verdict modules.
 
-Covers `MQC_CMN_MUT_162000` and `162001`, inventoried in
-``docs/design/harness_test_taxonomy.md`` section 15.9.
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+Its cases run the mutation audit on ``cmn/verdict.py`` and
+``cmn/threshold_domain.py``, one case each, and fail when a survivor is
+undeclared or a declared one no longer survives. They run at Gate 8 on a
+harness update.
+
+Specified by ``docs/design/harness_test_taxonomy.md`` section 15.9.
 
 **Each case changes one operator or constant in a production module and runs
 the suite.** A change nothing fails on is a survivor, and every survivor must
 be declared in `config/mutation_survivors.yaml` with its kind, its reason and
-an expiry. An undeclared survivor fails; so does a declaration that no longer
-survives, because the list is meant to shrink.
+an expiry. A stale declaration fails because the list is meant to shrink.
 
 **Minutes, not milliseconds.** Each mutation point is a fresh pytest process
 over the whole unit suite, so this layer is not collected by default and never

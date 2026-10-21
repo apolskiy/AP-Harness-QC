@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Demotion ordering, and why a demotion is reported rather than absorbed.
+"""Priority demotion, which cases give way first when a distribution ceiling binds.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``DemotionCandidate``, one graded case with its assigned
+priority and the qualifying conditions it matched; ``demotion_order``, which
+ranks candidates weakest claim first and leaves security cases out;
+``count_demoted``, which counts cases
+sitting below the level their conditions permit; and ``exceeds_ceiling``,
+which reports a case claiming a level no matched condition permits.
+
+These apply when the priority distribution check finds a ceiling breached. The
+order says which case would move down, and the demoted count is reported with
+the shares so a breach is not resolved silently.
 
 Specified by ``docs/design/harness_test_taxonomy.md`` sections 4.1.4 and 4.1.4.1.
 
@@ -12,7 +26,6 @@ number smaller.
 **The ceilings exist so an inflated P0 population cannot turn the must-pass gate
 into a hair-trigger.** Demotion is how a breach gets resolved, and an unreported
 demotion resolves it by shrinking the count rather than by improving the suite.
-The distribution check therefore reports the demoted count alongside the shares.
 
 **Match count is claim strength.** A case satisfying three P0 conditions has a
 materially better claim than one qualifying on a single condition, which makes

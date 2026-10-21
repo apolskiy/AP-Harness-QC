@@ -1,11 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The Gemini adapter.
+"""The adapter that sends cases to Google's Gemini models and reads their replies.
 
-Implements the interface in :mod:`execution.adapters.base` against the Google
-Gen AI API. Replay-only under A3 until a key is provisioned, which changes
-nothing here: every operation except :meth:`GeminiAdapter.dispatch` runs against
-a response object and needs no credential.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains :class:`GeminiAdapter`, which implements the interface in
+:mod:`execution.adapters.base` against the Google Gen AI API. It composes and
+dispatches the request, normalizes the response with any provider refusal and
+its token usage, reconciles the finish reason, captures tool calls, recognises
+a daily quota it cannot outwait, and composes and parses a judge request
+constrained to the reply schema.
+
+**The registry enrols it under its engine name**, so dispatch and the judge
+channel reach it whenever a run names this engine, as the candidate or as the
+judge.
+
+Replay-only under A3 until a key is provisioned, which changes nothing here:
+every operation except :meth:`GeminiAdapter.dispatch` runs against a response
+object and needs no credential.
 
 **One request per case. No loop, no tool execution.** The SDK offers automatic
 function calling, which would execute the model's tool calls and return the

@@ -1,9 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for what holds of every verdict, whatever produced it.
+"""Unit test that a red verdict is never also reported as green.
 
-Covers `MQC_CMN_UNI_112360`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-13
+Last updated: 2026-10-21
+
+Its one case runs ``verdict`` in ``cmn/verdict.py`` on runs that end red by
+different paths, a failed or skipped precondition among them, and checks that
+``green`` is false wherever the exit code is non-zero, and true for a clean run.
+
+A badge and a reader take ``green`` from a run while CI takes the exit code, so
+the two must never disagree about one run.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Its own module because it is its own subject.** `mqc_uni_verdict.py` holds
 what each rule decides; this holds what must be true of the result no matter

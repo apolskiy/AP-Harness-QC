@@ -1,9 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Selecting the cases a fix wants re-run, by name, family or requirement.
+"""Unit tests for choosing which cases a run collects, by name, family, requirement or module.
 
-Covers ``MQC_CMN_UNI_112244`` through ``112249``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in sections 7.7
+Created: 2026-10-03
+Last updated: 2026-10-21
+
+Its cases check ``select_named_tests``, ``select_traced_cases`` and
+``select_modules`` in ``cmn/selection.py``, and ``load_case_index`` and
+``cases_for_index_values`` in ``cmn/traceability.py``. A named list runs exactly
+those tests, read inline or from a file, and reports a stale entry. A family or
+requirement selection resolves through the matrix, a module selection keeps only
+that module's cases, and an unresolvable selector is reported. One case checks
+``uncapped_spending_steps`` in ``cmn/workflow_standards.py``, which reports a live
+workflow step with no spend ceiling.
+
+The selectors run at collection, so they decide which cases a stabilization or
+debug run re-runs after a fix. Any of them makes the selection manual, which
+``mqc_uni_selection_mode.py`` checks yields no verdict.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and sections 7.7
 and 7.8.
 
 **Written 2026-10-03.** ``--priority`` was the only working case filter;
@@ -44,7 +59,7 @@ import pytest
 from cmn.selection import select_modules, select_named_tests, select_traced_cases
 from cmn.workflow_standards import uncapped_spending_steps
 from cmn.traceability import cases_for_index_values, load_case_index
-from tests.cmn.selection_support import FakeConfig, FakeItem
+from tests.cmn.selection_support import SimulatedConfig, SimulatedItem
 
 from tests.cmn.subprocess_support import run_bounded
 
@@ -68,7 +83,7 @@ def _matrix(tmp_path: Path, *rows: str) -> Path:
     return written
 
 
-def _graded(number: str, behaviour: str = "does_a_thing") -> FakeItem:
+def _graded(number: str, behaviour: str = "does_a_thing") -> SimulatedItem:
     """Return a graded item carrying a band, as a selector reads one.
 
     Args:
@@ -76,9 +91,9 @@ def _graded(number: str, behaviour: str = "does_a_thing") -> FakeItem:
         behaviour (str): The behaviour suffix.
 
     Returns:
-        FakeItem: The stand-in.
+        SimulatedItem: The stand-in.
     """
-    return FakeItem(f"MQC_EVL_SEC_{number}_{behaviour}", priority=1)
+    return SimulatedItem(f"MQC_EVL_SEC_{number}_{behaviour}", priority=1)
 
 
 class TestMQCNamedTestSelection:
@@ -104,9 +119,9 @@ class TestMQCNamedTestSelection:
         """
         wanted = _graded("154100")
         other = _graded("154101")
-        precondition = FakeItem("MQC_CMN_UNI_112244_a_precondition")
+        precondition = SimulatedItem("MQC_CMN_UNI_112244_a_precondition")
         items = [wanted, other, precondition]
-        config = FakeConfig({"--tests": "154100"})
+        config = SimulatedConfig({"--tests": "154100"})
 
         select_named_tests(config, items)
 
@@ -120,7 +135,7 @@ class TestMQCNamedTestSelection:
         # from a failure report need not reduce it by hand.
         by_name = [_graded("154100"), _graded("154101")]
         select_named_tests(
-            FakeConfig({"--tests": "MQC_EVL_SEC_154100_does_a_thing"}), by_name
+            SimulatedConfig({"--tests": "MQC_EVL_SEC_154100_does_a_thing"}), by_name
         )
 
         assert [item.name for item in by_name] == ["MQC_EVL_SEC_154100_does_a_thing"]
@@ -144,7 +159,7 @@ class TestMQCNamedTestSelection:
         items = [_graded("154100")]
 
         with pytest.raises(ValueError, match="matching no collected test"):
-            select_named_tests(FakeConfig({"--tests": "154100,159999"}), items)
+            select_named_tests(SimulatedConfig({"--tests": "154100,159999"}), items)
 
         assert items == [_graded("154100")] or len(items) == 1, (
             "the refusal must leave the collection alone, so a caller can "
@@ -154,7 +169,7 @@ class TestMQCNamedTestSelection:
         # AN ENTRY CARRYING NO IDENTIFIER IS ITS OWN REFUSAL, distinguished
         # from a stale one because the remedies differ.
         with pytest.raises(ValueError, match="carry no case identifier"):
-            select_named_tests(FakeConfig({"--tests": "the_canary_one"}), [_graded("154100")])
+            select_named_tests(SimulatedConfig({"--tests": "the_canary_one"}), [_graded("154100")])
 
     def MQC_CMN_UNI_112246_a_named_list_is_read_from_a_file(
         self, tmp_path: Path
@@ -200,7 +215,7 @@ class TestMQCNamedTestSelection:
         )
         items = [_graded(number) for number in ("154100", "154101", "154102", "154103")]
 
-        select_named_tests(FakeConfig({"--tests-file": str(listing)}), items)
+        select_named_tests(SimulatedConfig({"--tests-file": str(listing)}), items)
 
         assert [item.name.split("_")[3] for item in items] == [
             "154100", "154102", "154103",
@@ -218,7 +233,7 @@ class TestMQCNamedTestSelection:
         comma.write_text("154100, 154101\n", encoding="utf-8")
         with pytest.raises(ValueError, match="one entry per line"):
             select_named_tests(
-                FakeConfig({"--tests-file": str(comma)}), [_graded("154100")]
+                SimulatedConfig({"--tests-file": str(comma)}), [_graded("154100")]
             )
 
         # EVERY OTHER PUNCTUATION MARK IS REFUSED TOO, naming the character
@@ -238,13 +253,13 @@ class TestMQCNamedTestSelection:
             written.write_text(line + "\n", encoding="utf-8")
             with pytest.raises(ValueError, match="cannot contain"):
                 select_named_tests(
-                    FakeConfig({"--tests-file": str(written)}), [_graded("154100")]
+                    SimulatedConfig({"--tests-file": str(written)}), [_graded("154100")]
                 )
 
         # A FILE THAT IS NOT THERE REFUSES, one step before selecting nothing.
         with pytest.raises(ValueError, match="does not exist"):
             select_named_tests(
-                FakeConfig({"--tests-file": str(tmp_path / "absent.txt")}),
+                SimulatedConfig({"--tests-file": str(tmp_path / "absent.txt")}),
                 [_graded("154100")],
             )
 
@@ -252,7 +267,7 @@ class TestMQCNamedTestSelection:
         # unresolvable entry costs.
         with pytest.raises(ValueError, match="both"):
             select_named_tests(
-                FakeConfig({"--tests": "154100", "--tests-file": str(listing)}),
+                SimulatedConfig({"--tests": "154100", "--tests-file": str(listing)}),
                 [_graded("154100")],
             )
 
@@ -342,7 +357,7 @@ class TestMQCTracedSelection:
             "MQC_EVL_SEC_154102_does_a_thing,",
         )
         items = [_graded(number) for number in ("154100", "154101", "154102")]
-        config = FakeConfig(
+        config = SimulatedConfig(
             {"--family": "injection_resistance", "--rtm": str(matrix)}
         )
 
@@ -376,7 +391,7 @@ class TestMQCTracedSelection:
         items = [_graded(number) for number in ("154100", "154101", "154102")]
 
         select_traced_cases(
-            FakeConfig({
+            SimulatedConfig({
                 "--family": "injection_resistance",
                 "--requirement": "MQC_REQ_MDL_SEC_0002",
                 "--rtm": str(matrix),
@@ -414,19 +429,19 @@ class TestMQCTracedSelection:
 
         # NO MATRIX AT ALL. This repository owns none, so there is no default.
         with pytest.raises(ValueError, match="no --rtm was given"):
-            select_traced_cases(FakeConfig({"--family": "output_shape"}), list(items))
+            select_traced_cases(SimulatedConfig({"--family": "output_shape"}), list(items))
 
         # A FAMILY NO ROW NAMES, which is the typo case.
         with pytest.raises(ValueError, match="no matrix row names"):
             select_traced_cases(
-                FakeConfig({"--family": "injection_resistence", "--rtm": str(matrix)}),
+                SimulatedConfig({"--family": "injection_resistence", "--rtm": str(matrix)}),
                 list(items),
             )
 
         # A REQUIREMENT WITH NO ROW, which also catches a renamed one.
         with pytest.raises(ValueError, match="no row for"):
             select_traced_cases(
-                FakeConfig({"--requirement": "MQC_REQ_MDL_SEC_9999", "--rtm": str(matrix)}),
+                SimulatedConfig({"--requirement": "MQC_REQ_MDL_SEC_9999", "--rtm": str(matrix)}),
                 list(items),
             )
 
@@ -434,7 +449,7 @@ class TestMQCTracedSelection:
         # a selection, and must not read as an empty run.
         with pytest.raises(ValueError, match="traced to no case"):
             select_traced_cases(
-                FakeConfig({"--requirement": "MQC_REQ_MDL_SEC_0009", "--rtm": str(matrix)}),
+                SimulatedConfig({"--requirement": "MQC_REQ_MDL_SEC_0009", "--rtm": str(matrix)}),
                 list(items),
             )
 
@@ -442,7 +457,7 @@ class TestMQCTracedSelection:
         # right and this run collected none of what it names.
         with pytest.raises(ValueError, match="none of them is collected"):
             select_traced_cases(
-                FakeConfig({"--family": "injection_resistance", "--rtm": str(matrix)}),
+                SimulatedConfig({"--family": "injection_resistance", "--rtm": str(matrix)}),
                 [_graded("154999")],
             )
 
@@ -468,12 +483,12 @@ class TestMQCModuleSelection:
         Returns:
             None
         """
-        common = FakeItem("MQC_CMN_UNI_112254_a_module_case")
-        evaluation = FakeItem("MQC_EVL_UNI_114000_an_evaluation_case")
-        graded = FakeItem("MQC_EVL_SEC_154100_a_graded_case", priority=1)
+        common = SimulatedItem("MQC_CMN_UNI_112254_a_module_case")
+        evaluation = SimulatedItem("MQC_EVL_UNI_114000_an_evaluation_case")
+        graded = SimulatedItem("MQC_EVL_SEC_154100_a_graded_case", priority=1)
         items = [common, evaluation, graded]
 
-        select_modules(FakeConfig({"--module": "CMN"}), items)
+        select_modules(SimulatedConfig({"--module": "CMN"}), items)
 
         assert items == [common], (
             "a module selection kept a case from another module, so a run "
@@ -483,18 +498,18 @@ class TestMQCModuleSelection:
         # SEVERAL MODULES UNITE, and the spelling is not case sensitive: a
         # caller typing lowercase named a module rather than a typo.
         several = [common, evaluation, graded]
-        select_modules(FakeConfig({"--module": "cmn,evl"}), several)
+        select_modules(SimulatedConfig({"--module": "cmn,evl"}), several)
 
         assert several == [common, evaluation, graded]
 
         # AN UNREGISTERED MODULE REFUSES, naming what is registered.
         with pytest.raises(ValueError, match="not a registered module"):
-            select_modules(FakeConfig({"--module": "CNM"}), [common])
+            select_modules(SimulatedConfig({"--module": "CNM"}), [common])
 
         # AND A MODULE NO COLLECTED CASE BELONGS TO REFUSES, because the
         # alternative is a green run that measured nothing.
         with pytest.raises(ValueError, match="no collected case belongs"):
-            select_modules(FakeConfig({"--module": "ING"}), [common])
+            select_modules(SimulatedConfig({"--module": "ING"}), [common])
 
 
 class TestMQCCaseIndexSelection:
@@ -559,12 +574,12 @@ class TestMQCCaseIndexSelection:
 
         # THE SELECTOR PREFERS IT. Through the matrix this row would give three.
         items = [
-            FakeItem("MQC_EVL_EVAL_134200_a", priority=2),
-            FakeItem("MQC_EVL_EVAL_134100_b", priority=2),
-            FakeItem("MQC_EVL_EVAL_134101_c", priority=2),
+            SimulatedItem("MQC_EVL_EVAL_134200_a", priority=2),
+            SimulatedItem("MQC_EVL_EVAL_134100_b", priority=2),
+            SimulatedItem("MQC_EVL_EVAL_134101_c", priority=2),
         ]
         select_traced_cases(
-            FakeConfig({
+            SimulatedConfig({
                 "--family": "source_fidelity",
                 "--rtm": str(matrix),
                 "--case-index": str(index),
@@ -574,24 +589,24 @@ class TestMQCCaseIndexSelection:
         assert [item.name for item in items] == ["MQC_EVL_EVAL_134200_a"]
 
         # A TAG RESOLVES ONLY THROUGH THE INDEX.
-        tagged = [FakeItem("MQC_EVL_EVAL_134101_c", priority=2),
-                  FakeItem("MQC_EVL_EVAL_134100_b", priority=2)]
+        tagged = [SimulatedItem("MQC_EVL_EVAL_134101_c", priority=2),
+                  SimulatedItem("MQC_EVL_EVAL_134100_b", priority=2)]
         select_traced_cases(
-            FakeConfig({"--tag": "control", "--case-index": str(index)}), tagged
+            SimulatedConfig({"--tag": "control", "--case-index": str(index)}), tagged
         )
         assert [item.name for item in tagged] == ["MQC_EVL_EVAL_134101_c"]
 
         with pytest.raises(ValueError, match="nowhere else for it to resolve"):
             select_traced_cases(
-                FakeConfig({"--tag": "control", "--rtm": str(matrix)}),
-                [FakeItem("MQC_EVL_EVAL_134101_c", priority=2)],
+                SimulatedConfig({"--tag": "control", "--rtm": str(matrix)}),
+                [SimulatedItem("MQC_EVL_EVAL_134101_c", priority=2)],
             )
 
         # AND A TAG NO CASE CARRIES IS REFUSED BY NAME.
         with pytest.raises(ValueError, match="no case carries the tag contrl"):
             select_traced_cases(
-                FakeConfig({"--tag": "contrl", "--case-index": str(index)}),
-                [FakeItem("MQC_EVL_EVAL_134101_c", priority=2)],
+                SimulatedConfig({"--tag": "contrl", "--case-index": str(index)}),
+                [SimulatedItem("MQC_EVL_EVAL_134101_c", priority=2)],
             )
 
         # AN INDEX MISSING ITS COLUMNS IS REFUSED, rather than resolving to

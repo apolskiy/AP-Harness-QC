@@ -1,10 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Programmatic injection screening at the ingestion boundary.
+"""The injection screen that reads authored task text when a corpus is loaded.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``screen_task``, which applies every registered injection
+vector to a task's authored text fields and returns a ``ScreenFinding`` for
+each match; ``screen_corpus``, which does the same for every task in a loaded
+corpus; and the ``ScreenFinding`` record, naming the task, field, vector and an
+excerpt.
+
+**It runs over the corpus before anything is sent to a model**, so a finding
+points at a fixture an author wrote rather than at a model. A task declaring
+``contains_adversarial_content`` is passed over and logged as declared, and a
+match elsewhere is reported to the caller rather than stopping ingestion.
 
 Specified by ``docs/design/tier1_ingestion.md`` section 7. This is the first of
-three screens (A5); the others cover candidate output and judge replies and
-belong to Tiers 2 and 3.
+three screens (A5); the other two both belong to Tier 3, the candidate output
+screen in :mod:`evaluation.screening` and the judge reply validation in
+:mod:`evaluation.judge`, since Tier 2 does not screen.
 
 **What this screen is for:** catching injection-shaped content that entered our
 own fixtures by accident. It is not a defence against a hostile model, because

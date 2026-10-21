@@ -1,26 +1,28 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Verdict computation: a pure function of observations, config and a date.
+"""The run verdict, red or green with reasons, computed from a run's observations.
 
-Specified by ``docs/design/cmn_verdict_and_cli.md`` section 4.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``verdict``, which applies every registered rule to a run's
+observations under a ``VerdictConfig`` and ``Thresholds`` and returns a ``Verdict``
+carrying every ``RuleBreach``, never only the first; the rule registry
+``register_verdict_rule``, ``registered_verdict_rules`` and ``unregister_verdict_rule``;
+``evaluate_distribution``, the priority distribution check, returning a
+``DistributionReport``; and the consistency readers ``inconsistent_cases``,
+``inconsistency_rate``, ``score_spread`` and ``mixed_model_engines``.
+
+``cmn.verdict_tool`` calls ``verdict`` on a stored results file after a run, and the
+case repository's band floor tool reads it too, so the exit code a CI step gates on is
+decided here. Whether red blocks a merge is the workflow's decision, not this one's.
 
 **No clock, no filesystem, no environment.** The evaluation date is injected
 because quarantine expiry depends on it, and a function that calls ``now()``
-cannot be tested at a boundary without manipulating the machine. That property
-is what makes every rule here exercisable with synthetic observation sets.
+cannot be tested at a boundary without manipulating the machine. No metric
+divides without first testing its denominator for zero.
 
-**Every breached rule is reported, never only the first.** Short-circuiting
-would mean fixing V1 and discovering V3 on the next run, then V4 on the one
-after; for a suite whose live runs are scheduled rather than on demand, each
-rediscovery costs a cycle.
-
-**No metric divides without first testing its denominator for zero.** A zero
-denominator means the question is unanswerable, which is never the same as the
-answer being fine.
-
-**Red does not always mean blocked.** This function returns red with reasons;
-the workflow decides whether red blocks a merge. Putting that knowledge here
-would couple a pure computation to CI topology.
+Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 4, 4.7 and 4.8.
 """
 
 import logging

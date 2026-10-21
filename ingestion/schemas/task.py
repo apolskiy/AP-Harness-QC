@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What is sent to the model: the task and the records it carries.
+"""The task records, which hold everything sent to the model under test.
+
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains :class:`TaskDataSet`, which holds the prompt, the optional
+system instruction, the rubrics that judge it, its tags and its adversarial
+declaration; and the records it carries, :class:`Constraint` for an
+instruction that must be checkable, :class:`ContextDocument` for a retrieval
+payload and :class:`ToolDefinition` for a tool offered to the model.
+
+**Execution composes each provider request from a task.** Before that, the
+ingest screen reads its authored text, and
+referential integrity checks its constraints and tools against the rule sets
+that judge it.
 
 **The boundary rule**: :class:`TaskDataSet` is what is sent, and
 :class:`~ingestion.schemas.rules.GoldenRuleSet` is how the response is judged.

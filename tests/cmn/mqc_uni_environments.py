@@ -2,13 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for what a run may leave out, and what it may not skip.
 
-Covers `MQC_CMN_UNI_112344` and `112345`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+The cases here check ``cmn.environments``: that ``refuse_precondition_skips``
+fails a run in which a precondition skipped, that
+``deselect_unavailable_environments`` deselects a case whose environment scope
+is absent and counts each deselection, and that ``under_ci`` recognises a
+runner. They also check the marker registry. ``registered_markers`` reads a
+``pytest.ini`` the way pytest does and refuses one unreadable or empty, the
+marker ``mark_environment`` applies is the one the code reads, and both
+repositories' registries carry it. They drive the hooks with the doubles in
+``environment_doubles.py``.
 
 **One subject: whether a case was this run's to measure.** A case needing
 something the environment lacks is deselected, which takes it out of the total.
 Anything that reaches execution and skips is a precondition that measured
 nothing, and the run exits 3 for it (`harness_test_taxonomy.md` section 7.5.1).
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.

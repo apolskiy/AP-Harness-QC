@@ -2,8 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """System preconditions for the whole chain, from a corpus to a verdict.
 
-Covers `MQC_CMN_SYS_122000` through `122002`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 11.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+The cases here run one case end to end in replay mode, through
+``ingestion.cases.build_evaluation_cases``, ``execution.dispatch.dispatch_case``,
+``evaluation.pipeline.evaluate_observation`` and ``cmn.verdict.verdict``. They
+check that a compliant reply reaches a green verdict, that a failing reply
+reaches a red one, and that three observations of one case all reach the
+verdict.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 11.1.
 
 **This is the combined test that decides whether the harness is usable at all.**
 Every other suite here proves one stage: ingestion rejects a bad corpus,

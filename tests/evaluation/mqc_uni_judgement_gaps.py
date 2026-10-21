@@ -1,8 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Whether a judgement was available, and what a gap in the store measures.
+"""Unit cases for evaluating a response whose judgement could not be obtained.
 
-Covers `MQC_EVL_UNI_114115`, inventoried in `tier3_evaluation.md` section 6.5.
+Created: 2026-10-06
+Last updated: 2026-10-21
+
+Its cases check :func:`evaluation.pipeline.evaluate_observation` when the judge
+raises ``FixtureMissing`` or ``FixtureStale``, or the provider could not answer.
+The case is skipped as unavailable and keeps its assertion results, rather than
+failing.
+
+Specified by `tier3_evaluation.md` section 6.5.
 
 **Split from `mqc_uni_pipeline.py` on 2026-10-06**, which stood at 895 lines
 and would have passed the 1000-line ceiling with this case in it. The runway

@@ -1,16 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a run spends on a case it already knows about, and what it learns.
+"""Unit preconditions for what a run spends on quarantined cases and on dependents.
 
-Covers ``MQC_CMN_UNI_112338``, ``112339`` and ``112340``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 12 and designed in sections
-4.6.12 and 10.28.2.1.
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+The cases here check the dependency cascade in ``cmn.dependencies`` and
+``cmn.emission``: that the quarantine skip carries a registered code and counts
+as a non-pass, that a dependent of a failed foundation skips unless
+``opens_an_inquest`` holds for a gap-filling live run, and that
+``attributed_observations`` restates every observation of a dependent the
+inquest marked as ``unattributed``, an outcome that counts nowhere.
 
 **Two decisions with one subject: cost.** Quarantine stops a run paying to
-measure a result somebody already holds. Probing spends nothing extra in replay
-to learn whether a dependent carries its own defect. Both were settled by the
-project owner on 2026-10-07, and both had the same defect before: the cheap
-information was not taken and the expensive measurement was.
+measure a result somebody already holds. An inquest measures a dependent whose
+foundation failed only in a gap-filling live run, and its result is counted
+nowhere. Both were settled by the project owner, and both had the same defect
+before: the cheap information was not taken and the expensive measurement was.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 12 and sections
+4.6.12 and 10.28.2.1.
 
 A failure here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.

@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Reading a normative Markdown table, for the cases comparing a registry with it.
+"""Test helpers that read the taxonomy document's tables, for the registry comparison cases.
+
+Created: 2026-10-15
+Last updated: 2026-10-21
+
+This file provides ``table_after``, which returns the first Markdown table after a
+heading as one mapping per row, ``bare`` and ``yes`` for reading a cell,
+``ranked_codes`` for every finding code the harness ranks, and
+``layer_table_problems`` and ``outcome_table_problems``, which list every way the
+layer and outcome registries disagree with their tables.
+
+They serve ``mqc_uni_registry_tables.py``, whose cases compare each code registry
+with the table in ``TAXONOMY`` that states it.
 
 Specified in ``docs/design/harness_test_taxonomy.md`` sections 3, 4.1.0, 6.5
 and 7.4.0.

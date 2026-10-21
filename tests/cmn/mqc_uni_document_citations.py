@@ -2,8 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 """Unit preconditions for citations between this repository's documents.
 
-Covers `MQC_CMN_UNI_112352`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.2.
+Created: 2026-10-12
+Last updated: 2026-10-21
+
+The cases here check ``cmn.document_citations``: that
+``unresolved_citations`` reports a citation whose section is not a heading in
+its target and ``duplicate_sections`` a section numbered twice, and that a
+section number with an inner letter is read whole. They also check that
+``cmn.document_standards.changelog_problems`` reports a README without a
+changelog.
 
 **A citation is how this project avoids restating a decision twice**, and the
 designs make roughly two hundred of them. So a citation resolving to nothing is
@@ -14,7 +21,8 @@ reader nowhere and they know it. A duplicate number resolves, so nothing reports
 it: `cmn/registries.py` cited `harness_test_taxonomy.md` section 6.4 twice, in
 two comments, meaning two different sections.
 
-Specified by ``.claude/rules/code-style.md`` section 7.3.
+Specified by ``.claude/rules/code-style.md`` section 7.3 and
+``docs/design/cmn_verdict_and_cli.md`` section 10.2.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.

@@ -1,9 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What the mutation audit refuses to measure, and what it leaves behind.
+"""Unit tests for the safeguards of the mutation audit tool itself.
 
-Covers ``MQC_CMN_UNI_112363`` and ``112364``, inventoried in
-``cmn_verdict_and_cli.md`` section 10 and specified by
+Created: 2026-10-14
+Last updated: 2026-10-21
+
+Its cases check ``tools/mutation_audit.py``. ``baseline_problem`` refuses a
+module not matching its declared digest, ``declare_digest`` writes a digest
+without losing the recorded reasons, and a control rewrite leaves a recoverable
+backup. ``acquire_lock`` refuses a module a live audit holds and clears one a dead
+audit left, an audit reads no standard input, and a control that raises leaves no
+backup. One case reads the Gate 8 workflow and checks it runs the audit on a
+harness update.
+
+The audit rewrites production modules in place, so these safeguards decide
+whether a crash or a second audit can leave the harness damaged or measured
+against the wrong source.
+
+Specified by ``cmn_verdict_and_cli.md`` section 10 and
 ``harness_test_taxonomy.md`` sections 15.5 and 15.10.
 
 **These are about the instrument rather than the suite.** The `MUT` cases ask

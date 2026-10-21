@@ -1,9 +1,26 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for RTM integrity, in both directions.
+"""Unit tests for the requirements traceability matrix and the requirement register.
 
-Covers `MQC_CMN_UNI_112300` through `112302` and `112304`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check ``cmn/traceability.py``. ``check_matrix_integrity`` runs checks
+T1 to T5, reporting a row with no test, a row naming an absent test, a test citing
+an unknown requirement, a declared requirement with no row, and families
+disagreeing with the inventory, and it runs every check rather than stopping at
+the first. ``shared_columns`` and ``model_only_columns`` fix the matrix schema,
+the live harness matrix passes every check, and ``untraced_tests`` reports a test
+missing from either matrix. For the requirement register, a requirement
+declared twice is reported, ``register_pressure`` reports a register at eighty
+percent of its ceiling, and the shipped matrices are read to report a register
+token that is also a module code.
+
+These checks are how a requirement is shown to be tested and a test shown to
+serve a requirement, so a gap here leaves the matrix looking complete while part
+of the relation goes unchecked.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 **Two directions, structurally identical to Tier 1's R2 and R3 one level up.**
 Every declared thing must be verified, and every verification must trace to

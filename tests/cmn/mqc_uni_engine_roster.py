@@ -1,11 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Which engines a run may name, and which list decides.
+"""Unit preconditions for which engines a run may name, and which list decides.
 
-Covers ``MQC_CMN_UNI_112149``, ``112150``, ``112366`` and ``112367``,
-inventoried in ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed
-in ``tier2_execution.md`` section 3.5.1 and ``harness_ci_pipeline.md`` sections
-8.5 and 8.5.4.
+Created: 2026-10-04
+Last updated: 2026-10-21
+
+The cases here check that ``adapter_for`` in the adapter registry, and not a
+copy of its names on ``--engine``, refuses an unknown engine, that
+``cmn.pytest_support.require_rostered_engine`` refuses one off the roster
+``cmn.config.load_engines`` reads before it runs, and that
+``cmn.workflow_standards`` reports a workflow engine list off the roster and a
+live workflow missing an engine's credential key.
+
+The roster sets each engine's model, observation count and request spacing, so
+an engine running without an entry would dispatch against its adapter's own
+default and measure something nobody configured.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and
+``tier2_execution.md`` section 3.5.1 and ``harness_ci_pipeline.md`` sections 8.5
+and 8.5.4.
 
 **Written 2026-10-04, when rostering a fourth engine found two defects one
 after the other.** `--engine` enumerated three engines in the option registry,

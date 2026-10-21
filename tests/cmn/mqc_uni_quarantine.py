@@ -1,6 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""V5 and the quarantine model it reads: expiry, provenance and the record.
+"""Unit tests for quarantine, the record that excuses a known failure until it expires.
+
+Created: 2026-10-02
+Last updated: 2026-10-21
+
+Its cases check verdict rule V5 in ``cmn/verdict.py`` and the code around it. An
+entry expires after its twenty-day window, checked on each side of the bound, or when
+its model changed, and an unconfirmed entry is honoured but never turns a run red.
+``load_quarantine_for`` treats an absent file as an empty quarantine,
+``quarantine_digest`` records which file was consulted, a malformed ticket
+reference is reported, and ``main`` in ``cmn/verdict_tool.py`` carries the named
+evaluation date to the expiry. ``reconcile`` in ``cmn/quarantine.py`` decides each
+entry from what a run observed, and ``report_exclusions`` says which bands a pass
+left out.
+
+The verdict reads the quarantine when it decides red or green, and an expired
+entry fails the run, so a known failure stays excused only while its window is
+open and its model unchanged.
 
 Its cases are listed in the block below, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in

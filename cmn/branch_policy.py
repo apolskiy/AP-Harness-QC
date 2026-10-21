@@ -1,6 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a branch may be called, how long it may live, and where it may merge.
+"""Branch policy checks, what a branch may be called, how long it lives, where it merges.
+
+Created: 2026-09-24
+Last updated: 2026-10-21
+
+This file contains ``parse_branch``, which reads a working branch name into a
+``Branch``, and the checks that report on one: ``name_problems`` for the naming
+grammar, ``referent_problems`` for a case referent naming no inventoried case,
+``staleness`` and ``staleness_problems`` for age, ``route_problems`` for a merge
+outside the one route into ``main``, and ``back_merge_problems`` for ``main``
+merged into a branch.
+
+Each returns a list of problems, empty when the policy holds. Precondition cases
+in both repositories call them with names, dates and merge records they supply,
+so the policy is checked without reading git.
+
+**No workflow calls these yet, by decision.** The policy keeps unstable or
+untested builds out of ``main`` and is switched on, by a pull-request job and
+branch protection on ``main``, once the demo is finalized and ready for
+expansion (section 3C.6.7).
 
 Specified by ``docs/design/harness_ci_pipeline.md`` section 3C.6.
 

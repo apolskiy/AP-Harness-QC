@@ -1,11 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Repeat observations that disagree, and what a run does about it.
+"""Unit preconditions for repeat observations that disagree, and what a run does about it.
 
-Covers the cases design section 4.9 specifies: a case whose observations
-disagree is a finding, enough of them unsound the run, a score moving inside
-the passing band is recorded and gates nothing, and a single failure earns two
-further observations.
+Created: 2026-10-01
+Last updated: 2026-10-21
+
+The cases here check ``cmn.verdict`` and ``cmn.observations``:
+``inconsistent_cases`` reports a case whose observations disagree,
+``inconsistency_rate`` at the ceiling makes ``verdict`` unsound, a score moving
+inside the passing band is recorded and gates nothing, ``further_observations``
+gives any failure two more, and ``score_spread`` needs exactly two scores. They
+also check that ``cmn.replay_audit.divergent_recordings`` reports a case whose
+recordings disagree on the request.
+
+The verdict reads these outcomes as a measurement of the model, so these cases
+decide whether a model answering one question several ways is reported rather
+than averaged away.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 4.9.
 
 **Split from ``mqc_uni_verdict.py`` on 2026-10-01**, which crossed the
 thousand-line ceiling. The two subjects are separable: that module decides what

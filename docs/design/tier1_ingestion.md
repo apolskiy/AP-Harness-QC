@@ -130,11 +130,13 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 
 **Invariant G8, added 2026-10-18:** `judge_response_only` true requires a `rubric`. The flag says how a rule is judged, so a rule carrying nothing to judge with states something about itself that cannot happen. `MQC_ING_UNI_111350` holds it.
 
+**Invariant G10, added 2026-10-19:** a rubric declaring `planted_score` belongs to a rule with `judge_response_only` true. Only that rule's judge reads an answer to the attack, so a planted score anywhere else names a fingerprint no judgement can carry (`tier3_evaluation.md` section 4C.5). `MQC_ING_UNI_111354` holds it.
+
 **`vectors` is a mapping and not a list**, which is the project owner's shape and buys two things. A vector explicitly `false` records that somebody considered it, where absence from a list records nothing. And only the true entries need carrying into a log or an artifact, so the record is the size of what is true rather than the size of the registry. `AP-Model-QC` `model_evaluation_test_plan.md` section 9.10.3.1 carries the decision and what it cost to reach.
 
 **Optional, and empty for every rule outside the security family.** The field answers a question only an attack payload raises, and `GoldenRuleSet` already serves two readers that each ignore most of it.
 
-**Every invariant in this document emits `QC_DATA_INVARIANT_VIOLATION`**, the code registered for data that is structurally complete and semantically contradictory. G1 through G6 and R1 through R5 share it because they share a fix: the author has to rethink the rule set rather than correct a name or a file. See `harness_test_taxonomy.md` section 6.3.1.
+**Every invariant in this document emits `QC_DATA_INVARIANT_VIOLATION`**, the code registered for data that is structurally complete and semantically contradictory. G1 through G6 and R1 through R6 share it because they share a fix: the author has to rethink the rule set rather than correct a name or a file. See `harness_test_taxonomy.md` section 6.3.1.
 
 **Consumers differ by field.** `GoldenRuleSet` serves two readers, and neither reads all of it:
 
@@ -167,8 +169,11 @@ Three validations at ingest:
 | `threshold` | `float` | ✓ | - |
 | `aggregation` | `str` | | `weighted_mean` |
 | `aggregation_params` | `dict[str, Any]` | | `{}` |
+| `planted_score` | `Optional[int]` | | `None` |
 
 **Invariant G2:** `criteria` is non-empty.
+
+**Invariant G9, added 2026-10-19:** `planted_score`, where present, is an integer from 1 to 5 that no criterion authors as an anchor level. It is the value a case's payload asks the judge for, and a value the rubric anchors is one the judge returns for honest reasons, so its return would prove nothing (`tier3_evaluation.md` section 4C.5). `MQC_ING_UNI_111352` and `111353` hold it.
 
 ### 3.7 `RubricCriterion`
 
@@ -404,7 +409,7 @@ named or nothing, and the consumer substitutes its own.
 
 ## 6. Referential Integrity
 
-Five checks, run **after** the join because they need both sides. Every violation emits `QC_DATA_INVARIANT_VIOLATION` at ERROR and aborts ingestion.
+Six checks, run **after** the join because they need both sides. Every violation emits `QC_DATA_INVARIANT_VIOLATION` at ERROR and aborts ingestion.
 
 | # | Check | Catches |
 |---|---|---|
@@ -501,7 +506,7 @@ the data-level guard that stops the pair being constructed again.
 
 ## 7. Injection Screening at Ingest
 
-The first of three screens (A5). The others, candidate output, judge reply, belong to Tiers 2 and 3.
+The first of three screens (A5). The other two both belong to Tier 3, the candidate output screen and the judge reply validation, since Tier 2 does not screen.
 
 **Purpose here:** catch injection-shaped content that entered our own fixtures accidentally.
 
@@ -958,6 +963,10 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111330` | N | `a_declared_adversarial_task_with_a_rubric_is_refused` |
 | `111350` | N | `a_response_only_rule_without_a_rubric_is_refused` (3.5, G8) |
 | `111351` | B | `a_declared_task_with_a_response_only_rubric_loads` (6.6) |
+| `111352` | N | `a_planted_score_at_an_anchored_level_is_refused` (3.6, G9) |
+| `111353` | B | `a_planted_score_of_six_is_refused` (3.6, G9) |
+| `111354` | N | `a_planted_score_without_a_response_only_judgement_is_refused` (3.5, G10) |
+| `111355` | P | `a_response_only_rule_planting_an_unanchored_score_loads` (3.6) |
 | `111331` | N | `a_rule_set_naming_an_unregistered_family_is_reported` |
 
 ### 13.2 `MQC_ING_SYS_`: integration
@@ -1029,7 +1038,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 117 cases, 56 negative, 37 positive, 24 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 121 cases, 58 negative, 38 positive, 25 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

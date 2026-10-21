@@ -1,7 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""System preconditions for engine routing, mode selection and one shared shape.
+"""System cases for dispatching a case to a named engine and receiving one record shape.
 
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :func:`execution.dispatch.dispatch_case` with the adapter
+registry in :mod:`execution.adapters.registry`. One request is sent per case
+with no loop, an engine name routes to its declared adapter and an unknown one
+is rejected, the mode flag selects live or replay independently of the engine,
+and every adapter produces the same ``NormalizedResponse`` shape.
+
+These run at Gate 3, and the record they check is what Tier 3 evaluates.
 Covers `MQC_EXE_SYS_123000` through `123004`, inventoried in
 ``docs/design/tier2_execution.md`` section 10.2.
 

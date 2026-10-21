@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Whether the model invoked what it was told to, and nothing it was not.
+"""Checks the tool calls a model made against the tools its rule set required and forbade.
+
+Created: 2026-09-24
+Last updated: 2026-10-21
+
+This file contains ``evaluate_tool_compliance``, which compares the captured
+tool calls with the rule set's tool expectation and the tools the task
+offered, and returns one assertion result per violation: a required tool
+never called, a forbidden tool called, a tool the model invented, or
+arguments that break the tool's declared parameter schema.
+
+**The pipeline runs it alongside the programmatic assertions**, before any
+judge, and its results join theirs. A violation fails the case and keeps the
+judge out on the same terms as any other assertion failure, and a case with no
+tool expectation gets no results at all.
 
 Specified by ``docs/design/tier3_evaluation.md`` section 5B.
 

@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Per-adapter cases covering each provider's own conventions.
+"""Unit cases for what each provider adapter does differently from the others.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check the adapters in ``execution/adapters/``, ``ClaudeAdapter``,
+``OpenAIAdapter``, ``GeminiAdapter`` and ``GrokAdapter`` on the shared
+``OpenAICompatibleAdapter``. They cover how each maps refusals, finish reasons,
+system instructions, errors and token usage, Gemini's blocked prompts and
+disabled automatic function calling, an engine inheriting a shared wire
+protocol without sharing its credential, and engine roles read from the
+registry.
 
 Its cases are listed in the block below, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.3.
@@ -12,8 +23,6 @@ code or dropping a system instruction, because the contract cannot know what
 each implementation was supposed to do internally.
 
 **Every case here names a real difference between the three providers**, taken
-from ingestion.schemas import EvaluationCase
-from typing import Any
 from their published API documentation rather than from a recorded call. A case
 that merely restated the shared contract would belong in the battery, where it
 would run against all three instead of one.

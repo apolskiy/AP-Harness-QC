@@ -1,9 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for structural isolation, the module's security control.
+"""Unit cases for keeping untrusted text out of the judge's instructions.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier3_evaluation.md`` section 11.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :func:`evaluation.isolation.compose_judge_request`. The candidate
+output, the task instruction and the context documents each appear only in a
+data field, an injection through any of them never reaches the instruction text,
+and ordinary and adversarial cases are isolated alike. They also check what the
+instruction carries, no priority and no requirement identifiers, the meaning of
+levels two and four, and a reply schema naming every criterion.
+
+Every judge request the pipeline sends is composed here, so a defect in this
+module exposes every judged case to the content it is judging. Its cases are
+listed in the block below, inventoried in ``docs/design/tier3_evaluation.md``
+section 11.1.
 
 **Isolation is the control; the screen is a detector.** These cases assert the
 control, which is why `114301` is foundational: if untrusted content can reach

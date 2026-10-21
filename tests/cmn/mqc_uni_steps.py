@@ -1,9 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A graded case's steps, the phases beneath each, and where it stopped.
+"""Unit tests for the step ledger that reports where a graded case stopped.
 
-Covers ``MQC_CMN_UNI_112336``, ``112337`` and ``112388`` to ``112390``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 12 and specified by
+Created: 2026-10-07
+Last updated: 2026-10-21
+
+Its cases check ``cmn/steps.py`` through ``ledger``, ``case_steps``,
+``observation_step``, ``stopped_at``, ``stopped_line``, ``step_lines`` and
+``summary``, with ``escalation_size`` from ``cmn/observations.py``. A ledger names
+every step and the phase it stopped at, and a rule without a rubric, or without
+programmatic checks, reports the steps it has no use for as inapplicable. Each
+observation step verifies one request, escalation steps not taken are recorded as
+not run, and the last step verifies only the agreement. One case checks that
+``announce_test`` in ``cmn/pytest_support.py`` logs a case's node identifier
+before it runs.
+
+The ledger is what an engineer reads after a graded case fails partway, so it
+decides whether a provider timeout can be told apart from a model answering
+wrongly.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 12 and
 ``docs/design/harness_test_taxonomy.md`` section 8.
 
 **Section 8 specified this from the project's beginning and nothing emitted a
@@ -21,6 +37,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCStepLedger
 #   112336  a_ledger_names_every_step_and_the_phase_it_stopped_at
 #   112337  a_rule_without_a_rubric_reports_its_judge_steps_inapplicable
+#   112398  a_rubric_only_rule_reports_its_check_step_inapplicable
 # TestMQCCaseSteps
 #   112388  an_observation_step_verifies_one_request
 #   112389  escalation_steps_not_taken_are_recorded_as_not_run
@@ -190,6 +207,38 @@ class TestMQCStepLedger:
         )
         assert halt.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING", (
             f"the missing judgement does not name its code: {halt}"
+        )
+
+    def MQC_CMN_UNI_112398_a_rubric_only_rule_reports_its_check_step_inapplicable(
+        self,
+    ) -> None:
+        """A judged rule carrying no assertion did not stop before its judgement.
+
+        Design: ``harness_test_taxonomy.md`` section 8.2.1.
+
+        Returns:
+            None
+        """
+        # A JUDGED RULE THAT DECLARES NO ASSERTION reaches its judge.
+        entries = ledger(dispatched(), evaluated(assertion_results=[]))
+        check = [entry for entry in entries if entry.number == 5]
+        assert all(entry.outcome == "not applicable" for entry in check), (
+            f"a rubric-only rule reports its check step as "
+            f"{[entry.outcome for entry in check]}, not as inapplicable"
+        )
+
+        assert stopped_at(entries) is None, (
+            "a judged rubric-only rule is reported as having stopped before its judge"
+        )
+
+        # AND A RESULT NEITHER JUDGED NOR CARRYING AN ASSERTION is still a stop,
+        # or this exemption would swallow a check that never ran.
+        unjudged = ledger(dispatched(), evaluated(
+            assertion_results=[], score=None, judge_skipped_reason="no_judge_configured",
+        ))
+        halt = stopped_at(unjudged)
+        assert halt is not None and halt.number == 5, (
+            f"a result that measured nothing is not reported as a stop at step 5: {halt}"
         )
 
 

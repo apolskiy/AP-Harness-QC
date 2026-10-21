@@ -1,7 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the ingest screen, the registries and invariant G5.
+"""Unit cases for the ingest injection screen, two registries, and the case record.
 
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :func:`ingestion.screening.screen_task`, which flags override,
+zero-width and delimiter-escape vectors in a task, names each finding's field,
+passes ordinary prose and is bypassed for a declared adversarial case. They
+check the aggregation and constraint-kind registries in :mod:`cmn.registries`,
+and that ``EvaluationCase`` in :mod:`ingestion.schemas` stays a frozen record
+with no public methods and no import from a later tier (invariant G5).
+
+The ingest screen warns about our own fixtures before anything is dispatched.
 Covers `MQC_ING_UNI_111100` through `111107`, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.1.
 

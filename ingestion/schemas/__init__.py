@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Frozen schema records and the validation applied at the ingestion boundary.
+"""The typed records every loaded task and rule set becomes, under one import.
+
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This package re-exports every schema record from the files that define them:
+the task side, :class:`TaskDataSet` with :class:`Constraint`,
+:class:`ContextDocument` and :class:`ToolDefinition`; the rule side,
+:class:`GoldenRuleSet` with :class:`ProgrammaticAssertion`,
+:class:`ToolExpectation`, :class:`Rubric`, :class:`RubricCriterion` and
+:class:`Anchor`; the joined :class:`EvaluationCase`; and
+``canonical_identifier``.
+
+**The loaders build these records, and everything downstream reads them.**
+Execution sends a task, evaluation judges against a rule set, and a record
+that fails validation raises at load, so nothing later sees malformed data.
 
 Specified by ``docs/design/tier1_ingestion.md`` sections 3 and 5. Every record
 is a frozen dataclass with a ``from_dict`` classmethod, because an ingested

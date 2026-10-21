@@ -1,14 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Each code registry agrees with the taxonomy table it mirrors.
+"""Unit tests that compare the code registries with the taxonomy document's tables.
 
-Covers `MQC_CMN_UNI_112368` through `112371`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-10-15
+Last updated: 2026-10-21
 
+Its cases check ``cmn/layers.py`` and ``cmn/registries.py`` against the tables in
+``harness_test_taxonomy.md``, using the parsers in ``tests/cmn/table_support.py``.
 The layer, outcome, priority condition and criticality registries exist twice,
-once as a normative table and once as the code the harness runs. Each case
-compares the two in both directions. A failure here is **not a model finding**,
-so the module carries no priority marker.
+once as a normative table and once as the code the harness runs, and each case
+compares the two in both directions. Further cases report a registered code
+absent from the taxonomy, and refuse a layer whose identifier block touches
+another's at its bound.
+
+The harness runs on the code and a reader of the design works from the tables,
+so a disagreement means the run applies a rule the document does not state.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
+
+A failure here is **not a model finding**, so the module carries no priority marker.
 """
 
 # ------------------------------------------------------------- cases in here

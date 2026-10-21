@@ -2,6 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """Stand-ins for the pytest objects the CLI cases drive.
 
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+This file contains ``RecordingParser``, a parser double that records the
+options a hook registers, ``plugin_registrations``, which runs the repository's
+``conftest.pytest_addoption`` against one, and ``SimulatedInvocationParams`` and
+``SimulatedConfig``, which
+carry the raw arguments and option values of a run. The cases in
+``mqc_uni_cli.py`` use them to check the option registry and the invocation
+record without starting pytest.
+
 Specified by ``harness_test_taxonomy.md`` section 13.
 
 **Extracted 2026-10-05**, when ``mqc_uni_cli.py`` stood at 965 lines against
@@ -85,7 +96,7 @@ def plugin_registrations() -> RecordingParser:
     recorder = RecordingParser()
     conftest.pytest_addoption(recorder)
     return recorder
-class FakeInvocationParams:
+class SimulatedInvocationParams:
     """The raw arguments pytest records for a run.
 
     Attributes:
@@ -104,7 +115,7 @@ class FakeInvocationParams:
         self.args = args
 
 
-class FakeConfig:
+class SimulatedConfig:
     """Enough of pytest's config to exercise the invocation record.
 
     **Built here rather than through a pytest run** because the question is what
@@ -133,7 +144,7 @@ class FakeConfig:
         Returns:
             None
         """
-        self.invocation_params = FakeInvocationParams(args)
+        self.invocation_params = SimulatedInvocationParams(args)
         self._values = values
         self.option = SimpleNamespace(**(option_values or {}))
         self.mqc_invocation: Any = None

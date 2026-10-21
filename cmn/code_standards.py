@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The code-style rules that no linter checks, as functions over a tree.
+"""Code standards checks, the style rules pylint cannot express, run over a source tree.
+
+Created: 2026-09-23
+Last updated: 2026-10-21
+
+This file contains ``annotation_gaps`` and ``future_annotation_imports`` for the
+annotation rules; ``header_problems`` and ``markup_header_problems`` for SPDX
+headers; ``encoding_gaps`` for a file opened with no encoding;
+``unfrozen_records`` for an undeclared mutable dataclass;
+``identifier_block_problems`` for a case whose digits contradict its tokens;
+``artifact_mandate_gaps`` for a workflow step emitting one mandated artifact
+without the other; ``flag_coverage_problems`` for a flag no case proves; and
+the readers ``python_sources``, ``markup_sources``, ``section_lines`` and
+``required_result_fields``.
+
+Precondition cases in both repositories call these with their own root and
+licence, and a violation fails the unit layer.
 
 Extracted 2026-09-23, when the rules had to apply to two repositories rather
 than one.

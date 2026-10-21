@@ -1,8 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the YAML and CSV loaders.
+"""Unit cases for reading task and rule files from YAML and CSV.
 
-Covers `MQC_ING_UNI_111200` through `111213`, inventoried in
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`ingestion.loaders`. :func:`load_corpus` loads each file by
+its format and refuses a rules CSV or an empty corpus. The CSV loader rejects
+duplicate, unknown and missing required columns, applies defaults to blank cells
+and absent optional columns, keeps leading zeros, reads a blank cell as an empty
+string, strips surrounding whitespace and tolerates a BOM. The YAML loader
+rejects unparseable or wrongly shaped documents, and
+:func:`assert_loaders_agree` reports a divergence between the two.
+
+Everything later in the run starts from what these loaders return. Covers
+`MQC_ING_UNI_111200` through `111213`, inventoried in
 ``docs/design/tier1_ingestion.md`` section 13.1.
 
 **The CSV cases carry most of the weight**, because CSV is where the loaders

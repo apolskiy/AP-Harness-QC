@@ -1,6 +1,25 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The post-execution screen, and what a hit means here.
+"""The injection screen, which reads a model's response before anything evaluates it.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``screen_response``, which applies every registered
+injection vector to a candidate output and decides whether the evaluation
+stops; ``screen_text``, which applies the vectors to one piece of text; and the
+two records they return, ``ResponseFinding``, one match located by field and
+span, and ``ScreenDecision``, every finding with the abort decision and the
+taxonomy code to record.
+
+**The screen is the first step of evaluating a response**, called by
+:func:`evaluation.pipeline.evaluate_observation` before isolation, the
+assertions and the judge. On an ordinary case a hit aborts the evaluation,
+records ``QC_SEC_INJECTION_ATTEMPT`` and keeps the content away from the judge,
+since there is nothing to score. On a declared adversarial case a hit is
+recorded and the response continues to the assertions, which grade it. A rule
+judged on its answer alone is screened as an ordinary case, with a rejected
+report of an instruction override passed over.
 
 Specified by ``docs/design/tier3_evaluation.md`` section 3.2.
 
@@ -96,13 +115,17 @@ class ScreenDecision:
         return sorted({finding.vector for finding in self.findings})
 
 
-def screen_text(case_id: str, field_name: str, text: str) -> list[ResponseFinding]:
+def screen_text(
+    case_id: str, field_name: str, text: str, *, exempt_reports: bool = False
+) -> list[ResponseFinding]:
     """Apply every registered vector to one piece of evaluated text.
 
     Args:
         case_id (str): Which case the text belongs to.
         field_name (str): Which field it came from.
         text (str): The text to screen.
+        exempt_reports (bool): Pass over a rejected report of an instruction
+            override (``tier3_evaluation.md`` section 5.2.6).
 
     Returns:
         list[ResponseFinding]: One finding per vector that fired.
@@ -116,12 +139,13 @@ def screen_text(case_id: str, field_name: str, text: str) -> list[ResponseFindin
             start=match.start,
             end=match.end,
         )
-        for match in match_vectors(text)
+        for match in match_vectors(text, exempt_reports=exempt_reports)
     ]
 
 
 def screen_response(
-    case_id: str, text: str, *, declared_adversarial: bool = False
+    case_id: str, text: str, *, declared_adversarial: bool = False,
+    exempt_reports: bool = False,
 ) -> ScreenDecision:
     """Screen candidate output and decide what a hit means.
 
@@ -130,6 +154,8 @@ def screen_response(
         text (str): The candidate output.
         declared_adversarial (bool): Whether the case declares that it carries
             a payload on purpose.
+        exempt_reports (bool): Whether a rejected report of an instruction
+            override passes, as on a rule judged on its answer alone.
 
     Returns:
         ScreenDecision: **An ordinary case aborts on a hit**, because there is
@@ -138,7 +164,7 @@ def screen_response(
         assertions**, because a case built to carry a payload would otherwise
         discard the very measurement it exists to produce.
     """
-    findings = screen_text(case_id, "candidate_output", text)
+    findings = screen_text(case_id, "candidate_output", text, exempt_reports=exempt_reports)
     if not findings:
         return ScreenDecision(case_id=case_id, findings=[], aborts=False)
 

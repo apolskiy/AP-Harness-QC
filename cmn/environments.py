@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Which environment a case needs, and what happens where it is absent.
+"""Environment scopes, which deselect a case where what it needs is absent.
+
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+This file contains ``mark_environment`` and ``environment_marker``, which a case uses
+to declare a scope; ``registered_environment_scopes``, ``scope_available``,
+``declared_scopes`` and ``unavailable_here``, which decide whether a scope holds here;
+``deselect_unavailable_environments``; ``refuse_precondition_skips``, which fails a run
+where an ungraded precondition skipped; ``is_precondition``; ``under_ci``; and
+``registered_markers``, which reads the markers a ``pytest.ini`` registers.
+
+Both repositories' ``conftest.py`` deselect at collection and refuse at session end, so
+a case that cannot run here leaves the total rather than skipping, and a precondition
+skip exits 3.
 
 Specified in ``docs/design/harness_test_taxonomy.md`` section 7.5.1.
 

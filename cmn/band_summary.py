@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a band run established, in the band's own terms.
+"""Band result summary, what one priority band's run established, in its own terms.
+
+Created: 2026-10-06
+Last updated: 2026-10-21
+
+This file contains ``result_lines``, which renders a band's result as a header and one
+labelled fact per line, with the ``Alarms`` printed only when nonzero; ``pass_rate``,
+over the execution or the total denominator; ``band_label``; ``skipped_cases_from``,
+``skip_reasons_from`` and ``skip_detail_lines``, which name each skip and its reason;
+and ``band_table``, a per-band Markdown table with totals.
+
+Both repositories' ``conftest.py`` print ``result_lines`` at the end of a run, and the
+case repository's band report and band floor tools use the rest, so a band job reports
+its own denominator instead of pytest's deselected count.
 
 Specified by ``docs/design/cmn_verdict_and_cli.md`` section 7.11.
 

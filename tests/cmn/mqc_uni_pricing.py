@@ -1,9 +1,23 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for what a run cost.
+"""Unit tests for pricing a run's token usage.
 
-Covers `MQC_CMN_UNI_112232` through `112238`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 12.
+Created: 2026-09-28
+Last updated: 2026-10-21
+
+Its cases check ``cmn/pricing.py``. ``load_price_table`` and ``stale_prices``
+report a price window that has closed, price a published increase from its own
+date, give no figure for an unpriced model, and price a dated snapshot as its
+base model. ``cost_of`` bills thinking at the output rate and discounts cached
+input without counting it twice, and ``cost_report`` reports a judge's cost apart
+from its candidate's, counts nothing for a replayed observation, and counts a
+shared case toward every family it addresses.
+
+``execution/dispatch.py`` prices each dispatch with ``cost_of`` to keep a
+budgeted run inside its spend ceiling, and ``cost_report`` turns a run's
+observations into what each case and family cost.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 12.
 
 **Every case here prices a fixed usage against a fixed table on a fixed date.**
 Cost is a pure function of those three, for the reason the verdict is: a figure

@@ -1,6 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""What a quarantine entry is, and when it stops holding.
+"""Quarantine entries, the cases excluded from the pass rate, and when they lapse.
+
+Created: 2026-10-02
+Last updated: 2026-10-21
+
+This file contains ``QuarantineEntry``, one excluded case with its provenance;
+``reconcile``, which decides after a re-observation whether an entry is dropped,
+re-stamped or left undecided; ``released_by_dispensation`` and
+``dispensed_ids``, which read an announced release acceptance; and
+``excluded_bands``, which reports each quarantined case that ran and its band.
+
+``cmn.verdict`` reads these to take quarantined cases out of the pass-rate
+denominator, and ``cmn.config`` loads the entries a run applies. A quarantined
+case still runs and is reported; only the denominator changes.
 
 Specified in ``docs/design/cmn_verdict_and_cli.md`` section 4.6.
 

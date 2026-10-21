@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for the fixture store and the request hash.
+"""Unit cases for storing recorded responses and finding them again by request hash.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier2_execution.md`` section 10.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`execution.replay`. :func:`hash_request` hashes a request
+alike across line endings and differently when it changes. The fixture store
+replays three recorded observations, reports ``FixtureStale`` for a moved hash
+and ``FixtureMissing`` for an absent or unreadable fixture, stores the request
+it sent, and reports a credential-shaped value. Dispatch turns a missing
+fixture into a skip.
+
+Every replay-mode run reads its responses from this store, so a defect here
+replays an answer to a different question. Its cases are listed in
+the block below, inventoried in ``docs/design/tier2_execution.md`` section 10.1.
 
 **The hash is what makes replay honest.** Locating a fixture by identity keeps
 it findable; verifying it by hash keeps it truthful. Without the hash, changing

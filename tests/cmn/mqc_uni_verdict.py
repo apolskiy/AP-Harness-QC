@@ -1,6 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for verdict computation.
+"""Unit tests for the run verdict, the red or green decision on a corpus of results.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check ``verdict`` and ``evaluate_distribution`` in ``cmn/verdict.py``
+rule by rule. They cover the priority gate (V1) on a P0, P1 or P2 failure, the
+pass floor at exactly ninety percent, every way a run can measure nothing (V6),
+what each denominator leaves out, and a precondition failure or skip blocking
+graded evaluation. They also cover reporting every breached rule, purity and no
+clock read, the priority distribution ceilings, and the soundness conditions
+that make a broken or incomplete run exit 3.
+
+The verdict tool runs this function on a finished run's observations, and its
+result is the exit code, so it decides whether a run reads as green, as a model
+that underperformed, or as a run that measured nothing trustworthy.
 
 Its cases are listed in the block below, inventoried in
 ``docs/design/cmn_verdict_and_cli.md`` section 10.

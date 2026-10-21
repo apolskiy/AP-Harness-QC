@@ -36,9 +36,9 @@
 # the declaration true again.
 survivors:
   cmn/verdict.py:
-    digest: 8937d69896c289abe6f4e51ecc94127b5d413b354e93a38d487e3b1e1c42611c
+    digest: 3fe07d74bf5e34f19d79ce555176567de1453d051e3fa514f4364ab17583d5ff
     accepted:
-      - mutation: "line 732: False to True"
+      - mutation: "line 734: False to True"
         kind: equivalent
         reason: >-
           The V2 pass-floor rule returns no breach when there is no rate to
@@ -48,7 +48,7 @@ survivors:
           rather than asserted because the assertion would pin a breach list
           on a path whose only reader is this file.
         expires_on: 2026-12-31
-      - mutation: "line 837: True to False"
+      - mutation: "line 839: True to False"
         kind: equivalent
         reason: >-
           The third `_NOTHING_MEASURED` branch, on an empty skip denominator.
@@ -59,26 +59,26 @@ survivors:
           so rather than a case pretending to cover it.
         expires_on: 2026-12-31
   cmn/threshold_domain.py:
-    digest: 87f43c40eaf092d4778428e05f9dc4ad37e991f6ca68d8f456f6247cfc153441
+    digest: d254883493eb1c34d3aca3fbc5897cc41b6c5aad2cb1e8448901df25e9645b50
   cmn/layers.py:
-    digest: f5f71a25cd486b2fb526e96e2ccb006aa1ce6c84e79e4b4cc4f343ccbcb3bb8e
+    digest: 92f251267b12456eab51f94adfec5b6bd2db0b18bb312b59d5fb12f3fb7d0519
   cmn/registries.py:
-    digest: 3246dacc7f2d7fb41a9a461cdcddbd942633b35a299ea61eb30ffb0de35efa69
+    digest: 196fe032559f5ee41e1268d688d2185c961075ebbffe35ca7bcd29d199235af3
     accepted:
-      - mutation: "line 456: 1 to 2"
+      - mutation: "line 472: 1 to 2"
         kind: equivalent
         reason: >-
           An unranked code sorts after every ranked group at the last rank plus
           one or plus two alike; the design asks only that it sort last
           (taxonomy section 6.5), and unranked_codes is what fails on one.
         expires_on: 2026-12-31
-      - mutation: "line 733: 1 to 2"
+      - mutation: "line 749: 1 to 2"
         kind: equivalent
         reason: >-
           The stem is the first element of the split, and maxsplit 1 and 2
           give the same first element for every string.
         expires_on: 2026-12-31
-      - mutation: "line 810: Or to And"
+      - mutation: "line 826: Or to And"
         kind: equivalent
         reason: >-
           The two guards differ only for a status equal to True, which is 1,
@@ -86,24 +86,24 @@ survivors:
           returns None either way.
         expires_on: 2026-12-31
   cmn/band_summary.py:
-    digest: 797689824fe0350e06e3573478ae3b4eed8b8482452ecc9202e118fcf1b08f00
+    digest: f38c8bedad53ac0da8a72b95077cc19cc24e7cf362aab998cf951b67b22d6d4c
     accepted:
-      - mutation: "line 154: 1 to 2"
+      - mutation: "line 167: 1 to 2"
         kind: equivalent
         reason: >-
           The code is the first element of split(":", 1), and maxsplit 2 gives
           the same first element for every string.
         expires_on: 2026-12-31
-      - mutation: "line 335: 1 to 2"
+      - mutation: "line 348: 1 to 2"
         kind: equivalent
         reason: >-
           The case name is the last element of rsplit("::", 1), and maxsplit 2
           gives the same last element for every string.
         expires_on: 2026-12-31
   cmn/environments.py:
-    digest: 07cf89ee5ac53478f85cc779921f169b527427cbc425f0774df99f890b9d3ecf
+    digest: d7b1059756dbef7dbfcb242ff26bfd466acc074806b8bdc70ee36c522ac47688
     accepted:
-      - mutation: "line 85: 1 to 2"
+      - mutation: "line 99: 1 to 2"
         kind: unobservable
         reason: >-
           The default root of a sibling lookup moves one directory up. Telling

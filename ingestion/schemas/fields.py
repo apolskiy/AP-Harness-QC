@@ -1,10 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The validation every schema record shares, applied at the ingestion boundary.
+"""Field validation helpers shared by every schema record's ``from_dict``.
 
-Normalising text, refusing unknown keys, requiring fields, coercing numbers and
-refusing unsafe identifiers. Design: ``docs/design/tier1_ingestion.md`` sections
-3.0 and 5.
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+This file contains the checks a record applies to its raw mapping, normalising
+text, refusing unknown keys, requiring fields to be present and filled,
+coercing integers and floats, and refusing identifiers unsafe as a path
+segment, plus the public ``canonical_identifier``, the form two identifiers
+are compared in to find a filesystem collision.
+
+**The task, rubric and rule records call these helpers while they are built**,
+so a bad field raises at load with its ``QC_DATA_*`` code. The loaders and
+case building use ``canonical_identifier`` to refuse identifiers that would
+collide on disk.
+
+Design: ``docs/design/tier1_ingestion.md`` sections 3.0 and 5.
 """
 
 import logging

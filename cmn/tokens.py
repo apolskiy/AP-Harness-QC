@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The token counts a bill distinguishes, and nothing that depends on anything.
+"""Token usage records, what a request and a judged case consumed.
+
+Created: 2026-09-28
+Last updated: 2026-10-21
+
+This file contains ``TokenUsage``, the four counts a provider bill distinguishes
+for one request (input, output, thinking and cached input), and ``CaseUsage``,
+the candidate's and the judge's usage for one observation added together.
+
+Every adapter fills a ``TokenUsage`` from its provider's reply, an observation
+carries the case's ``CaseUsage``, and ``cmn.pricing`` turns those counts into
+the cost a run reports.
 
 **Its own module because of a cycle.** These records are needed by
 ``cmn.observations`` (an observation carries them), by ``cmn.pricing`` (a price

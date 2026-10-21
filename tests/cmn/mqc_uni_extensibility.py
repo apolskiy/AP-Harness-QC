@@ -1,14 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for adding a layer, an outcome or a verdict rule.
+"""Unit preconditions for adding a layer, an outcome, a verdict rule or an engine.
 
-Covers `MQC_CMN_UNI_112100`, `112101` and `112106` through `112109`, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+The cases here check the registries in ``cmn.layers`` and ``cmn.verdict``. A
+newly registered layer keeps its declared graded flag and distribution
+exemption, an overlapping identifier block is rejected, an outcome without a
+declared denominator treatment is refused, and a registered verdict rule is
+evaluated without a core change. They also check demotion ordering in
+``cmn.demotion``, where security cases are never demoted, and that an adapter
+off the roster or an identifier outside its module block is reported.
 
 **Adding a test type must not require editing verdict computation.** A
 regression in the function deciding every run's outcome would misreport results
 for every existing test, not only the new one, which is why layer semantics are
 read from registration and verdict rules are a registry.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.
 
 Each case here registers something and removes it again. A test that left a
 layer registered would change the distribution denominator for every case that

@@ -1,9 +1,21 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for calibration against anchored exemplars.
+"""Unit cases for checking a judge's scores against a rubric's anchored exemplars.
 
-Its cases are listed in the block below, inventoried in
-``docs/design/tier3_evaluation.md`` section 11.1.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :mod:`evaluation.calibration`. :func:`compare_to_anchor` passes
+a score within one level of the intended one and fails it at two, recording the
+deviation either way; :func:`calibrate_rubric` yields nothing for an anchor
+without an exemplar or an exemplar never judged; and
+:func:`observation_variance` reports the spread across observations, undefined
+below two.
+
+Calibration runs on the schedule and says whether a rubric's judge can still be
+trusted, so a defect here lets a drifted judge keep grading. Its cases are
+listed in the block below, inventoried in ``docs/design/tier3_evaluation.md``
+section 11.1.
 
 **An anchor states what a level means; an exemplar shows it.** Calibration asks
 whether the judge still agrees with the anchor it was given.

@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Reading a registry of declared absences, which this project keeps writing.
+"""Declared gap registries, the YAML lists of known absences with a reason and an expiry.
+
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+This file contains ``declared_entries``, which reads one section of such a
+registry into a mapping of entry name to record, and ``lapsed_problems``, which
+reports an entry with no reason or past its expiry.
+
+The standards checks share them, among them ``cmn.module_size`` for modules
+past the runway and ``cmn.case_module_standards`` for case modules still
+holding helpers, so every registry of this shape is read and judged the same
+way.
 
 Specified by ``harness_extensibility_standard.md`` section 3.4.
 

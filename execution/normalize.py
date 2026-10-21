@@ -1,6 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The canonical shapes a provider response is normalized into.
+"""The provider-neutral records every model response is converted into.
+
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains :class:`NormalizedResponse`, one response as text, tool
+calls, finish reason, token usage, model identity and any provider refusal,
+with the conversions to and from the mapping the fixture store keeps; and
+:class:`ToolCall`, one tool invocation the model intended, captured and never
+executed. ``registered_finish_reasons`` and ``registered_execution_modes``
+return the closed sets those fields take.
+
+**Every adapter returns these records and evaluation reads only these.** A live
+response and a replayed one arrive in the same shape, so nothing after
+dispatch can tell which provider produced the output.
 
 Specified by ``docs/design/tier2_execution.md`` section 4.
 

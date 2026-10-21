@@ -1,6 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""When a module is close enough to the ceiling that the next addition splits it.
+"""Module size check, which reports a Python module nearing the line limit.
+
+Created: 2026-10-05
+Last updated: 2026-10-21
+
+This file contains ``oversized_modules``, which lists every module at nine
+hundred lines or more, and ``runway_problems``, which compares that list with
+the declarations in ``config/module_runway.yaml`` and reports an undeclared
+module, a lapsed entry and an entry whose module is back under the ceiling.
+
+Precondition cases call ``runway_problems`` with each repository root, so a
+module crossing the ceiling fails the unit layer until it is split or declared.
 
 Specified by ``.claude/rules/code-style.md`` section 5.1.
 

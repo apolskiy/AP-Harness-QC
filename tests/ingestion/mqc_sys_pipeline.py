@@ -1,9 +1,20 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""System preconditions for the joined ingestion pipeline.
+"""System cases for joining tasks with their golden rules and building evaluation cases.
 
-Covers `MQC_ING_SYS_121000` through `121006`, inventoried in
-``docs/design/tier1_ingestion.md`` section 13.2.
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+Its cases check :func:`ingestion.integrity.check_referential_integrity` and
+:mod:`ingestion.cases`. A task naming an unknown rubric, a ``constraint_ref``
+with no constraint, a constraint sent but never checked, and a tool expectation
+for an unoffered or contradictory tool are each rejected after the join. One
+case is built per task and rubric pair, with a stable identifier, colliding
+identifiers rejected and integrity required to have run first.
+
+The cases built here are what Tier 2 dispatches, so a defect lets a case run
+that no rule can judge. Covers `MQC_ING_SYS_121000` through `121006`,
+inventoried in ``docs/design/tier1_ingestion.md`` section 13.2.
 
 **These are integration cases because the checks they cover need both halves.**
 Referential integrity runs after the join, since a rule set cannot be told

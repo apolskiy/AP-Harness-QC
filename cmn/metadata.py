@@ -1,8 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Result metadata emission, and the diagnostic summary that says what a run is not.
+"""Result metadata, the record emitted for each result and the names runs publish under.
 
-Specified by ``docs/design/cmn_verdict_and_cli.md`` section 5,
+Created: 2026-09-26
+Last updated: 2026-10-21
+
+This file contains ``emit_result``, which builds one emitted result from an
+observation and the run-scoped fields, refusing an unregistered taxonomy code;
+``latency_statistics`` over measured durations; ``COLLECTED_PREFIX`` and
+``DEBUG_PREFIX``, the artifact name prefixes a collector matches and a debug
+upload carries; ``current_platform``; ``changed_areas_from``, which classifies
+a change as harness, tests, both or none; and ``DiagnosticSummary``, the text a
+debug run reports about itself.
+
+``cmn.reporting`` calls ``emit_result`` when a case's result is published, and
+each field it returns becomes a report parameter a collector reads. The
+workflows write artifact names, and the checks in both repositories read the
+two prefixes from here.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 5 and 7.1.3,
 ``docs/design/harness_test_taxonomy.md`` section 9, and ``docs/design/harness_ci_pipeline.md``
 section 6.5.
 
@@ -34,11 +50,12 @@ from cmn.registries import registered_codes
 
 logger = logging.getLogger(__name__)
 
-# The prefix a collector's pattern matches. A debug artifact deliberately does
-# not carry it, which is one of the two independent mechanisms excluding a
-# diagnostic run from the durable record.
-_COLLECTED_PREFIX: Final[str] = "mqc-results"
-_DEBUG_PREFIX: Final[str] = "diagnostic-local"
+# The prefix a collector's pattern matches, and the one every debug upload
+# carries instead. Keeping a debug run's artifact off the first is one of the
+# two independent mechanisms excluding it from the durable record; the
+# workflows write the names, and the checks in both repositories import these.
+COLLECTED_PREFIX: Final[str] = "mqc-reports-"
+DEBUG_PREFIX: Final[str] = "scratch-"
 
 _CHANGED_AREAS: Final[frozenset[str]] = frozenset({"harness", "tests", "both", "none"})
 
@@ -155,38 +172,6 @@ def latency_statistics(observations: list[Observation]) -> dict[str, Optional[fl
         "sample_count": len(measured),
         "excluded_truncated": len(observations) - len(measured),
     }
-
-
-def artifact_name(run: RunContext, suffix: str = "") -> str:
-    """Return the artifact name for one run.
-
-    **A debug artifact does not match the collector's pattern.** That is one of
-    two independent mechanisms excluding it from the durable record; the other
-    is the row marking carrying ``run_context`` and ``gated``. Structural
-    separation alone fails the day someone widens the pattern, and marking alone
-    fails if nobody filters on it.
-
-    Args:
-        run (RunContext): The run-scoped fields.
-        suffix (str): An optional discriminator, such as a platform.
-
-    Returns:
-        str: The artifact name.
-    """
-    prefix = _DEBUG_PREFIX if run.run_context == "ci_debug" else _COLLECTED_PREFIX
-    return f"{prefix}-{suffix}" if suffix else prefix
-
-
-def matches_collector_pattern(name: str) -> bool:
-    """Report whether a collector would pick this artifact up.
-
-    Args:
-        name (str): The artifact name.
-
-    Returns:
-        bool: True when the name carries the collected prefix.
-    """
-    return name.startswith(_COLLECTED_PREFIX)
 
 
 def current_platform() -> str:

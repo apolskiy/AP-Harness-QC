@@ -925,6 +925,20 @@ everything one engine produced finds it under one name in both subtrees.
 occupy two files. It fails against the old key by reading back the first
 judgement and finding the second, which is the shape the defect had.
 
+#### 7.9.4 A judgement recording carries the prompt it scored
+
+Added 2026-10-20 at the project owner's instruction, with `tier3_evaluation.md`
+section 4C.6. A recording held the reply and the request's hash, so reading
+what the judge had been asked meant rebuilding the request.
+
+**The rendered prompt is stored beside the hash**, as `prompt`. The hash is
+computed from the composed request exactly as before, so no recording goes
+stale, and loading reads the fields it always read and ignores the new one, so
+a recording made before it still replays. A recording without a prompt is
+rebuilt by `observation_judge_request` from the observation it scored.
+
+`MQC_EXE_UNI_113880` asserts it.
+
 
 ### 7.10 A recording run that repeats itself does not converge
 
@@ -2034,6 +2048,7 @@ leaves room for one more engine; a sixth needs a category of its own.
 | `113839` | P | `gemini_maps_each_status_through_the_one_table` |
 | `113859` | P | `grok_maps_each_status_through_the_one_table` |
 | `113879` | P | `openai_maps_each_status_through_the_one_table` |
+| `113880` | P | `a_judgement_recording_stores_the_prompt_it_scored` (7.9.4) |
 | ~~`113124`~~ | | ~~`declares_a_reproduction_that_reconstructs_nothing`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `113130`, `113131`, `113132`, `113133`. One case per registered engine |
 | `113130` | P | `claude_reissues_a_recorded_call_verbatim` |
 | `113131` | P | `gemini_reissues_a_recorded_call_verbatim` |
@@ -2096,7 +2111,7 @@ leaves room for one more engine; a sixth needs a category of its own.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 212 cases, 99 negative, 104 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 213 cases, 99 negative, 105 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 #### 10.1.1 The version probe
 

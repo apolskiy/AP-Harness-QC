@@ -1,9 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""A run refuses a harness under mutation, and the audit says where it is.
+"""Unit tests for refusing a test run while a mutation audit has a module rewritten.
 
-Covers ``MQC_CMN_UNI_112391`` to ``112397``, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` section 10 and designed in
+Created: 2026-10-18
+Last updated: 2026-10-21
+
+Its cases check ``refuse_if_mutating``, ``mutation_state``, ``ProgressLog`` and
+``latest_progress`` in ``cmn/mutation_guard.py``, with ``tools/mutation_audit.py``
+holding a module. A run refuses a module a live audit holds unless the run is that
+audit's own, an abandoned backup is restored and verified before the refusal, and a
+failed or mismatched restore keeps the backup. Each audit event is flushed to a
+progress log, a finished audit removes older logs, and a refusal quotes the last
+progress line and its age.
+
+``conftest.py`` calls ``refuse_if_mutating`` at session start, so a run never
+measures a harness whose source an audit has changed.
+
+Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10 and
 ``docs/design/harness_test_taxonomy.md`` section 15.12.
 
 A failure here is **not a model finding**, so the module carries no priority

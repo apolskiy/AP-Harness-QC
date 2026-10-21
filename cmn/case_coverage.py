@@ -1,11 +1,19 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Whether every member of a registry has a test case of its own.
+"""Registry case coverage check, whether every registry member has a case of its own.
 
-Design: ``harness_test_taxonomy.md`` section 1.1. A case split from a
-parametrisation over a registry passes its member to a shared helper; this
-reads those arguments from the module's syntax and reports the members no case
-passes.
+Created: 2026-10-16
+Last updated: 2026-10-21
+
+This file contains ``covered_arguments``, which reads from a test module's
+syntax the first argument each ``MQC_`` case passes to a shared helper, and
+``uncovered_members``, which reports the registry members no case passes.
+
+A case split from a parametrisation over a registry passes its member to that
+helper, so precondition cases call ``uncovered_members`` with the module and the
+registry, and a member added without a case of its own fails the unit layer.
+
+Design: ``harness_test_taxonomy.md`` section 1.1.
 """
 
 import ast

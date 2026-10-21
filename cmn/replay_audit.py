@@ -1,6 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Whether a replay store answers one question per case.
+"""Replay store audit, which checks the recorded responses a replay run reads.
+
+Created: 2026-10-07
+Last updated: 2026-10-21
+
+This file contains ``missing_recordings``, which reports a blocking-band case
+with no recording for a rostered engine, and ``divergent_recordings``, which
+reports a case whose recordings, judgements aside, do not share one request
+hash.
+
+The case repository's precondition cases call both against its replay
+fixtures, so a store that is incomplete or refreshed in part fails the unit
+layer before a replay run trusts it.
 
 **A case holds one recording per observation and nothing required them to
 answer the same request.** Three observations of one task carried one request

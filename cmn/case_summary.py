@@ -1,6 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The block naming the cases a test module holds, generated and compared.
+"""Case summary blocks, the generated list of cases at the top of each test module.
+
+Created: 2026-10-08
+Last updated: 2026-10-21
+
+This file contains ``case_modules`` and ``cases_in``, which find the collected
+test modules and parse the ``MQC_*`` cases each defines into ``CaseEntry``
+records in source order; ``summary_block`` and ``existing_block``, the block a
+module should carry and the one it does; ``refreshed_source``, the module text
+with its block replaced; ``summary_problems``, which reports a block that
+differs from its module; and ``block_delimiters``, the block's opening and
+closing lines.
+
+``tools/refresh_case_summaries.py`` writes the blocks with
+``refreshed_source``, and precondition cases in both repositories call
+``summary_problems``, so a case added or deleted without a refresh fails the
+unit layer.
 
 Specified in ``.claude/rules/testing-standards.md``, "A Test Module Lists The
 Cases It Holds".

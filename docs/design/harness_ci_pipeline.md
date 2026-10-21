@@ -643,12 +643,16 @@ else's service is down.
 covering them, because a branch naming three things is a branch doing three
 things.
 
-##### The integration kind may omit it, and usually should
+##### An integration branch is named for the day it was cut
 
 ```
 stabilization-09-24-2026
 stabilization-v1.2.0-09-24-2026
 ```
+
+**`stabilization-<MM-DD-YYYY>`, the date of its creation, is the name.** The
+project owner set it on 2026-10-21 as the goal for every stabilization branch;
+the referent form below stays permitted for a release, and is the exception.
 
 **Doing several things is what an integration branch is for.** It collects
 whatever merged in one cycle, which is genuinely not one referent, and forcing
@@ -759,6 +763,55 @@ The alternative, one long-lived `stabilization` in each repository, needs an
 exception to the no-back-merge rule within a week of being written. **A rule
 with an exception for the case that occurs weekly is not a rule**, and the
 exception would have been granted to the branch whose divergence matters most.
+
+#### 3C.6.7 Specified and built, and not yet enforced, by decision
+
+Recorded 2026-10-21 at the project owner's instruction. **`cmn.branch_policy`
+implements every rule in section 3C.6 and is called only by precondition
+cases**, `MQC_CMN_UNI_112505` to `112510` here and `MQC_CAS_UNI_115314` and
+`115315` in `AP-Model-QC`, which check the referents its pin entries name. No workflow runs it on a pull request, and
+`main` carries no branch protection requiring it, so today a branch can merge
+into `main` directly.
+
+**That is deliberate.** The policy exists so that unstable or untested builds
+never reach `main`: every new branch merges into a stabilization branch, which
+merges into `main` only once green, and a stabilization branch that expires is
+merged into a new one cut from `main`. Enforcing it while the demo is still
+being built would route every change through a stabilization cycle before there
+is anything stable to protect. **It takes effect once the demo is finalized, or
+near enough, and ready for expansion.** The project owner set the point on
+2026-10-21: branches are tested once the demo is in the portfolio, and **until
+then changes merge directly into `main`**, since neither repository is live in
+it.
+
+| | State |
+|---|---|
+| Rules, section 3C.6 | Specified |
+| `cmn.branch_policy` | Built, with its cases passing |
+| A pull-request job calling it, and branch protection on `main` requiring that job | **Not yet built.** The step that switches the policy on |
+
+**The requirements in section 3C.6 are satisfied as functions, not as a gate.**
+Until the job exists, a red here means a function returned the wrong answer,
+never that a branch was refused.
+
+#### 3C.6.8 A branch a workflow or a pairing names is one the policy accepts
+
+Added 2026-10-21. **`regress-consumers-on-merge.yml` triggered on `main` and a
+bare `stabilization`, and `config/consumers.yaml` paired a bare
+`stabilization`**, both left from the single long-lived branch this section
+replaced. The naming check refuses that name, so a correctly named
+`stabilization-10-21-2026` would have triggered nothing and paired with the
+default.
+
+**So every branch a workflow's `push`, `pull_request` or `workflow_run` filter
+names, and every key of a consumer's `refs`, is `main`, `**` for every branch, a
+name `name_problems` accepts, or a `<kind>-*` pattern over a registered kind.** A cycle's dated stabilization branch
+adds its own literal pairing when it is cut, as `AP-Model-QC`
+`config/harness_pin.yaml` already does, and falls back to the consumer's `main`
+until then.
+
+`cmn.workflow_standards.unaccepted_branch_names` reports each name that is none
+of the three, and `MQC_CMN_UNI_112421` calls it with this root.
 
 ## 4. `probe-model-version-nightly.yml`: A Change Detector, Not A Test Run
 
