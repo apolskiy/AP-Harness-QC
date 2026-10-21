@@ -2767,6 +2767,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112417` | P | `an_audit_stopped_on_request_refuses_and_logs_the_stop` (taxonomy 15.13.2) |
 | `112418` | B | `the_stop_command_passes_only_once_every_module_is_restored` (taxonomy 15.13.2) |
 | `112422` | N | `a_prose_edit_is_redeclared_and_a_code_edit_refused` (taxonomy 15.14) |
+| `112423` | P | `a_parallel_audit_matches_serial_and_never_writes_the_module` (taxonomy 15.15) |
+| `112424` | N | `an_isolated_audit_lock_does_not_refuse_an_ordinary_run` (taxonomy 15.15) |
+| `112425` | P | `a_mutant_meets_the_cases_that_import_its_module_first` (taxonomy 15.16) |
 | `112419` | N | `an_exchange_report_holds_each_observation_and_judge_prompt` (5.5) |
 | `112420` | N | `every_case_that_dispatched_attaches_its_exchanges` (5.5) |
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
@@ -3086,7 +3089,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 408 cases, 249 negative, 113 positive, 46 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 411 cases, 250 negative, 115 positive, 46 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

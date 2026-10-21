@@ -27,6 +27,7 @@ section 15.7 keeps in a job of its own.
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
@@ -169,6 +170,103 @@ def committed_survivor_tree(root: Path) -> Path:
     for arguments in (["init", "--quiet"], ["add", "."], ["commit", "--quiet", "-m", "measured"]):
         git_in(root, *arguments)
     return module
+
+
+# THE SIBLING A PAIRED CASE NEEDS, planted beside the harness root so a copy can
+# be checked for seeing it.
+SIBLING = "AP-Model-QC"
+SIBLING_MARKER = "marker.txt"
+
+
+def isolated_launcher(
+    module: Path, seen: dict[str, list[Any]]
+) -> Callable[..., subprocess.CompletedProcess]:
+    """Return a process launcher recording where each run happened and what it could see.
+
+    The control passes. A point survives only where its copy's module doubles
+    by three, which is the one mutant of :data:`POINTED` no case is meant to
+    kill. Every run sleeps briefly, so two workers both take points.
+
+    Args:
+        module (Path): The repository's own module, checked untouched and held
+            by an isolated lock at every run.
+        seen (dict): Lists under ``cwd``, ``untouched`` and ``sibling``, appended per run.
+
+    Returns:
+        Callable: The launcher, standing in for :func:`subprocess.run`.
+    """
+
+    def launched(command: list[str], **options: Any) -> subprocess.CompletedProcess:
+        here = Path(options["cwd"])
+        seen["cwd"].append(here)
+        seen["untouched"].append(
+            module_digest(module.read_text(encoding="utf-8")) == module_digest(POINTED)
+            and not module.with_name(module.name + BACKUP_SUFFIX).exists()
+            and json.loads(module.with_name(module.name + LOCK_SUFFIX).read_text(
+                encoding="utf-8")).get("isolated") is True
+        )
+        seen["sibling"].append((here.parent / SIBLING / SIBLING_MARKER).is_file())
+        time.sleep(0.05)
+        if "-x" not in command:
+            return subprocess.CompletedProcess(command, 0, "1 passed", "")
+        survived = "value * 3" in (here / MODULE).read_text(encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0 if survived else 1, "", "")
+
+    return launched
+
+
+def seeing_tree(root: Path) -> dict[str, Path]:
+    """Lay out a module, a helper importing it, and three test modules that see it or not.
+
+    Args:
+        root (Path): The directory to treat as the harness root.
+
+    Returns:
+        dict: ``module``, ``direct``, ``indirect`` and ``blind``, each a path.
+    """
+    module = pointed_tree(root)
+    (root / "cmn" / "__init__.py").write_text("", encoding="utf-8")
+    (root / "cmn" / "helper.py").write_text(
+        "from cmn.sample import clipped\n\n\ndef twice(value):\n    return clipped(value)\n",
+        encoding="utf-8",
+    )
+    tests = root / "tests"
+    tests.mkdir()
+    files = {
+        "direct": "import cmn.sample\n",
+        "indirect": "from cmn import helper\n",
+        "blind": "import json\n",
+    }
+    paths = {"module": module}
+    for name, body in files.items():
+        paths[name] = tests / f"mqc_uni_{name}.py"
+        paths[name].write_text(body, encoding="utf-8")
+    return paths
+
+
+def subset_launcher(
+    calls: list[list[str]], survive_subset: str
+) -> Callable[..., subprocess.CompletedProcess]:
+    """Return a launcher where one mutant survives the seeing cases and the full suite kills it.
+
+    Args:
+        calls (list): Each command launched, appended in order.
+        survive_subset (str): Text in the mutant that the seeing cases miss.
+
+    Returns:
+        Callable: The launcher, standing in for :func:`subprocess.run`.
+    """
+
+    def launched(command: list[str], **options: Any) -> subprocess.CompletedProcess:
+        calls.append(command)
+        if "-x" not in command:
+            return subprocess.CompletedProcess(command, 0, "1 passed", "")
+        subset = any(argument.endswith(".py") for argument in command)
+        mutant = (Path(options["cwd"]) / MODULE).read_text(encoding="utf-8")
+        missed = subset and survive_subset in mutant
+        return subprocess.CompletedProcess(command, 0 if missed else 1, "", "")
+
+    return launched
 
 
 class AuditMarker:

@@ -29,6 +29,16 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A mutation audit runs its points in parallel and leaves the repository usable, 2026-10-21
+
+**An audit changed one point at a time in the module the repository imports**,
+so audits ran one after another and every other run, the Model Repository's
+included, refused until they finished: six took 1 hour 29 minutes. `python -m
+tools.mutation_audit` now measures each point in one of several copies of the
+repository, four by default (`tools/mutation_parallel.py`), and runs each mutant
+first against only the cases whose imports reach the module, and never writes
+the module itself. 937 test cases, 346 requirements.
+
 ### A prose edit to an audited module no longer needs an audit, 2026-10-21
 
 **Every edit to an audited module, docstrings included, required re-running its

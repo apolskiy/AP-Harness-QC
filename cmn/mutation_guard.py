@@ -20,7 +20,8 @@ mutant it did not ask for.
 Design: ``docs/design/harness_test_taxonomy.md`` sections 15.12 and 15.13.
 
 A backup or a lock beside a module means a mutation audit is running or one
-died. A run started by that audit proceeds; any other run refuses with
+died; a live lock marked isolated is an audit measuring in copies, which
+refuses nothing (section 15.15). A run started by that audit proceeds; any other run refuses with
 ``QC_HARNESS_PREFLIGHT_FAILURE``, after restoring and verifying a module an
 abandoned audit left. The audit writes a progress log, one flushed line per
 event, which a refusal quotes. A stop request names the processes of running
@@ -339,6 +340,21 @@ def _lock_holder(lock: Path) -> tuple[int, str]:
     return int(held.get("pid") or 0), str(held.get("started") or "at an unrecorded time")
 
 
+def _lock_isolated(lock: Path) -> bool:
+    """Report whether a lock is held by an audit that measures in copies.
+
+    Args:
+        lock (Path): The lock file, which may be absent or unreadable.
+
+    Returns:
+        bool: True when the lock records ``isolated``.
+    """
+    try:
+        return bool(json.loads(lock.read_text(encoding="utf-8")).get("isolated"))
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return False
+
+
 def _held_modules(root: Path) -> list[Path]:
     """Return every module carrying a backup or a lock beside it.
 
@@ -439,7 +455,9 @@ def mutation_state(
         pid, started = _lock_holder(lock)
         progress = latest_progress(root, relative, now=now) or "no progress log"
         if lock.is_file() and process_alive(pid):
-            if own == str(pid):
+            # AN ISOLATED AUDIT NEVER WRITES THE MODULE, so the module this run
+            # imports is the baseline (section 15.15).
+            if own == str(pid) or _lock_isolated(lock):
                 continue
             refusals.append(
                 f"{_CODE}: {relative} is under mutation by audit process {pid}, started "

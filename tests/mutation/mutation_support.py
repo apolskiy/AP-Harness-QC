@@ -5,11 +5,11 @@
 Created: 2026-10-13
 Last updated: 2026-10-21
 
-This file contains :func:`audit`, which mutates a module, runs the unit suite
-and returns every undeclared survivor and every declaration that no longer
-survives, skipping when the audit's control refuses. ``AUDITED`` lists the
-modules this layer audits and ``MANIFEST`` points at
-``config/mutation_survivors.yaml``.
+This file contains :func:`audit`, which mutates a module in four parallel copies
+of the repository (section 15.15), runs the unit suite in each and returns every
+undeclared survivor and every declaration that no longer survives, skipping when
+the audit's control refuses. ``AUDITED`` lists the modules this layer audits and
+``MANIFEST`` points at ``config/mutation_survivors.yaml``.
 
 ``mqc_mut_verdict.py`` and ``mqc_mut_registries.py`` assert on what
 :func:`audit` returns, the setup check in ``conftest.py`` reads ``AUDITED``, and
@@ -28,8 +28,8 @@ from tools.mutation_audit import (
     MutationRefusal,
     declared_survivors,
     survivor_problems,
-    survivors,
 )
+from tools.mutation_parallel import parallel_survivors
 
 ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 MANIFEST: Final[Path] = ROOT / "config/mutation_survivors.yaml"
@@ -68,7 +68,7 @@ def audit(module: str) -> list[str]:
         no longer survives. Empty when the two agree.
     """
     try:
-        found = survivors(ROOT, ROOT / module, TARGETS)
+        found = parallel_survivors(ROOT, ROOT / module, TARGETS)
     except MutationRefusal as refusal:
         # THE CONTROL'S REFUSAL, discovered here because it costs a full suite
         # run and the setup gate would pay for it twice. A refusal is a skip

@@ -11957,3 +11957,44 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   and `registries.py` measured, passing, survivors as declared; the other four
   stopped on request, restored, and re-declared with their code unchanged.
   Pylint 10.00/10, exit 0; 343 requirements.
+
+## 2026-10-21: Audits run in parallel copies, and a mutant meets the cases that can see it first
+
+* **When:** 18:40 to 20:00 UTC, after the commit of the day's earlier work.
+* **Asked by the project owner:** "what stops us from making a tool to do
+  audits, in parallel? 1-2 hours is insane, especially if we do it so often."
+  What stopped it was the in-place edit: the audit rewrote the module the
+  repository imports, so only one audit could run and every other run refused
+  while it did.
+* **Built, `harness_test_taxonomy.md` section 15.15, `MQC_REQ_HAR_CMN_0194` and
+  `0195`, `MQC_CMN_UNI_112423` and `112424`:** `python -m tools.mutation_audit
+  <module> --workers 4`, the default, measures each point in one of four copies
+  of the repository, each beside links to the sibling repositories so a
+  `paired` case sees what it would in place. The repository's module is never
+  written; the lock is marked isolated and refuses no ordinary run, so the
+  Model Repository runs during an audit. `--workers 1` is the in-place audit,
+  unchanged. A copy leaves out `.env`, environments, caches and logs. Seven
+  injections, seven caught.
+* **Built, section 15.16, `MQC_REQ_HAR_CMN_0196`, `MQC_CMN_UNI_112425`:** each
+  mutant runs first against the test modules whose imports reach the module; a
+  miss there runs the full targets, which alone declare a survivor. Four
+  injections, four caught.
+* **The owner also proposed** one audit file per subdirectory, run in parallel.
+  Parallel copies per point cover it at a finer grain and balance better, since
+  the audited modules range from 10 points to 88, so it was not built.
+* **Measured on `cmn/layers.py`, 67 points:**
+
+  | Audit | Wall time | Survivors |
+  |---|---|---|
+  | In place, one point at a time (morning) | 33 minutes | 0 |
+  | Four copies | 11 minutes 19 seconds | 0 |
+  | Four copies, seeing cases first (62 of 90 test modules) | 9 minutes 18 seconds | 0 |
+
+* **Found by the checks, and fixed:** the first real parallel run refused at
+  its control, which the copy got right: a helper in the new module carried no
+  parameter annotations, which case 112500 reports. The duplicate command line
+  pylint found became one, `--workers` on the existing audit.
+* **Code Quality & Compliance Audit:** 937 test cases, 931 in the precondition
+  run (907 UNI, 24 SYS), all passing, exit 0. Mutation audits, 6: not re-run,
+  no audited module changed since they were measured. Pylint 10.00/10, exit 0;
+  346 requirements.

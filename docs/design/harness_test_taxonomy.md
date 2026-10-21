@@ -3158,6 +3158,75 @@ deliberate act a person runs, and the stripped-module refusal keeps the one
 failure the full-text digest was introduced for. What changes is the cost: a
 prose edit costs a command, not an audit. `MQC_CMN_UNI_112422`.
 
+### 15.15 Mutants are measured in parallel, each in its own copy
+
+Added 2026-10-21 at the project owner's instruction, the same day as section
+15.14: "what stops us from making a tool to do audits, in parallel?"
+
+**What stopped it was the in-place edit.** Sections 15.5, 15.11 and 15.12 exist
+because an audit rewrote the module the repository imports: two audits at once
+read each other's mutants, so only one could run, and an ordinary run had to
+refuse while it did. Each point is independent of every other, so the only
+thing serialising them was the shared file.
+
+    python -m tools.mutation_audit cmn/verdict.py --workers 4
+
+| Step | What it does |
+|---|---|
+| Hold | The lock of section 15.11, marked `isolated` |
+| Check | The stop request and the declared baseline, as an in-place audit does |
+| Copy | One copy of the repository per worker, each in its own directory beside a link to every sibling repository, so a `paired` case sees what it would see in place |
+| Control | The unparsed module, in the first copy |
+| Measure | Points handed to the copies from one queue; each copy writes its mutant, runs, and restores its own module |
+| Report | Survivors in walk order, whichever copy finished first |
+| Clean up | Links removed first, then the copies, whatever the outcome |
+
+**The repository's module is never written**, so there is no backup and the
+isolated lock does not refuse an ordinary run: the module that run imports is
+the baseline. Section 15.12's refusal still applies to an in-place audit's
+lock, which is `--workers 1` and keeps every guarantee of sections 15.5 to
+15.13 unchanged.
+
+**What a copy leaves out:** `.env`, virtual environments, build output,
+caches, reports and logs. A copy carries `.git`, because cases read the index,
+and never a credential.
+
+**A sibling that cannot be linked refuses the audit.** Without it a `paired`
+case is deselected in the copies and not in place, so a mutant only that case
+kills would be reported as a survivor that does not exist.
+
+**A stop request is read before every point by every worker**, and the audit
+stops once the points already running finish, as section 15.13.2 requires.
+
+**Workers default to four.** Each runs its own pytest process, so the count is
+bounded by memory before cores; this machine has twelve cores and ran short of
+memory once on the day this was written. `MQC_CMN_UNI_112423` and `112424`.
+
+### 15.16 A mutant meets the cases that can see it first
+
+Added 2026-10-21, the third of the three changes the project owner approved
+that day after an audit run of 1 hour 29 minutes.
+
+**Most of the suite cannot see a given module.** A case that never imports
+`cmn/layers.py`, directly or through another module of the repository, cannot
+fail because of a change to it. Running the whole suite against every mutant
+spends most of each run on cases that were never going to answer.
+
+| Pass | Runs | Decides |
+|---|---|---|
+| First | The test modules whose imports reach the module, read statically | A failure here is a kill |
+| Second, only for a mutant the first pass missed | The full targets | Survived or killed, as before |
+
+**A kill from the first pass is as good as one from the full suite**: the
+control proved the unmutated module passes every target, so a failure under
+the mutant is caused by the mutant whichever cases ran. **A survivor is only
+ever declared by the full suite**, so a case reaching the module some way an
+import graph cannot see, a nested session or a file read, can only cost a
+second run and never a false survivor.
+
+**No seeing module, no first pass.** Where nothing imports the module the
+full targets run once, as before. `MQC_CMN_UNI_112425`.
+
 ## 14. Every Subprocess A Case Spawns Carries A Timeout
 
 Added 2026-10-05, after a harness gate reported `failure` with no failing job.

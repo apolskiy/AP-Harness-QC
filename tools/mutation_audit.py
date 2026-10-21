@@ -6,12 +6,13 @@ Created: 2026-10-13
 Last updated: 2026-10-21
 
 This file contains ``mutation_points``, which lists every operator or
-constant change it can make to a module; ``survivors``, which applies each in
-turn, runs the module's cases and returns the changes nothing failed on;
+constant change it can make to a module, and ``mutant_source``, which makes
+one; ``survivors``, which applies each in turn, runs the module's cases and
+returns the changes nothing failed on;
 ``control_problem`` and ``baseline_problem``, which refuse to measure a module
 whose unmutated run fails or whose content is not the declared baseline;
-``recover`` and the lock functions, which restore and guard a module being
-audited; ``declared_survivors``, ``declare_digest`` and ``survivor_problems``,
+``recover``, the lock functions and ``held_audit``, which restore and guard a
+module being audited; ``declared_survivors``, ``declare_digest`` and ``survivor_problems``,
 which read and compare the accepted survivors in
 ``config/mutation_survivors.yaml``; and ``main``, the command line.
 ``tools/mutation_redeclare.py`` re-declares a module whose code is unchanged
@@ -46,6 +47,7 @@ left unparsed passes the control gate trivially, since unparsing is idempotent
 """
 
 import argparse
+import importlib
 import ast
 import json
 import logging
@@ -53,10 +55,11 @@ import os
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Final, Optional
+from typing import Any, Final, Iterator, Optional
 
 import yaml
 
@@ -123,6 +126,10 @@ _MANIFEST: Final[str] = "config/mutation_survivors.yaml"
 # EVERY SUBPROCESS CARRIES ONE, per taxonomy section 14. The unit suite takes
 # about 22 seconds, so this is a hang ceiling rather than a budget.
 _RUN_TIMEOUT_SEC: Final[int] = 600
+
+# FOUR, BOUNDED BY MEMORY BEFORE CORES: each worker runs its own pytest
+# process. One means the in-place audit (section 15.15).
+DEFAULT_WORKERS: Final[int] = 4
 
 _PASSED = re.compile(r"(\d+) passed")
 
@@ -196,6 +203,27 @@ def mutation_points(source: str) -> list[MutationPoint]:
                     f"{node.value} to {node.value + 1}",
                 ))
     return found
+
+
+def mutant_source(original: str, point: MutationPoint) -> Optional[str]:
+    """Return the module with exactly one point changed, or None where it cannot be.
+
+    Args:
+        original (str): The baseline.
+        point (MutationPoint): The change to make.
+
+    Returns:
+        Optional[str]: The mutant's source, or None when the point does not
+        apply or the result cannot be written back as source.
+    """
+    tree = ast.parse(original)
+    if not _mutate(tree, point):
+        return None
+    ast.fix_missing_locations(tree)
+    try:
+        return ast.unparse(tree)
+    except (ValueError, RecursionError):
+        return None
 
 
 def _mutate(tree: ast.Module, point: MutationPoint) -> bool:
@@ -287,11 +315,13 @@ def recover(module: Path) -> Optional[str]:
     )
 
 
-def acquire_lock(module: Path) -> None:
+def acquire_lock(module: Path, *, isolated: bool = False) -> None:
     """Hold a module for this audit, refusing one a running audit holds.
 
     Args:
         module (Path): The module about to be mutated.
+        isolated (bool): Whether the audit measures in copies and never
+            writes the module, which lets an ordinary run proceed (15.15).
 
     Returns:
         None
@@ -318,7 +348,8 @@ def acquire_lock(module: Path) -> None:
         )
     lock.write_text(
         json.dumps({"pid": os.getpid(),
-                    "started": datetime.now(timezone.utc).isoformat(timespec="seconds")}),
+                    "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    **({"isolated": True} if isolated else {})}),
         encoding="utf-8", newline="\n",
     )
 
@@ -333,6 +364,39 @@ def release_lock(module: Path) -> None:
         None
     """
     module.with_suffix(module.suffix + _LOCK_SUFFIX).unlink(missing_ok=True)
+
+
+@contextmanager
+def held_audit(root: Path, module: Path, *, isolated: bool = False) -> Iterator[ProgressLog]:
+    """Hold a module for one audit and log how the audit ends.
+
+    The lock comes first, before even a recovery, because a live audit's backup
+    is indistinguishable from a dead one's (section 15.11). The progress log
+    says where the audit is, which the lock cannot (section 15.12.3).
+
+    Args:
+        root (Path): The repository root.
+        module (Path): The module audited.
+        isolated (bool): Whether the audit measures in copies (section 15.15).
+
+    Returns:
+        Iterator[ProgressLog]: The audit's progress log, while the lock is held.
+
+    Raises:
+        MutationRefusal: Re-raised once logged.
+    """
+    acquire_lock(module, isolated=isolated)
+    progress = ProgressLog.begin(root, module.relative_to(root).as_posix())
+    try:
+        yield progress
+    except MutationRefusal as refusal:
+        progress.line(f"refused: {refusal}")
+        raise
+    except BaseException as error:
+        progress.line(f"failed: {type(error).__name__}: {error}")
+        raise
+    finally:
+        release_lock(module)
 
 
 def run_targets(
@@ -427,22 +491,8 @@ def survivors(
             collected nothing part-way through. **A refusal is a skip**, per
             section 15.2.1: none of those says anything about the survivors.
     """
-    # THE LOCK COMES FIRST, before even the recovery, because a live audit's
-    # backup is indistinguishable from a dead one's (section 15.11).
-    acquire_lock(module)
-    # THE PROGRESS LOG SAYS WHERE AN AUDIT IS, which the lock cannot: a run
-    # refused by section 15.12 quotes its last line.
-    progress = ProgressLog.begin(root, module.relative_to(root).as_posix())
-    try:
+    with held_audit(root, module) as progress:
         found = _survivors_held(root, module, targets, progress, limit=limit)
-    except MutationRefusal as refusal:
-        progress.line(f"refused: {refusal}")
-        raise
-    except BaseException as error:
-        progress.line(f"failed: {type(error).__name__}: {error}")
-        raise
-    finally:
-        release_lock(module)
     progress.finish(f"restored, {len(found)} survivor(s)")
     return found
 
@@ -537,13 +587,8 @@ def _measure_points(
                 f"QC_HARNESS_AUDIT_REFUSED: stopped on request at point {number} of "
                 f"{len(points)}"
             )
-        tree = ast.parse(original)
-        if not _mutate(tree, point):
-            continue
-        ast.fix_missing_locations(tree)
-        try:
-            mutant = ast.unparse(tree)
-        except (ValueError, RecursionError):
+        mutant = mutant_source(original, point)
+        if mutant is None:
             continue
         place = f"point {number} of {len(points)}"
         progress.line(f"{place} started: {point.describe()}")
@@ -719,6 +764,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     parser.add_argument("--limit", type=int, default=0,
                         help="Stop after this many mutation points")
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
+                        help="Copies measuring at once; 1 audits in place")
     parsed = parser.parse_args(argv)
 
     root = Path(__file__).resolve().parents[1]
@@ -733,8 +780,13 @@ def main(argv: Optional[list[str]] = None) -> int:
         parser.error("name a module to audit, or pass --stop")
 
     try:
-        found = survivors(root, root / parsed.module, parsed.target,
-                          limit=parsed.limit)
+        if parsed.workers > 1:
+            # IMPORTED HERE, because the parallel audit is built on this module.
+            parallel = importlib.import_module("tools.mutation_parallel")
+            found = parallel.parallel_survivors(root, root / parsed.module, parsed.target,
+                                                workers=parsed.workers, limit=parsed.limit)
+        else:
+            found = survivors(root, root / parsed.module, parsed.target, limit=parsed.limit)
     except (MutationRefusal, subprocess.TimeoutExpired) as error:
         logger.error("%s", error)
         return 4
