@@ -327,6 +327,45 @@ reference or an absolute URL, because an annotation nothing reads is exactly
 where a typo survives indefinitely, and the point of the field is that somebody
 can follow it later.
 
+#### 4.6.8 Three extractions the rework forced, and one duplication it exposed
+
+Reworking the model took three modules past the thousand-line ceiling, which
+Gate 1 enforces by exit code. The split follows the precedent
+`mqc_uni_instrument.md` records for `mqc_uni_corpus.py` on 2026-10-01: extract
+the subject, not an arbitrary half.
+
+| New | Holds | Relieved |
+|---|---|---|
+| `cmn/quarantine.py` | The entry and the window it is measured against | `cmn/verdict.py`, 1045 to 978 |
+| `tests/cmn/mqc_uni_quarantine.py` | Every quarantine case, including `112042` moved from the CLI module where it was never about the CLI | `mqc_uni_verdict.py` 1030 to 683, `mqc_uni_cli.py` 1054 to 964 |
+| `tests/cmn/verdict_support.py` | The observations, suites and artifacts the three share | All three |
+
+**`V5` stays with the other verdict rules.** The rule registry is what makes a
+rule a rule, so moving one out of the registry's module to sit beside its data
+would split the registry instead of the subject.
+
+**The support module exists because the extraction created a duplication.**
+Copying the helpers into the new test module left three copies of
+`passing_suite` and two of the gated artifact, which pylint's duplicate-code
+check reported. **A duplicated helper is worse than a long module**: a case
+comparing against a stale copy of a passing suite reports about the copy, and
+nothing says which copy is the real one. The name sits outside `pytest.ini`'s
+`mqc_*.py` collection pattern, the same arrangement `AP-Model-QC`'s
+`graded_support.py` uses.
+
+**Renaming the shared artifact builder was not cosmetic.** Imported as
+`artifact`, it was shadowed inside every case that bound a local `artifact`,
+and the failure was an `UnboundLocalError` at the call rather than anything a
+reader would attribute to the import. It is `gated_artifact`, which also says
+what it builds.
+
+**One finding came from pylint and not from the suite.** A removed `typing.Any`
+import left an annotation referring to a name that no longer existed, and the
+suite passed: on 3.14 an annotation is evaluated lazily (PEP 649), so nothing
+read it. `code-style.md` section 2.1 records lazy annotations as the reason the
+`__future__` import is prohibited, and this is the cost of the same mechanism:
+a broken annotation is invisible at runtime and caught only statically.
+
 #### 4.6.9 The data is the consumer's, and this repository ships none of it
 
 Established 2026-10-02, while designing the maintenance tool. **Quarantine is
@@ -564,45 +603,6 @@ The decision is about a case already known to fail and already declared, which
 is what a quarantine entry is. A separate dispensation file would be a second
 registry of the same fact, which `framework-rules.md` section 4.1 forbids, and
 the expiry that keeps quarantine honest would not apply to it.
-
-#### 4.6.8 Three extractions the rework forced, and one duplication it exposed
-
-Reworking the model took three modules past the thousand-line ceiling, which
-Gate 1 enforces by exit code. The split follows the precedent
-`mqc_uni_instrument.md` records for `mqc_uni_corpus.py` on 2026-10-01: extract
-the subject, not an arbitrary half.
-
-| New | Holds | Relieved |
-|---|---|---|
-| `cmn/quarantine.py` | The entry and the window it is measured against | `cmn/verdict.py`, 1045 to 978 |
-| `tests/cmn/mqc_uni_quarantine.py` | Every quarantine case, including `112042` moved from the CLI module where it was never about the CLI | `mqc_uni_verdict.py` 1030 to 683, `mqc_uni_cli.py` 1054 to 964 |
-| `tests/cmn/verdict_support.py` | The observations, suites and artifacts the three share | All three |
-
-**`V5` stays with the other verdict rules.** The rule registry is what makes a
-rule a rule, so moving one out of the registry's module to sit beside its data
-would split the registry instead of the subject.
-
-**The support module exists because the extraction created a duplication.**
-Copying the helpers into the new test module left three copies of
-`passing_suite` and two of the gated artifact, which pylint's duplicate-code
-check reported. **A duplicated helper is worse than a long module**: a case
-comparing against a stale copy of a passing suite reports about the copy, and
-nothing says which copy is the real one. The name sits outside `pytest.ini`'s
-`mqc_*.py` collection pattern, the same arrangement `AP-Model-QC`'s
-`graded_support.py` uses.
-
-**Renaming the shared artifact builder was not cosmetic.** Imported as
-`artifact`, it was shadowed inside every case that bound a local `artifact`,
-and the failure was an `UnboundLocalError` at the call rather than anything a
-reader would attribute to the import. It is `gated_artifact`, which also says
-what it builds.
-
-**One finding came from pylint and not from the suite.** A removed `typing.Any`
-import left an annotation referring to a name that no longer existed, and the
-suite passed: on 3.14 an annotation is evaluated lazily (PEP 649), so nothing
-read it. `code-style.md` section 2.1 records lazy annotations as the reason the
-`__future__` import is prohibited, and this is the cost of the same mechanism:
-a broken annotation is invisible at runtime and caught only statically.
 
 ### 4.7 All breached rules are reported, not the first
 
@@ -1381,142 +1381,6 @@ because the parser is shared and a retirement can happen in either repository.
 **Every flag that can change a result is recorded in result metadata.** A run that dropped three columns, replayed instead of executing live, or used a revised rule set must be distinguishable from one that did not. This is the same principle as A6 (replay marking) and A8 (resolved model version), applied to the invocation itself.
 
 
-#### 7.1.0.1 Three gaps read, and two of them were the same defect again
-
-Added 2026-10-01, reading the code behind each dated gap rather than restating
-what was unknown about it.
-
-| Flag | Registered | Behaviour exists | Connected |
-|---|---|---|---|
-| `--extra-columns` | Yes | **Yes**, `ingestion/loaders.py` `unknown_columns` | Since 2026-10-02, `tier1_ingestion.md` section 4.6 |
-| `--out-dir` | Yes | Since 2026-10-02 | Section 7.1.0.2 |
-| `--tests` | As a workflow input | In the workflow | Not a pytest flag |
-
-**`--extra-columns` is the third instance of what produced this file.**
-`--max-spend` accepted a ceiling that could not stop a request and `--priority`
-named a band and ran every band. This one names a column policy, is recorded
-into the invocation record, and reaches no code, while the loader that
-implements reject and drop sits beside it. **A run can therefore record a
-policy it never applied**, which is the same shape as the two that came before:
-not a missing feature, a claim in the record that nothing backs.
-
-**`--out-dir` has no unwired implementation behind it**, which makes it a
-different question. pytest's own `--junitxml` and `--alluredir` write the
-artifacts and are what the workflows pass. So either the flag gains behaviour or
-it is retired and section 7.3 loses its row, and that is a decision rather than
-a defect to fix.
-
-**Corrected 2026-10-02, and the error is worth keeping.** Reading the flag
-against the workflows established that the artifacts did get written; reading it
-against `testing-standards.md` section 5 establishes that **four invocations
-write only one of the two the contract mandates**. The decision was real and
-section 7.1.0.2 takes it. The claim that no defect sat behind it came from
-scoping the question to the flag instead of to the contract the flag serves.
-
-**`--tests` is not a pytest flag at all.** The debug workflow translates it into
-a selection before pytest starts, so no case in either tree can pass it. What is
-coverable is the translation, which belongs to a workflow case.
-
-**The expiry on the first two moved to 2026-10-31**, matching `--max-spend`.
-Each is now a known defect or a known decision rather than an unread gap, and a
-dated absence whose reason has been superseded should not sit for another month
-behind the old date.
-
-#### 7.1.0.2 `--out-dir` names the directory both mandated artifacts go in
-
-Implemented 2026-10-02. **This section corrects what 7.1.0.1 said about the
-flag**, which was that it had no unwired implementation behind it and so posed a
-decision rather than a defect. The decision was real; the absence of a defect
-was not.
-
-**Both artifacts are mandated, and `testing-standards.md` section 5 is where.**
-"The Contract Is The Artifact ... Emit **both** JUnit XML and Allure raw
-results." They are not two renderings of one result to pick between, because
-they are read by different people for different purposes:
-
-| Artifact | Read by | For |
-|---|---|---|
-| JUnit XML | Developers and QA | Triaging a failure: durable, per-test, and parsed by every CI interface without configuration |
-| Allure raw results | Reporting and release review | Steps, labels, severity and parameters, which is what a report is assembled from and what readiness is judged against |
-
-Dropping either does not lose a format, it loses a reader. A run with no Allure
-results produces no report, and a release question answered from JUnit alone is
-answered without the evidence section 5 exists to require.
-
-**Four invocations emit JUnit and no Allure**, which is the defect 7.1.0.1
-missed by reasoning about the flag in isolation instead of against the contract:
-
-| Invocation | `--out-dir` | `--junitxml` | `--alluredir` |
-|---|---|---|---|
-| `debug-failures-on-demand.yml` | Yes | Yes | **No** |
-| Consumer `debug-cases-on-demand.yml` | Yes | Yes | **No** |
-| `regress-consumers-on-merge.yml`, deterministic gates | No | Yes | **No** |
-| `regress-consumers-on-merge.yml`, graded replay | No | Yes | **No** |
-| `diagnose-on-demand.yml` | Yes | Yes | Yes |
-| Every gating workflow in both repositories | No | Yes | Yes |
-
-The gating paths were correct throughout. **The half-emitting invocations are
-the debug, diagnostic and consumer-regression paths**, which is the worst place
-for it: those are the runs someone reaches for when something has already gone
-wrong, and they are the runs that arrive without a report.
-
-**Implementing the flag closes the first two by itself.** Both debug workflows
-already pass `--out-dir`, so a flag that derives the Allure destination makes
-them emit both without either workflow changing. That is the argument for
-implementing rather than retiring, and it is a stronger one than the tidiness
-argument this section first carried.
-
-**It derives each mandated destination the caller did not name.**
-
-| Given | JUnit lands at | Allure lands at |
-|---|---|---|
-| `--out-dir d/` | `d/junit.xml` | `d/allure-results` |
-| `--out-dir d/ --junitxml=e/x.xml` | `e/x.xml`, explicit wins | `d/allure-results` |
-| `--out-dir d/ --alluredir=e/a` | `d/junit.xml` | `e/a`, explicit wins |
-
-**Explicit may redirect one artifact and never suppress the other**, which is
-why the two destinations are resolved independently rather than as a pair. The
-consumer-regression steps are the case that requires it: they give each JUnit
-file a distinct name so four matrix legs do not overwrite one file, and they
-must keep those names while gaining Allure. A flag that stepped aside entirely
-once any artifact flag appeared would leave them exactly as they are.
-
-**Set when the run is configured.** The JUnit plugin builds its writer in its
-own `pytest_configure`, so a conftest hook is early enough to redirect it and
-nothing later is. Confirmed by writing an artifact to a named directory before
-this design was settled, rather than assuming the hook order.
-
-**Guarded on the Allure plugin being loaded.** `allure-pytest` is a `[dev]`
-dependency and the consumer installs the harness `--no-deps` in one path, so the
-option may be absent. A missing plugin means no Allure flag to set, not a
-failure: the plugin's absence is the operator's choice and this flag does not
-overrule it.
-
-**It names a directory and not a file**, because two artifacts go in it and
-section 5 permits a third. A flag naming one file would need a sibling per
-format, which is the duplication it exists to remove.
-
-### 7.1.0.3 The mandate was right and nothing established it was met
-
-The four half-emitting invocations sat in plain sight across both repositories
-because **no check reads what a workflow passes to pytest against section 5's
-requirement**. `112522` asks the opposite question, whether a registered flag is
-named by any case, and every artifact check downstream reads artifacts that were
-produced rather than asking whether they all were.
-
-`112525` scans every workflow in both repositories and fails an invocation that
-emits one mandated artifact without the other, counting `--out-dir` as
-supplying both. **A negative case**, because the positive it would replace,
-these workflows running at all, was passing while four of them emitted half the
-contract.
-
-**This is the seventh instance of the shape this file keeps recording**, and the
-first where the thing nothing established was a written standard rather than a
-flag: a ceiling that stopped nothing, a band selector that selected everything,
-a column policy wired to nothing, an assertion covering one of two halves, a
-gate that could not start, an identifier deduplicated away, and now a mandate
-with no reader.
-
 ### 7.1 Two surfaces, one option registry
 
 The flags reach the harness through two entry points, and they must not drift.
@@ -1612,6 +1476,142 @@ produced this section. That number is the finding, not a defect in the check.
 
 `MQC_CMN_UNI_112522` enforces the harness half, reading the shipped registry and
 declaration rather than a permitted list of its own.
+
+##### 7.1.0.1 Three gaps read, and two of them were the same defect again
+
+Added 2026-10-01, reading the code behind each dated gap rather than restating
+what was unknown about it.
+
+| Flag | Registered | Behaviour exists | Connected |
+|---|---|---|---|
+| `--extra-columns` | Yes | **Yes**, `ingestion/loaders.py` `unknown_columns` | Since 2026-10-02, `tier1_ingestion.md` section 4.6 |
+| `--out-dir` | Yes | Since 2026-10-02 | Section 7.1.0.2 |
+| `--tests` | As a workflow input | In the workflow | Not a pytest flag |
+
+**`--extra-columns` is the third instance of what produced this file.**
+`--max-spend` accepted a ceiling that could not stop a request and `--priority`
+named a band and ran every band. This one names a column policy, is recorded
+into the invocation record, and reaches no code, while the loader that
+implements reject and drop sits beside it. **A run can therefore record a
+policy it never applied**, which is the same shape as the two that came before:
+not a missing feature, a claim in the record that nothing backs.
+
+**`--out-dir` has no unwired implementation behind it**, which makes it a
+different question. pytest's own `--junitxml` and `--alluredir` write the
+artifacts and are what the workflows pass. So either the flag gains behaviour or
+it is retired and section 7.3 loses its row, and that is a decision rather than
+a defect to fix.
+
+**Corrected 2026-10-02, and the error is worth keeping.** Reading the flag
+against the workflows established that the artifacts did get written; reading it
+against `testing-standards.md` section 5 establishes that **four invocations
+write only one of the two the contract mandates**. The decision was real and
+section 7.1.0.2 takes it. The claim that no defect sat behind it came from
+scoping the question to the flag instead of to the contract the flag serves.
+
+**`--tests` is not a pytest flag at all.** The debug workflow translates it into
+a selection before pytest starts, so no case in either tree can pass it. What is
+coverable is the translation, which belongs to a workflow case.
+
+**The expiry on the first two moved to 2026-10-31**, matching `--max-spend`.
+Each is now a known defect or a known decision rather than an unread gap, and a
+dated absence whose reason has been superseded should not sit for another month
+behind the old date.
+
+##### 7.1.0.2 `--out-dir` names the directory both mandated artifacts go in
+
+Implemented 2026-10-02. **This section corrects what 7.1.0.1 said about the
+flag**, which was that it had no unwired implementation behind it and so posed a
+decision rather than a defect. The decision was real; the absence of a defect
+was not.
+
+**Both artifacts are mandated, and `testing-standards.md` section 5 is where.**
+"The Contract Is The Artifact ... Emit **both** JUnit XML and Allure raw
+results." They are not two renderings of one result to pick between, because
+they are read by different people for different purposes:
+
+| Artifact | Read by | For |
+|---|---|---|
+| JUnit XML | Developers and QA | Triaging a failure: durable, per-test, and parsed by every CI interface without configuration |
+| Allure raw results | Reporting and release review | Steps, labels, severity and parameters, which is what a report is assembled from and what readiness is judged against |
+
+Dropping either does not lose a format, it loses a reader. A run with no Allure
+results produces no report, and a release question answered from JUnit alone is
+answered without the evidence section 5 exists to require.
+
+**Four invocations emit JUnit and no Allure**, which is the defect 7.1.0.1
+missed by reasoning about the flag in isolation instead of against the contract:
+
+| Invocation | `--out-dir` | `--junitxml` | `--alluredir` |
+|---|---|---|---|
+| `debug-failures-on-demand.yml` | Yes | Yes | **No** |
+| Consumer `debug-cases-on-demand.yml` | Yes | Yes | **No** |
+| `regress-consumers-on-merge.yml`, deterministic gates | No | Yes | **No** |
+| `regress-consumers-on-merge.yml`, graded replay | No | Yes | **No** |
+| `diagnose-on-demand.yml` | Yes | Yes | Yes |
+| Every gating workflow in both repositories | No | Yes | Yes |
+
+The gating paths were correct throughout. **The half-emitting invocations are
+the debug, diagnostic and consumer-regression paths**, which is the worst place
+for it: those are the runs someone reaches for when something has already gone
+wrong, and they are the runs that arrive without a report.
+
+**Implementing the flag closes the first two by itself.** Both debug workflows
+already pass `--out-dir`, so a flag that derives the Allure destination makes
+them emit both without either workflow changing. That is the argument for
+implementing rather than retiring, and it is a stronger one than the tidiness
+argument this section first carried.
+
+**It derives each mandated destination the caller did not name.**
+
+| Given | JUnit lands at | Allure lands at |
+|---|---|---|
+| `--out-dir d/` | `d/junit.xml` | `d/allure-results` |
+| `--out-dir d/ --junitxml=e/x.xml` | `e/x.xml`, explicit wins | `d/allure-results` |
+| `--out-dir d/ --alluredir=e/a` | `d/junit.xml` | `e/a`, explicit wins |
+
+**Explicit may redirect one artifact and never suppress the other**, which is
+why the two destinations are resolved independently rather than as a pair. The
+consumer-regression steps are the case that requires it: they give each JUnit
+file a distinct name so four matrix legs do not overwrite one file, and they
+must keep those names while gaining Allure. A flag that stepped aside entirely
+once any artifact flag appeared would leave them exactly as they are.
+
+**Set when the run is configured.** The JUnit plugin builds its writer in its
+own `pytest_configure`, so a conftest hook is early enough to redirect it and
+nothing later is. Confirmed by writing an artifact to a named directory before
+this design was settled, rather than assuming the hook order.
+
+**Guarded on the Allure plugin being loaded.** `allure-pytest` is a `[dev]`
+dependency and the consumer installs the harness `--no-deps` in one path, so the
+option may be absent. A missing plugin means no Allure flag to set, not a
+failure: the plugin's absence is the operator's choice and this flag does not
+overrule it.
+
+**It names a directory and not a file**, because two artifacts go in it and
+section 5 permits a third. A flag naming one file would need a sibling per
+format, which is the duplication it exists to remove.
+
+##### 7.1.0.3 The mandate was right and nothing established it was met
+
+The four half-emitting invocations sat in plain sight across both repositories
+because **no check reads what a workflow passes to pytest against section 5's
+requirement**. `112522` asks the opposite question, whether a registered flag is
+named by any case, and every artifact check downstream reads artifacts that were
+produced rather than asking whether they all were.
+
+`112525` scans every workflow in both repositories and fails an invocation that
+emits one mandated artifact without the other, counting `--out-dir` as
+supplying both. **A negative case**, because the positive it would replace,
+these workflows running at all, was passing while four of them emitted half the
+contract.
+
+**This is the seventh instance of the shape this file keeps recording**, and the
+first where the thing nothing established was a written standard rather than a
+flag: a ceiling that stopped nothing, a band selector that selected everything,
+a column policy wired to nothing, an assertion covering one of two halves, a
+gate that could not start, an identifier deduplicated away, and now a mandate
+with no reader.
 
 #### 7.1.1 Diagnostic runs
 
@@ -2050,12 +2050,6 @@ between executions, and a collector that picked it up would have a second,
 weaker account of results that the JUnit and Allure artifacts already carry
 properly.
 
-### 7.7 Selecting a regression set by family or by requirement
-
-Added 2026-10-03 at the project owner's instruction: **after a fix, the set worth re-running is selected by priority, family or requirement.** `--priority` existed; the other two did not.
-
-A fix to a model's injection handling does not map to a module, a layer or a file. It maps to the behaviour that was fixed, and the two registers naming behaviour are the family (what the model was asked to do) and the requirement (what it must do).
-
 #### 7.6.2 The primary guard was read in one place and set in none
 
 Added 2026-10-12, found by surveying public callables that no case names and no
@@ -2111,6 +2105,12 @@ defect has.
 `adopt_prerequisites`.** Recording stays idempotent, so the call where the plan
 is built finds the digest already set. `MQC_CAS_UNI_115757` runs the P0 band and
 then the P1 band carrying its outcomes, as the consumer's gate does.
+
+### 7.7 Selecting a regression set by family or by requirement
+
+Added 2026-10-03 at the project owner's instruction: **after a fix, the set worth re-running is selected by priority, family or requirement.** `--priority` existed; the other two did not.
+
+A fix to a model's injection handling does not map to a module, a layer or a file. It maps to the behaviour that was fixed, and the two registers naming behaviour are the family (what the model was asked to do) and the requirement (what it must do).
 
 #### 7.7.1 Three flags, one mechanism
 
@@ -2302,6 +2302,12 @@ MQC_CMN_UNI_112243_a_repeated_family_value_is_reported  # a full name reads the 
 
 **A malformed line is refused where a missing test is skipped**, and the distinction is not pedantry: the two say different things and take different corrections. A line reading `112299` names a test that is not here, which may be a rename on another branch and is reported so the run continues. A line reading `tests/cmn/mqc_uni_families.py::TestMQC::MQC_CMN_UNI_112241_x` names nothing at all, and reporting it as a test that was not found would tell the reader to go looking for a case rather than to fix the line.
 
+##### 7.8.1.2 Why a separate flag and not a prefix on `--tests`
+
+**The first design used `--tests @list.txt` and it could not work.** pytest's parser sets `fromfile_prefix_chars` to the at sign, so argparse expands such a value into arguments **before** any of this is reached: the first line becomes the flag's value and every later line arrives as a positional path. The run failed with `file or directory not found: 112299`.
+
+**Found by running it, not by reading pytest's documentation.** The convention is a real one, which is why it was chosen; it was already taken by the parser this project builds on. A value prefix that a host parser claims is unavailable however well-known it is elsewhere.
+
 ##### 7.8.1.3 A pytest nodeid is not accepted, and that follows from the rule
 
 A nodeid carries a path, a class and the callable, so it contains a period, slashes and colons; the character rule refuses it.
@@ -2313,12 +2319,6 @@ A nodeid carries a path, a class and the callable, so it contains a period, slas
 | An identifier | `112241` |
 | A full test callable name | `MQC_CMN_UNI_112241_a_case_in_two_families_publishes_both` |
 | **Not** a nodeid | A path and a class are not part of a case's identity |
-
-##### 7.8.1.2 Why a separate flag and not a prefix on `--tests`
-
-**The first design used `--tests @list.txt` and it could not work.** pytest's parser sets `fromfile_prefix_chars` to the at sign, so argparse expands such a value into arguments **before** any of this is reached: the first line becomes the flag's value and every later line arrives as a positional path. The run failed with `file or directory not found: 112299`.
-
-**Found by running it, not by reading pytest's documentation.** The convention is a real one, which is why it was chosen; it was already taken by the parser this project builds on. A value prefix that a host parser claims is unavailable however well-known it is elsewhere.
 
 #### 7.8.2 It selects exactly what was named, and that is the difference from `--priority`
 
@@ -2934,6 +2934,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112348` | N | `a_case_block_disagreeing_with_its_module_is_reported` |
 | `112352` | N | `an_unresolved_or_duplicated_citation_is_reported` |
 | `112353` | N | `a_readme_without_a_changelog_is_reported` |
+| `112399` | N | `a_section_sitting_out_of_numeric_order_is_reported` (code-style 7.5) |
 | `112354` | P | `the_rule_set_hash_is_populated_not_only_compared` |
 | `112020` | P | `security_layer_excluded_from_distribution_ceiling` |
 | `112021` | N | `precondition_failure_blocks_graded_evaluation` |
@@ -3264,7 +3265,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 432 cases, 260 negative, 124 positive, 48 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 433 cases, 261 negative, 124 positive, 48 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3419,443 +3420,6 @@ two that are named.
 That is the exact failure the gating rules exist to prevent, arriving through a flag nobody had registered. The selector registry is what makes it impossible rather than merely unlikely, which is why `112122` is parametrized over that registry rather than over a written list.
 
 ---
-
-### 10.35 The installed toolchain is checked against the declared pin
-
-Added 2026-09-26, from a bug rather than a review.
-
-**`pyproject.toml` pinned `pylint>=3.3,<4.0` and 4.0.6 was installed locally.**
-Gate 1 exited **0** here and **8** in CI on the same commit, because the newer
-pylint counts `self` differently against `max-args`. Two commits were pushed on
-the strength of a local run that was measuring a different tool.
-
-**`112222` could not catch it.** It regenerates the requirements files from
-`pyproject.toml`, so it verifies that what is *declared* agrees with itself.
-Nothing verified that what is *installed* agrees with the declaration, and the
-declaration is what CI installs from.
-
-| Checked | By |
-|---|---|
-| The generated files match the declaration | `112222` |
-| **The installed tool satisfies the declaration** | **`112231`** |
-
-**Scoped to the tools that gate**, `pylint` and `pytest`. A drifting library
-changes behaviour and some case says so; a drifting linter or runner changes the
-verdict on every other case at once, and says nothing.
-
-**This is the same failure as the random-ordering plugin** recorded in `DESIGN.md`
-section 5.0.1: a local environment holding a property CI did not, which made the
-local run the stronger check while appearing to be the weaker one. Here it ran the
-other way, and the asymmetry is the point rather than its direction.
-
-### 10.36 The header scan reached files nobody wrote
-
-Added 2026-09-26, from a CI failure that would not reproduce locally.
-
-`pytest` writes `.pytest_cache/README.md`. The markup scan read it as a document
-this repository authors, so `112503` reported it as missing an SPDX header. **It
-passed here and failed in CI**, and the reason is the worst available one: an
-earlier header pass had written a header **into the local copy**, so the working
-tree carried a property a fresh checkout did not, and the check was measuring the
-leftovers of its own remediation.
-
-**The docstring said "tracked" and the code walked the filesystem.** Those are
-different sets, and a generated file in a gitignored directory is in exactly the
-gap between them. The docstring is corrected to say what the code does, and
-`SKIPPED_TREES` gains the tool caches and build output: `.pytest_cache`,
-`.mypy_cache`, `.ruff_cache`, `.tox`, `htmlcov`, `.eggs`, `reports` and
-`allure-results`.
-
-**`112521` builds the condition rather than waiting for it.** `112503` fails only
-when the working tree's cache is clean, and a developer who has run the header
-pass does not have one, so it was a check that happened to notice rather than one
-that could not miss. `112521` plants a generated file in three skipped trees and
-asserts the scan returns the authored document and nothing else.
-
-**Its first version was vacuous and injection caught it.** It asserted only that
-the authored file appeared, which every generated file also satisfied, and it
-passed with the exclusion removed.
-
-**One fix served both repositories.** `markup_sources` lives in `cmn` and both
-call it with their own root, which is the arrangement section 5.1 of
-`consumer_ci.md` describes. The consumer had the same stale header in its own
-cache and would have failed identically once its resolver let it reach Gate 2.
-
-#### 10.37 The configuration travels inside the distribution
-
-Added 2026-09-28, from the first CI run in which a judged case was replayable.
-
-**A consumer read this harness's roster from the directory next door.**
-`AP-Model-QC` located it at `../AP-Harness-QC/config/engines.yaml`, which is
-true only on a disk where both repositories are checked out side by side. CI
-installs the pinned harness from git, so the path did not exist,
-`load_yaml_config` returned an empty mapping for an absent file as it does for
-an optional one, and Gate 4 failed with `judge engine 'gemini' is not on the
-roster` — a true statement about a roster that was never read.
-
-**It could not fail locally.** The sibling is always present on a developer's
-disk, so every local run passed and only an install could show it. That is the
-second instance of the shape `MQC_CMN_UNI_112225` records: a distribution
-missing something the source tree has, found the first time this repository was
-installed into another one.
-
-**So `config/` ships as package data**, and `packaged_config_root` is how a
-consumer finds it: the installed package first, then this source tree, so it
-answers the same way installed, on `PYTHONPATH`, or run from the repository
-root. It is a namespace portion because a data directory should not acquire an
-`__init__.py` to be shipped.
-
-**Why the harness keeps the roster.** It carries evidence rather than
-preferences: which spacing was measured and which remedy the evidence rejected,
-which model was retired and why, which engine grades and on what capability. A
-copy in the consumer would drift toward whichever repository was edited last,
-which is the drift the consumer's own comment warned about while reaching
-across a directory boundary to avoid it.
-
-**An empty roster is refused where one is required.** `load_engines` stays
-permissive, because the verdict tool recomputes from stored artifacts and
-configures no engine; `judge_channel_from_roster` refuses a roster naming
-nothing, which is the site that actually needs one. Reporting the cause beats
-reporting a true consequence three layers away.
-
-### 10.38 The threshold domain, and the four boundaries nobody pinned
-
-Eight cases added 2026-10-13, in two groups of different weight.
-
-**The valid range is the group that matters**, and it is where the gap was. A
-threshold is tested AT its own value or it is not tested; four of the seven
-live thresholds were exercised only on one side. `112052` to `112055` put each
-of them exactly on its boundary and assert the side §8.2 says it falls on. V8
-had no case of any kind, so `112053` carries both sides.
-
-**The invalid range is the additional scenario.** `112056` to `112059` assert
-that an impossible standard is refused rather than applied: a rate at `-1`, `0`,
-above `1` and far above `1`; a value that is not a number at all; a population
-count at `0` and below; and the same refusal arriving through
-`thresholds_from`, which is the path a stored artifact takes and the only one in
-the shipped code that passes a value somebody else wrote.
-
-**Why `112059` is separate from `112056`.** They assert the same domain through
-different doors. `112056` constructs directly, which is what a tool or a test
-does; `112059` goes through the artifact loader, which is what a replayed run
-does, and that is the path where the value was never typed by anybody present.
-A refusal that held only at the first door would be the §7.6.2 defect again: a
-guard read in one place and set in none.
-
-**What they do not assert.** None of them checks a message's wording beyond the
-field name and the value, because the point is that the run stops, and a
-message assertion would make a reworded error a failing test.
-
----
-
-### 10.39 The file date check
-
-`112526` asserts what `code-style.md` section 3.1.2 requires of a module
-docstring: a `Created:` and a `Last updated:` line in third and fourth place,
-each a real date, the first no later than the second, neither in the future,
-and a file that differs from its last commit carrying a `Last updated` of today
-or after that commit. It plants each defect in a scratch repository, reads
-`cmn.code_standards.file_date_problems`, then reads this repository's own root.
-
-**The staleness half needs local edits to compare, and an ordinary CI checkout
-has none**, so there it checks nothing and passes. It bites on a working tree
-before a commit, which is where a date goes stale.
-`tools/refresh_file_dates.py` is the remedy the failure names: it stamps today
-on every changed file and gives a new file both lines.
-
-#### 10.39.1 The staleness comparison is clock-independent, corrected 2026-10-21
-
-**The sentence above was true of every caller but one.** A parallel mutation
-audit copies the repository, `.git` included, and rewrites the audited module,
-so its working tree differs from its last commit **by construction**. It is the
-one CI caller with local edits, and the rule reached it.
-
-**What it did:** a changed file was stale unless its `Last updated` was today or
-after its last commit. `Last updated` and the commit date are both written in
-the author's timezone; `today` came from the runner's. The repository is
-stamped in PDT and the runners are UTC, so for the seven hours after local
-midnight every file committed and stamped on the same local day read as stale.
-
-| | |
-|---|---|
-| Stamp, author's clock | `2026-10-21` |
-| Last commit, author's clock | `2026-10-21` |
-| `today`, runner's clock | **`2026-10-22`** |
-| `touched == today` escape | Misses, so the comparison runs |
-| `touched <= committed` | True, so **stale** |
-
-**Measured, both ways:** the same tree read 0 problems against `2026-10-21` and
-3 against `2026-10-22`. **No stamp satisfies both clocks**, which is the proof
-that the rule was wrong rather than the data: `2026-10-22` is in the future by
-the author's clock and that same check rejects it.
-
-**The fix is the comparison, and it is now between two values from one
-clock.** A changed file is stale when its `Last updated` is **before** its last
-commit. `today` keeps its other job, rejecting a stamp in the future, and
-leaves the staleness branch entirely.
-
-**The `touched == today` escape went with it as dead code, not as a defect.**
-Measured by injection: restoring it alone changes no outcome, because the strict
-comparison already admits a stamp on the commit day. It was the escape that hid
-the clock dependency, and the pair restored together reproduces the refusal.
-
-**What that gives up, stated.** A file committed in the morning and edited in
-the afternoon without re-stamping is no longer reported, because at date
-granularity it is indistinguishable from legitimate same-day work. Step 3 of
-`112526` already asserted that shape passes, so the rule was ambiguous there
-before and is merely consistent now.
-
-**Why the gate never saw it.** `gate-on-change.yml` checks out a clean tree, so
-nothing is changed and the branch does not run. Only the audit modifies what it
-measures, which is why a check this old surfaced from the newest caller.
-
-
-**`Created` is never moved by the tool.** It records the earliest trace of the
-file, its first write in a session transcript or else the day git first added
-it, and was backfilled once from both.
-
-## 11. Test Inventory: `MQC_CMN_SYS_`
-
-Added 2026-09-26. **The module had no system inventory at all**, which is why it
-had no system cases: every `CMN` case was a unit case over synthetic input, and
-the one thing a unit case cannot establish is that the stages join.
-
-### 11.1 `MQC_CMN_SYS_`
-
-| ID | Cat | Behaviour |
-|---|---|---|
-| `122000` | P | `a_compliant_model_runs_the_chain_to_a_green_verdict` |
-| `122001` | N | `a_failing_model_runs_the_chain_to_a_red_verdict` |
-| `122002` | B | `three_observations_of_one_case_reach_the_verdict` |
-
-### 11.2 Why these exist, and what they replaced
-
-Every other suite proves one stage. Ingestion rejects a malformed corpus, dispatch
-routes to an adapter, the dual pass produces both halves, the verdict applies its
-rules. **None of them proves the stages compose**, and a harness whose stages each
-work but do not join measures nothing while reporting that it did.
-
-These run the whole chain on a synthetic corpus: the ingestion join, three
-recorded observations per case, replay dispatch, the dual pass against a judge
-double, and a verdict computed from the observations that come out.
-
-#### 11.2.1 Both outcomes, because one proves nothing
-
-`122001` differs from `122000` **by the candidate's text alone**: same corpus, same
-adapter, same judge, same rules. So the red is attributable to the model's output
-and to nothing else in the chain.
-
-**A chain that always answers green proves only that it can answer.** An
-instrument has to be able to say "this failed" about something that failed, or its
-green is not a measurement. It is also the distinction the whole design protects:
-`122001` asserts exit **1**, a finding about a model, rather than exit 3, which
-would say the instrument broke.
-
-#### 11.2.2 `122002` guards the repeat count through the whole chain
-
-A4.1 asks for three observations. **Dispatch could satisfy that and the verdict
-still see one:** repeats are requested per observation index, recorded per index
-and replayed per index, so a break anywhere collapses three samples into one
-without failing. The run would look complete and the consistency check would have
-nothing to compare.
-
-#### 11.2.3 What they replaced in CI
-
-Gates 4 to 7 of `gate-on-change.yml` ran `pytest -m evaluator`, `-m tool` and
-`-m sec`, then computed a verdict from `collected/results.json`.
-
-| | |
-|---|---|
-| The three markers | Collected nothing. This repository holds no graded case |
-| The artifact | Written by nothing. Section 5 emits Allure and JUnit for a downstream collector |
-| Why it was never seen | Gate 1 failed on the first commit that ran the workflow, so all four were skipped |
-
-**The gates are the consumer's**, which is where a model is actually measured, and
-a harness change is proved against real cases by `regress-consumers-on-merge.yml`.
-What this repository owes is proof that the instrument works, and that is these
-three cases.
-
-
-## 12. Test Inventory: cost
-
-Added 2026-09-27, when the project owner asked what a paid run would cost and the
-harness could not answer: every adapter read its usage object and kept only the
-output count, and the judge path recorded nothing at all.
-
-### 12.1 `MQC_CMN_UNI_`
-
-| ID | Cat | Behaviour |
-|---|---|---|
-| `112232` | N | `a_price_window_that_has_closed_is_reported` |
-| `112233` | B | `the_published_increase_is_priced_from_its_own_date` |
-| `112234` | N | `an_unpriced_model_yields_no_figure_rather_than_zero` |
-| `112235` | P | `thinking_is_billed_at_the_output_rate` |
-| `112236` | B | `cached_input_is_discounted_and_never_double_counted` |
-| `112237` | P | `a_judged_case_reports_its_judge_apart_from_its_candidate` |
-| `112238` | N | `a_replayed_observation_contributes_nothing` |
-| `112143` | N | `choosing_the_default_engine_is_not_defaulting` |
-| `112613` | N | `the_roster_is_found_through_the_installed_package` |
-| `112614` | N | `the_shipped_distribution_carries_the_configuration` |
-| `112522` | N | `a_registered_flag_no_case_names_is_reported` |
-| `112406` | P | `a_band_selects_only_its_own_cases` |
-| `112407` | N | `a_malformed_band_is_refused_not_ignored` |
-| `112408` | B | `a_band_takes_its_foundations_only_when_asked` |
-| `112409` | P | `a_carried_foundation_is_not_run_again` |
-| `112410` | N | `a_record_whose_provenance_moved_is_refused` |
-| `112411` | B | `no_carry_file_named_changes_nothing` |
-| `112523` | N | `a_consumer_run_fails_this_job_only_on_our_codes` |
-
-### 12.2 What was measured before any of this was built
-
-**The estimate came first, and it cost nothing.** Every request the corpus would
-send was composed offline and measured, which answered the affordability question
-before a key existed:
-
-| | Input | Output | At the published rates |
-|---|---|---|---|
-| Security family, 21 cases times three | 10,720 | 1,449 | 0.014 |
-| Whole corpus, 65 cases times three | 64,364 | 6,831 | 0.074 |
-| Whole corpus, realistic output | 64,364 | ~74,600 | 0.33 |
-| Whole corpus, plus thinking at twice output | 64,364 | ~224,000 | 0.89 |
-
-Figures in USD. **The corpus is too small for the bill to matter at flash rates,
-and the variance is entirely in what was uncaptured**: thinking, and the judge.
-That is why the capture came before the ceiling.
-
-### 12.3 Why the price table is dated, and checked
-
-Every rate for `gemini-3.8-flash` doubles on 1 January 2027, which the provider
-published in advance. A table overtaken by that change would not report an error,
-it would report **the older, smaller figure**, and a halved bill in a report is
-worse than no bill at all. So `priced_on` and `effective_until` are data, and
-`112232` fails when no window covers the date being priced.
-
-**An unpriced model yields no figure rather than zero** (`112234`). Zero reads as a
-run that was free, which is the one wrong answer that looks right.
-
-### 12.4 The ceiling fails closed, which a test found
-
-`112234` is also why `MQC_EXE_UNI_113702` exists. A ceiling set against an unpriced
-model cannot be honoured: the model's responses cost nothing computable, so
-spending never accumulates and the cap never engages. A run would have spent
-without limit while reporting a budget.
-
-**Found by a case that would not fail.** The first version of `113700` set a ceiling
-against a double whose model the table does not price, and passed for that reason
-rather than the one it asserted. `claude-opus-5-5` is exactly that case:
-deliberately unpriced, the model a new key would most likely point at, and the one
-whose thinking cannot be disabled.
-
-So an unpriced model with a ceiling set **stops the run**, and the two conditions
-are separate cases.
-
-### 12.4.1 A recording the escalation has never drawn can be stale in silence
-
-Found on 2026-10-06, while widening the escalation rule at 4.9.2.1.
-
-**A case holds one recording per observation, and nothing required them to
-answer the same request.** Three observations of
-`MQC_TASK_cod_settlement_causes` carried one request hash and the fourth and
-fifth carried another, left over from before the prompt changed.
-
-**Nothing complained, because nothing read them.** The rule escalated only on
-exactly one disagreement, the case failed twice of three, and observations four
-and five sat unread. Widening the rule draws them immediately, and the case
-would have skipped on `QC_HARNESS_FIXTURE_STALE` at the exact moment it was
-trying to establish a rate.
-
-**So a case's recordings are now required to agree on the request.** They
-answer one question by construction: a differing hash means some of them answer
-a question the corpus no longer asks, and a store half refreshed is worse than
-one wholly stale, because the half that loads looks current.
-
-### 12.5 A dated snapshot prices as its base, because the provider pins one and the table does not
-
-Found on 2026-10-06, by a live run that spent nothing and said nothing useful
-about why.
-
-**`--max-spend 1.00` on `--engine openai` skipped every case before dispatching
-one**, reporting `QC_HARNESS_BUDGET_EXHAUSTED`. The budget was untouched. The
-cause is section 12.4 working exactly as written: a ceiling against an unpriced
-model cannot be honoured, so the run stops rather than spending without one.
-
-**What made the model unpriced was a name.** The roster asks for `gpt-4.1`, the
-provider answers `gpt-4.1-2025-04-14`, and the spend is priced against what was
-*served* rather than what was asked for — which is right, because a bill is
-for the model that answered. The table keys `gpt-4.1`, so the lookup missed.
-
-| Engine | Asked for | Served | Priced |
-|---|---|---|---|
-| openai | `gpt-4.1` | `gpt-4.1-2025-04-14` | **no** |
-| claude | `claude-opus-5-5` | `claude-opus-5-5` | yes |
-| grok | `grok-4.7` | `grok-4.7` | yes |
-| gemini | `gemini-3.8-flash` | `gemini-3.8-flash` | yes |
-
-**Only one provider pinned a dated snapshot, so only one engine was affected**,
-and it was affected totally: no live openai run with a ceiling could begin.
-Three engines re-recorded a changed task and the fourth silently did not.
-
-#### The fallback, and what it refuses to do
-
-`price_for` now tries the served name, then the same name with a trailing
-`-YYYY-MM-DD` removed, and prices the snapshot at its base's rates.
-
-**It falls back only to a key the table actually carries.** An unknown base
-stays unpriced, so the ceiling still fails closed and section 12.4 keeps its
-guarantee; this narrows which models are unpriced rather than weakening what
-being unpriced means.
-
-**It strips only an ISO date.** `gpt-4.1-mini` is not `gpt-4.1` and must never
-price as it, so the suffix has to be a date and nothing else.
-
-**The fallback is recorded, not silent.** The resolved name reaches the report
-as the provider gave it, and the fallback is logged, because a snapshot
-genuinely priced differently from its base is a thing that can happen and the
-remedy is a key in the table. A silent fallback would hide exactly that.
-
-## 13. Test Inventory: `MQC_CMN_MUT_`
-
-Ungraded, no priority, **not collected by default**. Each case audits one
-production module and asserts its survivor set is declared in
-`config/mutation_survivors.yaml`. Designed in
-``harness_test_taxonomy.md`` section 15.
-
-Categories: **P** positive, **N** negative, **B** boundary.
-
-| ID | Cat | Behaviour |
-|---|---|---|
-| `162000` | N | `an_undeclared_survivor_in_the_verdict_is_reported` |
-| `162001` | N | `an_undeclared_survivor_in_the_threshold_domain_is_reported` |
-| `162002` | N | `an_undeclared_survivor_in_the_layer_registry_is_reported` |
-| `162003` | N | `an_undeclared_survivor_in_the_code_registry_is_reported` |
-| `162004` | N | `an_undeclared_survivor_in_the_band_summary_is_reported` |
-| `162005` | N | `an_undeclared_survivor_in_environment_scopes_is_reported` |
-
-**Six modules, completed 2026-10-15.** `verdict.py` and `threshold_domain.py`
-hold the standard a run is judged against; `layers.py` and `registries.py` hold
-what every layer, outcome, condition and code means; `band_summary.py` states
-the counts a reader acts on; `environments.py` decides which cases run where.
-The first audit of the last four found 109 survivors. Most were registry
-values no case compared with the table they mirror, closed by
-`112368` to `112370` and `112380`; the rest were behaviour closed by `112371`
-to `112376` and `111332`, and what remains is declared, each with its kind.
-
----
-
-## 14. Traceability
-
-| Decision | Section |
-|---|---|
-| A1 fixtures on PR, live on schedule | §4.8 |
-| A2 amended: red need not block | §4.8 |
-| A4 repeat observations | §3 |
-| A6 replay marking | §7, §5 |
-| A7 three outcomes, rate limits | §3 |
-| A11 verdict rules, quarantine | §4.3, §4.6 |
-| A13 unsupported pairs | §4.4 |
-| B8 runtime configuration | §8 |
-| B9 CI topology | §4.8 |
-
 
 ### 10.10 The identifier a design binds twice
 
@@ -4846,98 +4410,6 @@ where it is a statement about the suite rather than a guess about timing.
 collection order, which is the arrangement that failed.
 
 
-#### 10.34.5 The file sits beside the roster, and the consumer looks there
-
-Added 2026-09-25, found while costing the first recording run.
-
-`.env` was created in **`AP-Harness-QC`**, naming `GEMINI_API_KEY`. The graded
-cases run from **`AP-Model-QC`**, whose conftest loads `.env` from its own
-root. **The file existed and the run that needed it read nothing.**
-
-That is the same defect as the one 10.34 was written for, one level up: there
-the loader did not exist, here it does and looks in the wrong place. Both
-present identically, as a credential the suite reports absent.
-
-##### Beside the roster is the right place
-
-A credential authenticates against an engine, and the engines are declared in
-`AP-Harness-QC/config/engines.yaml`. The cases repository already reaches its
-sibling for that file, so reaching it for the credential is the same journey
-rather than a new one.
-
-**The alternative is two copies of a secret**, which is worse in every way that
-matters: two files to gitignore, two to rotate, and one that quietly goes
-stale.
-
-##### The consumer searches its own root first
-
-| Looked at | Why |
-|---|---|
-| The cases repository root | **First**, so an explicit local file still wins |
-| The harness checkout | The fallback, where the roster lives |
-
-**No signature changed and no merge logic was written.** `load_env_file`
-already refuses to overwrite a variable that is set, so calling it twice in
-order gives exactly "local wins, sibling as fallback" for free. A second
-mechanism would have been a second thing to get wrong.
-
-**The harness does not look the other way.** It owns the roster, so a
-credential in the consumer is the odd arrangement rather than a supported one,
-and searching for it would invite exactly the two-copies problem above.
-
-**CI is unaffected.** The refusal under a runner fires before any root is
-consulted, so both calls return nothing there and credentials continue to come
-from the GitHub Environment (10.34.3).
-
-
-
-#### 10.34.6 A credential nothing reads is a silent misconfiguration
-
-Added 2026-09-26, from a credential named `OPEN_AI_APi_KEY`.
-
-The SDK reads `OPENAI_API_KEY`. That name differs in two places, an underscore
-and a letter's case, and **nothing said so.** The file loaded cleanly, the
-variable was set, the loader reported it applied, and no engine would ever
-look at it.
-
-**That is the shape this project keeps closing**, and it had gone unnoticed in
-the one place a reader has least ability to check their own work: a file they
-are told not to print.
-
-##### What is reported, and what is not
-
-`orphan_credentials` compares the names a credential file assigns against the
-names the registered engines declare through `API_KEY_ENV`, and reports any that
-look like a credential and match no engine.
-
-| Name | Reported |
-|---|---|
-| `OPEN_AI_APi_KEY`, no engine reading it | **Yes.** Credential-shaped and orphaned |
-| `GEMINI_API_KEY`, read by the Gen AI SDK | No |
-| `MQC_PROBE_FRESH`, not credential-shaped | No |
-
-**It is a warning and not a refusal.** A file may legitimately carry a
-credential for something outside this harness, and refusing to start over a
-variable we merely do not recognise would be the harness overreaching. What it
-must not do is stay silent, which is what happened.
-
-**The name is reported and the value never is.** That rule holds here more than
-anywhere: the whole point of the check is to be run against a real credential
-file.
-
-##### The engines declare the names, so the check cannot drift
-
-The comparison reads `API_KEY_ENV` from each registered adapter rather than a
-list. An engine added tomorrow is covered the moment it is registered, which is
-the same arrangement the conformance battery uses (section 3.5).
-
-**Gen AI is the exception and is stated as one.** Its SDK reads
-`GOOGLE_API_KEY` or `GEMINI_API_KEY` itself rather than through
-`client_options`, so the adapter declares both and the check reads that
-declaration like any other.
-
-`MQC_CMN_UNI_112518` reports an orphan.
-
 ### 10.29 The homoglyph vector
 
 Added 2026-09-24. `112403` covers the vector designed in
@@ -5094,3 +4566,532 @@ assertions is a case whose green says less than it appears to.
 `python-dotenv` would be a runtime dependency for twenty lines of parsing, on a
 project whose dependency list argues for each entry individually. The loader
 lives in `cmn/config.py` beside the credential rules it belongs with.
+#### 10.34.5 The file sits beside the roster, and the consumer looks there
+
+Added 2026-09-25, found while costing the first recording run.
+
+`.env` was created in **`AP-Harness-QC`**, naming `GEMINI_API_KEY`. The graded
+cases run from **`AP-Model-QC`**, whose conftest loads `.env` from its own
+root. **The file existed and the run that needed it read nothing.**
+
+That is the same defect as the one 10.34 was written for, one level up: there
+the loader did not exist, here it does and looks in the wrong place. Both
+present identically, as a credential the suite reports absent.
+
+##### Beside the roster is the right place
+
+A credential authenticates against an engine, and the engines are declared in
+`AP-Harness-QC/config/engines.yaml`. The cases repository already reaches its
+sibling for that file, so reaching it for the credential is the same journey
+rather than a new one.
+
+**The alternative is two copies of a secret**, which is worse in every way that
+matters: two files to gitignore, two to rotate, and one that quietly goes
+stale.
+
+##### The consumer searches its own root first
+
+| Looked at | Why |
+|---|---|
+| The cases repository root | **First**, so an explicit local file still wins |
+| The harness checkout | The fallback, where the roster lives |
+
+**No signature changed and no merge logic was written.** `load_env_file`
+already refuses to overwrite a variable that is set, so calling it twice in
+order gives exactly "local wins, sibling as fallback" for free. A second
+mechanism would have been a second thing to get wrong.
+
+**The harness does not look the other way.** It owns the roster, so a
+credential in the consumer is the odd arrangement rather than a supported one,
+and searching for it would invite exactly the two-copies problem above.
+
+**CI is unaffected.** The refusal under a runner fires before any root is
+consulted, so both calls return nothing there and credentials continue to come
+from the GitHub Environment (10.34.3).
+
+
+
+#### 10.34.6 A credential nothing reads is a silent misconfiguration
+
+Added 2026-09-26, from a credential named `OPEN_AI_APi_KEY`.
+
+The SDK reads `OPENAI_API_KEY`. That name differs in two places, an underscore
+and a letter's case, and **nothing said so.** The file loaded cleanly, the
+variable was set, the loader reported it applied, and no engine would ever
+look at it.
+
+**That is the shape this project keeps closing**, and it had gone unnoticed in
+the one place a reader has least ability to check their own work: a file they
+are told not to print.
+
+##### What is reported, and what is not
+
+`orphan_credentials` compares the names a credential file assigns against the
+names the registered engines declare through `API_KEY_ENV`, and reports any that
+look like a credential and match no engine.
+
+| Name | Reported |
+|---|---|
+| `OPEN_AI_APi_KEY`, no engine reading it | **Yes.** Credential-shaped and orphaned |
+| `GEMINI_API_KEY`, read by the Gen AI SDK | No |
+| `MQC_PROBE_FRESH`, not credential-shaped | No |
+
+**It is a warning and not a refusal.** A file may legitimately carry a
+credential for something outside this harness, and refusing to start over a
+variable we merely do not recognise would be the harness overreaching. What it
+must not do is stay silent, which is what happened.
+
+**The name is reported and the value never is.** That rule holds here more than
+anywhere: the whole point of the check is to be run against a real credential
+file.
+
+##### The engines declare the names, so the check cannot drift
+
+The comparison reads `API_KEY_ENV` from each registered adapter rather than a
+list. An engine added tomorrow is covered the moment it is registered, which is
+the same arrangement the conformance battery uses (section 3.5).
+
+**Gen AI is the exception and is stated as one.** Its SDK reads
+`GOOGLE_API_KEY` or `GEMINI_API_KEY` itself rather than through
+`client_options`, so the adapter declares both and the check reads that
+declaration like any other.
+
+`MQC_CMN_UNI_112518` reports an orphan.
+
+### 10.35 The installed toolchain is checked against the declared pin
+
+Added 2026-09-26, from a bug rather than a review.
+
+**`pyproject.toml` pinned `pylint>=3.3,<4.0` and 4.0.6 was installed locally.**
+Gate 1 exited **0** here and **8** in CI on the same commit, because the newer
+pylint counts `self` differently against `max-args`. Two commits were pushed on
+the strength of a local run that was measuring a different tool.
+
+**`112222` could not catch it.** It regenerates the requirements files from
+`pyproject.toml`, so it verifies that what is *declared* agrees with itself.
+Nothing verified that what is *installed* agrees with the declaration, and the
+declaration is what CI installs from.
+
+| Checked | By |
+|---|---|
+| The generated files match the declaration | `112222` |
+| **The installed tool satisfies the declaration** | **`112231`** |
+
+**Scoped to the tools that gate**, `pylint` and `pytest`. A drifting library
+changes behaviour and some case says so; a drifting linter or runner changes the
+verdict on every other case at once, and says nothing.
+
+**This is the same failure as the random-ordering plugin** recorded in `DESIGN.md`
+section 5.0.1: a local environment holding a property CI did not, which made the
+local run the stronger check while appearing to be the weaker one. Here it ran the
+other way, and the asymmetry is the point rather than its direction.
+
+### 10.36 The header scan reached files nobody wrote
+
+Added 2026-09-26, from a CI failure that would not reproduce locally.
+
+`pytest` writes `.pytest_cache/README.md`. The markup scan read it as a document
+this repository authors, so `112503` reported it as missing an SPDX header. **It
+passed here and failed in CI**, and the reason is the worst available one: an
+earlier header pass had written a header **into the local copy**, so the working
+tree carried a property a fresh checkout did not, and the check was measuring the
+leftovers of its own remediation.
+
+**The docstring said "tracked" and the code walked the filesystem.** Those are
+different sets, and a generated file in a gitignored directory is in exactly the
+gap between them. The docstring is corrected to say what the code does, and
+`SKIPPED_TREES` gains the tool caches and build output: `.pytest_cache`,
+`.mypy_cache`, `.ruff_cache`, `.tox`, `htmlcov`, `.eggs`, `reports` and
+`allure-results`.
+
+**`112521` builds the condition rather than waiting for it.** `112503` fails only
+when the working tree's cache is clean, and a developer who has run the header
+pass does not have one, so it was a check that happened to notice rather than one
+that could not miss. `112521` plants a generated file in three skipped trees and
+asserts the scan returns the authored document and nothing else.
+
+**Its first version was vacuous and injection caught it.** It asserted only that
+the authored file appeared, which every generated file also satisfied, and it
+passed with the exclusion removed.
+
+**One fix served both repositories.** `markup_sources` lives in `cmn` and both
+call it with their own root, which is the arrangement section 5.1 of
+`consumer_ci.md` describes. The consumer had the same stale header in its own
+cache and would have failed identically once its resolver let it reach Gate 2.
+
+#### 10.37 The configuration travels inside the distribution
+
+Added 2026-09-28, from the first CI run in which a judged case was replayable.
+
+**A consumer read this harness's roster from the directory next door.**
+`AP-Model-QC` located it at `../AP-Harness-QC/config/engines.yaml`, which is
+true only on a disk where both repositories are checked out side by side. CI
+installs the pinned harness from git, so the path did not exist,
+`load_yaml_config` returned an empty mapping for an absent file as it does for
+an optional one, and Gate 4 failed with `judge engine 'gemini' is not on the
+roster` — a true statement about a roster that was never read.
+
+**It could not fail locally.** The sibling is always present on a developer's
+disk, so every local run passed and only an install could show it. That is the
+second instance of the shape `MQC_CMN_UNI_112225` records: a distribution
+missing something the source tree has, found the first time this repository was
+installed into another one.
+
+**So `config/` ships as package data**, and `packaged_config_root` is how a
+consumer finds it: the installed package first, then this source tree, so it
+answers the same way installed, on `PYTHONPATH`, or run from the repository
+root. It is a namespace portion because a data directory should not acquire an
+`__init__.py` to be shipped.
+
+**Why the harness keeps the roster.** It carries evidence rather than
+preferences: which spacing was measured and which remedy the evidence rejected,
+which model was retired and why, which engine grades and on what capability. A
+copy in the consumer would drift toward whichever repository was edited last,
+which is the drift the consumer's own comment warned about while reaching
+across a directory boundary to avoid it.
+
+**An empty roster is refused where one is required.** `load_engines` stays
+permissive, because the verdict tool recomputes from stored artifacts and
+configures no engine; `judge_channel_from_roster` refuses a roster naming
+nothing, which is the site that actually needs one. Reporting the cause beats
+reporting a true consequence three layers away.
+
+### 10.38 The threshold domain, and the four boundaries nobody pinned
+
+Eight cases added 2026-10-13, in two groups of different weight.
+
+**The valid range is the group that matters**, and it is where the gap was. A
+threshold is tested AT its own value or it is not tested; four of the seven
+live thresholds were exercised only on one side. `112052` to `112055` put each
+of them exactly on its boundary and assert the side §8.2 says it falls on. V8
+had no case of any kind, so `112053` carries both sides.
+
+**The invalid range is the additional scenario.** `112056` to `112059` assert
+that an impossible standard is refused rather than applied: a rate at `-1`, `0`,
+above `1` and far above `1`; a value that is not a number at all; a population
+count at `0` and below; and the same refusal arriving through
+`thresholds_from`, which is the path a stored artifact takes and the only one in
+the shipped code that passes a value somebody else wrote.
+
+**Why `112059` is separate from `112056`.** They assert the same domain through
+different doors. `112056` constructs directly, which is what a tool or a test
+does; `112059` goes through the artifact loader, which is what a replayed run
+does, and that is the path where the value was never typed by anybody present.
+A refusal that held only at the first door would be the §7.6.2 defect again: a
+guard read in one place and set in none.
+
+**What they do not assert.** None of them checks a message's wording beyond the
+field name and the value, because the point is that the run stops, and a
+message assertion would make a reworded error a failing test.
+
+---
+
+### 10.39 The file date check
+
+`112526` asserts what `code-style.md` section 3.1.2 requires of a module
+docstring: a `Created:` and a `Last updated:` line in third and fourth place,
+each a real date, the first no later than the second, neither in the future,
+and a file that differs from its last commit carrying a `Last updated` of today
+or after that commit. It plants each defect in a scratch repository, reads
+`cmn.code_standards.file_date_problems`, then reads this repository's own root.
+
+**The staleness half needs local edits to compare, and an ordinary CI checkout
+has none**, so there it checks nothing and passes. It bites on a working tree
+before a commit, which is where a date goes stale.
+`tools/refresh_file_dates.py` is the remedy the failure names: it stamps today
+on every changed file and gives a new file both lines.
+
+#### 10.39.1 The staleness comparison is clock-independent, corrected 2026-10-21
+
+**The sentence above was true of every caller but one.** A parallel mutation
+audit copies the repository, `.git` included, and rewrites the audited module,
+so its working tree differs from its last commit **by construction**. It is the
+one CI caller with local edits, and the rule reached it.
+
+**What it did:** a changed file was stale unless its `Last updated` was today or
+after its last commit. `Last updated` and the commit date are both written in
+the author's timezone; `today` came from the runner's. The repository is
+stamped in PDT and the runners are UTC, so for the seven hours after local
+midnight every file committed and stamped on the same local day read as stale.
+
+| | |
+|---|---|
+| Stamp, author's clock | `2026-10-21` |
+| Last commit, author's clock | `2026-10-21` |
+| `today`, runner's clock | **`2026-10-22`** |
+| `touched == today` escape | Misses, so the comparison runs |
+| `touched <= committed` | True, so **stale** |
+
+**Measured, both ways:** the same tree read 0 problems against `2026-10-21` and
+3 against `2026-10-22`. **No stamp satisfies both clocks**, which is the proof
+that the rule was wrong rather than the data: `2026-10-22` is in the future by
+the author's clock and that same check rejects it.
+
+**The fix is the comparison, and it is now between two values from one
+clock.** A changed file is stale when its `Last updated` is **before** its last
+commit. `today` keeps its other job, rejecting a stamp in the future, and
+leaves the staleness branch entirely.
+
+**The `touched == today` escape went with it as dead code, not as a defect.**
+Measured by injection: restoring it alone changes no outcome, because the strict
+comparison already admits a stamp on the commit day. It was the escape that hid
+the clock dependency, and the pair restored together reproduces the refusal.
+
+**What that gives up, stated.** A file committed in the morning and edited in
+the afternoon without re-stamping is no longer reported, because at date
+granularity it is indistinguishable from legitimate same-day work. Step 3 of
+`112526` already asserted that shape passes, so the rule was ambiguous there
+before and is merely consistent now.
+
+**Why the gate never saw it.** `gate-on-change.yml` checks out a clean tree, so
+nothing is changed and the branch does not run. Only the audit modifies what it
+measures, which is why a check this old surfaced from the newest caller.
+
+
+**`Created` is never moved by the tool.** It records the earliest trace of the
+file, its first write in a session transcript or else the day git first added
+it, and was backfilled once from both.
+
+## 11. Test Inventory: `MQC_CMN_SYS_`
+
+Added 2026-09-26. **The module had no system inventory at all**, which is why it
+had no system cases: every `CMN` case was a unit case over synthetic input, and
+the one thing a unit case cannot establish is that the stages join.
+
+### 11.1 `MQC_CMN_SYS_`
+
+| ID | Cat | Behaviour |
+|---|---|---|
+| `122000` | P | `a_compliant_model_runs_the_chain_to_a_green_verdict` |
+| `122001` | N | `a_failing_model_runs_the_chain_to_a_red_verdict` |
+| `122002` | B | `three_observations_of_one_case_reach_the_verdict` |
+
+### 11.2 Why these exist, and what they replaced
+
+Every other suite proves one stage. Ingestion rejects a malformed corpus, dispatch
+routes to an adapter, the dual pass produces both halves, the verdict applies its
+rules. **None of them proves the stages compose**, and a harness whose stages each
+work but do not join measures nothing while reporting that it did.
+
+These run the whole chain on a synthetic corpus: the ingestion join, three
+recorded observations per case, replay dispatch, the dual pass against a judge
+double, and a verdict computed from the observations that come out.
+
+#### 11.2.1 Both outcomes, because one proves nothing
+
+`122001` differs from `122000` **by the candidate's text alone**: same corpus, same
+adapter, same judge, same rules. So the red is attributable to the model's output
+and to nothing else in the chain.
+
+**A chain that always answers green proves only that it can answer.** An
+instrument has to be able to say "this failed" about something that failed, or its
+green is not a measurement. It is also the distinction the whole design protects:
+`122001` asserts exit **1**, a finding about a model, rather than exit 3, which
+would say the instrument broke.
+
+#### 11.2.2 `122002` guards the repeat count through the whole chain
+
+A4.1 asks for three observations. **Dispatch could satisfy that and the verdict
+still see one:** repeats are requested per observation index, recorded per index
+and replayed per index, so a break anywhere collapses three samples into one
+without failing. The run would look complete and the consistency check would have
+nothing to compare.
+
+#### 11.2.3 What they replaced in CI
+
+Gates 4 to 7 of `gate-on-change.yml` ran `pytest -m evaluator`, `-m tool` and
+`-m sec`, then computed a verdict from `collected/results.json`.
+
+| | |
+|---|---|
+| The three markers | Collected nothing. This repository holds no graded case |
+| The artifact | Written by nothing. Section 5 emits Allure and JUnit for a downstream collector |
+| Why it was never seen | Gate 1 failed on the first commit that ran the workflow, so all four were skipped |
+
+**The gates are the consumer's**, which is where a model is actually measured, and
+a harness change is proved against real cases by `regress-consumers-on-merge.yml`.
+What this repository owes is proof that the instrument works, and that is these
+three cases.
+
+
+## 12. Test Inventory: cost
+
+Added 2026-09-27, when the project owner asked what a paid run would cost and the
+harness could not answer: every adapter read its usage object and kept only the
+output count, and the judge path recorded nothing at all.
+
+### 12.1 `MQC_CMN_UNI_`
+
+| ID | Cat | Behaviour |
+|---|---|---|
+| `112232` | N | `a_price_window_that_has_closed_is_reported` |
+| `112233` | B | `the_published_increase_is_priced_from_its_own_date` |
+| `112234` | N | `an_unpriced_model_yields_no_figure_rather_than_zero` |
+| `112235` | P | `thinking_is_billed_at_the_output_rate` |
+| `112236` | B | `cached_input_is_discounted_and_never_double_counted` |
+| `112237` | P | `a_judged_case_reports_its_judge_apart_from_its_candidate` |
+| `112238` | N | `a_replayed_observation_contributes_nothing` |
+| `112143` | N | `choosing_the_default_engine_is_not_defaulting` |
+| `112613` | N | `the_roster_is_found_through_the_installed_package` |
+| `112614` | N | `the_shipped_distribution_carries_the_configuration` |
+| `112522` | N | `a_registered_flag_no_case_names_is_reported` |
+| `112406` | P | `a_band_selects_only_its_own_cases` |
+| `112407` | N | `a_malformed_band_is_refused_not_ignored` |
+| `112408` | B | `a_band_takes_its_foundations_only_when_asked` |
+| `112409` | P | `a_carried_foundation_is_not_run_again` |
+| `112410` | N | `a_record_whose_provenance_moved_is_refused` |
+| `112411` | B | `no_carry_file_named_changes_nothing` |
+| `112523` | N | `a_consumer_run_fails_this_job_only_on_our_codes` |
+
+### 12.2 What was measured before any of this was built
+
+**The estimate came first, and it cost nothing.** Every request the corpus would
+send was composed offline and measured, which answered the affordability question
+before a key existed:
+
+| | Input | Output | At the published rates |
+|---|---|---|---|
+| Security family, 21 cases times three | 10,720 | 1,449 | 0.014 |
+| Whole corpus, 65 cases times three | 64,364 | 6,831 | 0.074 |
+| Whole corpus, realistic output | 64,364 | ~74,600 | 0.33 |
+| Whole corpus, plus thinking at twice output | 64,364 | ~224,000 | 0.89 |
+
+Figures in USD. **The corpus is too small for the bill to matter at flash rates,
+and the variance is entirely in what was uncaptured**: thinking, and the judge.
+That is why the capture came before the ceiling.
+
+### 12.3 Why the price table is dated, and checked
+
+Every rate for `gemini-3.8-flash` doubles on 1 January 2027, which the provider
+published in advance. A table overtaken by that change would not report an error,
+it would report **the older, smaller figure**, and a halved bill in a report is
+worse than no bill at all. So `priced_on` and `effective_until` are data, and
+`112232` fails when no window covers the date being priced.
+
+**An unpriced model yields no figure rather than zero** (`112234`). Zero reads as a
+run that was free, which is the one wrong answer that looks right.
+
+### 12.4 The ceiling fails closed, which a test found
+
+`112234` is also why `MQC_EXE_UNI_113702` exists. A ceiling set against an unpriced
+model cannot be honoured: the model's responses cost nothing computable, so
+spending never accumulates and the cap never engages. A run would have spent
+without limit while reporting a budget.
+
+**Found by a case that would not fail.** The first version of `113700` set a ceiling
+against a double whose model the table does not price, and passed for that reason
+rather than the one it asserted. `claude-opus-5-5` is exactly that case:
+deliberately unpriced, the model a new key would most likely point at, and the one
+whose thinking cannot be disabled.
+
+So an unpriced model with a ceiling set **stops the run**, and the two conditions
+are separate cases.
+
+### 12.4.1 A recording the escalation has never drawn can be stale in silence
+
+Found on 2026-10-06, while widening the escalation rule at 4.9.2.1.
+
+**A case holds one recording per observation, and nothing required them to
+answer the same request.** Three observations of
+`MQC_TASK_cod_settlement_causes` carried one request hash and the fourth and
+fifth carried another, left over from before the prompt changed.
+
+**Nothing complained, because nothing read them.** The rule escalated only on
+exactly one disagreement, the case failed twice of three, and observations four
+and five sat unread. Widening the rule draws them immediately, and the case
+would have skipped on `QC_HARNESS_FIXTURE_STALE` at the exact moment it was
+trying to establish a rate.
+
+**So a case's recordings are now required to agree on the request.** They
+answer one question by construction: a differing hash means some of them answer
+a question the corpus no longer asks, and a store half refreshed is worse than
+one wholly stale, because the half that loads looks current.
+
+### 12.5 A dated snapshot prices as its base, because the provider pins one and the table does not
+
+Found on 2026-10-06, by a live run that spent nothing and said nothing useful
+about why.
+
+**`--max-spend 1.00` on `--engine openai` skipped every case before dispatching
+one**, reporting `QC_HARNESS_BUDGET_EXHAUSTED`. The budget was untouched. The
+cause is section 12.4 working exactly as written: a ceiling against an unpriced
+model cannot be honoured, so the run stops rather than spending without one.
+
+**What made the model unpriced was a name.** The roster asks for `gpt-4.1`, the
+provider answers `gpt-4.1-2025-04-14`, and the spend is priced against what was
+*served* rather than what was asked for — which is right, because a bill is
+for the model that answered. The table keys `gpt-4.1`, so the lookup missed.
+
+| Engine | Asked for | Served | Priced |
+|---|---|---|---|
+| openai | `gpt-4.1` | `gpt-4.1-2025-04-14` | **no** |
+| claude | `claude-opus-5-5` | `claude-opus-5-5` | yes |
+| grok | `grok-4.7` | `grok-4.7` | yes |
+| gemini | `gemini-3.8-flash` | `gemini-3.8-flash` | yes |
+
+**Only one provider pinned a dated snapshot, so only one engine was affected**,
+and it was affected totally: no live openai run with a ceiling could begin.
+Three engines re-recorded a changed task and the fourth silently did not.
+
+#### The fallback, and what it refuses to do
+
+`price_for` now tries the served name, then the same name with a trailing
+`-YYYY-MM-DD` removed, and prices the snapshot at its base's rates.
+
+**It falls back only to a key the table actually carries.** An unknown base
+stays unpriced, so the ceiling still fails closed and section 12.4 keeps its
+guarantee; this narrows which models are unpriced rather than weakening what
+being unpriced means.
+
+**It strips only an ISO date.** `gpt-4.1-mini` is not `gpt-4.1` and must never
+price as it, so the suffix has to be a date and nothing else.
+
+**The fallback is recorded, not silent.** The resolved name reaches the report
+as the provider gave it, and the fallback is logged, because a snapshot
+genuinely priced differently from its base is a thing that can happen and the
+remedy is a key in the table. A silent fallback would hide exactly that.
+
+## 13. Test Inventory: `MQC_CMN_MUT_`
+
+Ungraded, no priority, **not collected by default**. Each case audits one
+production module and asserts its survivor set is declared in
+`config/mutation_survivors.yaml`. Designed in
+``harness_test_taxonomy.md`` section 15.
+
+Categories: **P** positive, **N** negative, **B** boundary.
+
+| ID | Cat | Behaviour |
+|---|---|---|
+| `162000` | N | `an_undeclared_survivor_in_the_verdict_is_reported` |
+| `162001` | N | `an_undeclared_survivor_in_the_threshold_domain_is_reported` |
+| `162002` | N | `an_undeclared_survivor_in_the_layer_registry_is_reported` |
+| `162003` | N | `an_undeclared_survivor_in_the_code_registry_is_reported` |
+| `162004` | N | `an_undeclared_survivor_in_the_band_summary_is_reported` |
+| `162005` | N | `an_undeclared_survivor_in_environment_scopes_is_reported` |
+
+**Six modules, completed 2026-10-15.** `verdict.py` and `threshold_domain.py`
+hold the standard a run is judged against; `layers.py` and `registries.py` hold
+what every layer, outcome, condition and code means; `band_summary.py` states
+the counts a reader acts on; `environments.py` decides which cases run where.
+The first audit of the last four found 109 survivors. Most were registry
+values no case compared with the table they mirror, closed by
+`112368` to `112370` and `112380`; the rest were behaviour closed by `112371`
+to `112376` and `111332`, and what remains is declared, each with its kind.
+
+---
+
+## 14. Traceability
+
+| Decision | Section |
+|---|---|
+| A1 fixtures on PR, live on schedule | §4.8 |
+| A2 amended: red need not block | §4.8 |
+| A4 repeat observations | §3 |
+| A6 replay marking | §7, §5 |
+| A7 three outcomes, rate limits | §3 |
+| A11 verdict rules, quarantine | §4.3, §4.6 |
+| A13 unsupported pairs | §4.4 |
+| B8 runtime configuration | §8 |
+| B9 CI topology | §4.8 |
+
+

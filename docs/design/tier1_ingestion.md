@@ -281,6 +281,17 @@ to.
 | `utf-8-sig`, so a BOM from a spreadsheet export is tolerated | Section 8 of `code-style.md` |
 | Every value cast explicitly at the boundary | Section 5 |
 
+#### 4.3.1 What CSV is actually for here
+
+**An alternative authoring path, however the file was generated.** Producing a
+CSV template is often easier than standing up a database, and that is the whole
+claim.
+
+Earlier text called the motivating case "database extraction", which
+overstated it: **a database extractor is a separate tool** and this repository
+is not it. Nothing here reads a database, mocks one, or ships a fixture shaped
+like an export.
+
 #### 4.3.2 What is finished here and what is not
 
 **Row-level CSV ingestion is a requirement and it ships.**
@@ -296,17 +307,6 @@ document is a specification rather than a description of what exists today.
 section is left describing the gap rather than rewritten to name polars,
 because a design naming a library nobody has run is the same defect this
 correction is about, in a new coat.
-
-#### 4.3.1 What CSV is actually for here
-
-**An alternative authoring path, however the file was generated.** Producing a
-CSV template is often easier than standing up a database, and that is the whole
-claim.
-
-Earlier text called the motivating case "database extraction", which
-overstated it: **a database extractor is a separate tool** and this repository
-is not it. Nothing here reads a database, mocks one, or ships a fixture shaped
-like an export.
 
 ### 4.4 Column policy
 

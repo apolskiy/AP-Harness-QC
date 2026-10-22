@@ -1069,23 +1069,6 @@ at the end of the case.
 
 ---
 
-## 8. Rate Limiting
-
-The objective is evaluation, never load-testing a provider. On a free tier, pacing decides whether a run completes at all (A7.3).
-
-| Control | Behaviour |
-|---|---|
-| Request spacing | Per engine, from `config/engines.yaml` |
-| Retry | Bounded backoff on `QC_HARNESS_CANDIDATE_TIMEOUT`, and on `QC_HARNESS_RATE_LIMIT` **unless the provider named an exhausted quota period** (section 8.6.4) |
-| Exhausted backoff | Skip the case, attach the code, continue |
-| Circuit breaker | N consecutive failures, or any auth error, aborts the run |
-| Diagnostics | Rate-limit encounters counted and reported, never absorbed silently by retry |
-
-**Interaction with A4:** three observations per case triples request volume against the same ceiling. Spacing and observation count are configured together, not independently.
-
-**Replay mode applies no spacing** and consumes no quota, which is why the deterministic gates run identically on a pull request and on a schedule.
-
-
 ### 7.12 The outcome carries the call that produced it
 
 **Numbered 7.12 since 2026-10-11.** It was appended as a second `7.8`, and
@@ -1251,6 +1234,23 @@ writes nothing.
 request retires the old ones immediately, so a run interrupted after one
 observation leaves a short pair rather than a mixed one, and a short pair is a
 gap the next run fills.
+
+## 8. Rate Limiting
+
+The objective is evaluation, never load-testing a provider. On a free tier, pacing decides whether a run completes at all (A7.3).
+
+| Control | Behaviour |
+|---|---|
+| Request spacing | Per engine, from `config/engines.yaml` |
+| Retry | Bounded backoff on `QC_HARNESS_CANDIDATE_TIMEOUT`, and on `QC_HARNESS_RATE_LIMIT` **unless the provider named an exhausted quota period** (section 8.6.4) |
+| Exhausted backoff | Skip the case, attach the code, continue |
+| Circuit breaker | N consecutive failures, or any auth error, aborts the run |
+| Diagnostics | Rate-limit encounters counted and reported, never absorbed silently by retry |
+
+**Interaction with A4:** three observations per case triples request volume against the same ceiling. Spacing and observation count are configured together, not independently.
+
+**Replay mode applies no spacing** and consumes no quota, which is why the deterministic gates run identically on a pull request and on a schedule.
+
 
 ### 8.1 What a dispatch returns
 
@@ -1707,6 +1707,30 @@ distinction in prose, and this makes it a code.
 retries it: no wait a run can afford produces funds.
 
 
+#### 8.6.6 The session reports the models it served
+
+Added 2026-10-02. The resolved model reached `record_spend`, was priced with and
+dropped; `unpriced` kept only the ones it could not price.
+
+`served` records every model the session saw, which answers "what did this run
+run against" without a caller re-deriving it from observations. The quarantine
+tool needs it to stamp an entry with the model a re-observation measured
+(`cmn_verdict_and_cli.md` section 4.6.10), and the question is general enough
+that the session is the right place for it.
+
+**Recorded in `note_outcome`, not in `record_spend`.** The first attempt hooked
+spending, and a replayed response never reaches it: the tool then stamped an
+empty model from a replay while the fixture it replayed names one. Every
+outcome reaches `note_outcome` in either mode, which is what this needs.
+
+**A replay is included, not exempt**, which is the rule `mixed_model_engines`
+already states for the same reason: fixtures carry the model that produced them,
+so a replay does answer what it ran against.
+
+**It is a set, so two entries mean a mixed corpus**, the same condition
+`mixed_model_engines` reports from the other direction.
+
+
 #### 8.6.7 403 is about the request; 401 is about the caller
 
 Added 2026-10-12, after grok returned this to a requirement-matching case:
@@ -1778,30 +1802,6 @@ and every later request would fail the same way.
 refusal is an answer from a reachable provider about one request, so it resets
 the streak as a measurement does. In a run that has measured nothing it still
 counts, which `113125` asserts and `113128` asserts the other half of.
-
-#### 8.6.6 The session reports the models it served
-
-Added 2026-10-02. The resolved model reached `record_spend`, was priced with and
-dropped; `unpriced` kept only the ones it could not price.
-
-`served` records every model the session saw, which answers "what did this run
-run against" without a caller re-deriving it from observations. The quarantine
-tool needs it to stamp an entry with the model a re-observation measured
-(`cmn_verdict_and_cli.md` section 4.6.10), and the question is general enough
-that the session is the right place for it.
-
-**Recorded in `note_outcome`, not in `record_spend`.** The first attempt hooked
-spending, and a replayed response never reaches it: the tool then stamped an
-empty model from a replay while the fixture it replayed names one. Every
-outcome reaches `note_outcome` in either mode, which is what this needs.
-
-**A replay is included, not exempt**, which is the rule `mixed_model_engines`
-already states for the same reason: fixtures carry the model that produced them,
-so a replay does answer what it ran against.
-
-**It is a set, so two entries mean a mixed corpus**, the same condition
-`mixed_model_engines` reports from the other direction.
-
 
 ## 9. Conformance Suite
 
@@ -2097,22 +2097,6 @@ leaves room for one more engine; a sixth needs a category of its own.
 | ~~`113220`~~ | | ~~`a_fixture_carrying_a_credential_shaped_value_is_reported`~~. **Retired 2026-10-11**, as above. `113614` states it |
 | `113209` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 
-### 10.2 `MQC_EXE_SYS_`
-
-| ID | Cat | Behaviour |
-|---|---|---|
-| `123000` | P | `dispatches_one_request_per_case_with_no_loop` |
-| `123001` | P | `every_adapter_produces_identical_canonical_shape` |
-| `123002` | P | `engine_selection_routes_to_declared_adapter` |
-| `123003` | N | `unknown_engine_name_is_rejected` |
-| `123004` | P | `mode_flag_selects_live_or_replay_independently_of_engine` |
-
-**`123001` is marked foundational** (`@pytest.mark.base`). A provider-agnostic interface carrying only plain text proves nothing; one normalising three genuinely different tool-call and error shapes is a real abstraction, and this is where that claim is tested.
-
-Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
-
-**Inventory: 213 cases, 99 negative, 105 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
-
 #### 10.1.1 The version probe
 
 `113501` through `113504` cover the nightly probe specified in `harness_ci_pipeline.md` section 4. The probe resolves each engine's model version and decides whether a live run is warranted, which is decision logic and therefore testable rather than configuration.
@@ -2166,6 +2150,22 @@ Its failure means the canonical shape does not hold across adapters, so every do
 **`113112` is stated negatively on purpose.** Asserting that each adapter emits the right types would pass on an adapter that emits a vendor object in a field nobody enumerated. The case walks the record's fields and rejects any type outside the permitted set, so a field added later is covered without anyone remembering to cover it.
 
 ---
+
+### 10.2 `MQC_EXE_SYS_`
+
+| ID | Cat | Behaviour |
+|---|---|---|
+| `123000` | P | `dispatches_one_request_per_case_with_no_loop` |
+| `123001` | P | `every_adapter_produces_identical_canonical_shape` |
+| `123002` | P | `engine_selection_routes_to_declared_adapter` |
+| `123003` | N | `unknown_engine_name_is_rejected` |
+| `123004` | P | `mode_flag_selects_live_or_replay_independently_of_engine` |
+
+**`123001` is marked foundational** (`@pytest.mark.base`). A provider-agnostic interface carrying only plain text proves nothing; one normalising three genuinely different tool-call and error shapes is a real abstraction, and this is where that claim is tested.
+
+Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
+
+**Inventory: 213 cases, 99 negative, 105 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

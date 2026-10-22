@@ -29,6 +29,47 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A section is where its number says it is, and a check keeps it there, 2026-10-22
+
+**A citation resolved and the section was somewhere else.** Section 7.3 made
+every citation resolve to a number used exactly once, and said nothing about
+where in the file that number sits: `harness_ci_pipeline.md` numbered 8.3
+after 8.4, and a reader sent to the right section had to scroll for it.
+`cmn.document_citations.disordered_sections` now reports every numbered
+heading that sorts at or before the heading above it, called with each
+repository's root by `MQC_CMN_UNI_112399` and `MQC_CAS_UNI_115778`
+(`code-style.md` section 7.5, five injections).
+
+**The register that named the gap understated it, and that is the argument for
+a check.** It listed four documents; the check found **thirty seven headings
+across twelve**, seven designs, two registers, a test plan, a runbook and the
+referential index. A hand count made beforehand found thirty one. Fifty nine
+moves here and sixteen in the case repository put them in order, each one
+proved to have carried its section whole rather than part of it.
+
+**Two of the five injections went NOT CAUGHT first, and one of them had a
+comment giving a reason that was no longer true.** The fence rule was
+justified by the generated case list, whose lines open with a hash and a bare
+six-digit number; once a bare number without a period stopped counting as a
+section, the case list was covered by that rule and the fence rule was guarding
+a markdown example instead. The case asserted the wrong one of the two, so
+removing the fence handling changed nothing it could see.
+
+**A heading's rank is a second question and it stays open.** Reordering took
+the twelve documents from 152 disagreements between a heading's parent by rank
+and its parent by number down to 69, because a section in the wrong place
+usually had the wrong parent by rank too. Ten more were exposed by the move
+and are corrected. The 69 that remain are hash counts rather than positions
+and are recorded as a gap (section 2B).
+
+**`MQC_CMN_UNI_112399` took the last identifier in its category**, so the
+capacity warning now reads 100 of 100 for `1123xx` and the remedy in
+`harness_test_taxonomy.md` section 11.9.1 has nothing to give: all ten
+categories of this block are allocated while the block holds 445 of 1,000.
+Opened as question 2.7 rather than answered.
+
+959 test cases, 358 requirements.
+
 ### A skip gloss said response where it meant recording, and the registers are reconciled, 2026-10-21
 
 **A missing judgement read as a missing response.** `QC_HARNESS_FIXTURE_MISSING`

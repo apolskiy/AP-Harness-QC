@@ -91,38 +91,6 @@ makes a filename a cross-workflow reference, and renaming now and back is churn
 that `actionlint` would have to catch in between. The withdrawal is stated in each
 file at the trigger it replaced.
 
-### 2.1 Workflow file naming
-
-**`<verb>[-<subject>]-<cadence>.yml`.** The verb is what the workflow does, the subject narrows it when the verb alone is ambiguous, and the cadence is the trigger that fires without anyone asking.
-
-| Part | Values in use | Rule |
-|---|---|---|
-| Verb | `gate`, `regress`, `probe`, `evaluate`, `diagnose`, `debug`, `audit` | What this workflow is for. One word |
-| Subject | `model-version`, `live`, `harness`, `consumers`, `failures`, `mutation` | Present only where the verb does not identify the workflow by itself |
-| Cadence | `on-change`, `nightly`, `weekly`, `on-demand` | The unconditional trigger, not the secondary ones |
-
-**A name like `ci.yml` describes every workflow in this directory and therefore none of them.** All four are continuous integration. The question a reader actually has is what a file runs and when it fires, and a filename is where that answer costs nothing to provide.
-
-The naming matters more as workflows are added than it does now. A directory of four files can be learned by opening them; a directory of ten cannot, and the moment to fix a naming scheme is before the files it has to distinguish exist.
-
-Where a workflow has more than one trigger, **the cadence names the unconditional one.** `evaluate-live-weekly.yml` also fires on dispatch from the probe, and the weekly schedule was what ran regardless of whether anything else worked. Naming a file after a conditional trigger would make it read as optional.
-
-**While a schedule is withdrawn the name records the intended cadence, not the current one** (section 2.0.1). That is the lesser of two wrongs: a name is a cross-workflow reference, and renaming a workflow twice costs a dangling reference in between.
-
-| Future workflow | Name it |
-|---|---|
-| A nightly free-tier quota check | `probe-quota-nightly.yml` |
-| A weekly coverage report | `report-coverage-weekly.yml` |
-| A live run split onto its own dispatch trigger | `evaluate-live-on-dispatch.yml` |
-
-**Cross-workflow dispatch references a filename**, so the probe names the live workflow explicitly. Renaming either one is a paired change, and `actionlint` in the `lint` job catches a dangling reference before it reaches a scheduled run that nobody is watching.
-
-**The split follows the credential boundary, not convenience.** `gate-on-change.yml` contains no reference to any secret, so there is no conditional to get wrong and no path by which a pull request from a fork reaches one. This is the structural half of A1; the other half is that `evaluate-live-weekly.yml` runs only from the default branch.
-
-Four files also mean four independent answers to "why did this run", which is the question a reader of the durable record asks first.
-
----
-
 ### 2.0.2 When the live run fires, once the jobs are stable
 
 Decided 2026-10-01 by the project owner, settling what section 2.0.1 withdrew.
@@ -164,6 +132,38 @@ count, which section 4.9.2.1 has just raised. The floor bounds spend by
 construction; a budget ceiling bounds it by refusing mid-run, which is worse
 when the run exists to produce fixtures.
 
+
+### 2.1 Workflow file naming
+
+**`<verb>[-<subject>]-<cadence>.yml`.** The verb is what the workflow does, the subject narrows it when the verb alone is ambiguous, and the cadence is the trigger that fires without anyone asking.
+
+| Part | Values in use | Rule |
+|---|---|---|
+| Verb | `gate`, `regress`, `probe`, `evaluate`, `diagnose`, `debug`, `audit` | What this workflow is for. One word |
+| Subject | `model-version`, `live`, `harness`, `consumers`, `failures`, `mutation` | Present only where the verb does not identify the workflow by itself |
+| Cadence | `on-change`, `nightly`, `weekly`, `on-demand` | The unconditional trigger, not the secondary ones |
+
+**A name like `ci.yml` describes every workflow in this directory and therefore none of them.** All four are continuous integration. The question a reader actually has is what a file runs and when it fires, and a filename is where that answer costs nothing to provide.
+
+The naming matters more as workflows are added than it does now. A directory of four files can be learned by opening them; a directory of ten cannot, and the moment to fix a naming scheme is before the files it has to distinguish exist.
+
+Where a workflow has more than one trigger, **the cadence names the unconditional one.** `evaluate-live-weekly.yml` also fires on dispatch from the probe, and the weekly schedule was what ran regardless of whether anything else worked. Naming a file after a conditional trigger would make it read as optional.
+
+**While a schedule is withdrawn the name records the intended cadence, not the current one** (section 2.0.1). That is the lesser of two wrongs: a name is a cross-workflow reference, and renaming a workflow twice costs a dangling reference in between.
+
+| Future workflow | Name it |
+|---|---|
+| A nightly free-tier quota check | `probe-quota-nightly.yml` |
+| A weekly coverage report | `report-coverage-weekly.yml` |
+| A live run split onto its own dispatch trigger | `evaluate-live-on-dispatch.yml` |
+
+**Cross-workflow dispatch references a filename**, so the probe names the live workflow explicitly. Renaming either one is a paired change, and `actionlint` in the `lint` job catches a dangling reference before it reaches a scheduled run that nobody is watching.
+
+**The split follows the credential boundary, not convenience.** `gate-on-change.yml` contains no reference to any secret, so there is no conditional to get wrong and no path by which a pull request from a fork reaches one. This is the structural half of A1; the other half is that `evaluate-live-weekly.yml` runs only from the default branch.
+
+Four files also mean four independent answers to "why did this run", which is the question a reader of the durable record asks first.
+
+---
 
 ## 3. `gate-on-change.yml`: Everything Deterministic, No Quota
 
@@ -1170,48 +1170,6 @@ lines. **A check that over-reports is one a reader learns to skip**, which is
 worse than the gap it was written for.
 
 
-### 8.4 A workflow check follows a local `uses:`, or it goes blind
-
-Added 2026-10-09, before the band jobs were collapsed into a composite action.
-
-**`pylint_invocations` and the checks beside it read `run:` lines out of a
-job.** Eight call sites in the case repository depend on seeing the pytest
-invocation there: the attribution-ladder check, the engine-naming checks, the
-green-gate check.
-
-**Factor that invocation anywhere and those checks go quiet rather than red.**
-A check that finds nothing reports agreement, which is the failure mode this
-project treats as worst: a green that means nothing was read.
-
-So `run_lines` resolves a local `uses:` and includes the referenced definition's
-own `run:` lines. A composite action at `./.github/actions/band` is read as part
-of the job that uses it.
-
-| Reference | Followed |
-|---|---|
-| `./.github/actions/<name>` | Yes, its `action.yml` steps are read |
-| `./.github/workflows/<name>.yml` | Yes, its jobs' steps are read |
-| `actions/checkout@v5` | No. A third-party action is not this repository's prose |
-
-**A missing local reference is a problem, not a silence.** A `uses:` naming a
-path that does not exist means the workflow is broken, and the reader says so
-rather than returning the lines it did find.
-
-**This is a strict improvement whatever happens to the band jobs.** The checks
-were already blind to anything factored out; nothing had been factored out yet,
-so the weakness was latent rather than absent.
-
-**The reader is the case repository's, so the requirement is too.** This was
-first registered here as `MQC_REQ_HAR_CMN_0150` with `MQC_CMN_UNI_112349`, and
-that was the wrong register: `pylint_invocations` here reads workflow files for
-lint invocations and never walks a job's steps, while
-`tests/cases/workflow_support.run_lines` there walks its own repository's. The
-requirement is `MQC_REQ_CAS_CI_0050`, traced by `MQC_CAS_UNI_115726`.
-
-**Both retired numbers stay retired.** Nothing was implemented against
-either, and the authoring order is what caught it: design, trace, then code,
-so the mis-registration cost a row rather than a module.
-
 ### 8.3 One lint invocation, and a YAML parse that is not a schema check
 
 Added 2026-10-04 after a push turned the harness gate red on a commit that had
@@ -1265,6 +1223,48 @@ step before the push, not in the pipeline.
 **The remedy is to run the linter rather than the parser.** `actionlint` is
 already a step in two workflows, so the fix is to use it locally and not to add
 a second checker.
+
+### 8.4 A workflow check follows a local `uses:`, or it goes blind
+
+Added 2026-10-09, before the band jobs were collapsed into a composite action.
+
+**`pylint_invocations` and the checks beside it read `run:` lines out of a
+job.** Eight call sites in the case repository depend on seeing the pytest
+invocation there: the attribution-ladder check, the engine-naming checks, the
+green-gate check.
+
+**Factor that invocation anywhere and those checks go quiet rather than red.**
+A check that finds nothing reports agreement, which is the failure mode this
+project treats as worst: a green that means nothing was read.
+
+So `run_lines` resolves a local `uses:` and includes the referenced definition's
+own `run:` lines. A composite action at `./.github/actions/band` is read as part
+of the job that uses it.
+
+| Reference | Followed |
+|---|---|
+| `./.github/actions/<name>` | Yes, its `action.yml` steps are read |
+| `./.github/workflows/<name>.yml` | Yes, its jobs' steps are read |
+| `actions/checkout@v5` | No. A third-party action is not this repository's prose |
+
+**A missing local reference is a problem, not a silence.** A `uses:` naming a
+path that does not exist means the workflow is broken, and the reader says so
+rather than returning the lines it did find.
+
+**This is a strict improvement whatever happens to the band jobs.** The checks
+were already blind to anything factored out; nothing had been factored out yet,
+so the weakness was latent rather than absent.
+
+**The reader is the case repository's, so the requirement is too.** This was
+first registered here as `MQC_REQ_HAR_CMN_0150` with `MQC_CMN_UNI_112349`, and
+that was the wrong register: `pylint_invocations` here reads workflow files for
+lint invocations and never walks a job's steps, while
+`tests/cases/workflow_support.run_lines` there walks its own repository's. The
+requirement is `MQC_REQ_CAS_CI_0050`, traced by `MQC_CAS_UNI_115726`.
+
+**Both retired numbers stay retired.** Nothing was implemented against
+either, and the authoring order is what caught it: design, trace, then code,
+so the mis-registration cost a row rather than a module.
 
 ### 8.5 Every engine a workflow offers is an engine on the roster
 

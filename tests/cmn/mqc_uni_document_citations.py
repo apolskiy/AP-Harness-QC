@@ -3,13 +3,14 @@
 """Unit preconditions for citations between this repository's documents.
 
 Created: 2026-10-12
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 The cases here check ``cmn.document_citations``: that
 ``unresolved_citations`` reports a citation whose section is not a heading in
-its target and ``duplicate_sections`` a section numbered twice, and that a
-section number with an inner letter is read whole. They also check that
-``cmn.document_standards.changelog_problems`` reports a README without a
+its target, ``duplicate_sections`` a section numbered twice and
+``disordered_sections`` a heading sorting at or before the heading above it,
+and that a section number with an inner letter is read whole. They also check
+that ``cmn.document_standards.changelog_problems`` reports a README without a
 changelog.
 
 **A citation is how this project avoids restating a decision twice**, and the
@@ -21,7 +22,11 @@ reader nowhere and they know it. A duplicate number resolves, so nothing reports
 it: `cmn/registries.py` cited `harness_test_taxonomy.md` section 6.4 twice, in
 two comments, meaning two different sections.
 
-Specified by ``.claude/rules/code-style.md`` section 7.3 and
+**And order is the third failure, which the other two cannot see.** A number
+that exists exactly once and resolves from everywhere can still sit after its
+successor, as section 8.3 of ``harness_ci_pipeline.md`` sat after 8.4.
+
+Specified by ``.claude/rules/code-style.md`` sections 7.3 and 7.5, and
 ``docs/design/cmn_verdict_and_cli.md`` section 10.2.
 
 A failure here is **not a model finding**, so the module carries no priority
@@ -35,6 +40,7 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112352  an_unresolved_or_duplicated_citation_is_reported
 #   112381  a_section_number_with_an_inner_letter_is_read_whole
 #   112353  a_readme_without_a_changelog_is_reported
+#   112399  a_section_sitting_out_of_numeric_order_is_reported
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -44,8 +50,10 @@ import pytest
 from cmn.document_standards import changelog_problems
 from cmn.document_citations import (
     citations_in,
+    disordered_sections,
     document_sections,
     duplicate_sections,
+    section_key,
     unresolved_citations,
 )
 
@@ -213,3 +221,101 @@ class TestMQCDocumentCitations:
 
         # NOW THIS REPOSITORY.
         assert not changelog_problems(_ROOT), changelog_problems(_ROOT)
+
+    def MQC_CMN_UNI_112399_a_section_sitting_out_of_numeric_order_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A numbered heading sorts after the numbered heading above it.
+
+        **A resolving citation says nothing about where the section sits.**
+        ``harness_ci_pipeline.md`` numbered 8.3 after 8.4, uniquely, and every
+        citation of both resolved: the reader was sent to the right section and
+        had to scroll for it.
+
+        Design: ``code-style.md`` section 7.5.
+
+        Args:
+            tmp_path (Path): Where the constructed documents are written.
+
+        Returns:
+            None
+        """
+        probe = tmp_path / "docs"
+        probe.mkdir()
+        target = probe / "target_doc.md"
+
+        # A STEP BACKWARDS IS REPORTED, naming the line and both numbers.
+        target.write_text(
+            "## 8. Artifacts\n\n### 8.4 Fourth\n\n### 8.3 Third\n",
+            encoding="utf-8",
+        )
+        reported = disordered_sections(tmp_path)
+        assert any("line 5 numbers 8.3 after 8.4" in entry
+                   for entry in reported), reported
+
+        # AND ASCENDING ORDER IS NOT.
+        target.write_text(
+            "## 8. Artifacts\n\n### 8.3 Third\n\n### 8.4 Fourth\n",
+            encoding="utf-8",
+        )
+        assert not disordered_sections(tmp_path), disordered_sections(tmp_path)
+
+        # A BARE NUMBER IS A SECTION ONLY WITH ITS PERIOD. Four headings in
+        # the two repositories open with one and all four are prose, so a
+        # pattern admitting them reads a status code as a section.
+        target.write_text(
+            "## 8. Artifacts\n\n##### 429 is nobody's defect\n\n"
+            "### 8.3 Third\n",
+            encoding="utf-8",
+        )
+        assert document_sections(target) == ["8", "8.3"], document_sections(target)
+        assert not disordered_sections(tmp_path), disordered_sections(tmp_path)
+
+        # A LETTER SORTS AFTER THE DIGIT IT FOLLOWS, so a lettered section's
+        # subsections belong with it rather than among its neighbour's.
+        assert section_key("5A") > section_key("5.3.1"), "5A sorts before 5.3.1"
+        assert section_key("5A") < section_key("5B"), "5A sorts after 5B"
+        target.write_text(
+            "## 5. Assertions\n\n### 5.1 One\n\n## 5A. Judging\n\n"
+            "### 5A.1 Named\n",
+            encoding="utf-8",
+        )
+        assert not disordered_sections(tmp_path), disordered_sections(tmp_path)
+        target.write_text(
+            "## 5. Assertions\n\n## 5A. Judging\n\n### 5.1 One\n",
+            encoding="utf-8",
+        )
+        assert any("numbers 5.1 after 5A" in entry
+                   for entry in disordered_sections(tmp_path)), (
+            disordered_sections(tmp_path)
+        )
+
+        # A FENCED BLOCK HOLDS NO HEADINGS. A document showing a heading as an
+        # example carries one that is not a section of it, and the period rule
+        # does not cover this: the example is shaped exactly like a section.
+        target.write_text(
+            "## 8. Artifacts\n\n```markdown\n"
+            "### 8.9 A heading inside a fence is an example\n```\n\n"
+            "### 8.3 Third\n",
+            encoding="utf-8",
+        )
+        assert document_sections(target) == ["8", "8.3"], document_sections(target)
+        assert not disordered_sections(tmp_path), disordered_sections(tmp_path)
+
+        # AND A REPEATED NUMBER SORTS AT ITS PREDECESSOR, not after it, so the
+        # order check reports it as well as the duplicate check.
+        target.write_text(
+            "## 8. Artifacts\n\n### 8.3 Third\n\n### 8.3 Third again\n",
+            encoding="utf-8",
+        )
+        assert any("numbers 8.3 after 8.3" in entry
+                   for entry in disordered_sections(tmp_path)), (
+            disordered_sections(tmp_path)
+        )
+
+        # NOW THIS REPOSITORY.
+        assert not disordered_sections(_ROOT), (
+            f"{len(disordered_sections(_ROOT))} heading(s) sort at or before "
+            f"the heading above them, so a reader scrolling for a number "
+            f"arrives somewhere else: {disordered_sections(_ROOT)}"
+        )

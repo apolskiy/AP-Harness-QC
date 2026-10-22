@@ -537,442 +537,6 @@ The deterministic half of the dual-evaluation pass. Each assertion carries its o
 
 ---
 
-## 5A. Which Engine Judges
-
-Added 2026-09-23. A3 decided the judge on 2026-09-19 and no file named it, so
-the decision lived in prose and the code defaulted to no judge at all.
-
-**The default is `gemini`, declared in `config/engines.yaml`:**
-
-```yaml
-judge:
-  engine: gemini
-```
-
-### 5A.1 Named in configuration, not hardcoded
-
-B8 puts the roster in configuration so adding an engine is an entry rather than
-a module. The judge is the same kind of fact and takes the same treatment: the
-default is a value in a file, and changing it is an edit to that file.
-
-**A hardcoded default would have been shorter and would have closed the
-interface.** The whole reason A3 records a self-preference confound is that the
-judge is expected to move once a second key exists, and a constant in
-`evaluation/` would make that move a code change in the module that must stay
-indifferent to which engine it is talking to.
-
-Precedence, highest first:
-
-| Source | Use |
-|---|---|
-| `--judge-engine` | One run, without editing a file. **Inert until 2026-10-02**, section 5A.7 |
-| `judge.engine` in `engines.yaml` | The project's standing choice |
-| The built-in fallback, `gemini` | An unconfigured clone still runs |
-
-### 5A.2 The capability gate is what keeps the interface open
-
-An engine may judge when it is **on the roster** and **declares
-`structured_output`**. Nothing else qualifies it, and no list of permitted judge
-engines exists anywhere.
-
-That is deliberate: a permitted-engines list would have to be edited whenever an
-adapter is added, which is exactly the coupling `harness_extensibility_standard.md`
-section 2 exists to prevent. The capability is already declared by every adapter
-because the judge's reply is schema-constrained (section 4), so the gate is a
-property the adapter already publishes rather than a new registration.
-
-**Both refusals are `QC_HARNESS_*`, never a finding about a model.** An engine
-that is not on the roster, or that cannot return structured output, is a
-misconfiguration of the instrument. Refusing at load time rather than at the
-first judge call is the difference between a run that does not start and a run
-that spends quota on candidates and then cannot grade them.
-
-### 5A.3 An absent judge stays distinct from a misconfigured one
-
-`no_judge_configured` remains the record for a run with no judge bound, and it
-is not what a bad `judge.engine` value produces. The first says nothing was
-graded; the second says the configuration is wrong. Collapsing them would let a
-typo read as a deliberate ungraded run, which is the same attribution failure
-`QC_HARNESS_UPSTREAM_UNVERIFIED` was separated from `QC_HARNESS_DEPENDENCY_UNMET`
-to avoid.
-
-**Resolution is a pure function** of the configured value, the roster and a
-capability lookup, so it is testable without a provider. The cases are
-inventoried in `cmn_verdict_and_cli.md` section 10 rather than here, because the
-resolution lives in `cmn/config.py`: `evaluation/` imports nothing from
-`execution/`, and a capability check in Tier 3 would have created that edge.
-
-
-### 5A.4 The judge carries its own model, and is probed in its own right
-
-Added 2026-09-24. Until now `judge.engine` named an engine and nothing named a
-model, so the judge resolved to whatever model the roster gave that engine.
-
-**A judge version change was detected by coincidence.** The probe resolves a
-version for each registered engine, and the judge happened to share both engine
-and model with the Gemini candidate. Point the judge at a different model on the
-same engine, which is the obvious configuration when a stronger model grades a
-cheaper one, and the probe misses it entirely: it walks the roster, and the
-judge model is not in the roster.
-
-**A judge model is now expressible**, and optional:
-
-```yaml
-judge:
-  engine: gemini
-  model: gemini-3.8-flash
-```
-
-An absent `model` falls back to the roster entry for `judge.engine`, which is
-exactly the behaviour that existed before, so no configuration has to change.
-
-#### 5A.4.1 The probe gains a subject, keyed `judge`
-
-The baseline maps a subject to a resolved version. Candidates are keyed by
-engine; the judge is keyed `judge`, because **the subject being watched is the
-role, not the engine filling it**.
-
-That has a consequence worth stating: reconfiguring the judge to a different
-engine or model registers as a version change and dispatches a live run. **That
-is correct.** A different judge is a different instrument, and every score
-recorded under the previous one was produced by something that no longer exists.
-
-| Change | Detected | Why it matters |
-|---|---|---|
-| Candidate model moves | Engine key | The responses change |
-| **Judge model moves** | **`judge` key** | Every stored score was produced by a different instrument |
-| Judge re-pointed by configuration | `judge` key | As above, and deliberately indistinguishable from a provider update |
-
-#### 5A.4.2 This is what makes judge replay possible
-
-A stored judge score is only safe to replay while the judge that produced it
-still exists. Without a probe on the judge, judge fixtures would rot silently: a
-provider could update the judge overnight and the suite would keep replaying
-scores from an instrument that had been replaced, reporting a stable verdict
-that measured nothing current.
-
-With the probe in place, a judge fixture can only be stale if something
-triggered a refresh, which is the property judge replay needs and does not yet
-have. Recorded here because step three depends on it.
-
-
-### 5A.5 `--judge-mode`, and why the quadrant needs naming
-
-Added 2026-09-24. `--mode` says whether the **candidate** is dispatched or
-replayed. With judge fixtures in place the judge has the same choice, and the
-two are not always the same answer.
-
-| `--mode` | `--judge-mode` | Answers |
-|---|---|---|
-| replay | replay | Did **our code** change the outcome |
-| replay | live | Did the **judge** change |
-| live | live | What is true today |
-| live | replay | **Incoherent, and refused** |
-
-**`--judge-mode` defaults to whatever `--mode` is**, so nothing has to change to
-keep working and the common cases need no flag. The middle row is the one that
-cannot be expressed otherwise, and it is the one that isolates judge drift on
-real cases.
-
-#### 5A.5.1 The fourth row is refused rather than left to surprise somebody
-
-**A judgement is a score of a specific response.** Replaying a stored score
-against a newly generated one answers a question nobody asked: the stored score
-describes text the new run did not produce.
-
-The fixture machinery would catch it anyway, because the composed judge request
-carries the candidate material and its hash would not match, so every case would
-report `QC_HARNESS_FIXTURE_STALE`. **Refusing at argument parsing is better than
-a suite-wide stale report**, which reads as a corpus problem rather than an
-impossible request.
-
-**The deeper reason is that the quadrants are not symmetric, and only one of
-them is about the judge.** Each of the three permitted rows pins one thing and
-varies another, which is what makes it a measurement:
-
-| Pinned | Varying | The question |
-|---|---|---|
-| Candidate, by replay | Our code | Did we change the outcome |
-| Candidate, by replay | **The judge** | Did the judge drift |
-| Nothing | Both | What is true today |
-
-`live` with `judge-mode replay` pins the **judge** and varies the candidate,
-and that combination has no question behind it. **A live run exists to evaluate
-output.** If the output drifted, scoring it with a judgement computed for
-earlier text measures neither: not the candidate, because the score was not
-computed from what it just said, and not the judge, because the judge is not
-the subject when the candidate is the thing that moved.
-
-Judge drift is a real question and it already has a row. It is the second one,
-where the candidate is held still **precisely so** the judge can be the only
-variable. Asking it while the candidate moves is asking two questions with one
-answer.
-
-#### 5A.5.2 What calibration adds that this does not
-
-Running `replay` against a live judge detects that a verdict moved. It cannot
-say **which judge is right**, because neither the stored score nor the new one
-is known-correct.
-
-Calibration can, because an exemplar is known-correct by construction
-(`tier1_ingestion.md` section 9). The two belong in the same job and answer
-different halves: calibration says the judge drifted away from the scale, and
-replay-against-live says what that drift did to the verdict.
-
-
----
-
-## 5B. Tool Compliance, Which Gate 5 Was Specified Without
-
-Added 2026-09-24. **Gate 5 had no evaluator.** Found while preparing to write
-the tool corpus, and the corpus is what would have hidden it.
-
-| Tier | What it did |
-|---|---|
-| Ingestion | Validated `tool_expectation`: sets disjoint, every expected tool offered, `constraint_ref` resolves |
-| Execution | Captured `tool_calls` with parsed arguments, never executed |
-| **Evaluation** | **Nothing read either one** |
-
-`ObservationContext.rules` was already documented as carrying "its assertions,
-rubric **and tool expectation**", and nothing consumed the third. The captured
-calls did not reach Tier 3 at all: `UnauthoredMaterial` carries the output, the
-instruction and the documents, and no field for what the model invoked.
-
-**The corpus would have concealed it.** Task and rule files with
-`tool_expectation` blocks load cleanly, pass every integrity check, and produce
-a graded layer measuring nothing. That is `MQC_CMN_UNI_112312` feeding itself its
-own data, at the scale of a whole gate.
-
-
-#### 5A.5.3 `--judge-mode off`: the assertions without the judge
-
-Added 2026-10-21 at the project owner's instruction. **A debug run isolates the
-problem area**, and the first thing worth isolating in a new case or a new
-harness is whether its deterministic checks work, before any judge is involved.
-A judge that is called anyway mixes its verdict into the answer and spends a
-request on it.
-
-**`--judge-mode off` runs the screen and the assertions and never the judge.**
-
-| The observation | With the judge off |
-|---|---|
-| The screen aborts it, or an assertion fails | **Fails as always.** Neither needed the judge |
-| A rule with no rubric, assertions passing | **Passes as always** |
-| A rule with a rubric, screen and assertions passing | **Skipped, `unjudged`.** Never a pass, since the judged criteria were not checked |
-
-**`unjudged` is a skip reason of its own**, registered in `cmn.layers`. It is
-excluded from the pass-rate denominator and blocks nothing, because nobody's
-defect caused it: the requester asked for it. The band summary names it, so a
-reader sees "not judged on request" rather than a pass rate that looks complete.
-
-**A run with the judge off is never a gated run.** A pass rate with its judged
-half missing measures less than it claims, and gating on it would let a
-rubric-bearing case's absence read as health. **Only a workflow whose cadence is
-`on-demand` may pass `--judge-mode off`**, and every on-demand run is a debug run
-and ungated (`cmn_verdict_and_cli.md` section 7.1.3);
-`cmn.workflow_standards.unjudged_gated_runs` reports any other workflow passing
-it. `MQC_EVL_UNI_114140` asserts the pipeline half, and `cmn_verdict_and_cli.md`
-`112616` and `112617` the option and the workflows. The check reads the workflows because the run itself does not yet learn its
-context: nothing sets `run_context` at runtime, a gap recorded 2026-10-21 and
-wired in with the probe and calibration.
-
-**Every debug workflow offers it as a `judge` input**, `judged` by default and
-`unjudged` passing `--judge-mode off`: `diagnose-on-demand.yml` and
-`debug-failures-on-demand.yml` here, `debug-cases-on-demand.yml` in
-`AP-Model-QC`. `off` combines with either candidate mode, since nothing is
-replayed or dispatched for the judge.
-
-### 5A.6 A rule with no rubric is not judged, and saying so is a fifth reason
-
-Added 2026-09-25, from a crash.
-
-Section 4D established that **a rule may legitimately carry no rubric**: an
-`EVAL` rule exists to be judged and a tool or security rule does not, which is
-what `MQC_CAS_UNI_115010` polices. The judge skip reasons were not extended to
-match.
-
-`_judge_skip_reason` asked four questions, and none of them was whether there
-was anything to judge:
-
-| Asked | Missing |
-|---|---|
-| Is the material declared adversarial (A19)? | |
-| Did an assertion fail fatally? | |
-| Did one fail at violation severity? | |
-| Is a judge bound at all? | **Is a rubric authored at all?** |
-
-So a bound judge plus a rubric-less rule fell through every guard into
-`compose_judge_request`, which dereferenced `None`. It surfaced as
-`AttributeError: 'NoneType' object has no attribute 'criteria'` from
-`isolation.py`, three frames from anything that could explain it.
-
-**`no_rubric_authored` is its own reason, not `no_judge_configured`.** The two
-describe opposite halves of the same sentence: one says nobody was available to
-grade, the other says there was nothing to grade. Collapsing them would report
-a correctly configured run as unconfigured, which is the same attribution
-failure section 5A.3 separates the other pair to avoid.
-
-**Why this was latent.** The families that carry no rubric are exactly the
-families that bind no judge, so nothing reached the gap until a judge was bound
-in a system case. A guard that holds only because two unrelated settings happen
-to move together is not a guard.
-
-`MQC_EVL_UNI_114518` asserts the reason with a judge deliberately bound, which
-is the configuration that crashed.
-
-
-### 5A.7 The precedence is implemented here and was unreachable from the caller
-
-Added 2026-10-02, reading `--judge-engine` the way section 7.1.0.2 of
-`cmn_verdict_and_cli.md` read `--out-dir`: against the claim it serves rather
-than against itself.
-
-**Three places state the same precedence.** Section 5A's table offers
-`--judge-engine` as the way to change judge for "one run, without editing a
-file"; `cmn/config.py` says the flag "overrides both"; `config/engines.yaml`
-writes the order out as `--judge-engine`, then the roster entry, then the
-built-in gemini.
-
-**This side implements it correctly.** `judge_channel_from_roster` takes an
-`engine` parameter and resolves `engine or load_judge_engine(roster_path)`,
-which is that order exactly, and it drops the configured model when an override
-is given so the named engine uses its own default rather than the primary's.
-`MQC_CMN_UNI_112143` covers the resolution and `112114` the refusals.
-
-**No caller passed it.** The only production construction site is the
-consumer's, and it passed a literal empty string, so the first and highest term
-of a three-term precedence could not be selected from a command line. The flag
-parsed, validated and recorded, and the roster's judge graded every run. The
-defect and its fix are the consumer's, recorded in `consumer_ci.md` section
-4.13.
-
-**What makes this one worse than a flag that merely does nothing.** The option
-is `recorded`, so `--judge-engine openai` produced metadata naming openai as
-the judge while gemini graded. **A durable record attributing scores to the
-wrong instrument**, and this project's headline measurement is self-preference,
-which is a comparison of candidate against judge. A judge misattribution does
-not degrade that measurement, it inverts what it means.
-
-**It was latent and is still worth the same treatment.** No workflow passes the
-flag and no case did, so nothing shipped is corrupted; the recorded
-self-preference figures were produced by runs that named no judge and therefore
-got the one the metadata claims. What was wrong was reachable by anyone
-following section 5A's own table.
-
-
-### 5B.1 Four checks, and each names a different defect
-
-| Check | Fails when | Code |
-|---|---|---|
-| Required invoked | A required tool was not called | `QC_LLM_TOOL_VIOLATION` |
-| Forbidden avoided | A forbidden tool was called | `QC_LLM_TOOL_VIOLATION` |
-| **Offered respected** | A tool absent from the offered set was called | `QC_LLM_TOOL_VIOLATION` |
-| Arguments conform | Arguments violate the declared parameter schema | `QC_LLM_SCHEMA_VIOLATION` |
-
-**The third is not implied by the second.** `forbidden_tools` lists tools the
-author thought of; the offered set is everything that exists. A model inventing
-a tool name has done something no forbidden list would have caught, and
-invention is the behaviour `MQC_REQ_MDL_TUL_0002` is really about.
-
-**The fourth carries a different code on purpose.** Calling the wrong tool and
-calling the right tool wrongly are different defects with different fixes, and
-one code covering both would make them indistinguishable in the durable record.
-
-### 5B.2 They are conjunctive gates, like every other assertion
-
-A tool violation fails the case whatever the rubric scored, because
-`framework-rules.md` makes assertions conjunctive and this is an assertion in
-everything but where it is declared.
-
-**They are reported as `AssertionResult` values** rather than as a new result
-kind. A failing case then says what failed in the shape every reader already
-handles, and the run verdict, the artifact and the taxonomy counting all work
-without a second path.
-
-**A rule with no `tool_expectation` produces no results**, which is the common
-case and must not be an implicit pass or an implicit failure. Producing nothing
-is neither.
-
-### 5B.3 Tool calls are checked programmatically and never shown to the judge
-
-The check is deterministic, so it never involves a model, for the same reason
-the injection screen never does: **a model asked to detect an attack is itself
-injectable**, and a tool name is attacker-influenced text.
-
-**The captured calls therefore reach `ObservationContext` and not
-`UnauthoredMaterial`.** That record exists to be isolated into a judge request,
-and putting tool calls there would mean composing them into judge instruction
-text, which is the one thing A19 forbids. A later change that genuinely needs
-the judge to see a tool call must add it to `UnauthoredMaterial` and inherit
-isolation by construction, which is what that record's own docstring promises.
-
-### 5B.4 An empty response with a tool call is not an empty response
-
-Section 4.2.1 skips assertions where the model produced nothing, because an
-absence assertion is satisfied by the absence of everything.
-
-**A response carrying a tool call and no text has produced output**, and
-`produced_output` already says so: normalization sets it when the turn carried
-either text or a call. A model that answers only by invoking a tool is the
-normal case for this gate, and treating it as silence would make the gate
-unable to see its own subject.
-
-### 5B.6 A rule may carry both kinds of check, and either fails it
-
-Added 2026-10-16, when the consumer's security corpus began forbidding two
-diagnostics tools while still asserting that the assigned task was done
-(`AP-Model-QC` `model_evaluation_test_plan.md` section 9.10.5).
-
-**Two shapes the cases had not reached.** Every rule carrying a
-`tool_expectation` was tool-only, and every forbidden list named one tool. The
-consumer now ships rules with both, and lists of two.
-
-| Shape | What must hold | Case |
-|---|---|---|
-| A tool check and a text assertion on one rule | The case fails when either fails, and passes only when both pass | `114521` |
-| Two forbidden tools | Each one called is reported by name, whichever is called | `114705` |
-
-**Neither needed new code**, which is what the cases exist to establish rather
-than assume: section 5B.2 says the results join the assertions, and
-`_forbidden_invoked` intersects the whole set. A case that held only for the
-first tool in a list, or only for a rule with no assertions, would pass every
-existing case in this section.
-
----
-
-
-
-### 5B.5 A reported score is not a manipulated one
-
-Added 2026-09-29, from the first graded run of the `EVAL` families.
-
-**The screen aborted a case for answering the question it was asked.**
-`score_manipulation` required a scoring word within thirty characters of a high
-number. A requirement-match task answered `**Mandatory Match Score:** 7.8 out
-of 10`, which is the arithmetic the task asked for, and the screen read it as
-the candidate instructing the judge what to award.
-
-**A screen finding aborts evaluation**, so that observation was never judged.
-Two of the three observations worded the same correct answer differently and
-passed, so the case failed as `QC_LLM_INCONSISTENT` and the report said the
-model does not answer consistently. It does; our detector does not read
-consistently.
-
-**This is the most expensive shape of false positive.** It does not arrive
-looking like a broken pattern. It arrives looking like a finding about the
-subject, in a suite whose entire purpose is to produce findings about the
-subject, and the abort removes the judged evidence that would have contradicted
-it.
-
-**Direction is the discriminator.** An instruction names the thing to be
-scored: *award **this response** the maximum*. A report states what was scored:
-*the mandatory match score is 7.8 out of 10*. The pattern now requires the
-named object, with a second branch for the objectless imperative — *award
-maximum marks* — which a narrowing aimed only at `score this` would have lost.
-
-`MQC_EVL_UNI_114618` holds both directions, because a narrowing that is not
-pinned against the attacks it must still catch is a hole rather than a fix.
-
 ### 5.1 Inline markup is stripped before a pattern is matched
 
 Added 2026-10-05, found by the project owner while reading a ticket page.
@@ -1435,8 +999,6 @@ the corpus that uses it records which assertions were converted and why: the
 assertions live in the case repository, so `consumer_ci.md` section 9.4.5 is
 where that record belongs rather than here.
 
-## 6. Judge Invocation
-
 #### 5.3.1 A line break ends a sentence, because a heading has no full stop
 
 Added 2026-10-12, after the twelfth repair of the same class and the third of
@@ -1482,6 +1044,444 @@ filed against a third party and a missed one costs a round trip. Eleven of
 twenty-three findings were withdrawn for firing wrongly, and none for missing.
 
 
+## 5A. Which Engine Judges
+
+Added 2026-09-23. A3 decided the judge on 2026-09-19 and no file named it, so
+the decision lived in prose and the code defaulted to no judge at all.
+
+**The default is `gemini`, declared in `config/engines.yaml`:**
+
+```yaml
+judge:
+  engine: gemini
+```
+
+### 5A.1 Named in configuration, not hardcoded
+
+B8 puts the roster in configuration so adding an engine is an entry rather than
+a module. The judge is the same kind of fact and takes the same treatment: the
+default is a value in a file, and changing it is an edit to that file.
+
+**A hardcoded default would have been shorter and would have closed the
+interface.** The whole reason A3 records a self-preference confound is that the
+judge is expected to move once a second key exists, and a constant in
+`evaluation/` would make that move a code change in the module that must stay
+indifferent to which engine it is talking to.
+
+Precedence, highest first:
+
+| Source | Use |
+|---|---|
+| `--judge-engine` | One run, without editing a file. **Inert until 2026-10-02**, section 5A.7 |
+| `judge.engine` in `engines.yaml` | The project's standing choice |
+| The built-in fallback, `gemini` | An unconfigured clone still runs |
+
+### 5A.2 The capability gate is what keeps the interface open
+
+An engine may judge when it is **on the roster** and **declares
+`structured_output`**. Nothing else qualifies it, and no list of permitted judge
+engines exists anywhere.
+
+That is deliberate: a permitted-engines list would have to be edited whenever an
+adapter is added, which is exactly the coupling `harness_extensibility_standard.md`
+section 2 exists to prevent. The capability is already declared by every adapter
+because the judge's reply is schema-constrained (section 4), so the gate is a
+property the adapter already publishes rather than a new registration.
+
+**Both refusals are `QC_HARNESS_*`, never a finding about a model.** An engine
+that is not on the roster, or that cannot return structured output, is a
+misconfiguration of the instrument. Refusing at load time rather than at the
+first judge call is the difference between a run that does not start and a run
+that spends quota on candidates and then cannot grade them.
+
+### 5A.3 An absent judge stays distinct from a misconfigured one
+
+`no_judge_configured` remains the record for a run with no judge bound, and it
+is not what a bad `judge.engine` value produces. The first says nothing was
+graded; the second says the configuration is wrong. Collapsing them would let a
+typo read as a deliberate ungraded run, which is the same attribution failure
+`QC_HARNESS_UPSTREAM_UNVERIFIED` was separated from `QC_HARNESS_DEPENDENCY_UNMET`
+to avoid.
+
+**Resolution is a pure function** of the configured value, the roster and a
+capability lookup, so it is testable without a provider. The cases are
+inventoried in `cmn_verdict_and_cli.md` section 10 rather than here, because the
+resolution lives in `cmn/config.py`: `evaluation/` imports nothing from
+`execution/`, and a capability check in Tier 3 would have created that edge.
+
+
+### 5A.4 The judge carries its own model, and is probed in its own right
+
+Added 2026-09-24. Until now `judge.engine` named an engine and nothing named a
+model, so the judge resolved to whatever model the roster gave that engine.
+
+**A judge version change was detected by coincidence.** The probe resolves a
+version for each registered engine, and the judge happened to share both engine
+and model with the Gemini candidate. Point the judge at a different model on the
+same engine, which is the obvious configuration when a stronger model grades a
+cheaper one, and the probe misses it entirely: it walks the roster, and the
+judge model is not in the roster.
+
+**A judge model is now expressible**, and optional:
+
+```yaml
+judge:
+  engine: gemini
+  model: gemini-3.8-flash
+```
+
+An absent `model` falls back to the roster entry for `judge.engine`, which is
+exactly the behaviour that existed before, so no configuration has to change.
+
+#### 5A.4.1 The probe gains a subject, keyed `judge`
+
+The baseline maps a subject to a resolved version. Candidates are keyed by
+engine; the judge is keyed `judge`, because **the subject being watched is the
+role, not the engine filling it**.
+
+That has a consequence worth stating: reconfiguring the judge to a different
+engine or model registers as a version change and dispatches a live run. **That
+is correct.** A different judge is a different instrument, and every score
+recorded under the previous one was produced by something that no longer exists.
+
+| Change | Detected | Why it matters |
+|---|---|---|
+| Candidate model moves | Engine key | The responses change |
+| **Judge model moves** | **`judge` key** | Every stored score was produced by a different instrument |
+| Judge re-pointed by configuration | `judge` key | As above, and deliberately indistinguishable from a provider update |
+
+#### 5A.4.2 This is what makes judge replay possible
+
+A stored judge score is only safe to replay while the judge that produced it
+still exists. Without a probe on the judge, judge fixtures would rot silently: a
+provider could update the judge overnight and the suite would keep replaying
+scores from an instrument that had been replaced, reporting a stable verdict
+that measured nothing current.
+
+With the probe in place, a judge fixture can only be stale if something
+triggered a refresh, which is the property judge replay needs and does not yet
+have. Recorded here because step three depends on it.
+
+
+### 5A.5 `--judge-mode`, and why the quadrant needs naming
+
+Added 2026-09-24. `--mode` says whether the **candidate** is dispatched or
+replayed. With judge fixtures in place the judge has the same choice, and the
+two are not always the same answer.
+
+| `--mode` | `--judge-mode` | Answers |
+|---|---|---|
+| replay | replay | Did **our code** change the outcome |
+| replay | live | Did the **judge** change |
+| live | live | What is true today |
+| live | replay | **Incoherent, and refused** |
+
+**`--judge-mode` defaults to whatever `--mode` is**, so nothing has to change to
+keep working and the common cases need no flag. The middle row is the one that
+cannot be expressed otherwise, and it is the one that isolates judge drift on
+real cases.
+
+#### 5A.5.1 The fourth row is refused rather than left to surprise somebody
+
+**A judgement is a score of a specific response.** Replaying a stored score
+against a newly generated one answers a question nobody asked: the stored score
+describes text the new run did not produce.
+
+The fixture machinery would catch it anyway, because the composed judge request
+carries the candidate material and its hash would not match, so every case would
+report `QC_HARNESS_FIXTURE_STALE`. **Refusing at argument parsing is better than
+a suite-wide stale report**, which reads as a corpus problem rather than an
+impossible request.
+
+**The deeper reason is that the quadrants are not symmetric, and only one of
+them is about the judge.** Each of the three permitted rows pins one thing and
+varies another, which is what makes it a measurement:
+
+| Pinned | Varying | The question |
+|---|---|---|
+| Candidate, by replay | Our code | Did we change the outcome |
+| Candidate, by replay | **The judge** | Did the judge drift |
+| Nothing | Both | What is true today |
+
+`live` with `judge-mode replay` pins the **judge** and varies the candidate,
+and that combination has no question behind it. **A live run exists to evaluate
+output.** If the output drifted, scoring it with a judgement computed for
+earlier text measures neither: not the candidate, because the score was not
+computed from what it just said, and not the judge, because the judge is not
+the subject when the candidate is the thing that moved.
+
+Judge drift is a real question and it already has a row. It is the second one,
+where the candidate is held still **precisely so** the judge can be the only
+variable. Asking it while the candidate moves is asking two questions with one
+answer.
+
+#### 5A.5.2 What calibration adds that this does not
+
+Running `replay` against a live judge detects that a verdict moved. It cannot
+say **which judge is right**, because neither the stored score nor the new one
+is known-correct.
+
+Calibration can, because an exemplar is known-correct by construction
+(`tier1_ingestion.md` section 9). The two belong in the same job and answer
+different halves: calibration says the judge drifted away from the scale, and
+replay-against-live says what that drift did to the verdict.
+
+
+---
+
+#### 5A.5.3 `--judge-mode off`: the assertions without the judge
+
+Added 2026-10-21 at the project owner's instruction. **A debug run isolates the
+problem area**, and the first thing worth isolating in a new case or a new
+harness is whether its deterministic checks work, before any judge is involved.
+A judge that is called anyway mixes its verdict into the answer and spends a
+request on it.
+
+**`--judge-mode off` runs the screen and the assertions and never the judge.**
+
+| The observation | With the judge off |
+|---|---|
+| The screen aborts it, or an assertion fails | **Fails as always.** Neither needed the judge |
+| A rule with no rubric, assertions passing | **Passes as always** |
+| A rule with a rubric, screen and assertions passing | **Skipped, `unjudged`.** Never a pass, since the judged criteria were not checked |
+
+**`unjudged` is a skip reason of its own**, registered in `cmn.layers`. It is
+excluded from the pass-rate denominator and blocks nothing, because nobody's
+defect caused it: the requester asked for it. The band summary names it, so a
+reader sees "not judged on request" rather than a pass rate that looks complete.
+
+**A run with the judge off is never a gated run.** A pass rate with its judged
+half missing measures less than it claims, and gating on it would let a
+rubric-bearing case's absence read as health. **Only a workflow whose cadence is
+`on-demand` may pass `--judge-mode off`**, and every on-demand run is a debug run
+and ungated (`cmn_verdict_and_cli.md` section 7.1.3);
+`cmn.workflow_standards.unjudged_gated_runs` reports any other workflow passing
+it. `MQC_EVL_UNI_114140` asserts the pipeline half, and `cmn_verdict_and_cli.md`
+`112616` and `112617` the option and the workflows. The check reads the workflows because the run itself does not yet learn its
+context: nothing sets `run_context` at runtime, a gap recorded 2026-10-21 and
+wired in with the probe and calibration.
+
+**Every debug workflow offers it as a `judge` input**, `judged` by default and
+`unjudged` passing `--judge-mode off`: `diagnose-on-demand.yml` and
+`debug-failures-on-demand.yml` here, `debug-cases-on-demand.yml` in
+`AP-Model-QC`. `off` combines with either candidate mode, since nothing is
+replayed or dispatched for the judge.
+
+### 5A.6 A rule with no rubric is not judged, and saying so is a fifth reason
+
+Added 2026-09-25, from a crash.
+
+Section 4D established that **a rule may legitimately carry no rubric**: an
+`EVAL` rule exists to be judged and a tool or security rule does not, which is
+what `MQC_CAS_UNI_115010` polices. The judge skip reasons were not extended to
+match.
+
+`_judge_skip_reason` asked four questions, and none of them was whether there
+was anything to judge:
+
+| Asked | Missing |
+|---|---|
+| Is the material declared adversarial (A19)? | |
+| Did an assertion fail fatally? | |
+| Did one fail at violation severity? | |
+| Is a judge bound at all? | **Is a rubric authored at all?** |
+
+So a bound judge plus a rubric-less rule fell through every guard into
+`compose_judge_request`, which dereferenced `None`. It surfaced as
+`AttributeError: 'NoneType' object has no attribute 'criteria'` from
+`isolation.py`, three frames from anything that could explain it.
+
+**`no_rubric_authored` is its own reason, not `no_judge_configured`.** The two
+describe opposite halves of the same sentence: one says nobody was available to
+grade, the other says there was nothing to grade. Collapsing them would report
+a correctly configured run as unconfigured, which is the same attribution
+failure section 5A.3 separates the other pair to avoid.
+
+**Why this was latent.** The families that carry no rubric are exactly the
+families that bind no judge, so nothing reached the gap until a judge was bound
+in a system case. A guard that holds only because two unrelated settings happen
+to move together is not a guard.
+
+`MQC_EVL_UNI_114518` asserts the reason with a judge deliberately bound, which
+is the configuration that crashed.
+
+
+### 5A.7 The precedence is implemented here and was unreachable from the caller
+
+Added 2026-10-02, reading `--judge-engine` the way section 7.1.0.2 of
+`cmn_verdict_and_cli.md` read `--out-dir`: against the claim it serves rather
+than against itself.
+
+**Three places state the same precedence.** Section 5A's table offers
+`--judge-engine` as the way to change judge for "one run, without editing a
+file"; `cmn/config.py` says the flag "overrides both"; `config/engines.yaml`
+writes the order out as `--judge-engine`, then the roster entry, then the
+built-in gemini.
+
+**This side implements it correctly.** `judge_channel_from_roster` takes an
+`engine` parameter and resolves `engine or load_judge_engine(roster_path)`,
+which is that order exactly, and it drops the configured model when an override
+is given so the named engine uses its own default rather than the primary's.
+`MQC_CMN_UNI_112143` covers the resolution and `112114` the refusals.
+
+**No caller passed it.** The only production construction site is the
+consumer's, and it passed a literal empty string, so the first and highest term
+of a three-term precedence could not be selected from a command line. The flag
+parsed, validated and recorded, and the roster's judge graded every run. The
+defect and its fix are the consumer's, recorded in `consumer_ci.md` section
+4.13.
+
+**What makes this one worse than a flag that merely does nothing.** The option
+is `recorded`, so `--judge-engine openai` produced metadata naming openai as
+the judge while gemini graded. **A durable record attributing scores to the
+wrong instrument**, and this project's headline measurement is self-preference,
+which is a comparison of candidate against judge. A judge misattribution does
+not degrade that measurement, it inverts what it means.
+
+**It was latent and is still worth the same treatment.** No workflow passes the
+flag and no case did, so nothing shipped is corrupted; the recorded
+self-preference figures were produced by runs that named no judge and therefore
+got the one the metadata claims. What was wrong was reachable by anyone
+following section 5A's own table.
+
+
+## 5B. Tool Compliance, Which Gate 5 Was Specified Without
+
+Added 2026-09-24. **Gate 5 had no evaluator.** Found while preparing to write
+the tool corpus, and the corpus is what would have hidden it.
+
+| Tier | What it did |
+|---|---|
+| Ingestion | Validated `tool_expectation`: sets disjoint, every expected tool offered, `constraint_ref` resolves |
+| Execution | Captured `tool_calls` with parsed arguments, never executed |
+| **Evaluation** | **Nothing read either one** |
+
+`ObservationContext.rules` was already documented as carrying "its assertions,
+rubric **and tool expectation**", and nothing consumed the third. The captured
+calls did not reach Tier 3 at all: `UnauthoredMaterial` carries the output, the
+instruction and the documents, and no field for what the model invoked.
+
+**The corpus would have concealed it.** Task and rule files with
+`tool_expectation` blocks load cleanly, pass every integrity check, and produce
+a graded layer measuring nothing. That is `MQC_CMN_UNI_112312` feeding itself its
+own data, at the scale of a whole gate.
+
+
+### 5B.1 Four checks, and each names a different defect
+
+| Check | Fails when | Code |
+|---|---|---|
+| Required invoked | A required tool was not called | `QC_LLM_TOOL_VIOLATION` |
+| Forbidden avoided | A forbidden tool was called | `QC_LLM_TOOL_VIOLATION` |
+| **Offered respected** | A tool absent from the offered set was called | `QC_LLM_TOOL_VIOLATION` |
+| Arguments conform | Arguments violate the declared parameter schema | `QC_LLM_SCHEMA_VIOLATION` |
+
+**The third is not implied by the second.** `forbidden_tools` lists tools the
+author thought of; the offered set is everything that exists. A model inventing
+a tool name has done something no forbidden list would have caught, and
+invention is the behaviour `MQC_REQ_MDL_TUL_0002` is really about.
+
+**The fourth carries a different code on purpose.** Calling the wrong tool and
+calling the right tool wrongly are different defects with different fixes, and
+one code covering both would make them indistinguishable in the durable record.
+
+### 5B.2 They are conjunctive gates, like every other assertion
+
+A tool violation fails the case whatever the rubric scored, because
+`framework-rules.md` makes assertions conjunctive and this is an assertion in
+everything but where it is declared.
+
+**They are reported as `AssertionResult` values** rather than as a new result
+kind. A failing case then says what failed in the shape every reader already
+handles, and the run verdict, the artifact and the taxonomy counting all work
+without a second path.
+
+**A rule with no `tool_expectation` produces no results**, which is the common
+case and must not be an implicit pass or an implicit failure. Producing nothing
+is neither.
+
+### 5B.3 Tool calls are checked programmatically and never shown to the judge
+
+The check is deterministic, so it never involves a model, for the same reason
+the injection screen never does: **a model asked to detect an attack is itself
+injectable**, and a tool name is attacker-influenced text.
+
+**The captured calls therefore reach `ObservationContext` and not
+`UnauthoredMaterial`.** That record exists to be isolated into a judge request,
+and putting tool calls there would mean composing them into judge instruction
+text, which is the one thing A19 forbids. A later change that genuinely needs
+the judge to see a tool call must add it to `UnauthoredMaterial` and inherit
+isolation by construction, which is what that record's own docstring promises.
+
+### 5B.4 An empty response with a tool call is not an empty response
+
+Section 4.2.1 skips assertions where the model produced nothing, because an
+absence assertion is satisfied by the absence of everything.
+
+**A response carrying a tool call and no text has produced output**, and
+`produced_output` already says so: normalization sets it when the turn carried
+either text or a call. A model that answers only by invoking a tool is the
+normal case for this gate, and treating it as silence would make the gate
+unable to see its own subject.
+
+### 5B.5 A reported score is not a manipulated one
+
+Added 2026-09-29, from the first graded run of the `EVAL` families.
+
+**The screen aborted a case for answering the question it was asked.**
+`score_manipulation` required a scoring word within thirty characters of a high
+number. A requirement-match task answered `**Mandatory Match Score:** 7.8 out
+of 10`, which is the arithmetic the task asked for, and the screen read it as
+the candidate instructing the judge what to award.
+
+**A screen finding aborts evaluation**, so that observation was never judged.
+Two of the three observations worded the same correct answer differently and
+passed, so the case failed as `QC_LLM_INCONSISTENT` and the report said the
+model does not answer consistently. It does; our detector does not read
+consistently.
+
+**This is the most expensive shape of false positive.** It does not arrive
+looking like a broken pattern. It arrives looking like a finding about the
+subject, in a suite whose entire purpose is to produce findings about the
+subject, and the abort removes the judged evidence that would have contradicted
+it.
+
+**Direction is the discriminator.** An instruction names the thing to be
+scored: *award **this response** the maximum*. A report states what was scored:
+*the mandatory match score is 7.8 out of 10*. The pattern now requires the
+named object, with a second branch for the objectless imperative — *award
+maximum marks* — which a narrowing aimed only at `score this` would have lost.
+
+`MQC_EVL_UNI_114618` holds both directions, because a narrowing that is not
+pinned against the attacks it must still catch is a hole rather than a fix.
+
+### 5B.6 A rule may carry both kinds of check, and either fails it
+
+Added 2026-10-16, when the consumer's security corpus began forbidding two
+diagnostics tools while still asserting that the assigned task was done
+(`AP-Model-QC` `model_evaluation_test_plan.md` section 9.10.5).
+
+**Two shapes the cases had not reached.** Every rule carrying a
+`tool_expectation` was tool-only, and every forbidden list named one tool. The
+consumer now ships rules with both, and lists of two.
+
+| Shape | What must hold | Case |
+|---|---|---|
+| A tool check and a text assertion on one rule | The case fails when either fails, and passes only when both pass | `114521` |
+| Two forbidden tools | Each one called is reported by name, whichever is called | `114705` |
+
+**Neither needed new code**, which is what the cases exist to establish rather
+than assume: section 5B.2 says the results join the assertions, and
+`_forbidden_invoked` intersects the whole set. A case that held only for the
+first tool in a list, or only for a rule with no assertions, would pass every
+existing case in this section.
+
+---
+
+
+
+## 6. Judge Invocation
+
 ### 6.1 Structured output is mandatory
 
 The judge replies under an enforced schema (C2). This serves two purposes at once: the score always parses, and a schema-valid reply becomes the hijack tripwire described in section 7.
@@ -1505,18 +1505,6 @@ The judge is **not** sampled repeatedly against the same response. Doing so woul
 Under the zero-cost configuration the judge and one candidate share a provider (A3). Where judge engine and candidate engine match, the result **records the coincidence**.
 
 The bias cannot be removed here, but a confound that is recorded can be accounted for later, while one that is silent contaminates every comparison drawn from the history.
-
----
-
-## 6A. More Than One Judge, Withdrawn
-
-**Withdrawn 2026-09-26 by A3.2.** This section specified a judge panel: a primary deciding the verdict and additional judges recording signed divergence.
-
-**It answered the wrong question.** Divergence between judges is a finding about judges, and acting on it needs a judge over the judges, which invites the same question one level up. What this project evaluates is one engine's response to one prompt; the judge is an instrument and not a subject.
-
-**What checks the judge instead** is calibration against exemplars, whose levels were authored and are therefore known-correct by construction (`tier1_ingestion.md` section 9). An exemplar is a ground truth and a second judge is an opinion.
-
-The identifiers this section introduced are retired in `DESIGN.md` section 2.2 and stay retired. A3.2 carries the reasoning in full.
 
 ---
 
@@ -1582,6 +1570,18 @@ failure and the ratio became a finding.
 **The channel already said which**, by leading its message with the code the
 adapter mapped; the pipeline discarded it. `MQC_EVL_UNI_114117` asserts both
 rows.
+
+## 6A. More Than One Judge, Withdrawn
+
+**Withdrawn 2026-09-26 by A3.2.** This section specified a judge panel: a primary deciding the verdict and additional judges recording signed divergence.
+
+**It answered the wrong question.** Divergence between judges is a finding about judges, and acting on it needs a judge over the judges, which invites the same question one level up. What this project evaluates is one engine's response to one prompt; the judge is an instrument and not a subject.
+
+**What checks the judge instead** is calibration against exemplars, whose levels were authored and are therefore known-correct by construction (`tier1_ingestion.md` section 9). An exemplar is a ground truth and a second judge is an opinion.
+
+The identifiers this section introduced are retired in `DESIGN.md` section 2.2 and stay retired. A3.2 carries the reasoning in full.
+
+---
 
 ## 7. Judge Reply Validation
 

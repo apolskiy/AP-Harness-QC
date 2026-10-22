@@ -12192,3 +12192,50 @@ design with a one-line pointer, which is where reasoning belongs anyway.
 * **Code Quality & Compliance Audit:** 958 test cases, 952 in the precondition
   run (928 UNI, 24 SYS), all passing, exit 0. Pylint 10.00/10, **exit 0 checked
   rather than the score line**; 357 requirements.
+
+## 2026-10-22: The order a document is read in, and the check that keeps it
+
+* **Asked by the project owner, continuing the review:** close whatever is
+  still open in both registers. The largest item was the oldest: section
+  headings out of numeric order, with the register itself naming the remedy as
+  "a check rather than one pass of reordering".
+* **Built:** `disordered_sections`, beside the citation and duplicate checks
+  because all three read the same headings. A bare number is a section only
+  with its period, which four prose headings in the two repositories made
+  necessary; a letter sorts after the digit it follows; a fenced block holds no
+  headings. `MQC_CMN_UNI_112399`, `MQC_CAS_UNI_115778`, five injections.
+* **The register understated its own gap.** It named four documents; the check
+  found thirty seven headings across twelve. **A hand count of the same
+  documents found thirty one.** That gap between a careful reading and a
+  measurement is the whole argument for the check.
+* **Digressions the user spotted, and the fix:**
+  * **My first reordering pass damaged two documents, and the order check went
+    green on one of them.** The mover ended a block at the next heading of the
+    same rank, reading raw lines: a YAML comment inside a fence opens with a
+    hash, so a block was cut inside a fenced pair and the parity inverted for
+    the rest of the file. **Twenty one headings of `tier3_evaluation.md`
+    stopped being headings and the check passed because it could no longer see
+    them.** Found by comparing every section's content against the committed
+    version, which is the check the per-move assertion cannot make: that one
+    ran inside the process doing the writing and compared the file to itself.
+    Reverted, the mover corrected, re-run, re-verified.
+  * **And the same pass orphaned two subsections.** An unnumbered heading of
+    equal rank ended a block, so two subsections of `consumer_ci.md` 4.14
+    stayed behind under section 4A. A block ends at the next **numbered**
+    heading now, because an unnumbered one is not a section in the numbering
+    and therefore continues the one above it.
+  * **Two injections went NOT CAUGHT**, and one exposed a comment whose reason
+    had stopped being true: the fence rule was justified by the generated case
+    list, which the period rule already excludes. The case now asserts an
+    example heading inside a fence, and the comment says what the rule is
+    actually for.
+  * **The check caught my own edit.** Question 2.7 was written above 2.6, and
+    the next run of the check reported it.
+* **Raised and not acted on:** `112399` took the last identifier in `1123xx`,
+  and section 11.9.1's remedy for a full category is the next free category in
+  the block, of which there is none. The block holds 445 of 1,000, so what is
+  exhausted is the partition rather than the numbers. Question 2.7.
+* **Code Quality & Compliance Audit:** 959 test cases, 953 in the precondition
+  run (929 UNI, 24 SYS), all passing, exit 0. Pylint 10.00/10, exit 0 checked
+  rather than the score line; 358 requirements. The mutation audits were not
+  re-run: no audited module changed.

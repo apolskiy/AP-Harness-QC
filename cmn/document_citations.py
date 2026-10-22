@@ -1,18 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Document citation check, whether each section a document cites exists, once.
+"""Section checks: whether a cited section exists, exactly once, and in order.
 
 Created: 2026-10-12
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
-This file contains ``document_sections``, the section numbers a document
-defines; ``duplicate_sections``, which reports a document numbering one section
-twice; ``citations_in``, the document and section pairs a document cites; and
+This file contains ``numbered_headings``, every numbered heading a document
+carries with its line, and ``document_sections``, the numbers alone;
+``duplicate_sections``, which reports a document numbering one section twice;
+``citations_in``, the document and section pairs a document cites;
 ``unresolved_citations``, which reports a citation whose target document is in
-the repository and whose section is not.
+the repository and whose section is not; and ``section_key`` with
+``disordered_sections``, which report a heading sorting at or before the
+heading above it.
 
 Precondition cases in both repositories call these with their own root, so a
-dangling or ambiguous citation fails the unit layer.
+dangling citation, an ambiguous one or a section out of order fails the unit
+layer.
 
 The designs cite each other roughly two hundred times, because a citation is how
 this project avoids restating a decision in two places. **A citation that
@@ -26,8 +30,11 @@ Two failures, and the second is the worse one:
 * **Duplicate.** ``tier2_execution.md`` numbered two sections ``7.8``, and two
   requirements cited that number for different specifications. Both resolve, so
   nothing reports it and the reader is simply misinformed.
+* **Out of order.** ``harness_ci_pipeline.md`` placed section 8.3 after 8.4.
+  The citation resolves and the number is unique, so a reader is sent to the
+  right section and has to scroll for it.
 
-Specified by ``.claude/rules/code-style.md`` section 7.3.
+Specified by ``.claude/rules/code-style.md`` sections 7.3 and 7.5.
 """
 
 import logging
@@ -53,9 +60,35 @@ _ENCODING: Final[str] = "utf-8"
 # followed by text, so it was no section at all: two such headings in one
 # document went unreported and a citation of one resolved to its parent.
 _SEGMENTS: Final[str] = r"\d+[A-Z]?(?:\.\d+[A-Z]?)*"
+
+# A BARE NUMBER IS A SECTION ONLY WHERE IT CARRIES A PERIOD, since 2026-10-21.
+# A top-level heading in this project is written `## 8. The credential
+# boundary`, and the period is the whole of what distinguishes it from a
+# heading that opens with a number: `##### 429 is the one that is nobody's
+# defect` is prose about an HTTP status. Both repositories hold four such
+# headings, an HTTP status, two counts and a case identifier, and a pattern
+# admitting them reads a document as numbering sections 429 and 107.
+#
+# A DOTTED NUMBER NEEDS NO PERIOD, because nothing else is shaped like one.
+# Its trailing period stays optional and outside the group, so a section is
+# returned as `7.13.2` whether or not the heading wrote `7.13.2.`.
+_DOTTED: Final[str] = r"\d+[A-Z]?(?:\.\d+[A-Z]?)+"
+_TOP: Final[str] = r"\d+[A-Z]?"
 _HEADING: Final[re.Pattern] = re.compile(
-    rf"^#{{1,6}}\s+({_SEGMENTS})\.?\s", re.MULTILINE
+    rf"^#{{1,6}}\s+(?:({_DOTTED})\.?|({_TOP})\.)\s", re.MULTILINE
 )
+
+# A FENCED BLOCK HOLDS NO HEADINGS. A document showing a heading as an example
+# carries a line shaped exactly like a section of itself, which the period rule
+# above cannot separate: the example is a section number.
+#
+# THE GENERATED CASE LIST IS NOT THE REASON, although it looks like it. Every
+# test module opens those lines with a hash and a six-digit identifier and
+# `testing-standards.md` quotes one, but a bare number carries no period, so
+# the rule above already excludes them. An injection removing this fence
+# handling went NOT CAUGHT on 2026-10-22 because the case asserted the case
+# list and not an example heading. Design `code-style.md` section 7.5.1.
+_FENCE: Final[re.Pattern] = re.compile(r"^\s*(?:```|~~~)")
 
 # A CITATION. A markdown document's name, optionally in backticks, then
 # `section` or `sections`, then one or more numbers joined by `and` or a comma.
@@ -99,6 +132,55 @@ def _citing_documents(root: Path) -> list[Path]:
     ]
 
 
+def unfenced_lines(text: str) -> list[str]:
+    """Return the document's lines with every fenced line blanked.
+
+    **Blanked rather than removed, and returned as lines rather than joined**,
+    so the nth entry is the nth line of the file. Joining and splitting again
+    loses a trailing empty line, which is a line number that no longer matches
+    the file for every caller that counts.
+
+    Args:
+        text (str): The document's text.
+
+    Returns:
+        list[str]: One entry per line, empty for a fence and for each line
+        inside one.
+    """
+    kept: list[str] = []
+    fenced = False
+    for line in text.splitlines():
+        if _FENCE.match(line):
+            fenced = not fenced
+            kept.append("")
+            continue
+        kept.append("" if fenced else line)
+    return kept
+
+
+def numbered_headings(path: Path) -> list[tuple[int, str]]:
+    """Return every numbered heading this document carries, with its line.
+
+    Args:
+        path (Path): The document.
+
+    Returns:
+        list[tuple]: Each heading's one-based line number paired with its
+        section number, in the order they appear.
+    """
+    try:
+        text = path.read_text(encoding=_ENCODING)
+    except (OSError, UnicodeDecodeError):
+        logger.warning("%s could not be read for its headings", path)
+        return []
+    found: list[tuple[int, str]] = []
+    for lineno, line in enumerate(unfenced_lines(text), start=1):
+        matched = _HEADING.match(line + "\n")
+        if matched is not None:
+            found.append((lineno, matched.group(1) or matched.group(2)))
+    return found
+
+
 def document_sections(path: Path) -> list[str]:
     """Return every section number this document numbers, in order.
 
@@ -109,14 +191,9 @@ def document_sections(path: Path) -> list[str]:
         path (Path): The document.
 
     Returns:
-        list[str]: The numbers, as written.
+        list[str]: The numbers, as written, without a trailing period.
     """
-    try:
-        text = path.read_text(encoding=_ENCODING)
-    except (OSError, UnicodeDecodeError):
-        logger.warning("%s could not be read for its headings", path)
-        return []
-    return _HEADING.findall(text)
+    return [number for _, number in numbered_headings(path)]
 
 
 def duplicate_sections(root: Path) -> list[str]:
@@ -229,3 +306,62 @@ def unresolved_citations(root: Path, owned: Iterable[str] = ()) -> list[str]:
                     f"which that document does not number"
                 )
     return sorted(set(problems))
+
+
+# ONE COMPONENT OF A SECTION NUMBER, a count and an optional letter.
+_COMPONENT: Final[re.Pattern] = re.compile(r"^(\d+)([A-Z]?)$")
+
+
+def section_key(number: str) -> tuple[tuple[int, str], ...]:
+    """Return the sort key for a section number, component by component.
+
+    A letter sorts after the digit it follows, so the order is 5, 5.1, 5.3.1,
+    5A, 5A.1, 5B, 6. A lettered section is a sibling inserted after the fact
+    and its subsections belong with it rather than among its neighbour's.
+
+    Args:
+        number (str): A section number, as :func:`numbered_headings` returns
+            it.
+
+    Returns:
+        tuple: One pair per component, the count then the letter. Empty for a
+        number no heading pattern produces, which sorts before every real one.
+    """
+    parts: list[tuple[int, str]] = []
+    for component in number.split("."):
+        matched = _COMPONENT.match(component)
+        if matched is None:
+            return ()
+        parts.append((int(matched.group(1)), matched.group(2)))
+    return tuple(parts)
+
+
+def disordered_sections(root: Path) -> list[str]:
+    """Report every numbered heading sorting at or before the one above it.
+
+    **Section 7.3 makes a citation resolve and says nothing about where the
+    section sits.** A reader sent to section 8.3 found it after 8.4, which no
+    check saw because the number existed, once.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per heading out of order, naming the document, the
+        line and both numbers. Empty where every document ascends.
+
+    Design: ``.claude/rules/code-style.md`` section 7.5.
+    """
+    problems: list[str] = []
+    for path in _citing_documents(root):
+        where = path.relative_to(root).as_posix()
+        headings = numbered_headings(path)
+        for index in range(1, len(headings)):
+            lineno, number = headings[index]
+            previous = headings[index - 1][1]
+            if section_key(number) <= section_key(previous):
+                problems.append(
+                    f"{where} line {lineno} numbers {number} "
+                    f"after {previous}"
+                )
+    return problems

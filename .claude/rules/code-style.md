@@ -632,6 +632,90 @@ not recorded as somebody else's reason. An entry attributing a change ("at the
 owner's request", "rewritten by hand") has left out its purpose and put a
 party in its place.
 
+### 7.5 A document's sections read in numeric order
+
+Added 2026-10-22 at the project owner's instruction, closing a gap both
+repositories had recorded and neither had closed: "Nothing checks the order,
+and a check is what would close this rather than one pass of reordering."
+
+**A reader navigates a design by its numbers.** Section 7.3 makes a citation
+resolve, so a reader sent to section 8.3 finds a section 8.3, and it says
+nothing about where in the file that section sits. In `harness_ci_pipeline.md`
+it sat after 8.4.
+
+| | Guarantees |
+|---|---|
+| Section 7.3 | The number exists, and exactly once |
+| This section | It appears where a reader scrolling for it will arrive |
+
+**Thirty seven headings were out of order when this was written**, across
+twelve documents in the two repositories: seven designs, two registers, a test
+plan, a runbook and the referential index. The register naming the gap listed
+four documents and a hand count of them found thirty one, so **both the
+documents and the number were understated by a reader working from the
+documents in front of him**, which is the argument for a check rather than for
+one pass of reordering.
+
+#### 7.5.1 What counts as a section number
+
+**A heading whose text opens with a dotted number, or with a bare number
+carrying a period.** `### 7.13.2 A recording without a request` and
+`## 8. The credential boundary` are sections. A heading opening with a bare
+number and no period is prose.
+
+**The period is what separates the two, and admitting the bare form costs two
+false reports.** Both repositories hold four such headings and all four are
+prose: an HTTP status, a count of assertions, a count of violations and a case
+identifier. A rule reading them as sections reports a document as disordered
+because its prose headings do not ascend.
+
+**A letter sorts after the digit it follows**, giving 5, 5.1, 5.3.1, 5A,
+5A.1, 5B, 6. A lettered section is a sibling inserted after the fact, as
+`tier3_evaluation.md` section 5A was, and its subsections belong with it
+rather than among its neighbour's.
+
+**A fenced block holds no headings.** A document showing a heading as an
+example carries a line shaped exactly like one of its own sections, and the
+period rule cannot separate the two: the example **is** a section number.
+
+**The generated case list is not the reason, although it reads like one.**
+Those lines open with a hash and a bare six-digit identifier, which the period
+rule already excludes. An injection removing the fence handling went NOT
+CAUGHT until the case was changed to assert an example heading rather than a
+case list, and the comment in the code gave the same wrong reason.
+
+#### 7.5.2 What it does not check, and why that stays open
+
+**The heading rank against the depth of the number it carries.** A
+heading's **parent by rank** is the nearest heading above it carrying fewer
+hashes, and its **parent by number** is the longest prefix of its number the
+document also numbers. Where the two disagree the rendering nests a section
+under its neighbour rather than under its parent, which is what a
+fourth-level 9.12 did under a third-level 9.11.
+
+**Reordering fixed most of them and cannot fix the rest.** The twelve
+documents held 152 such disagreements and hold 69: a section in the wrong
+place usually had the wrong parent by rank as well, so moving it corrected
+both. Ten more were exposed rather than created by the move, in three
+documents whose ranks already disagreed, and those are corrected here. **What
+remains is 69 headings whose hash count is simply wrong**, and changing them
+is a decision about how a document renders rather than about where its
+sections sit, so it is recorded as a gap in `harness_open_questions.md`
+section 2B rather than made here.
+
+#### 7.5.3 Enforced, not remembered
+
+`cmn.document_citations.disordered_sections` reports every numbered heading
+that sorts at or before the numbered heading above it, naming both.
+`MQC_CMN_UNI_112399` and `MQC_CAS_UNI_115778` call it with each root, the
+one-implementation-two-callers arrangement sections 7.2, 7.3 and 7.4 already
+use.
+
+**It sits beside the citation checks because it reads the same headings.**
+`duplicate_sections` asks whether a number appears twice and this asks whether
+the numbers ascend, from one parser, so a heading form that fools one cannot
+slip past the other.
+
 ## 8. Cross-Platform Rules
 
 The harness is verified on Ubuntu and Windows (A18). These are not style preferences: each one names a defect that occurs on exactly one platform and is silent on the other.

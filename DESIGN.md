@@ -229,7 +229,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 121 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 432 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 433 cases | **Implemented** |
 | `docs/design/harness_ci_pipeline.md` | The eight workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 213 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 192 cases | **Implemented** |
@@ -305,6 +305,33 @@ The harness is Python and adopters run it on machines this project did not choos
 
 `windows-latest` is not Windows 11. It shares the same path, filesystem and encoding semantics, so the claim holds, but what CI proves is the runner image.
 
+#### 5.0.1 Dependencies are declared once, and the requirements files are derived
+
+Specified 2026-09-23, after an audit found a dependency the suite relies on and nothing declared.
+
+**`pyproject.toml` is the single declaration.** Runtime dependencies sit in `dependencies`, and everything the gates need sits in the `dev` extra. CI installs with `pip install --editable ".[dev]"`, so the file CI reads is the file a maintainer edits.
+
+**Ranges, not pins.** An unpinned harness measures a moving target: a parser upgrade that changes how a sentence is counted would read as a model regression, which is the attribution failure this project exists to avoid. Ranges allow patch releases and nothing wider.
+
+##### Why `requirements.txt` exists anyway, and why it is not a second declaration
+
+Tooling expects it. PyCharm offers to install from a requirements file and does not read an optional-dependency extra, and a contributor who opens the project should not have to know which of two conventions this repository chose.
+
+**They are generated from `pyproject.toml`, never hand-edited**, and `MQC_CMN_UNI_112222` fails the run when they disagree. That is the same rule applied everywhere else here: two statements of one fact drift, so either there is one statement or there is a check. A generated file plus a check is the second form, not an exception to the rule.
+
+| File | Contains |
+|---|---|
+| `requirements.txt` | The runtime `dependencies` |
+| `requirements-dev.txt` | The `dev` extra, and `-r requirements.txt` |
+
+##### `pytest-randomly` is a dependency, not a convenience
+
+It shuffles test order on every run, and **the suite depends on that for a guarantee it would otherwise lack.** The extension cases in `tests/cmn/mqc_uni_extensibility.py` register a layer, an outcome and a verdict rule, then remove each one again. A cleanup that failed would change the distribution denominator for every case running afterwards, and the failure would land on whichever case happened to run last.
+
+Random ordering is what makes that detectable. Without it the suite runs in declaration order every time, and an ordering dependency introduced later would pass consistently in CI while failing on any machine that happened to have the plugin installed.
+
+The audit found it installed locally and undeclared, which is the worse arrangement of the two: **local runs held a guarantee CI did not**, so CI was the weaker check while appearing to be the stronger one.
+
 #### 5.0.2 The Ubuntu image is pinned, and the Windows one is not yet
 
 Changed 2026-09-26. **`ubuntu-latest` was a moving label**, and GitHub announced it
@@ -337,33 +364,6 @@ pinning it when a migration is announced.
 **macOS is a known gap, not an oversight.** It is excluded because no machine is available here to reproduce a failure on, and a CI leg nobody can debug is a liability rather than coverage. Its two risk axes are each covered individually, POSIX paths by Ubuntu and a case-insensitive filesystem by Windows; only the combination is untested. Reasoning in A18.
 
 Both platforms run on every commit as separate jobs, and the live suite runs on Ubuntu alone because platform coverage tests the harness rather than the model. `.claude/rules/code-style.md` section 8 carries the engineering rules this imposes, each of which names a defect that is silent on one platform.
-
-### 5.0.1 Dependencies are declared once, and the requirements files are derived
-
-Specified 2026-09-23, after an audit found a dependency the suite relies on and nothing declared.
-
-**`pyproject.toml` is the single declaration.** Runtime dependencies sit in `dependencies`, and everything the gates need sits in the `dev` extra. CI installs with `pip install --editable ".[dev]"`, so the file CI reads is the file a maintainer edits.
-
-**Ranges, not pins.** An unpinned harness measures a moving target: a parser upgrade that changes how a sentence is counted would read as a model regression, which is the attribution failure this project exists to avoid. Ranges allow patch releases and nothing wider.
-
-#### Why `requirements.txt` exists anyway, and why it is not a second declaration
-
-Tooling expects it. PyCharm offers to install from a requirements file and does not read an optional-dependency extra, and a contributor who opens the project should not have to know which of two conventions this repository chose.
-
-**They are generated from `pyproject.toml`, never hand-edited**, and `MQC_CMN_UNI_112222` fails the run when they disagree. That is the same rule applied everywhere else here: two statements of one fact drift, so either there is one statement or there is a check. A generated file plus a check is the second form, not an exception to the rule.
-
-| File | Contains |
-|---|---|
-| `requirements.txt` | The runtime `dependencies` |
-| `requirements-dev.txt` | The `dev` extra, and `-r requirements.txt` |
-
-#### `pytest-randomly` is a dependency, not a convenience
-
-It shuffles test order on every run, and **the suite depends on that for a guarantee it would otherwise lack.** The extension cases in `tests/cmn/mqc_uni_extensibility.py` register a layer, an outcome and a verdict rule, then remove each one again. A cleanup that failed would change the distribution denominator for every case running afterwards, and the failure would land on whichever case happened to run last.
-
-Random ordering is what makes that detectable. Without it the suite runs in declaration order every time, and an ordering dependency introduced later would pass consistently in CI while failing on any machine that happened to have the plugin installed.
-
-The audit found it installed locally and undeclared, which is the worse arrangement of the two: **local runs held a guarantee CI did not**, so CI was the weaker check while appearing to be the stronger one.
 
 ### 5.1 Two repositories, and what the split cost to find
 
