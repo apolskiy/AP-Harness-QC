@@ -885,7 +885,39 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_UPSTREAM_UNVERIFIED` | The pinned harness commit has no passing gate run, so the instrument was never established (`harness_ci_pipeline.md` section 3C.3). Distinct from `QC_HARNESS_DEPENDENCY_UNMET`: unmet is unavailable, unverified is available but not established |
 | `QC_HARNESS_BRANCH_NAME` | A branch name departs from the grammar in `harness_ci_pipeline.md` section 3C.6, or names a case that is not inventoried |
 | `QC_HARNESS_BRANCH_STALE` | A branch was cut from `main` past the staleness ceiling and has not been succeeded (3C.6.3) |
+| `QC_HARNESS_PRECONDITION_SKIPPED` | A precondition case skipped, so it measured nothing. The run exits 3; a precondition needing something the environment lacks declares an environment scope and is deselected instead (section 7.5.1) |
+| `QC_HARNESS_PREREQUISITE_MISMATCH` | A carried outcome or a precondition record was written for another run: a commit, the rule set, the engine, the mode or the platform differs, and the message names which. Refused rather than ignored (`cmn_verdict_and_cli.md` sections 7.6 and 7.1.4) |
+| `QC_HARNESS_UNMET_PREREQUISITE` | A selected case rests on a foundation the selection excludes, and `--with-prerequisites` was not given. Refuses the run, naming both remedies (`cmn_verdict_and_cli.md` section 7.8.2) |
+| `QC_HARNESS_REGISTER_REFUSED` | A findings register was not written, because the run it was built from measured nothing it could record. Nothing is overwritten |
 | `QC_HARNESS_BRANCH_ROUTE` | A merge does not follow the one route into `main`, or brought `main` into a branch (3C.6.2 and 3C.6.5) |
+
+#### 6.2.1 A code production code names is registered
+
+Added 2026-10-21, when a design citing `QC_HARNESS_PREREQUISITE_MISMATCH` failed
+`112202`: the code had been raised since 2026-09-29 and never registered.
+
+**The registry was checked from three directions and production code was not
+one of them.** `112200` refuses an unregistered code passed to the emitting
+function, `112201` reports a registered code nothing raises, and `112202` reads
+the designs. A code written into an exception message, a log line or a
+constant reached none of them, and five had:
+
+| Code | Raised since |
+|---|---|
+| `QC_HARNESS_PREREQUISITE_MISMATCH` | The carry file, and the precondition record |
+| `QC_HARNESS_PRECONDITION_SKIPPED` | The zero-skip refusal |
+| `QC_HARNESS_UNMET_PREREQUISITE` | The band selection |
+| `QC_DATA_ENGINE_DEFAULTED` | The defaulted-engine warning |
+| A bare precondition prefix, with no condition after it | The case repository's findings register, now `QC_HARNESS_REGISTER_REFUSED` |
+
+**An unregistered code is uncountable**: no tally by root-cause class sees it,
+which is the defect `112200` exists for, reached by another route.
+
+`cmn.code_standards.unregistered_code_literals` reads every string constant in
+a repository's production code, f-string parts included, and reports each code
+of the four families the registry lacks. `tests/` is not read, because a case
+names an invented code on purpose to prove one is refused. `MQC_CMN_UNI_112262`
+and `MQC_CAS_UNI_115774` call it with each root.
 
 ### 6.3 `QC_DATA_*`: ingestion diagnostics
 
@@ -899,6 +931,7 @@ Every occurrence is logged as **code plus message**, so later analysis aggregate
 | `QC_DATA_COLUMN_ABSENT` | INFO | An optional column was omitted entirely |
 | `QC_DATA_WHITESPACE_STRIPPED` | INFO | Leading or trailing whitespace was removed from a value |
 | `QC_DATA_EMPTY_STRING` | WARNING | YAML supplied an explicit `""`; legal, but frequently unintended |
+| `QC_DATA_ENGINE_DEFAULTED` | WARNING | No `--engine` was named, so the run took the default engine; the warning is written into the artifact (A7.4) |
 | `QC_DATA_EXTRA_COLUMN_DROPPED` | WARNING | An unknown column was dropped under CLI override |
 | `QC_DATA_ADVERSARIAL_DECLARED` | WARNING | A case declared adversarial content; the injection screen was bypassed by declaration |
 | `QC_DATA_UNDECLARED_ADVERSARIAL` | WARNING | The ingest screen matched a case that did not declare adversarial content |
@@ -1709,8 +1742,8 @@ Emitted as Allure parameters and labels, and through JUnit XML, so both reach a 
 | | `mode` | Result | A replayed result must never be mistaken for an observation (A6) |
 | | `os` | Result | Which platform produced it. The harness is verified on two (A18) |
 | | `run_context` | **Run** | `ci`, `ci_debug` or `local` |
-| | `selection_mode` | **Run** | `full`, `change_scoped` or `manual`. A manual selection yields no verdict |
-| | `gated` | **Run** | Derived: true only when `selection_mode` is `full` or `change_scoped`, preconditions executed, **and** `run_context` is `ci` |
+| | `selection_mode` | **Run** | `full`, `change_scoped`, `band` or `manual`. A manual selection yields no verdict |
+| | `gated` | **Run** | Derived: true only when `selection_mode` is `full`, `change_scoped` or `band`, preconditions executed, **and** `run_context` is `ci` |
 | Model | `requested_model` | Result | What was asked for |
 | | `resolved_model` | Result | What the provider returned (A8) |
 | Outcome | `outcome` | Result | `pass`, `fail`, `broken`, `skip` |
@@ -2743,6 +2776,24 @@ exited 5; exit-not-zero was read as a kill and the tool reported **ten of ten
 killed**. A verification tool needs the verification it performs, and the
 control is that.
 
+#### 15.4.1 A refused control names the cases that failed
+
+Added 2026-10-21, after two refusals in one day reported only "control
+failed: exit 1" with a count, and each was diagnosed by laying out a copy by
+hand and running the control again. **The refusal now names each failed or
+errored case**, up to ten, read from pytest's short summary, so the first
+reading of the log says where to look. `MQC_REQ_HAR_CMN_0202`, `112426`.
+
+#### 15.4.2 The command line audits against the same targets as the cases
+
+Added 2026-10-21. `python -m tools.mutation_audit <module>` with no `--target`
+passed pytest no arguments, so the run kept `112502` and `112331`, which section
+15.4 deselects, and **the control refused every time**. The audits that passed
+ran through the `MUT` cases, which carried the list themselves. The list is
+declared once now, as `tools.mutation_audit.AUDIT_TARGETS`; the cases import it
+and the command line falls back to it when no `--target` is named, through
+`audit_targets`. `MQC_REQ_HAR_CMN_0203`, `112427`.
+
 ### 15.5 A killed run leaves a mutant on disk, and recovers from it
 
 **The mutator edits production code in place**, because a module has to be
@@ -3226,6 +3277,34 @@ second run and never a false survivor.
 
 **No seeing module, no first pass.** Where nothing imports the module the
 full targets run once, as before. `MQC_CMN_UNI_112425`.
+
+#### 15.16.1 The seeing cases have a control of their own, and leave out the mutation layer
+
+Added 2026-10-21, the same evening as section 15.16, **because every
+seeing-first measurement until then was void.** The first audit with declared
+survivors under it, `cmn/registries.py`, killed all 81 points, its three
+equivalent mutants among them. Run by hand, the mutant survived the full
+targets and failed the seeing cases unmutated as well:
+
+| What ran | What happened |
+|---|---|
+| The seeing modules included `tests/mutation/mqc_mut_registries.py` and `mqc_mut_verdict.py` | Named as files, they brought `tests/mutation/conftest.py` into the run under the module name `conftest` |
+| `112110` imports `conftest` to read the root's option registration | It received the mutation directory's, and broke |
+| A broken first pass is not exit 0 or 5 | **Every mutant counted as killed** |
+
+**The 9:18 timing section 15.16's day recorded for `cmn/layers.py` measured
+nothing**, and its 0 survivors stand only because the parallel run without the
+seeing pass found 0 too. `112425` did not see it because its launcher stands in
+for pytest and never collects a module.
+
+**Two changes, each answering one half.** The seeing modules leave out the
+mutation layer, which an audit's `-m unit` deselects anyway, so naming them
+only brought their conftest in; `112428`. **And the control runs the seeing
+cases as well**, against the unparsed module, refusing the audit when they do
+not pass unmutated and naming the cases, as section 15.4 already does for the
+full targets; `112429`. The second is the general answer: whatever else makes
+the seeing cases fail on their own, the audit now refuses instead of reporting
+kills. `MQC_REQ_HAR_CMN_0204` and `0205`.
 
 ## 14. Every Subprocess A Case Spawns Carries A Timeout
 

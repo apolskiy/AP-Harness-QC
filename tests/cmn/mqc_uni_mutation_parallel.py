@@ -30,6 +30,8 @@ Specified by ``docs/design/harness_test_taxonomy.md`` sections 15.15 and 15.16.
 #   112424  an_isolated_audit_lock_does_not_refuse_an_ordinary_run
 # TestMQCMutationSeeingFirst
 #   112425  a_mutant_meets_the_cases_that_import_its_module_first
+#   112428  the_seeing_modules_leave_out_the_mutation_layer
+#   112429  seeing_cases_failing_unmutated_refuse_the_audit
 # ------------------------------------------------------------ end of cases
 
 import json
@@ -49,6 +51,7 @@ from tests.cmn.mutation_tool_support import (
     SIBLING,
     POINTED,
     SIBLING_MARKER,
+    broken_subset_launcher,
     isolated_launcher,
     pointed_tree,
     restored_baseline,
@@ -171,3 +174,46 @@ class TestMQCMutationSeeingFirst:
         assert len(full) == 1 and len(points) == len(mutation_points(POINTED)) + 1, (
             f"{len(full)} full runs over {len(points)} point runs"
         )
+
+
+    def MQC_CMN_UNI_112428_the_seeing_modules_leave_out_the_mutation_layer(
+        self, tmp_path: Path
+    ) -> None:
+        """A mutation audit module importing the module is not run as a seeing case.
+
+        Design: ``harness_test_taxonomy.md`` section 15.16.1.
+
+        Args:
+            tmp_path (Path): Holds the harness root.
+
+        Returns:
+            None
+        """
+        root = tmp_path / "AP-Harness-QC"
+        paths = seeing_tree(root)
+        audit_case = root / "tests" / "mutation" / "mqc_mut_sample.py"
+        audit_case.parent.mkdir()
+        audit_case.write_text("import cmn.sample\n", encoding="utf-8")
+        assert seeing_modules(root, paths["module"]) == [
+            "tests/mqc_uni_direct.py", "tests/mqc_uni_indirect.py",
+        ], f"the seeing modules were {seeing_modules(root, paths['module'])}"
+
+    def MQC_CMN_UNI_112429_seeing_cases_failing_unmutated_refuse_the_audit(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The control runs the seeing cases too, and their failure refuses, naming them.
+
+        Design: ``harness_test_taxonomy.md`` section 15.16.1.
+
+        Args:
+            tmp_path (Path): Holds the harness root.
+            monkeypatch (pytest.MonkeyPatch): Replaces the process launcher.
+
+        Returns:
+            None
+        """
+        root = tmp_path / "AP-Harness-QC"
+        paths = seeing_tree(root)
+        monkeypatch.setattr(mutation_audit.subprocess, "run", broken_subset_launcher())
+        with pytest.raises(mutation_audit.MutationRefusal, match="tests/mqc_uni_direct.py"):
+            parallel_survivors(root, paths["module"], ["tests"], workers=2)

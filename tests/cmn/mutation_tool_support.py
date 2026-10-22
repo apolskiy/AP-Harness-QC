@@ -335,6 +335,25 @@ class AuditConfig:
         return self._options.get(name, default)
 
 
+def broken_subset_launcher() -> Callable[..., subprocess.CompletedProcess]:
+    """Return a launcher where every run naming test files breaks, mutated or not.
+
+    Returns:
+        Callable: The launcher, standing in for :func:`subprocess.run`.
+    """
+
+    def launched(command: list[str], **options: Any) -> subprocess.CompletedProcess:
+        del options
+        named = [argument for argument in command if argument.endswith(".py")]
+        if not named:
+            return subprocess.CompletedProcess(command, 0, "3 passed", "")
+        return subprocess.CompletedProcess(
+            command, 3, f"FAILED {named[0]}::TestMQCDirect::MQC_CMN_UNI_119991_direct\n", ""
+        )
+
+    return launched
+
+
 def launcher(
     calls: list[list[str]], on_point: Callable[[int], None]
 ) -> Callable[..., subprocess.CompletedProcess]:

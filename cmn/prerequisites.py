@@ -8,7 +8,10 @@ Last updated: 2026-10-21
 This file contains ``write_outcomes`` and ``read_outcomes``, which write and
 read the ``CarriedOutcomes`` record and refuse one whose ``Provenance`` no
 longer matches the run; and the digests that provenance is checked on,
-``rule_set_digest``, ``record_rule_set_hash`` and ``quarantine_digest``.
+``rule_set_digest``, ``record_rule_set_hash`` and ``quarantine_digest``; and
+``write_preconditions_record`` and ``read_preconditions_record``, through
+which a preconditions job tells the graded jobs after it that the
+preconditions held (section 7.1.4).
 
 ``cmn.dependencies`` writes the file at the end of one priority band and reads
 it at the start of the next, so a later band's dependents skip or run on the
@@ -363,3 +366,69 @@ def read_outcomes(path: Path, provenance: Provenance) -> CarriedOutcomes:
     }
     logger.info("Carried %d base outcome(s) from band %s", len(outcomes), stored.band)
     return CarriedOutcomes(provenance=stored, outcomes=outcomes)
+
+
+# What a precondition record must match on. Engine and mode are not among them:
+# a precondition measures the instrument, which is the same whichever engine is
+# graded and whether the candidate is replayed (design section 7.1.4).
+_PRECONDITION_GUARDED: Final[tuple[str, ...]] = ("code_ref", "case_ref", "platform")
+
+
+def write_preconditions_record(path: Path, provenance: Provenance, *, passed: bool) -> None:
+    """Write the record that the preconditions held, or remove it when they did not.
+
+    Args:
+        path (Path): Where the graded jobs after this one will read it.
+        provenance (Provenance): The commits and platform the preconditions ran on.
+        passed (bool): Whether every precondition passed. **False removes an
+            existing record**, so a stale pass cannot outlive the failure.
+
+    Returns:
+        None
+    """
+    if not passed:
+        path.unlink(missing_ok=True)
+        logger.info("Preconditions did not all pass; no precondition record at %s", path)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"provenance": {name: getattr(provenance, name) for name in _PRECONDITION_GUARDED}}
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding=_ENCODING
+    )
+    logger.info("Recorded that the preconditions held, at %s", path)
+
+
+def read_preconditions_record(path: Path, provenance: Provenance) -> bool:
+    """Report whether an earlier job recorded that the preconditions held for this run.
+
+    Args:
+        path (Path): Where the preconditions job wrote.
+        provenance (Provenance): What the current run carries.
+
+    Returns:
+        bool: True for a matching record, False where none exists, which is the
+        ordinary case for a band run alone and yields no verdict.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the file will not
+            parse, and with ``QC_HARNESS_PREREQUISITE_MISMATCH`` naming the
+            field when a commit or the platform differs.
+    """
+    if not path.is_file():
+        return False
+    try:
+        payload = json.loads(path.read_text(encoding=_ENCODING))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise ValueError(f"{_PARSER}: precondition record at {path} cannot be read") from error
+    stored = payload.get("provenance") if isinstance(payload, dict) else None
+    if not isinstance(stored, dict):
+        raise ValueError(f"{_PARSER}: precondition record at {path} carries no provenance")
+    for name in _PRECONDITION_GUARDED:
+        recorded, current = str(stored.get(name, "")), str(getattr(provenance, name))
+        if recorded != current:
+            raise ValueError(
+                f"{_MISMATCH}: the precondition record at {path} was not written for "
+                f"this run: {name} was {recorded or '(empty)'} when it was written and "
+                f"is {current or '(empty)'} now. Run the preconditions again"
+            )
+    return True

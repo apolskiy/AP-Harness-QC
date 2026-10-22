@@ -215,7 +215,10 @@ def seeing_modules(root: Path, module: Path) -> list[str]:
     target = _dotted(root, module)
     seeing: list[str] = []
     for name, path in names.items():
-        if not path.name.startswith("mqc_"):
+        # THE MUTATION LAYER IS LEFT OUT: an audit runs `-m unit`, and naming
+        # one of its modules brings its conftest in under the root's name
+        # (section 15.16.1).
+        if not path.name.startswith("mqc_") or path.name.startswith("mqc_mut_"):
             continue
         reached, frontier = set(), [name]
         while frontier:
@@ -403,6 +406,12 @@ def _measured(root: Path, module: Path, targets: list[str], progress: ProgressLo
         _control_in(copies[0], relative, targets, original)
         progress.line("control passed")
         first = _first_targets(root, module, targets, progress)
+        # THE SEEING CASES ARE CONTROLLED TOO, or a first pass failing on its
+        # own reads as a kill of every mutant (section 15.16.1).
+        if first:
+            progress.line("control of the seeing cases started")
+            _control_in(copies[0], relative, first, original)
+            progress.line("control of the seeing cases passed")
         shared = _Measurement(root, relative, original, points, progress)
         threads = [threading.Thread(target=shared.run, args=(copy, targets, first))
                    for copy in copies]

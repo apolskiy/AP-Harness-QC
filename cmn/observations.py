@@ -10,7 +10,8 @@ verdict reads it; ``RunContext``, the run-scoped fields every result repeats;
 ``assemble_observation``, which merges case metadata with what the tiers
 returned; ``require_complete_result``, which refuses an emitted result missing
 a required field; the registries ``registered_run_contexts``,
-``registered_selection_modes`` and ``required_result_fields``; and
+``registered_selection_modes`` and ``required_result_fields``;
+``detected_run_context``, which reads the run context from the environment; and
 ``escalation_size`` with ``further_observations``, which decide how many more
 observations a case's outcomes earn.
 
@@ -39,7 +40,7 @@ each recorded independently.
 import dataclasses
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Final, Optional
+from typing import Any, Final, Mapping, Optional
 
 from cmn.tokens import CaseUsage
 from cmn.layers import layer_properties, outcome_properties
@@ -48,11 +49,13 @@ from cmn.registries import registered_evaluation_families
 logger = logging.getLogger(__name__)
 
 _RUN_CONTEXTS: Final[frozenset[str]] = frozenset({"ci", "ci_debug", "local"})
-_SELECTION_MODES: Final[frozenset[str]] = frozenset({"full", "change_scoped", "manual"})
+_SELECTION_MODES: Final[frozenset[str]] = frozenset(
+    {"full", "change_scoped", "band", "manual"}
+)
 
 # The only selection modes a verdict may be computed from. A hand-typed subset
 # is arbitrary and has no backstop, so a verdict from one is a partial verdict.
-_VERDICT_SELECTIONS: Final[frozenset[str]] = frozenset({"full", "change_scoped"})
+_VERDICT_SELECTIONS: Final[frozenset[str]] = frozenset({"full", "change_scoped", "band"})
 
 _DURATION_KINDS: Final[frozenset[str]] = frozenset({"measured", "truncated"})
 
@@ -399,9 +402,37 @@ def registered_selection_modes() -> frozenset[str]:
     """Return every registered selection mode.
 
     Returns:
-        frozenset[str]: The three modes.
+        frozenset[str]: The four modes.
     """
     return _SELECTION_MODES
+
+
+# The cadence suffix of a debug workflow (`harness_ci_pipeline.md` section 2).
+_DEBUG_WORKFLOW_SUFFIX: Final[str] = "-on-demand"
+
+
+def detected_run_context(environ: Mapping[str, str]) -> str:
+    """Return the run context the environment shows, without a flag to forget.
+
+    ``local`` outside GitHub Actions; ``ci_debug`` for a workflow file ending in
+    ``-on-demand``, and for a run on Actions that names no workflow, since it
+    cannot show it is not a debug run; ``ci`` for any other workflow. A reusable
+    workflow takes its caller's context, because ``GITHUB_WORKFLOW_REF`` names
+    the calling workflow. Design: ``cmn_verdict_and_cli.md`` section 7.1.4.
+
+    Args:
+        environ (Mapping): The process environment, or a stand-in for it.
+
+    Returns:
+        str: One of the registered run contexts.
+    """
+    if environ.get("GITHUB_ACTIONS", "") != "true":
+        return "local"
+    reference = environ.get("GITHUB_WORKFLOW_REF", "")
+    workflow = reference.split("@", 1)[0].rsplit("/", 1)[-1]
+    if not workflow or workflow.rsplit(".", 1)[0].endswith(_DEBUG_WORKFLOW_SUFFIX):
+        return "ci_debug"
+    return "ci"
 
 
 def required_result_fields() -> tuple[str, ...]:

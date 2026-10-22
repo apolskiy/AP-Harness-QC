@@ -5,7 +5,8 @@
 Created: 2026-10-04
 Last updated: 2026-10-21
 
-This file contains ``begin_case``, which clears the previous case's record;
+This file contains ``begin_case``, which clears the previous case's record,
+with ``current_run_context`` and ``reset_run_context`` for the context it keeps;
 ``record_observation``, which stores each observation a case takes with the
 call and evaluation behind it; ``publish_result``, which writes the case's
 parameters to its Allure result once its outcome is known; ``attach_history``
@@ -78,6 +79,25 @@ def begin_case(run: Optional[RunContext] = None) -> None:
     _EVALUATED.clear()
     if run is not None:
         _RUN["context"] = run
+
+
+def current_run_context() -> Optional[RunContext]:
+    """Return the run context the current case carries.
+
+    Returns:
+        Optional[RunContext]: The context adopted at the session's start, or
+        None before one was.
+    """
+    return _RUN["context"]
+
+
+def reset_run_context() -> None:
+    """Forget the adopted run context, for a case that adopted one of its own.
+
+    Returns:
+        None
+    """
+    _RUN["context"] = None
 
 
 def record_observation(

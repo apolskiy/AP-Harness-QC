@@ -192,6 +192,14 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         ),
     ),
     Option(
+        name="preconditions-record",
+        default="",
+        help_text=(
+            "File a passing preconditions job writes and the graded jobs after it "
+            "read, so their rows count the preconditions as executed"
+        ),
+    ),
+    Option(
         name="with-prerequisites",
         default=False,
         is_flag=True,
@@ -310,8 +318,7 @@ _OPTIONS: Final[tuple[Option, ...]] = (
 # and selects nothing itself, so a run supplying it and no selector is a full
 # run. Design section 7.7.1.
 _MANUAL_SELECTORS: Final[frozenset[str]] = frozenset(
-    {"priority", "observations", "tests", "tests-file", "family", "requirement",
-     "module", "tag"}
+    {"observations", "tests", "tests-file", "family", "requirement", "module", "tag"}
 )
 
 
@@ -402,13 +409,19 @@ class Invocation:
         """Return how the selection was arrived at.
 
         Returns:
-            str: ``manual`` when any filtering flag was supplied, otherwise
-            ``full``. **Change-scoped selection is derived from the diff** by
-            the runner and is set there rather than inferred from flags, which
-            is what distinguishes it from a hand-typed subset.
+            str: ``manual`` when any filtering flag was supplied, ``band``
+            when ``--priority`` was the only one, otherwise ``full``.
+            **Change-scoped selection is derived from the diff** by the
+            runner and is set there rather than inferred from flags, which is
+            what distinguishes it from a hand-typed subset.
         """
         if any(name in self.supplied for name in _MANUAL_SELECTORS):
             return "manual"
+        # A BAND CHOSEN ALONE IS COMPUTED, since the workflow's bands together
+        # cover every graded case; typed at a terminal it is still ungated,
+        # by its context (`cmn_verdict_and_cli.md` section 7.1.4).
+        if "priority" in self.supplied:
+            return "band"
         return "full"
 
     @property

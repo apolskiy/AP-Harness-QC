@@ -545,7 +545,8 @@ Testers may run any subset from a terminal or from CI. What a subset costs is th
 |---|---|---|
 | `full` | No filter supplied | Yes |
 | `change_scoped` | Derived from the diff | Yes |
-| `manual` | Any filter flag present | **No** |
+| `band` | `--priority` alone, as a workflow partitions the bands | Yes, and gated only in `ci` |
+| `manual` | Any other filter flag present | **No** |
 
 **Not all subsets are equal, and the difference is not size.** Change-scoped selection yields a verdict because it is derived from the diff, recorded, and backstopped by the full run on merge. A hand-typed subset is arbitrary with no backstop, and a verdict from one is a partial verdict.
 

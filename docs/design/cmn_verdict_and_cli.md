@@ -1637,7 +1637,7 @@ Two supports:
 
 There is **one** condition, not several that could drift apart:
 
-> A run is gated if and only if `selection_mode` is `full` or `change_scoped`, **and** preconditions executed, **and** `run_context` is `ci`.
+> A run is gated if and only if `selection_mode` is `full`, `change_scoped` or `band`, **and** preconditions executed, **and** `run_context` is `ci`.
 
 Everything else follows. A diagnostic run skips preconditions, so it is ungated. A manual selection is ungated whatever else is true. A debug run is ungated on the third condition regardless of the first two. The verdict tool then needs a single refusal rule rather than one per way of producing an ungated run, and a future fourth way of bypassing gates inherits the behaviour without a new rule.
 
@@ -1671,7 +1671,8 @@ Testers need to run a subset from a terminal or from CI. Selection is cheap; the
 |---|---|---|
 | `full` | No filter supplied | Yes |
 | `change_scoped` | Derived from the diff | Yes |
-| `manual` | Any filter flag present | **No** |
+| `band` | `--priority` and no other selector, section 7.1.4 | Yes |
+| `manual` | Any other filter flag present | **No** |
 
 This generalises the diagnostic-run rule rather than adding a second one. One case or one layer, the same logic applies: a verdict from an arbitrary subset is a partial verdict, and a green built from one is the blame-misattribution failure that full-run-on-merge exists to prevent.
 
@@ -1707,6 +1708,93 @@ only that the two disagreed with each other, so the requirement read as
 satisfied while a debug upload named `mqc-reports-` would have passed.
 
 **Quota interaction:** a debug job running live shares the engine concurrency group, so it queues behind real runs rather than competing with them.
+
+#### 7.1.4 A run learns its context, and every job of a gated sequence is gated
+
+Added 2026-10-21 at the project owner's instruction: "that was the whole point,
+so debug can be executed and not counted against the gate. manual ci job for
+claude as judge will still run lints and all p0-p4 jobs in sequence, why would
+they not be gated?"
+
+**The rule in section 7.1.1 stands unchanged.** A debug run, a hand-typed
+subset and a run whose preconditions did not hold yield no verdict, and nothing
+else is meant to. Starting a run by hand is none of those: section 7.1.3's
+`112127` already holds that a manual dispatch of a full run is gated.
+
+**The code withheld a verdict from every graded job anyway**, by three defects,
+one per condition of the derivation:
+
+| Condition | What the code did | Effect |
+|---|---|---|
+| `run_context` is `ci` | Nothing set it. `begin_case` received no context and every row fell back to `local` | Every row in every workflow ungated |
+| The selection was computed | `--priority` was a hand-typed selector | Every band job `manual` |
+| Preconditions executed | Only preconditions run in the same session counted | A band job after a preconditions job reported false |
+
+##### The context comes from the environment
+
+`cmn.observations.detected_run_context` reads it, so a workflow cannot get it
+wrong by omitting a flag:
+
+| Environment | `run_context` |
+|---|---|
+| `GITHUB_ACTIONS` is not `true` | `local` |
+| On Actions, the workflow file named by `GITHUB_WORKFLOW_REF` ends in `-on-demand` | `ci_debug` |
+| On Actions, any other workflow file | `ci` |
+| On Actions, no workflow reference | `ci_debug` |
+
+**The last row fails safe.** A run that cannot name its workflow cannot show it
+is not a debug run, so it is not counted. **A reusable workflow takes its
+caller's context**, because `GITHUB_WORKFLOW_REF` names the calling workflow:
+`evaluate-engine.yml` is `ci` under a weekly caller and would be `ci_debug`
+under an on-demand one. The cadence suffix is already enforced
+(`harness_ci_pipeline.md` section 2), which is what makes it safe to read.
+
+**The session builds the run context once**, at its start, from the detected
+context, the invocation's selection mode and the precondition outcome, and
+hands it to `begin_case`, so every published row carries it.
+`cmn.run_context.session_run_context` builds it.
+
+##### A band chosen alone is a computed selection
+
+**`--priority` with no other selector is `selection_mode: band`**, and `band`
+yields a verdict. With any other selector the selection is `manual`, as before.
+
+**A band is not a hand-typed subset.** The workflow partitions the graded cases
+into P0, P1 and P2-P4, the bands together cover every graded case, and each
+runs in a job of its own so its status names its remedy (`testing-standards.md`
+section 2). **It stays ungated wherever a hand-typed one would be**: typed at a
+terminal it is `local`, and in a debug workflow it is `ci_debug`, so the
+derivation withholds the verdict on its third condition.
+
+`112160` asserted that a priority filter yields no verdict and is retired
+rather than rebound; `112177` and `112178` replace it.
+
+##### The preconditions job hands its result to the jobs after it
+
+**`--preconditions-record <path>`** names a file. A session that executed
+precondition cases, every one passing, writes it; a graded session reads it and
+counts the preconditions as executed.
+
+| The record | The graded session |
+|---|---|
+| Absent | Preconditions not executed, so ungated. **Not refused**: a band run alone is legitimate and simply yields no verdict |
+| Present, its commits and platform matching | Preconditions executed |
+| Present, a commit or the platform differing | **Refused** with `QC_HARNESS_PREREQUISITE_MISMATCH`, naming the field and both values |
+
+**It is guarded by the harness commit, the corpus commit and the platform, and
+not by engine or mode.** A precondition measures the instrument, which is the
+same whichever engine is graded and whether the candidate is replayed, so
+preconditions run once in replay vouch for rung 3's live run. A carried outcome
+is guarded by both, because a foundation's outcome is a measurement of one
+engine (section 7.6); that difference is why this is a record of its own rather
+than a field in the carried outcomes.
+
+**A failed precondition writes no record**, and an existing one is removed, so
+a stale pass cannot outlive the failure. The graded jobs do not run then anyway,
+since they need the preconditions job (`framework-rules.md` section 1).
+
+`cmn.prerequisites.write_preconditions_record` and `read_preconditions_record`
+hold it. `MQC_REQ_HAR_CMN_0197` through `0200`, `112172` through `112185`.
 
 ### 7.2 The verdict is computed by a standalone tool
 
@@ -2770,6 +2858,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112423` | P | `a_parallel_audit_matches_serial_and_never_writes_the_module` (taxonomy 15.15) |
 | `112424` | N | `an_isolated_audit_lock_does_not_refuse_an_ordinary_run` (taxonomy 15.15) |
 | `112425` | P | `a_mutant_meets_the_cases_that_import_its_module_first` (taxonomy 15.16) |
+| `112426` | N | `a_refused_control_names_the_failing_cases` (taxonomy 15.4.1) |
+| `112427` | P | `the_command_line_defaults_to_the_audit_targets` (taxonomy 15.4.2) |
+| `112428` | N | `the_seeing_modules_leave_out_the_mutation_layer` (taxonomy 15.16.1) |
+| `112429` | N | `seeing_cases_failing_unmutated_refuse_the_audit` (taxonomy 15.16.1) |
 | `112419` | N | `an_exchange_report_holds_each_observation_and_judge_prompt` (5.5) |
 | `112420` | N | `every_case_that_dispatched_attaches_its_exchanges` (5.5) |
 | `112346` | N | `a_document_naming_no_repository_is_reported` |
@@ -2847,6 +2939,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112200` | N | `emitted_code_absent_from_registry_is_rejected` |
 | `112201` | N | `registered_code_with_no_emit_site_is_reported` |
 | `112202` | N | `unregistered_code_in_a_live_specification_is_reported` |
+| `112262` | N | `every_code_production_code_names_is_registered` |
 | `112203` | N | `stated_inventory_counts_disagreeing_with_rows_is_reported` |
 | `112110` | P | `option_registry_yields_identical_flags_to_both_surfaces` |
 | ~~`112111`~~ | | ~~`invalid_enumerated_flag_value_is_rejected_at_parse_time`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112155`, `112156`. One case per flag |
@@ -2871,7 +2964,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112157` | N | `a_family_filter_yields_no_verdict` |
 | `112158` | N | `a_module_filter_yields_no_verdict` |
 | `112159` | N | `an_observations_override_yields_no_verdict` |
-| `112160` | N | `a_priority_filter_yields_no_verdict` |
+| ~~`112160`~~ | | ~~`a_priority_filter_yields_no_verdict`~~. **Retired 2026-10-21**: a band chosen alone is a computed selection (section 7.1.4). Replaced by `112177` and `112178` |
 | `112161` | N | `a_requirement_filter_yields_no_verdict` |
 | `112162` | N | `a_tag_filter_yields_no_verdict` |
 | `112163` | N | `a_tests_filter_yields_no_verdict` |
@@ -2888,6 +2981,20 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112168` | N | `a_ci_run_with_failed_preconditions_is_not_gated` |
 | `112169` | N | `a_debug_ci_run_is_not_gated` |
 | `112170` | N | `a_local_run_is_not_gated` |
+| `112172` | P | `outside_actions_the_context_is_local` |
+| `112173` | P | `an_on_demand_workflow_runs_in_ci_debug` |
+| `112174` | P | `any_other_workflow_runs_in_ci` |
+| `112175` | N | `actions_without_a_workflow_reference_is_ci_debug` |
+| `112176` | P | `the_session_hands_every_case_the_run_context_it_built` |
+| `112177` | P | `a_priority_band_alone_yields_selection_mode_band` |
+| `112178` | N | `a_priority_band_with_another_selector_is_manual` |
+| `112179` | P | `a_band_ci_run_whose_preconditions_held_is_gated` |
+| `112180` | N | `a_band_typed_at_a_terminal_is_not_gated` |
+| `112181` | P | `passing_preconditions_write_their_record` |
+| `112182` | N | `a_failed_precondition_removes_the_record` |
+| `112183` | P | `a_matching_record_counts_as_preconditions_executed` |
+| `112184` | N | `a_record_from_another_commit_is_refused_naming_the_field` |
+| `112185` | B | `an_absent_record_counts_as_not_executed_and_is_not_refused` |
 | `112125` | N | `refusal_exits_four_not_one` |
 | `112126` | B | `full_selection_under_debug_context_is_still_ungated` |
 | `112212` | B | `first_run_on_a_branch_has_no_previous_conclusion_to_compare` |
@@ -3089,19 +3196,20 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 411 cases, 250 negative, 115 positive, 46 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 429 cases, 258 negative, 124 positive, 47 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
 ### 10.1 Taxonomy registry consistency
 
-Three checks, the same shape as the RTM integrity checks in section 6 and for the same reason: every declared thing must be verified, in both directions.
+Five checks, the same shape as the RTM integrity checks in section 6 and for the same reason: every declared thing must be verified, in both directions.
 
 | Case | Guards against |
 |---|---|
 | `112200` | An unregistered code reaching the durable record, where nothing downstream can interpret it |
 | `112201` | Registry rot, where a code remains listed long after the condition that raised it was removed |
 | `112202` | A specification naming a code that was never registered |
+| `112262` | Production code raising or logging a code that was never registered (`harness_test_taxonomy.md` section 6.2.1) |
 | `112203` | An inventory whose stated totals no longer match its rows |
 
 ### 10.2 The suite enforces its own authoring order

@@ -11998,3 +11998,78 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   run (907 UNI, 24 SYS), all passing, exit 0. Mutation audits, 6: not re-run,
   no audited module changed since they were measured. Pylint 10.00/10, exit 0;
   346 requirements.
+
+## 2026-10-21: A CI run is gated in every job, every raised code is registered, and the seeing-first audit pass is controlled
+
+* **When:** 20:30 to 00:00 UTC. **The machine lost power at 00:10**, before
+  this entry was written; it is written from the draft, with every figure
+  re-measured on the recovered tree rather than carried over.
+* **Decided with the project owner, recorded in the plan for the probe and
+  calibration work:** the probe's baseline travels as an artifact; calibration
+  is model testing and lives in the case repository, running with a live judge
+  only; it stays per ladder, when the judge model changed or every two weeks;
+  claude joins as a second judge, each engine and judge pair an independent run
+  whose names carry the judge, the claude-judged runs manual for the demo with a
+  documented option to automate them, citing the spend; and the ladder takes the
+  gate's shape. The owner on the second judge: "gemini judging itself, adn
+  finding least problems, can look suspect."
+* **Asked by the project owner:** "manual ci job for claude as judge will still
+  run lints and all p0-p4 jobs in sequence, why would they not be gated?" They
+  would not have been, for three reasons, one per condition of the derivation:
+  nothing set `run_context`, so every row read `local`; `--priority` counted as
+  a hand-typed subset; and a band job could not tell its preconditions job had
+  passed.
+* **Built, `cmn_verdict_and_cli.md` section 7.1.4, `MQC_REQ_HAR_CMN_0197` to
+  `0200`, `112172` to `112185`:** the context is read from the environment,
+  `ci_debug` for an on-demand workflow or one naming none, `ci` otherwise;
+  `--priority` alone is `selection_mode: band`, which yields a verdict and is
+  gated only in `ci`; and `--preconditions-record` lets a passing preconditions
+  job vouch for the jobs after it, guarded by both commits and the platform.
+  `112160`, which asserted a band yields no verdict, is retired. Twelve
+  injections, twelve caught, two of them as broken rather than failed.
+* **Found by the checks, and fixed:**
+  * **Five failure codes were raised and never registered**, four here and one
+    in the case repository's findings tool. The design for section 7.1.4 named
+    one and `112202` refused it; nothing read production code for codes.
+    Registered, with `112262` and `MQC_CAS_UNI_115774` reading every string
+    constant (taxonomy section 6.2.1). Three injections, three caught.
+    `cmn/registries.py` is audited, so its digest was re-declared and its three
+    survivor lines moved by seven.
+  * **A refused audit control named no case**, and two refusals today were each
+    diagnosed by laying out a copy by hand. It names them now, `112426` (taxonomy
+    15.4.1).
+  * **A command-line audit with no `--target` always refused its control**,
+    keeping the two cases section 15.4 deselects. The list is declared once in
+    the tool, `112427` (15.4.2). Two injections, two caught.
+* **Digressions the user spotted, and the fix:**
+  * **The seeing-first pass I built this evening measured nothing, and I
+    reported a timing from it.** The 9:18 recorded for `cmn/layers.py` in the
+    entry before this one was every mutant killed by a broken first pass: naming
+    `tests/mutation` modules brought their conftest in under the root's name and
+    `112110` broke. Its 0 survivors stand only because the parallel run without
+    the pass found 0 as well. The seeing modules leave out the mutation layer and
+    the control runs them unmutated, `112428` and `112429` (taxonomy 15.16.1).
+    Two injections, two caught. **Found by me rather than the owner**, and
+    recorded here because the claim was mine.
+  * **I started an audit before moving the README figures for a new case**, so
+    its copy carried counts that disagreed with the designs. The refusal named
+    no case, which is how the 15.4.1 defect surfaced.
+  * **`-k registries` selected all four modules in `mqc_mut_registries.py`**,
+    since it matches the file name; stopped and rerun by node identifier.
+* **What The Power Loss Measured, Unasked:** the crash landed between the
+  `cmn/registries.py` audit finishing and the `cmn/layers.py` audit's control,
+  which is the window section 15.12.1 is written for. The recovered tree carried
+  no stray backup, no truncated module and no held lock: an isolated audit never
+  writes the module it copies, so the dead run left a lock alone and the first
+  session afterwards unlinked it. `cmn/verdict.py` stands at 998 lines. **The
+  mechanism built after the 2026-10-13 corruption was exercised by a real power
+  loss rather than a kill, and nothing needed restoring.**
+* **Not done yet, and why:** the case repository's gate does not pass the
+  precondition record to its band jobs, so its band rows stay ungated until the
+  ladder takes the gate's shape, the next step; the workflow needs this harness
+  on `main` first, because an older harness refuses the new flag.
+* **Code Quality & Compliance Audit:** 955 test cases, 949 in the precondition
+  run (925 UNI, 24 SYS), all passing, exit 0. Mutation audits, 6:
+  `cmn/registries.py` re-measured, 81 points, its 3 declared survivors and no
+  other, 17 minutes 34 seconds; the other five not re-run, no code change since
+  they were measured. Pylint 10.00/10, exit 0; 355 requirements.

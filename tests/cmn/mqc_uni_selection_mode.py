@@ -9,9 +9,10 @@ Its cases check ``build_invocation`` and ``manual_selector_flags`` in
 ``cmn/options.py``. No filter yields ``selection_mode`` full, a change-scoped
 selection still yields a verdict, and each manual selector flag, from
 ``--family`` to ``--tests-file``, yields none, which ``uncovered_members`` in
-``cmn/case_coverage.py`` confirms has a case per flag. Further cases derive the
-gated flag, true only for a full or change-scoped CI run, outside the debug
-context, whose preconditions passed.
+``cmn/case_coverage.py`` confirms has a case per flag, while ``--priority``
+alone yields a band. Further cases derive the gated flag, true only for a
+full, change-scoped or band CI run, outside the debug context, whose
+preconditions passed.
 
 The selection mode and the gated flag are recorded on every result, so they
 decide whether the verdict tool will judge a run and whether a collector treats
@@ -36,11 +37,12 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112157  a_family_filter_yields_no_verdict
 #   112158  a_module_filter_yields_no_verdict
 #   112159  an_observations_override_yields_no_verdict
-#   112160  a_priority_filter_yields_no_verdict
 #   112161  a_requirement_filter_yields_no_verdict
 #   112162  a_tag_filter_yields_no_verdict
 #   112163  a_tests_filter_yields_no_verdict
 #   112164  a_tests_file_filter_yields_no_verdict
+#   112177  a_priority_band_alone_yields_selection_mode_band
+#   112178  a_priority_band_with_another_selector_is_manual
 #   112171  every_manual_selector_flag_has_a_case
 #   112121  change_scoped_selection_still_yields_a_verdict
 #   112116  observations_override_replaces_configured_count
@@ -51,6 +53,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112168  a_ci_run_with_failed_preconditions_is_not_gated
 #   112169  a_debug_ci_run_is_not_gated
 #   112170  a_local_run_is_not_gated
+#   112179  a_band_ci_run_whose_preconditions_held_is_gated
+#   112180  a_band_typed_at_a_terminal_is_not_gated
 #   112126  full_selection_under_debug_context_is_still_ungated
 #   112127  manual_full_dispatch_of_ci_is_gated_and_yields_a_verdict
 # ------------------------------------------------------------ end of cases
@@ -63,6 +67,14 @@ import pytest
 from cmn.case_coverage import uncovered_members
 from cmn.observations import RunContext
 from cmn.options import build_invocation, manual_selector_flags
+from cmn.run_context import session_run_context
+
+from tests.cmn.run_context_support import (
+    GRADED_NODE,
+    PRECONDITION_NODE,
+    StubConfig,
+    stub_items,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -104,14 +116,6 @@ class TestMQCSelectionMode:
         """
         self._filter_yields_no_verdict("observations")
 
-    def MQC_CMN_UNI_112160_a_priority_filter_yields_no_verdict(self) -> None:
-        """A run filtered by ``--priority`` yields no verdict.
-
-        Returns:
-            None
-        """
-        self._filter_yields_no_verdict("priority")
-
     def MQC_CMN_UNI_112161_a_requirement_filter_yields_no_verdict(self) -> None:
         """A run filtered by ``--requirement`` yields no verdict.
 
@@ -144,6 +148,32 @@ class TestMQCSelectionMode:
         """
         self._filter_yields_no_verdict("tests-file")
 
+    # `112160` WAS RETIRED 2026-10-21. A band chosen alone is a computed
+    # selection, so `--priority` left the manual selectors; `112177` and
+    # `112178` replace it (`cmn_verdict_and_cli.md` section 7.1.4).
+
+    def MQC_CMN_UNI_112177_a_priority_band_alone_yields_selection_mode_band(self) -> None:
+        """A band a workflow chose, with no other selector, yields a verdict.
+
+        Returns:
+            None
+        """
+        invocation = build_invocation({"priority": "0"})
+        assert invocation.selection_mode == "band" and invocation.yields_verdict, (
+            f"a band alone was {invocation.selection_mode}"
+        )
+
+    def MQC_CMN_UNI_112178_a_priority_band_with_another_selector_is_manual(self) -> None:
+        """A band narrowed further by hand is a hand-typed subset.
+
+        Returns:
+            None
+        """
+        invocation = build_invocation({"priority": "0", "family": "grounding"})
+        assert invocation.selection_mode == "manual" and not invocation.yields_verdict, (
+            f"a narrowed band was {invocation.selection_mode}"
+        )
+
     def MQC_CMN_UNI_112171_every_manual_selector_flag_has_a_case(self) -> None:
         """Every registered selector flag has a no-verdict case of its own.
 
@@ -169,7 +199,7 @@ class TestMQCSelectionMode:
         Returns:
             None
         """
-        invocation = build_invocation({flag: "0,1" if flag == "priority" else "x"})
+        invocation = build_invocation({flag: "x"})
         assert invocation.selection_mode == "manual"
         assert invocation.yields_verdict is False
 
@@ -256,6 +286,24 @@ class TestMQCGatedDerivation:
             None
         """
         self._gated("local", "full", True, False)
+
+    def MQC_CMN_UNI_112179_a_band_ci_run_whose_preconditions_held_is_gated(self) -> None:
+        """A P0 job in CI after a green preconditions job is gated.
+
+        Returns:
+            None
+        """
+        self._gated("ci", "band", True, True)
+
+    def MQC_CMN_UNI_112180_a_band_typed_at_a_terminal_is_not_gated(self) -> None:
+        """``--priority 0`` typed locally is a band and still yields no gated row.
+
+        Returns:
+            None
+        """
+        config = StubConfig(options={"--priority": "0"}, supplied={"priority": "0"})
+        run = session_run_context(config, stub_items(PRECONDITION_NODE, GRADED_NODE), {})
+        assert run.selection_mode == "band" and not run.gated, f"a local band built {run}"
 
     def _gated(
         self, context: str, selection: str, preconditions: bool, expected: Any

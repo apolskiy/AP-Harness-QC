@@ -25,6 +25,7 @@ from typing import Final
 import pytest
 
 from tools.mutation_audit import (
+    AUDIT_TARGETS,
     MutationRefusal,
     declared_survivors,
     survivor_problems,
@@ -41,19 +42,9 @@ AUDITED: Final[tuple[str, ...]] = (
     "cmn/band_summary.py", "cmn/environments.py",
 )
 
-# THE TWO CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they fail
-# on the reformatting the mutator performs and would kill every mutant for the
-# wrong reason. Measured rather than guessed: the suite was run against an
-# unparsed module and these are what failed. Section 15.4.
-_DESELECT = (
-    "--deselect",
-    "tests/cmn/mqc_uni_file_standards.py::TestMQCAuthorshipHeader"
-    "::MQC_CMN_UNI_112502_every_python_file_carries_its_spdx_header",
-    "--deselect",
-    "tests/cmn/mqc_uni_file_standards.py::TestMQCModuleRunway"
-    "::MQC_CMN_UNI_112331_a_module_at_the_runway_ceiling_is_reported",
-)
-TARGETS = ["-m", "unit", *_DESELECT]
+# DECLARED ONCE IN THE TOOL, so the cases and the command line audit against
+# the same targets (taxonomy section 15.4.2).
+TARGETS = list(AUDIT_TARGETS)
 
 
 def audit(module: str) -> list[str]:

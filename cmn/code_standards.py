@@ -10,6 +10,7 @@ annotation rules; ``header_problems`` and ``markup_header_problems`` for SPDX
 headers; ``encoding_gaps`` for a file opened with no encoding;
 ``unfrozen_records`` for an undeclared mutable dataclass;
 ``identifier_block_problems`` for a case whose digits contradict its tokens;
+``unregistered_code_literals`` for a failure code the registry lacks;
 ``artifact_mandate_gaps`` for a workflow step emitting one mandated artifact
 without the other; ``flag_coverage_problems`` for a flag no case proves; and
 the readers ``python_sources``, ``markup_sources``, ``section_lines`` and
@@ -46,6 +47,7 @@ from typing import Any, Final
 import yaml
 
 from cmn.options import registered_options
+from cmn.registries import registered_codes
 
 # Not this project's source, so not this project's conventions to enforce.
 COPYRIGHT_TAG: Final[str] = "SPDX-FileCopyrightText:"
@@ -773,3 +775,39 @@ def required_result_fields(taxonomy: Path) -> dict[str, str]:
             "reader would report no problems by having read nothing"
         )
     return declared
+
+
+# A failure code of one of the four families, at the full length it is spelled.
+_CODE_LITERAL: Final[re.Pattern[str]] = re.compile(
+    r"\bQC_(?:LLM|HARNESS|DATA|SEC)_[A-Z0-9_]*[A-Z0-9]\b"
+)
+
+
+def unregistered_code_literals(root: Path) -> list[str]:
+    """Report each failure code production code names that the registry lacks.
+
+    Every string constant outside ``tests/``, f-string parts included, is read
+    for a ``QC_`` code of one of the four families. A case may name an invented
+    code on purpose, to prove one is refused, so ``tests/`` is not read. Design:
+    ``harness_test_taxonomy.md`` section 6.2.1.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: ``<path>:<line> <code>`` per occurrence, the path relative to
+        the root, sorted by path and line.
+    """
+    registered = registered_codes()
+    found: list[str] = []
+    for source in python_sources(root):
+        relative = source.relative_to(root)
+        if relative.parts[0] == "tests":
+            continue
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            for code in _CODE_LITERAL.findall(node.value):
+                if code not in registered:
+                    found.append(f"{relative.as_posix()}:{node.lineno} {code}")
+    return found

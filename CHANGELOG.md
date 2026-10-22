@@ -29,6 +29,40 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A mutation audit can no longer report kills its own first pass caused, 2026-10-21
+
+**Every audit that ran the seeing cases first measured nothing**: naming the
+mutation layer's modules brought their conftest in under the root's name, one
+case broke, and a broken first pass counted every mutant as killed. The seeing
+cases now leave out the mutation layer, and the control runs them unmutated and
+refuses when they do not pass (`harness_test_taxonomy.md` section 15.16.1). Two
+more defects surfaced in finding it: a refused control named no failing case,
+and a command-line audit with no `--target` always refused its control. A
+refusal now names each failed case, and the command line audits against the
+targets the cases use (sections 15.4.1 and 15.4.2). The README figures moved to
+955 test cases and 355 requirements.
+
+### Every failure code the harness raises is registered, 2026-10-21
+
+**Five codes were raised or logged and no registry held them**, so no tally by
+root-cause class could count them: a refused carried record, a skipped
+precondition, a band missing its foundation, a defaulted engine, and the case
+repository's refused findings register. Nothing read production code for codes;
+the checks covered the emitting function and the designs. They are registered
+now, and `MQC_CMN_UNI_112262` reads every string in production code for a code
+the registry lacks (`harness_test_taxonomy.md` section 6.2.1).
+
+### A CI run outside the debug workflows is gated in every job, 2026-10-21
+
+**No graded row was ever gated, so no CI run could yield a verdict**, though
+only a debug run is meant to go uncounted. Nothing set the run context, so every
+row read `local`; a band job's `--priority` counted as a hand-typed subset; and
+a band job could not tell that the preconditions job before it had passed. A run
+now reads its context from the environment, `ci_debug` for an on-demand workflow
+and `ci` for any other; `--priority` alone is `selection_mode: band`, which
+yields a verdict; and `--preconditions-record` lets a passing preconditions job
+vouch for the graded jobs after it (`cmn_verdict_and_cli.md` section 7.1.4).
+
 ### A mutation audit runs its points in parallel and leaves the repository usable, 2026-10-21
 
 **An audit changed one point at a time in the module the repository imports**,

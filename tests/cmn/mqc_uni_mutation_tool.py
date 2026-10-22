@@ -40,6 +40,9 @@ question was looking at the right file.
 #   112384  a_control_that_raises_leaves_no_backup
 # TestMQCMutationWorkflow
 #   112379  the_mutation_audit_runs_on_a_harness_update
+# TestMQCMutationControl
+#   112426  a_refused_control_names_the_failing_cases
+#   112427  the_command_line_defaults_to_the_audit_targets
 # ------------------------------------------------------------ end of cases
 
 import ast
@@ -55,10 +58,13 @@ import yaml
 
 from tests.cmn.mutation_tool_support import MODULE, SOURCE, write_manifest
 from tests.mutation.mutation_support import AUDITED
+from cmn.case_steps import step
 from tools.mutation_audit import (
     _BACKUP_SUFFIX,
+    AUDIT_TARGETS,
     MutationRefusal,
     acquire_lock,
+    audit_targets,
     baseline_problem,
     control_problem,
     declare_digest,
@@ -420,3 +426,55 @@ class TestMQCMutationWorkflow:
             "a refused audit leaves the job green, so an unmeasured change reads as measured"
         )
         assert "secrets." not in source, "an audit of our own code references a credential"
+
+
+@allure.epic("AP-Harness-QC")
+@allure.feature("Cross-cutting")
+class TestMQCMutationControl:
+    """A refused control says which cases failed it."""
+
+    @allure.story("A refused control names its failures")
+    def MQC_CMN_UNI_112426_a_refused_control_names_the_failing_cases(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The refusal carries each failed case's node identifier.
+
+        Design: ``harness_test_taxonomy.md`` section 15.4.1.
+
+        Args:
+            tmp_path (Path): Holds the module the control rewrites.
+            monkeypatch (pytest.MonkeyPatch): Replaces the target run.
+
+        Returns:
+            None
+        """
+        module = tmp_path / MODULE
+        module.parent.mkdir(parents=True)
+        module.write_text(SOURCE, encoding="utf-8")
+        failed = "tests/cmn/mqc_uni_sample.py::TestMQCSample::MQC_CMN_UNI_119990_sample"
+        summary = f"FAILED {failed} - AssertionError: boom\n1 failed, 943 passed in 9.0s\n"
+        monkeypatch.setattr(
+            mutation_audit, "run_targets",
+            lambda *_, **__: subprocess.CompletedProcess([], 1, summary, ""),
+        )
+        refusal = control_problem(tmp_path, module, ["tests"], SOURCE)
+        assert refusal is not None and failed in refusal, f"the refusal read {refusal!r}"
+
+
+    @allure.story("The command line audits against the audit's own targets")
+    def MQC_CMN_UNI_112427_the_command_line_defaults_to_the_audit_targets(self) -> None:
+        """No ``--target`` runs the unit layer without the two text-reading cases.
+
+        Design: ``harness_test_taxonomy.md`` section 15.4.2.
+
+        Returns:
+            None
+        """
+        step(1, "resolve the targets for a command line naming none")
+        targets = audit_targets([])
+        assert targets == list(AUDIT_TARGETS) and "unit" in targets and all(
+            any(case in target for target in targets) for case in ("112502", "112331")
+        ), f"a bare command line audits against {targets}"
+
+        step(2, "resolve the targets for a command line naming one")
+        assert audit_targets(["tests/cmn"]) == ["tests/cmn"], "a named target was replaced"

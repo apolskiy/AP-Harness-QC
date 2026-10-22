@@ -131,7 +131,38 @@ _RUN_TIMEOUT_SEC: Final[int] = 600
 # process. One means the in-place audit (section 15.15).
 DEFAULT_WORKERS: Final[int] = 4
 
+# THE TWO CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they fail
+# on the reformatting the mutator performs and would kill every mutant for the
+# wrong reason. Measured rather than guessed: the suite was run against an
+# unparsed module and these are what failed. Declared once, for the audit cases
+# and the command line alike (sections 15.4 and 15.4.2).
+AUDIT_TARGETS: Final[tuple[str, ...]] = (
+    "-m", "unit",
+    "--deselect",
+    "tests/cmn/mqc_uni_file_standards.py::TestMQCAuthorshipHeader"
+    "::MQC_CMN_UNI_112502_every_python_file_carries_its_spdx_header",
+    "--deselect",
+    "tests/cmn/mqc_uni_file_standards.py::TestMQCModuleRunway"
+    "::MQC_CMN_UNI_112331_a_module_at_the_runway_ceiling_is_reported",
+)
+
+
+def audit_targets(named: list[str]) -> list[str]:
+    """Return the pytest arguments an audit runs, the declared ones when none are named.
+
+    Args:
+        named (list[str]): The ``--target`` arguments, empty when none were given.
+
+    Returns:
+        list[str]: The arguments.
+    """
+    return list(named) if named else list(AUDIT_TARGETS)
+
+
 _PASSED = re.compile(r"(\d+) passed")
+# A failed or errored case in pytest's short summary (section 15.4.1).
+_FAILED_CASE = re.compile(r"^(?:FAILED|ERROR) (\S+)", re.MULTILINE)
+_NAMED_FAILURES = 10
 
 
 @dataclass(frozen=True)
@@ -461,10 +492,12 @@ def control_problem(
     passed = _PASSED.search(control.stdout)
     collected = int(passed.group(1)) if passed else 0
     if control.returncode != 0 or collected == 0:
+        failed = _FAILED_CASE.findall(control.stdout)
+        named = f"; failed: {', '.join(failed[:_NAMED_FAILURES])}" if failed else ""
         return (
             f"control failed: exit {control.returncode}, {collected} case(s) "
-            f"collected. Unparsing alone must pass, or every mutant is killed "
-            f"by the reformatting rather than by the change"
+            f"collected{named}. Unparsing alone must pass, or every mutant is "
+            f"killed by the reformatting rather than by the change"
         )
     logger.info("Control: %d case(s) pass against the unparsed module", collected)
     return None
@@ -760,7 +793,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="With --stop, the longest wait for the audits, in seconds")
     parser.add_argument(
         "--target", action="append", default=[],
-        help="A pytest argument, repeated once per argument",
+        help="A pytest argument, repeated once per argument; none audits the unit layer",
     )
     parser.add_argument("--limit", type=int, default=0,
                         help="Stop after this many mutation points")
@@ -783,10 +816,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         if parsed.workers > 1:
             # IMPORTED HERE, because the parallel audit is built on this module.
             parallel = importlib.import_module("tools.mutation_parallel")
-            found = parallel.parallel_survivors(root, root / parsed.module, parsed.target,
+            found = parallel.parallel_survivors(root, root / parsed.module,
+                                                audit_targets(parsed.target),
                                                 workers=parsed.workers, limit=parsed.limit)
         else:
-            found = survivors(root, root / parsed.module, parsed.target, limit=parsed.limit)
+            found = survivors(root, root / parsed.module, audit_targets(parsed.target),
+                              limit=parsed.limit)
     except (MutationRefusal, subprocess.TimeoutExpired) as error:
         logger.error("%s", error)
         return 4

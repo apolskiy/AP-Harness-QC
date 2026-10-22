@@ -78,6 +78,7 @@ _DATA_CODES: Final[dict[str, str]] = {
     "QC_DATA_COLUMN_ABSENT": "INFO",
     "QC_DATA_WHITESPACE_STRIPPED": "INFO",
     "QC_DATA_EMPTY_STRING": "WARNING",
+    "QC_DATA_ENGINE_DEFAULTED": "WARNING",
     "QC_DATA_EXTRA_COLUMN_DROPPED": "WARNING",
     "QC_DATA_ADVERSARIAL_DECLARED": "WARNING",
     "QC_DATA_UNDECLARED_ADVERSARIAL": "WARNING",
@@ -122,6 +123,12 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     # error and so appears here and not in the narrower set below.
     "QC_HARNESS_AUDIT_REFUSED",
     "QC_HARNESS_DEPENDENCY_UNMET",
+    # REGISTERED 2026-10-21, raised long before any registry held them, which
+    # `unregistered_code_literals` now refuses (taxonomy section 6.2.1).
+    "QC_HARNESS_PRECONDITION_SKIPPED",
+    "QC_HARNESS_PREREQUISITE_MISMATCH",
+    "QC_HARNESS_UNMET_PREREQUISITE",
+    "QC_HARNESS_REGISTER_REFUSED",
     # A --tests entry from a file naming no collected test. The run proceeds
     # and the entry is reported as a skip, because one typo in a curated
     # list must not void work already done. Design

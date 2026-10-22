@@ -40,6 +40,7 @@ that nothing reads would be code shipped ahead of its design.
 """
 
 import logging
+import os
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -56,6 +57,7 @@ from cmn.case_steps import begin_case_steps, record_assertion, record_call
 from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
 from cmn.mutation_guard import imported_harness_root, refuse_if_mutating
+from cmn.run_context import adopt_run_context, publish_preconditions_record
 from cmn.selection import (
     deselect_unrequested_audits,
     refuse_repeated_cases,
@@ -180,6 +182,10 @@ def pytest_collection_modifyitems(
     # collection, and the cascade is the one mechanism that legitimately needs
     # an order. Design section 10.28.6.
     arrange_dependencies(items)
+    # ONCE THE SELECTION IS FINAL, so the context names the selection that
+    # runs and whether it holds preconditions. Every row then carries it
+    # (harness design `cmn_verdict_and_cli.md` section 7.1.4).
+    adopt_run_context(config, items, os.environ)
 
 
 def pytest_runtest_setup(item: pytest.Item) -> None:
@@ -524,6 +530,9 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     refuse_precondition_skips(session)
     # AND A CRASH MEASURED NOTHING EITHER (taxonomy section 5.1.1).
     refuse_broken(session)
+    # LAST, after the refusals that raise the exit status: only a session that
+    # exits 0 vouches for its preconditions (harness design section 7.1.4).
+    publish_preconditions_record(session, os.environ)
 
 
 def pytest_terminal_summary(

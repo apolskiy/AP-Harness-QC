@@ -88,7 +88,7 @@ class TestMQCRegistryMembership:
 
         assert registered_run_contexts() == frozenset({"ci", "ci_debug", "local"})
         assert registered_selection_modes() == frozenset(
-            {"change_scoped", "full", "manual"}
+            {"band", "change_scoped", "full", "manual"}
         ), "a selection mode decides whether a run yields a verdict at all"
 
         assert registered_evaluation_families() == frozenset(
