@@ -29,6 +29,35 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A skip gloss said response where it meant recording, and the registers are reconciled, 2026-10-21
+
+**A missing judgement read as a missing response.** `QC_HARNESS_FIXTURE_MISSING`
+covers both and the registry row has always said the skip message names which;
+the gloss said "no recorded response for this engine", so a reader was sent to
+re-record a model. **It cost four tool calls on 2026-10-13 chasing a file that
+was on disk the whole time.** Both glosses now say what the code covers.
+Whether the differing remedy deserves a code of its own is question 2.6, not a
+change made unilaterally: the one code is a recorded decision, and overturning
+it costs every stored row carrying the old code.
+
+**The open registers were reconciled against what is true.** The mutation audit
+covering two modules of six is closed, all six being audited; a tabulated
+ceiling was never a gap; and a closed gap now moves to section 2C rather than
+being deleted, for the reason section 2A gives for a closed question. Four
+gaps added, including the cadence suffix deciding whether a run counts with
+nothing enforcing the set, and `QC_HARNESS_FIXTURE_STALE` reporting a moved
+hash and a moved judge model under one code while its own docstring says they
+are reported separately.
+
+**One word per concept**, recorded in `code-style.md` after reading every
+document: `replay` for the mode and `fixture` only for the file it reads, `rung`
+for a step of the ladder and `job` for a CI job. **`consumer` and `the case
+repository` are not drift** and were nearly swept into one word: a consumer is
+the role, this harness has a registry of them, and the case repository is the
+one that exists.
+
+958 test cases, 357 requirements.
+
 ### A subset somebody typed no longer yields a verdict, whoever owns the flag, 2026-10-21
 
 **`Invocation.supplied` records the harness's own flags, so every selector

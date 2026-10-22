@@ -419,9 +419,9 @@ Pass grade requires **100% of P0 and P1 cases passing**.
 
 With A11.2 in place, "100% of P0/P1 must pass" implies a P0 `QC_LLM_*` failure turns a run red, which A2 originally forbade. A1 already separates the two contexts and dissolves the contradiction:
 
-| Run | Fixtures | A P0 failure indicates | Blocks a merge? |
+| Run | Mode | A P0 failure indicates | Blocks a merge? |
 |---|---|---|---|
-| **PR** | Frozen | our code changed a frozen outcome | **Yes, correctly** |
+| **PR** | Replay | our code changed a frozen outcome | **Yes, correctly** |
 | **Scheduled** | Live | the model regressed | No: an alert only |
 
 A2's concern was that a vendor model update would turn the build red, with threshold-loosening the only route back to green, destroying the measurement. That cannot occur: a vendor can only move the **scheduled** run, which gates nothing, so no one is ever blocked from merging by a third party's release calendar.

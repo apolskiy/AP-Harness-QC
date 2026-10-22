@@ -480,7 +480,7 @@ class TestMQCBandSummary:
         # EACH CARRIES ITS CODE AND WHAT THE CODE MEANS.
         joined = "\n".join(named)
         for code, meaning in (
-            ("QC_HARNESS_FIXTURE_MISSING", "no recorded response for this engine"),
+            ("QC_HARNESS_FIXTURE_MISSING", "no recording for this engine, response or judgement"),
             ("QC_HARNESS_DEPENDENCY_UNMET",
              "blocked by a prerequisite at the same or a higher priority that did not hold"),
             ("QC_HARNESS_QUARANTINED", "a known failure in quarantine"),

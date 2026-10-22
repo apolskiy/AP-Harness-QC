@@ -80,8 +80,18 @@ _SKIP_CAUSES: Final[dict[str, str]] = {
         "blocked by a prerequisite at the same or a higher priority that did not hold"
     ),
     "QC_HARNESS_QUARANTINED": "a known failure in quarantine, not dispatched",
-    "QC_HARNESS_FIXTURE_MISSING": "no recorded response for this engine",
-    "QC_HARNESS_FIXTURE_STALE": "the recorded response no longer answers this request",
+    # THE CANDIDATE OR THE JUDGEMENT, and the skip message names which.
+    # One code for both is the decision `harness_test_taxonomy.md` section 6
+    # records, because the message carries the remedy. These glosses asserted
+    # the candidate, so a reader of a missing judgement was sent to re-record
+    # the model: it cost four tool calls chasing a response that was on disk
+    # the whole time, 2026-10-13.
+    "QC_HARNESS_FIXTURE_MISSING": (
+        "no recording for this engine, response or judgement"
+    ),
+    "QC_HARNESS_FIXTURE_STALE": (
+        "the recording no longer answers this request, response or judgement"
+    ),
     "QC_HARNESS_BUDGET_EXHAUSTED": "the run reached its spending ceiling",
     "QC_HARNESS_CREDIT_EXHAUSTED": "the account has no credit left",
     "QC_HARNESS_ENGINE_UNREACHABLE": "the provider could not be reached",
@@ -225,7 +235,7 @@ def result_lines(
     passed: 7
     failed: 0
     skipped: 4
-    skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine
+    skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recording for this engine, response or judgement
     execution pass: 100.0% (7 of 7)
     total pass: 63.6% (7 of 11)
     ```

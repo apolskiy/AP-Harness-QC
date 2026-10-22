@@ -1015,9 +1015,9 @@ The overall pass-rate floor exists so that a failing test cannot quietly persist
 
 This distinction is load-bearing and must not be blurred.
 
-| Run | Fixtures | Below 90% indicates | Correct response |
+| Run | Mode | Below 90% indicates | Correct response |
 |---|---|---|---|
-| **Pull request** | Frozen | **Our code** changed a frozen outcome | Fix the code, or fix the test |
+| **Pull request** | Replay | **Our code** changed a frozen outcome | Fix the code, or fix the test |
 | **Scheduled** | Live | **The model** is failing more than 10% of cases | Record the finding |
 
 On a live run, a sub-90% pass rate is the measurement working, not a test-hygiene problem. **Modifying tests to lift a live run back to green is the threshold-loosening failure A2 exists to prevent**, wearing different clothes. Test modification is a legitimate response to a red *pull request*; on a scheduled run the legitimate responses are recording the finding and, where warranted, quarantining with a reason.
@@ -1026,9 +1026,9 @@ On a live run, a sub-90% pass rate is the measurement working, not a test-hygien
 
 Red means *something needs attention*. Whether it blocks work depends on which run produced it.
 
-| Run | Fixtures | A P0 failure indicates | Blocks a merge? |
+| Run | Mode | A P0 failure indicates | Blocks a merge? |
 |---|---|---|---|
-| **Pull request** | Frozen | Our code changed a frozen outcome | **Yes** |
+| **Pull request** | Replay | Our code changed a frozen outcome | **Yes** |
 | **Scheduled** | Live | The model regressed | No: an alert |
 
 A vendor model update can only move the scheduled run, which gates nothing. No one is ever blocked from merging by a third party's release calendar, so no one is ever pressured to loosen a threshold to unblock work.

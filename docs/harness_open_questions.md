@@ -59,9 +59,48 @@ credential at all.
 
 ## 2. Decisions I have deferred rather than made
 
-**None open as of 2026-10-13.** Section 2A says where every settled answer
-now lives, and a closed question is removed from here rather than left to be
-argued again.
+### 2.6 Does a differing remedy require a code of its own?
+
+Opened 2026-10-21. `QC_HARNESS_FIXTURE_MISSING` covers an absent candidate and
+an absent judgement, and `harness_test_taxonomy.md` section 6 records that as a
+decision: **one code, and the skip message names which, "because the remedy
+differs: re-record the model, or re-record the judge."** The same row is the
+argument against itself. Elsewhere this project has twice split a code on
+exactly that ground, `QC_HARNESS_AUDIT_REFUSED` out of
+`QC_HARNESS_PARSER_ERROR` and the five codes registered on 2026-10-21, and the
+reason given each time was that a code exists so a tally by root-cause class
+can count it. A message cannot be counted.
+
+**What it cost while nobody decided:** the gloss asserted the candidate, so a
+missing judgement read as a missing response and sent me to re-record a model;
+four tool calls chasing a file that was on disk the whole time, 2026-10-13. The
+gloss is fixed and the question is not: whether `QC_HARNESS_JUDGEMENT_MISSING`
+and `QC_HARNESS_JUDGEMENT_STALE` should exist, and whether
+`QC_HARNESS_FIXTURE_STALE` should further split by hash against judge model.
+
+**Not decided unilaterally**, because the existing arrangement is a recorded
+decision rather than an omission, and overturning one costs every stored row
+that carries the old code.
+
+### 2.5 Should a claude-judged rung 3 run at all?
+
+Opened 2026-10-21. A second judge was added so that gemini does not score its
+own engine unchecked, and **the comparison only works at rung 2**: the
+responses are a recording, so a difference between two judges is the judge.
+Rung 3 draws its candidates live, so a claude-judged rung 3 and a gemini-judged
+one score different responses and nothing in the result separates a judge
+difference from a response difference.
+
+The project owner named rung 1 as the one rung not to repeat for a second
+judge, so rung 3 runs as instructed and this is the question rather than a
+change. **What keeps it genuinely open:** a finding filed against a vendor must
+cite a live candidate, so a finding only claude's judging produces cannot be
+filed from rung 2 alone. Recorded in `consumer_ci.md` section 7.7.2 with the
+table.
+
+**Previously, and still true of the rest:** section 2A says where every settled
+answer now lives, and a closed question is removed from here rather than left
+to be argued again.
 
 **An empty section is the honest state and is kept rather than deleted.**
 Deleting it would say this project never defers a decision, which is false and
@@ -114,13 +153,25 @@ Recorded so the absence is on the record. None needs a decision.
 
 | Gap | Where it bites |
 |---|---|
-| The mutation audit covers two modules of six | `config/mutation_survivors.yaml` and `cmn_verdict_and_cli.md` section 13. `layers.py`, `environments.py`, `band_summary.py` and `registries.py` are unaudited, and the first run on `layers.py` was stopped at a time limit |
 | Two equivalent mutants in `cmn/verdict.py` are findings about the code | One branch is unreachable given its predecessors and one adds a rule to a breach list nobody reads. Declared with expiries rather than fixed |
+| `QC_HARNESS_FIXTURE_STALE` says a hash moved and a judge model moved under one code | `execution/replay.py` raises both, and its own docstring says they are "reported separately **because** the operator response differs": re-record against the new request, against recalibrating a judge. **Only the message differs**, so no tally by root-cause class can separate them. Found 2026-10-21 beside the gloss defect below, and left as the narrower half of question 2.6 |
+| The cadence suffix in a workflow filename decides whether a run counts, and nothing enforces the set | `harness_ci_pipeline.md` section 2.1 lists `on-change`, `nightly`, `weekly` and `on-demand`; `on-branch`, `on-merge` and `on-dispatch` are also in use, `gate-<engine>.yml` and the two reusable workflows carry none, and `regress-harness-on-branch.yml` names a scope where the rule asks for a trigger. **`on-demand` reads as `ci_debug` and yields no verdict** (`cmn_verdict_and_cli.md` section 7.1.4), so `on-demand` and `on-dispatch` differ by one word and by whether the run is counted |
 | A re-record needing fewer observations than the previous run leaves the surplus behind | Pruned by hand three times on 2026-10-12. Nothing prunes at the point of recording |
-| A ceiling means `>` for V7 to V9 and `>=` for the inconsistency condition | Both are intended and now tabulated, so neither is derivable from the word: `cmn_verdict_and_cli.md` section 8.2 |
 | Nothing checks that an assertion matches a figure the fixture declares rather than a verdict's vocabulary | `DESIGN.md` section 7.8. Three assertions in `premise_discrimination` shipped as synonym lists and produced a false positive on the first recorded run. The rule is written and **review is the only thing enforcing it**: a pattern carrying no digit is not reliably wrong, so the obvious check would refuse legitimate assertions |
-| Section headings sit out of numeric order | `tier3_evaluation.md` places 5A.6 and 5A.7 after 5B, 5.1 to 5.3.1 after 5B.5 and 6A between 6.4 and 6.5; `harness_ci_pipeline.md` places 8.4 before 8.3. **Every number is unique and every citation resolves**, which `112352` and `112381` check, so a reader is sent to the right section and has to scroll for it. Nothing checks the order |
-| `evaluate-live-weekly.yml` runs no case, and the probe dispatches it | It runs the graded markers in this repository, which owns no graded case, and `probe-model-version-nightly.yml` dispatches it on a version change rather than the case repository's run against the green harness. `harness_ci_pipeline.md` section 2.0.1 records the first half. Design first, then the workflows |
+| Section headings sit out of numeric order | `tier3_evaluation.md` places 5A.6 and 5A.7 after 5B, 5.1 to 5.3.1 after 5B.5 and 6A between 6.4 and 6.5; `harness_ci_pipeline.md` places 8.4 before 8.3; `harness_test_taxonomy.md` places the whole of 15 before 14. **Every number is unique and every citation resolves**, which `112352` and `112381` check, so a reader is sent to the right section and has to scroll for it. Nothing checks the order, and a check is what would close this rather than one pass of reordering |
+| `evaluate-live-weekly.yml` runs no case, and the probe dispatches it | It runs the graded markers in this repository, which owns no graded case, and `probe-model-version-nightly.yml` dispatches it on a version change rather than the case repository's run against the green harness. `harness_ci_pipeline.md` section 2.0.1 records the first half. Both are retired at the probe move, which is the next step of the probe and calibration plan. **Its three single-layer steps became one on 2026-10-21**, which was a separate defect: each recorded a full selection while measuring a third of the graded layers |
+
+## 2C. Gaps since closed, and where the closure is recorded
+
+A closed gap moves here rather than being deleted, for the reason section 2A
+gives for a closed question: a reader who remembers it should find where the
+answer is, and the answer is not restated.
+
+| Gap | Closed | Recorded in |
+|---|---|---|
+| The mutation audit covered two modules of six | 2026-10-21, all six audited | `config/mutation_survivors.yaml`, `MQC_CMN_MUT_162000` to `162005`, and the parallel audit in `harness_test_taxonomy.md` section 15.15 |
+| A ceiling meant `>` in one place and `>=` in another with nothing saying so | 2026-10-13, both tabulated | `cmn_verdict_and_cli.md` section 8.2. It was a documentation gap and the table closed it |
+| The skip gloss for a missing or stale fixture asserted the candidate, so a missing **judgement** read as a missing response | 2026-10-21 | `cmn/band_summary.py`, and `cmn_verdict_and_cli.md` section 7.11's table. The code's own registry row always said the message names which; the gloss did not. **Whether the two deserve separate codes is question 2.6**, which is a decision rather than this gap |
 
 ## 3. Things I changed that deserve a second opinion
 

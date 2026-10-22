@@ -346,6 +346,37 @@ not the case that reached it, and the two differ whenever a helper is shared.
 The identifier carries the module and the class, so the line hands a reader the
 code segment to open. Specified in `harness_test_taxonomy.md` section 8.3.1.
 
+#### One word per concept, and the one pair that is not drift
+
+Added 2026-10-21 at the project owner's instruction to check "that the
+vocabulary used across the files about the same funcitonality, especially key
+concepts keep to the same vocabulary."
+
+| Concept | The word | Not |
+|---|---|---|
+| The mode that reads a recording | **`replay`** | `fixture`, `frozen`. `--mode replay` is the flag and `testing-standards.md` says replay |
+| The file a replay run reads | **`fixture`** | Anything else. A fixture is a file; replay is what a run does with it |
+| A step of the attribution ladder | **`rung`** | `Job 1`. A CI job is also a job, and one rung is three jobs in the gate's shape |
+| A CI job | **`job`** | `rung`, `step`. A step is a step of a job |
+| The repository under test by a graded case | **`engine`**, then the model | `provider` where the engine is meant: a provider serves several |
+
+**`consumer` and `the case repository` are both correct and mean different
+things.** A **consumer** is the role: anything that installs this harness and
+runs cases against it. `cmn/registries.py` holds a consumer registry,
+`regress-consumers-on-merge.yml` fans out across it, and
+`cmn_verdict_and_cli.md` records that "a harness with no registered consumers
+has nothing to fan out to". **The case repository** is the one consumer that
+exists, `AP-Model-QC`.
+
+**So a sentence picks by what it is about**: a rule binding on anything that
+installs the harness says *consumer*; a statement about where the corpus lives
+or what that repository's `pytest.ini` sets says *the case repository*. This was
+nearly swept into one word on 2026-10-21, with 199 uses of one against 55 of the
+other reading as drift. **It is not drift, and the count is not the test.**
+
+**In conversation it is the Model Repository**, which is a third name and
+deliberately not in the documents.
+
 #### The vocabulary for a measured run
 
 **Total, executed, passed, failed, skipped**, in that order, and a skip carries

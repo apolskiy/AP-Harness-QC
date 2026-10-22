@@ -612,12 +612,20 @@ Short-circuiting would mean fixing V1 and discovering V3 on the next run, then V
 
 ### 4.8 Red does not always mean blocked
 
-| Run | Fixtures | Red means | Blocks a merge? |
+| Run | Mode | Red means | Blocks a merge? |
 |---|---|---|---|
-| Pull request | Frozen | Our code changed a frozen outcome | **Yes** |
+| Pull request | Replay | Our code changed a frozen outcome | **Yes** |
 | Scheduled | Live | The model regressed | No: an alert |
 
 The verdict function does not know which it is running in. It returns red with reasons; **the workflow decides whether red blocks.** Putting that knowledge in the verdict function would couple a pure computation to CI topology.
+
+**One word for the mode, and it is `replay`.** Corrected 2026-10-21 at the
+project owner's reading: this table headed its column `Fixtures` and filled it
+`Frozen`, three documents did the same, and two more wrote `fixture` where they
+meant the mode. `--mode replay` is the flag, `testing-standards.md` says
+replay, and the job names say replay. **A fixture is the file a replay run
+reads**, which is what the word is kept for: "technically it's a fixture but
+what type of fixture needs to be clarified. replay is understood right away".
 
 ### 4.9 Inconsistency is a finding, and enough of it unsounds the run
 
@@ -2582,7 +2590,7 @@ family and not the member has to guess, and the guess was wrong.
 
 ```
 Band P1: 11 total, 7 executed, 7 passed, 0 failed, 4 skipped
-Band P1: skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recorded response for this engine
+Band P1: skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recording for this engine, response or judgement
 ```
 
 **Keyed on the registered code, not on prose.** `harness_test_taxonomy.md` section 6 is
@@ -2595,8 +2603,8 @@ honest, rather than folded into a catch-all.
 |---|---|
 | `QC_HARNESS_DEPENDENCY_UNMET` | blocked by a prerequisite at the same or a higher priority that did not hold |
 | `QC_HARNESS_QUARANTINED` | a known failure in quarantine, not dispatched |
-| `QC_HARNESS_FIXTURE_MISSING` | no recorded response for this engine |
-| `QC_HARNESS_FIXTURE_STALE` | the recorded response no longer answers this request |
+| `QC_HARNESS_FIXTURE_MISSING` | no recording for this engine, response or judgement |
+| `QC_HARNESS_FIXTURE_STALE` | the recording no longer answers this request, response or judgement |
 | `QC_HARNESS_BUDGET_EXHAUSTED` | the run reached its spending ceiling |
 | `QC_HARNESS_ENGINE_UNREACHABLE` | the provider could not be reached |
 | Anything else registered | the code itself, uninterpreted |

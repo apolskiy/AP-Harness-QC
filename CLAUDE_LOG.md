@@ -12149,3 +12149,46 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   dimension in the job names, are designed in the probe and calibration plan
   and not built. The record now reaches every band, which was the part that
   blocked them.
+
+## 2026-10-21, late: The gloss said response where the code said recording, and the registers caught up
+
+* **Asked by the project owner:** check that every designed behaviour is in the
+  documents, the README, the changelog, the matrix and the code, that one
+  concept carries one word, and that the open registers are addressed and
+  closed.
+* **The machine-checked half was already green:** 928 preconditions include the
+  inventory counts, the matrix against the suite, the index against the
+  designs, the README against both, every code in production code against the
+  registry, and every citation resolving. What is not checked is section order
+  and the changelog pairing, and both are recorded.
+* **Found, and it was mine to find:** `QC_HARNESS_FIXTURE_MISSING` covers an
+  absent candidate and an absent judgement, and the gloss asserted the
+  candidate. **I overstated it first**, writing a gap row calling one code for
+  two conditions an oversight; the registry row in section 6 shows it is a
+  recorded decision, and the message names which. What was wrong was the gloss,
+  which is fixed. Whether the remedy difference deserves its own code is
+  question 2.6 rather than a change I make alone.
+* **And beside it:** `QC_HARNESS_FIXTURE_STALE` reports a moved request hash
+  and a moved judge model under one code, while its own docstring says they are
+  "reported separately **because** the operator response differs". Only the
+  message differs.
+* **The registers reconciled:** the mutation audit covering two modules of six
+  is closed, all six audited; a tabulated ceiling was never a gap; section 2C
+  added so a closed gap moves rather than vanishing; four gaps added and two
+  questions opened.
+* **Digressions the user spotted, and the fix:**
+  * **I nearly swept `consumer` and `the case repository` into one word.** The
+    counts said drift, 199 against 55. A consumer is the role and this harness
+    has a registry of them; the case repository is the one that exists. **The
+    count is not the test**, and the rule now says so.
+  * **I cited a section I had not written.** The design for the claude-judged
+    cadence cited an enforcement check at `harness_ci_pipeline.md` 2.1.1. By
+    the owner's own rule an absent implementation with everything else in place
+    is an open item, so the citation points at the gap instead.
+  * **Two glosses took two lines past the hundred-column limit**, and pylint
+    exited 16 at 10.00/10 in both repositories. The shorter gloss was the fix,
+    because the long line was a docstring showing real output and wrapping it
+    would have misrepresented what the run prints.
+* **Code Quality & Compliance Audit:** 958 test cases, 952 in the precondition
+  run (928 UNI, 24 SYS), all passing, exit 0. Pylint 10.00/10, **exit 0 checked
+  rather than the score line**; 357 requirements.
