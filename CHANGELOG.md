@@ -29,6 +29,39 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A subset somebody typed no longer yields a verdict, whoever owns the flag, 2026-10-21
+
+**`Invocation.supplied` records the harness's own flags, so every selector
+pytest owns was invisible to the gating derivation.** A run narrowed by `-k`, by
+a typed path or node identifier, by `--deselect` or by `--last-failed` reported
+`selection_mode: full` and was gated wherever its context was `ci`. Measured:
+`-k premise` selected 4 graded cases of 250 and recorded `full`. A real run was
+already carrying it, the case repository's rung 2 judging its calibration cases
+behind `-k calibration`. Those four make the selection `manual` now, and the
+decision names the selector it found so a log says which one withheld the
+verdict (`cmn_verdict_and_cli.md` section 7.1.4, `MQC_REQ_HAR_CMN_0206`, cases
+`112186` and `112187`).
+
+**`-m` stays the layer dimension**, because every job selects its layer that
+way and the bands partition by priority inside it. A marker expression narrower
+than a layer partition is a different defect and is checked where the
+expression is a literal: this repository's `evaluate-live-weekly.yml` ran gates
+4, 5 and 6 as three single-layer steps, each recording a full selection, and is
+one step naming all three now (`consumer_ci.md` section 4.21,
+`MQC_REQ_HAR_CMN_0207`, case `112188`).
+
+**And the file date check compared two clocks.** A changed file was stale unless
+its `Last updated` was today or after its last commit; the stamp and the commit
+date are the author's, `today` is the runner's, and the runners are seven hours
+ahead. **It refused every mutation audit in CI**, that being the one caller
+whose tree differs from its last commit because it wrote it. The same tree read
+0 problems on one date and 3 on the next, and no stamp satisfies both clocks: a
+date later than today is rejected by the same check. A changed file is stale
+when its `Last updated` is before its last commit, compared without a clock
+(section 10.39.1, `MQC_REQ_HAR_CMN_0192` amended, case `112526`).
+
+958 test cases, 357 requirements.
+
 ### A mutation audit can no longer report kills its own first pass caused, 2026-10-21
 
 **Every audit that ran the seeing cases first measured nothing**: naming the

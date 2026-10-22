@@ -105,23 +105,17 @@ jobs:
             echo "run_leg=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Gate 4, evaluator
+      # ONE STEP NAMING EVERY GRADED LAYER. This was three steps, one per
+      # layer, and each recorded `selection_mode: full` while selecting a third
+      # of the graded cases, so each would have carried a verdict over part of
+      # a run (`cmn_verdict_and_cli.md` section 7.1.4, `consumer_ci.md` section
+      # 4.21). The three per-gate report names went with gates 4 to 6
+      # themselves when they moved to the case repository.
+      - name: Gates 4 to 6, the graded layers
         if: steps.selection.outputs.run_leg == 'true'
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: pytest -m evaluator --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --max-spend "${{ inputs.max_spend || '2.00' }}" --junitxml=reports/junit_mqc_eval.xml --alluredir=reports/allure-results
-
-      - name: Gate 5, tool-use compliance
-        if: always() && steps.selection.outputs.run_leg == 'true'
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: pytest -m tool --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --max-spend "${{ inputs.max_spend || '2.00' }}" --junitxml=reports/junit_mqc_tool.xml --alluredir=reports/allure-results
-
-      - name: Gate 6, model security
-        if: always() && steps.selection.outputs.run_leg == 'true'
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: pytest -m sec --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --max-spend "${{ inputs.max_spend || '2.00' }}" --junitxml=reports/junit_mqc_sec.xml --alluredir=reports/allure-results
+        run: pytest -m "evaluator or tool or sec" --engine ${{ matrix.engine }} --mode ${{ matrix.mode }} --max-spend "${{ inputs.max_spend || '2.00' }}" --junitxml=reports/junit_mqc_graded.xml --alluredir=reports/allure-results
 
       - uses: actions/upload-artifact@v6
         if: always() && steps.selection.outputs.run_leg == 'true'

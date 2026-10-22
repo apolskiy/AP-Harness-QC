@@ -27,7 +27,7 @@ Specified by ``.claude/rules/code-style.md`` section 3.1.2 and
 #   112526  a_file_date_line_missing_or_stale_is_reported
 # ------------------------------------------------------------ end of cases
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -98,6 +98,22 @@ class TestMQCFileDates:
         )
         assert not file_date_problems(history, today), "a stamped file is still reported"
 
-        step(4, "read this repository's own files")
+        # THE STAMP AND THE COMMIT DATE COME FROM THE AUTHOR'S CLOCK and
+        # `today` from the runner's. Comparing across them called a file
+        # committed and stamped on one local day stale for the seven hours
+        # after local midnight, which refused every mutation audit in CI on
+        # 2026-10-21: the audit is the one caller whose tree differs from its
+        # last commit because it wrote it. Section 10.39.1.
+        step(4, "read the same tree against another day's clock")
+        tomorrow = today + timedelta(days=1)
+        assert file_date_problems(history, tomorrow) == file_date_problems(
+            history, today
+        ), (
+            "the staleness verdict moved with the clock, so a runner ahead of "
+            "the author's timezone asks for a stamp nobody can write: a date "
+            "later than today is rejected by this same check"
+        )
+
+        step(5, "read this repository's own files")
         own = file_date_problems(Path(__file__).resolve().parents[2], today)
         assert not own, f"{len(own)} file date problem(s):\n  " + "\n  ".join(own[:12])

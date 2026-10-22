@@ -199,8 +199,8 @@ def file_date_problems(root: Path, today: date) -> list[str]:
 
     Returns:
         list[str]: One message per problem, naming the file. A changed file is
-        stale when its ``Last updated`` is neither today nor after its last
-        commit, and the message names ``tools/refresh_file_dates.py``.
+        stale when its ``Last updated`` is before its last commit, and the
+        message names ``tools/refresh_file_dates.py``.
     """
     changed = changed_files(root)
     problems: list[str] = []
@@ -209,10 +209,16 @@ def file_date_problems(root: Path, today: date) -> list[str]:
         created, updated = date_lines(path.read_text(encoding="utf-8"))
         problems.extend(_shape_problems(name, created, updated, today))
         touched = _parsed(updated)
-        if changed is None or name not in changed or touched is None or touched == today:
+        if changed is None or name not in changed or touched is None:
             continue
+        # TWO VALUES FROM ONE CLOCK. The stamp and `%cs` are both written in the
+        # author's timezone; `today` comes from the runner's, and comparing
+        # across them called every same-day commit stale for the seven hours
+        # after local midnight. The mutation audit found it, being the one CI
+        # caller whose tree differs from its last commit because it wrote it.
+        # Section 10.39.1.
         committed = _parsed(last_committed(root, name))
-        if committed is not None and touched <= committed:
+        if committed is not None and touched < committed:
             problems.append(
                 f"{name}: changed since its last commit on {committed} and still says "
                 f"last updated {touched}; run tools/refresh_file_dates.py"

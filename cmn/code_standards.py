@@ -336,6 +336,84 @@ def artifact_mandate_gaps(root: Path) -> list[str]:
     return gaps
 
 
+# THE GRADED LAYERS, which together are every case that measures a model. A
+# marker expression naming some of them selects part of a run while the harness
+# records it as a full one: `-m` is the layer dimension, so it is not read as a
+# subset at runtime (`cmn_verdict_and_cli.md` section 7.1.4), and whether the
+# expression is complete is checked here, where it is a literal.
+_GRADED_LAYER_MARKERS: Final[tuple[str, ...]] = ("evaluator", "tool", "sec")
+
+# A DEBUG WORKFLOW IS EXEMPT, by the cadence suffix its file name carries: its
+# rows are `ci_debug` and yield no verdict whatever they selected, which is what
+# a debug run is for.
+_ON_DEMAND_SUFFIX: Final[str] = "-on-demand"
+
+# THE `-m` EXPRESSION, quoted either way or bare.
+_MARKER_EXPRESSION: Final[re.Pattern[str]] = re.compile(
+    r"-m\s+(?:\"([^\"]*)\"|'([^']*)'|(\S+))"
+)
+
+
+def partial_graded_selection_gaps(root: Path) -> list[str]:
+    """Report every graded invocation naming some graded markers and not all.
+
+    A step selecting one or two of the graded layers measures part of a run
+    while the harness records a full selection, so its rows carry a verdict
+    over part of what the bands cover.
+
+    **A composite action under ``.github/actions`` is always read**, because it
+    carries no cadence of its own and runs under whichever workflow calls it.
+
+    **A computed expression is not reported.** A marker reaching the step
+    through a workflow input carries no literal to compare, which is how every
+    other check reading these files already behaves.
+
+    Design: ``consumer_ci.md`` section 4.21.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per step, naming the file, the job and the markers
+        it left out. Empty where every graded invocation names all of them.
+    """
+    definitions: list[tuple[str, Path]] = [
+        (path.name, path)
+        for path in sorted((root / ".github" / "workflows").glob("*.yml"))
+        if not path.stem.endswith(_ON_DEMAND_SUFFIX)
+    ]
+    definitions += [
+        (f"actions/{path.parent.name}", path)
+        for path in sorted((root / ".github" / "actions").glob("*/action.yml"))
+    ]
+
+    gaps: list[str] = []
+    for shown, path in definitions:
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        holders = list((parsed.get("jobs") or {}).items())
+        holders.append(("runs", parsed.get("runs") or {}))
+        for holder, body in holders:
+            for step in (body or {}).get("steps") or []:
+                script = str((step or {}).get("run") or "")
+                named = {
+                    marker
+                    for quoted, single, bare in _MARKER_EXPRESSION.findall(script)
+                    for marker in _GRADED_LAYER_MARKERS
+                    if re.search(rf"\b{marker}\b", quoted or single or bare)
+                }
+                if not named or len(named) == len(_GRADED_LAYER_MARKERS):
+                    continue
+                absent = sorted(set(_GRADED_LAYER_MARKERS) - named)
+                gaps.append(
+                    f"{shown} job {holder} step "
+                    f"{str((step or {}).get('name') or 'unnamed')!r} selects "
+                    f"{', '.join(sorted(named))} and leaves out "
+                    f"{', '.join(absent)}, so its rows would carry a verdict "
+                    f"over part of the graded layers"
+                )
+    return gaps
+
+
 _ENCODED_CALLS: Final[frozenset[str]] = frozenset(
     {"open", "read_text", "write_text"}
 )

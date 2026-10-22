@@ -30,6 +30,9 @@ Specified by ``docs/design/cmn_verdict_and_cli.md`` section 7.1.4.
 #   112175  actions_without_a_workflow_reference_is_ci_debug
 # TestMQCSessionRunContext
 #   112176  the_session_hands_every_case_the_run_context_it_built
+# TestMQCPytestOwnedSelectors
+#   112186  a_keyword_narrowed_selection_yields_no_verdict
+#   112187  a_selection_no_pytest_selector_narrowed_keeps_its_mode
 # TestMQCPreconditionsRecord
 #   112181  passing_preconditions_write_their_record
 #   112182  a_failed_precondition_removes_the_record
@@ -46,7 +49,11 @@ from cmn import emission
 from cmn.case_steps import step
 from cmn.observations import detected_run_context
 from cmn.prerequisites import read_preconditions_record, write_preconditions_record
-from cmn.run_context import adopt_run_context, session_run_context
+from cmn.run_context import (
+    adopt_run_context,
+    pytest_narrowing,
+    session_run_context,
+)
 
 from tests.cmn.run_context_support import (
     GRADED_NODE,
@@ -126,6 +133,94 @@ class TestMQCSessionRunContext:
             )
         finally:
             emission.reset_run_context()
+
+
+class TestMQCPytestOwnedSelectors:
+    """A selection narrowed by pytest's own flags is a hand-typed subset."""
+
+    def MQC_CMN_UNI_112186_a_keyword_narrowed_selection_yields_no_verdict(
+        self,
+    ) -> None:
+        """Each selector pytest owns makes a CI session manual and ungated.
+
+        **`Invocation.supplied` records the harness's own flags only**, so
+        every one of these reported `full` and was gated in `ci`. The session
+        here is otherwise the gated one `112176` asserts: a full selection, a
+        `ci` context and preconditions that ran.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.1.4.
+
+        Returns:
+            None
+        """
+        items = stub_items(PRECONDITION_NODE, GRADED_NODE)
+        environ = workflow_environment("gate-gemini.yml")
+        narrowing = (
+            ("keyword", "premise", "-k"),
+            ("deselect", ["tests/cases/mqc_eval_premise.py::TestMQC::one"],
+             "--deselect"),
+            ("lf", True, "--last-failed"),
+            ("file_or_dir", ["tests/cases/mqc_eval_premise.py"],
+             "a typed path or node identifier"),
+        )
+        # ONE ASSERTION PER STEP, because the recorder counts an assertion as a
+        # step and a declared number that disagrees is `QC_HARNESS_STEP_MISNUMBERED`.
+        for index, (option, value, typed) in enumerate(narrowing, start=1):
+            step(index, f"narrow the selection with {typed}")
+            run = session_run_context(
+                StubConfig(options={option: value}), items, environ
+            )
+            assert (run.selection_mode, run.gated) == ("manual", False), (
+                f"{typed} left the selection {run.selection_mode} and gated "
+                f"{run.gated}, so a subset somebody typed would be counted"
+            )
+
+        # AND THE DECISION NAMES WHAT IT FOUND, so a reader learns which
+        # selector withheld the verdict rather than that something did.
+        step(len(narrowing) + 1, "the decision names the selectors it found")
+        found = (
+            pytest_narrowing({"keyword": "premise"}),
+            pytest_narrowing({"keyword": "premise", "lf": True}),
+        )
+        assert found == (("-k",), ("-k", "--last-failed")), (
+            f"the decision reported {found} rather than the selectors supplied"
+        )
+
+    def MQC_CMN_UNI_112187_a_selection_no_pytest_selector_narrowed_keeps_its_mode(
+        self,
+    ) -> None:
+        """An absent or empty selector narrows nothing, whichever mode applies.
+
+        **The values a run with no selector actually carries**, measured rather
+        than assumed: `keyword` reads as the empty string, `deselect` as None
+        and `file_or_dir` as the empty list, because `testpaths` supplied the
+        arguments. Reading `config.args` instead would have called every run
+        narrowed.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.1.4.
+
+        Returns:
+            None
+        """
+        unnarrowed = {"keyword": "", "deselect": None, "lf": False, "file_or_dir": []}
+
+        step(1, "nothing pytest owns narrowed the selection")
+        found = (pytest_narrowing(unnarrowed), pytest_narrowing({}))
+        assert found == ((), ()), (
+            f"an absent or empty selector was read as narrowing: {found}"
+        )
+
+        items = stub_items(PRECONDITION_NODE, GRADED_NODE)
+        environ = workflow_environment("gate-gemini.yml")
+
+        step(2, "a full selection stays full")
+        run = session_run_context(StubConfig(options=unnarrowed), items, environ)
+        assert run.selection_mode == "full" and run.gated, f"the session built {run}"
+
+        step(3, "a band stays a band")
+        banded = StubConfig(options=unnarrowed, supplied={"priority": "0"})
+        run = session_run_context(banded, items, environ)
+        assert run.selection_mode == "band" and run.gated, f"the session built {run}"
 
 
 class TestMQCPreconditionsRecord:

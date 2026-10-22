@@ -1796,6 +1796,63 @@ since they need the preconditions job (`framework-rules.md` section 1).
 `cmn.prerequisites.write_preconditions_record` and `read_preconditions_record`
 hold it. `MQC_REQ_HAR_CMN_0197` through `0200`, `112172` through `112185`.
 
+##### A selector pytest owns is a hand-typed subset too
+
+Found 2026-10-21, reading the workflows for the next change rather than from a
+failure. `Invocation.supplied` records the harness's own flags, so **every
+selector pytest owns was invisible to the derivation's second condition**. A
+run narrowed by `-k`, by a typed path or node identifier, by `--deselect` or by
+`--last-failed` reported `selection_mode: full` and was gated wherever its
+context was `ci`.
+
+**Measured rather than reasoned about.** `-k premise` against the case
+repository selected 4 graded cases of 250 and recorded `selection_mode: full`,
+`gated` false only because a terminal run is `local`.
+
+**A real run was already carrying it.** `evaluate-engine.yml`'s rung 2 runs its
+calibration step with `-k calibration`, in a workflow whose context is `ci`, so
+those rows claimed a verdict over a selection somebody typed. Calibration asks
+whether the judge still means what the anchors say, which is not the question a
+model verdict answers (`consumer_ci.md` section 7.4), so **ungating it is the
+correct outcome rather than a capability lost**.
+
+| Selector | Owner | What it narrows | In the derivation |
+|---|---|---|---|
+| `--tests`, `--tests-file`, `--family`, `--requirement`, `--module`, `--tag`, `--observations` | The harness | A chosen subset | `manual`, unchanged |
+| `--priority` alone | The harness | To one band | `band`, the section above |
+| `-k` | pytest | A chosen subset | **`manual`** |
+| A typed path or node identifier | pytest | A chosen subset | **`manual`** |
+| `--deselect` | pytest | A chosen subset | **`manual`** |
+| `--last-failed` | pytest | To what failed before | **`manual`** |
+| `-m` | pytest | To a layer | **Not a subset**, below |
+| `-x`, `--stepwise` | pytest | Nothing | Not a selector, below |
+
+**`-m` is the layer dimension, not a subset.** Every job in both repositories
+chooses its layer with `-m`, and the bands partition by priority inside it, so
+treating a marker expression as manual would ungate every job there is. **A
+marker expression narrower than a layer partition is a different defect**: it
+is checked where the expression is a literal, over the workflow definitions,
+rather than at runtime where the harness would have to interpret a string
+somebody may have passed through an input. `consumer_ci.md` section 4.21 holds
+that check, and the harness's own `evaluate-live-weekly.yml` is the instance
+that prompted it.
+
+**`-x` and `--stepwise` stop a run rather than narrow a selection.** A run that
+stopped early selected everything and measured part of it, which is a different
+question with a different owner: a blocking band may not pass on cases that did
+not run (`consumer_ci.md` section 3.12.2).
+
+**Read through `getoption`, the accessor the harness already uses and already
+stubs.** `file_or_dir` holds what was typed and is empty where `testpaths`
+supplied the arguments, so a job naming no path is unaffected; this was
+measured rather than assumed, because the obvious accessor, `config.args`,
+reads as the testpaths and would have called every run narrowed.
+
+**It names what it found**, so a reader of a log or a refusal learns which
+selector withheld the verdict rather than that something did.
+`cmn.run_context.pytest_narrowing` is the decision.
+`MQC_REQ_HAR_CMN_0201`, `112186` and `112187`.
+
 ### 7.2 The verdict is computed by a standalone tool
 
 Section 6.1 specifies the verdict as a pure function but not what invokes it. It is invoked by the standalone tool, reading emitted artifacts, **not** by an in-process hook during the run.
@@ -2995,6 +3052,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112183` | P | `a_matching_record_counts_as_preconditions_executed` |
 | `112184` | N | `a_record_from_another_commit_is_refused_naming_the_field` |
 | `112185` | B | `an_absent_record_counts_as_not_executed_and_is_not_refused` |
+| `112186` | N | `a_keyword_narrowed_selection_yields_no_verdict` |
+| `112187` | B | `a_selection_no_pytest_selector_narrowed_keeps_its_mode` |
+| `112188` | N | `a_graded_invocation_leaving_out_a_layer_is_reported` |
 | `112125` | N | `refusal_exits_four_not_one` |
 | `112126` | B | `full_selection_under_debug_context_is_still_ungated` |
 | `112212` | B | `first_run_on_a_branch_has_no_previous_conclusion_to_compare` |
@@ -3196,7 +3256,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 429 cases, 258 negative, 124 positive, 47 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 432 cases, 260 negative, 124 positive, 48 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3489,11 +3549,58 @@ and a file that differs from its last commit carrying a `Last updated` of today
 or after that commit. It plants each defect in a scratch repository, reads
 `cmn.code_standards.file_date_problems`, then reads this repository's own root.
 
-**The staleness half needs local edits to compare, and a CI checkout has none**,
-so there it checks nothing and passes. It bites on a working tree before a
-commit, which is where a date goes stale. `tools/refresh_file_dates.py` is the
-remedy the failure names: it stamps today on every changed file and gives a new
-file both lines.
+**The staleness half needs local edits to compare, and an ordinary CI checkout
+has none**, so there it checks nothing and passes. It bites on a working tree
+before a commit, which is where a date goes stale.
+`tools/refresh_file_dates.py` is the remedy the failure names: it stamps today
+on every changed file and gives a new file both lines.
+
+#### 10.39.1 The staleness comparison is clock-independent, corrected 2026-10-21
+
+**The sentence above was true of every caller but one.** A parallel mutation
+audit copies the repository, `.git` included, and rewrites the audited module,
+so its working tree differs from its last commit **by construction**. It is the
+one CI caller with local edits, and the rule reached it.
+
+**What it did:** a changed file was stale unless its `Last updated` was today or
+after its last commit. `Last updated` and the commit date are both written in
+the author's timezone; `today` came from the runner's. The repository is
+stamped in PDT and the runners are UTC, so for the seven hours after local
+midnight every file committed and stamped on the same local day read as stale.
+
+| | |
+|---|---|
+| Stamp, author's clock | `2026-10-21` |
+| Last commit, author's clock | `2026-10-21` |
+| `today`, runner's clock | **`2026-10-22`** |
+| `touched == today` escape | Misses, so the comparison runs |
+| `touched <= committed` | True, so **stale** |
+
+**Measured, both ways:** the same tree read 0 problems against `2026-10-21` and
+3 against `2026-10-22`. **No stamp satisfies both clocks**, which is the proof
+that the rule was wrong rather than the data: `2026-10-22` is in the future by
+the author's clock and that same check rejects it.
+
+**The fix is the comparison, and it is now between two values from one
+clock.** A changed file is stale when its `Last updated` is **before** its last
+commit. `today` keeps its other job, rejecting a stamp in the future, and
+leaves the staleness branch entirely.
+
+**The `touched == today` escape went with it as dead code, not as a defect.**
+Measured by injection: restoring it alone changes no outcome, because the strict
+comparison already admits a stamp on the commit day. It was the escape that hid
+the clock dependency, and the pair restored together reproduces the refusal.
+
+**What that gives up, stated.** A file committed in the morning and edited in
+the afternoon without re-stamping is no longer reported, because at date
+granularity it is indistinguishable from legitimate same-day work. Step 3 of
+`112526` already asserted that shape passes, so the rule was ambiguous there
+before and is merely consistent now.
+
+**Why the gate never saw it.** `gate-on-change.yml` checks out a clean tree, so
+nothing is changed and the branch does not run. Only the audit modifies what it
+measures, which is why a check this old surfaced from the newest caller.
+
 
 **`Created` is never moved by the tool.** It records the earliest trace of the
 file, its first write in a session transcript or else the day git first added

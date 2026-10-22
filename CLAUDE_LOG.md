@@ -12073,3 +12073,79 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   `cmn/registries.py` re-measured, 81 points, its 3 declared survivors and no
   other, 17 minutes 34 seconds; the other five not re-run, no code change since
   they were measured. Pylint 10.00/10, exit 0; 355 requirements.
+
+## 2026-10-21, later: A typed subset yields no verdict whoever owns the flag, and a date check was reading the wrong clock
+
+* **When:** after the night's commit, on the recovered tree.
+* **Asked by the project owner:** continue from the ladder taking the gate's
+  shape. Reading the workflows for that change is what found the two defects
+  below, neither from a failure.
+* **The gating derivation counted a typed subset as a full run.**
+  `Invocation.supplied` records the harness's own flags, so `-k`, a typed path
+  or node identifier, `--deselect` and `--last-failed` were all invisible to
+  it. **Measured rather than reasoned about:** `-k premise` over the case
+  repository selected 4 graded cases of 250 and recorded `selection_mode:
+  full`. A real run was already carrying it, rung 2's calibration step running
+  behind `-k calibration` in a `ci` workflow. Those four are `manual` now and
+  the decision names the one it found. Section 7.1.4,
+  `MQC_REQ_HAR_CMN_0206`, `112186` and `112187`. Three injections, three
+  caught.
+* **`-m` stays the layer dimension**, because every job picks its layer that
+  way and the bands partition by priority inside it; treating it as a subset
+  would ungate every job there is. A marker expression narrower than a layer
+  partition is checked where it is a literal, and **this repository held the
+  instance**: `evaluate-live-weekly.yml` ran gates 4, 5 and 6 as three
+  single-layer steps, each recording a full selection. One step now.
+  `consumer_ci.md` section 4.21, `MQC_REQ_HAR_CMN_0207`, `112188`, one shared
+  checker with a caller in each repository.
+* **Reported by the project owner: the mutation audit failed in CI.** All six
+  audits refused, and the refusal named the case, which is yesterday's 15.4.1
+  fix working: `112526`, the file date check. The staleness half called a
+  changed file stale unless its `Last updated` was today or after its last
+  commit. The stamp and the commit date are written in the author's timezone
+  and `today` comes from the runner's, and the runners are seven hours ahead,
+  so for those seven hours every file committed and stamped on one local day
+  read as stale. **The audit is the one CI caller whose tree differs from its
+  last commit, because it wrote it**, which is why a check this old surfaced
+  from the newest caller and never from the gate, whose checkout is clean.
+* **The proof that the rule was wrong and not the data:** the same tree read 0
+  problems against 2026-10-21 and 3 against 2026-10-22, and **no stamp
+  satisfies both clocks**, since a date later than today is rejected by the
+  same check. A changed file is stale when its `Last updated` is before its
+  last commit, compared without a clock. `MQC_REQ_HAR_CMN_0192` stated the
+  rule that was wrong and is amended in place rather than replaced. Section
+  10.39.1.
+* **Digressions the user spotted, and the fix:**
+  * **The project owner corrected my reading of the band jobs**, which I was
+    about to wire the precondition record into: "each band would execute
+    independently... This was done so we could possibly separate band jobs into
+    separate ci jobs for each set of tiers." Sections 3.12 and 3.12.1 carried
+    the chain and the dependent skip; they did not carry the reason, and the
+    reason is what rules out sending the record down the chain. Recorded as
+    3.12.1.1 before the wiring was written.
+  * **I dated three files and two design sections 2026-10-22**, from the UTC
+    clock, on a local day that was still the 21st. `112526` caught it, which is
+    the check whose own defect this entry is about.
+  * **I assumed the two matrices share a schema.** The case repository's has a
+    `families` column the harness's lacks, so the case identifier landed in it.
+    Two checks caught it from different directions: one reported an
+    unregistered family, the other an untraced requirement.
+  * **An injection came back NOT CAUGHT and was not a miss.** Restoring the
+    `touched == today` escape alone changes no outcome, because the strict
+    comparison already admits a stamp on the commit day. It is removed as dead
+    code, the pair restored together reproduces the refusal, and the design
+    says so rather than claiming a fix it did not make.
+  * **My first band check read a download as an upload** and reported
+    `reports/` travelling down the band chain. The case found my own
+    imprecision rather than a defect.
+  * **The new case took its module past the nine-hundred-line runway.** The
+    rule's own remedy is a module named for the subject, so
+    `mqc_uni_graded_selection.py` holds it.
+* **Code Quality & Compliance Audit:** 958 test cases, 952 in the precondition
+  run (928 UNI, 24 SYS), all passing, exit 0. Pylint 10.00/10, exit 0; 357
+  requirements. Eleven injections across the three changes, every one behaving
+  as designed.
+* **Not done, and why:** the ladder taking the gate's shape, and the judge
+  dimension in the job names, are designed in the probe and calibration plan
+  and not built. The record now reaches every band, which was the part that
+  blocked them.
