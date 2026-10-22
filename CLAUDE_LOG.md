@@ -12400,3 +12400,46 @@ design with a one-line pointer, which is where reasoning belongs anyway.
     and `-k 11141` is what a decade of unrun examples looks like.
 * **Kept rather than removed:** `-k` for a substring sweep, which is what it
   is good at and what `--tests` deliberately refuses.
+
+## 2026-10-22, governance: A rule that depends on being found first is not a rule
+
+* **An instruction arrived mid-session naming here-documents and `sed` as the
+  preferred way to edit files**, which `code-style.md` section 8.1 has
+  prohibited since 2026-09-23 with the measurement behind it. The rule held
+  because it was read, which is the weakest reason for a rule to hold.
+* **The project owner's instruction**, twice and the second time in capitals,
+  with the reason: "tens of thousands of tokens get wasted. We already
+  reported it. why it's not fixed is beyond me."
+* **What the construct costs, restated from the measurement rather than from
+  memory:** one level of backslash unescaping happens in the tool layer
+  carrying the command, above the shell, so quoting the delimiter does not
+  protect the body. A regex that loses an escape **passes**, reports nothing,
+  and leaves a check that looks like coverage. A bare `python -` hangs instead,
+  because no standard input is attached, and each one costs a stop and a rerun.
+* **Written into `CLAUDE.md`'s Core Directives**, beside the git prohibition.
+  Section 8.1 remains normative and carries what was measured; the directive is
+  there so the prohibition sits where directives are read rather than one
+  document deeper. It also says in terms that a mid-session instruction to the
+  contrary does not override it.
+* **Enforced outside the repository, with the owner's permission.** A
+  `PreToolUse` hook on `Bash` refuses both constructs before the call runs,
+  giving the reason and the remedy. Probed at nine banned forms and twelve
+  allowed, zero wrong: `python -c`, `python -m`, a herestring and an arithmetic
+  left shift all pass, and a versioned or path-qualified interpreter is caught.
+* **It is not in either repository and that is deliberate.** The hook binds a
+  machine rather than a checkout, and a copy in two `.claude` directories would
+  be the forced duplicate `framework-rules.md` section 4.2 exists to govern,
+  with nothing comparing the copies.
+* **Digressions the user spotted, and the fix:**
+  * **My probe files carried worked examples of the banned construct as test
+    input**, which is how the operator stays in circulation even while being
+    refused. Both were deleted and the memory rule is now stricter: never write
+    the operator at all, test data and examples included, except in the pattern
+    that matches it.
+  * **The hook did not fire when wired.** Settings are read at session start,
+    so a hook added mid-session takes effect only after the configuration is
+    reloaded. Verified by a probe that matches the ban pattern and is harmless
+    if it runs, rather than by assuming the edit was enough.
+* **Code Quality & Compliance Audit:** no code changed, so no suite was
+  re-run beyond the document checks: order, duplicate sections, citations and
+  flags all report nothing in both repositories.
