@@ -3,7 +3,7 @@
 """Unit tests for the warning that an identifier category or block is filling up.
 
 Created: 2026-10-18
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 Its cases check ``cmn/identifier_capacity.py``, through ``assigned_identifiers``,
 ``select_blocks`` and ``capacity_warnings``. A category at ninety assigned is
@@ -29,8 +29,13 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112801  a_block_past_eight_hundred_assigned_is_warned_of
 #   112802  a_struck_inventory_row_still_counts_as_assigned
 #   112803  this_repository_warns_of_its_own_crowded_blocks
+# TestMQCDeclaredPartitions
+#   112804  a_declared_partition_absent_from_the_design_is_reported
+#   112805  an_identifier_in_a_partition_is_read_from_the_record
+#   112806  a_declared_partition_at_nine_tenths_is_warned_of
 # ------------------------------------------------------------ end of cases
 
+import re
 import warnings
 from pathlib import Path
 from typing import Final
@@ -38,11 +43,21 @@ from typing import Final
 import pytest
 
 from cmn.case_steps import step
-from cmn.identifier_capacity import assigned_identifiers, capacity_warnings, select_blocks
+from cmn.identifier_capacity import (
+    PARTITIONS,
+    assigned_identifiers,
+    capacity_warnings,
+    identifier_block_problems,
+    partition_of,
+    select_blocks,
+)
+from tests.cmn.table_support import tabulated_partitions
 
 pytestmark = pytest.mark.unit
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+
+_TAXONOMY: Final[Path] = _ROOT / "docs" / "design" / "harness_test_taxonomy.md"
 
 
 class TestMQCIdentifierCapacity:
@@ -136,4 +151,135 @@ class TestMQCIdentifierCapacity:
             warnings.warn(entry, UserWarning, stacklevel=1)
         assert any("1120xx" in entry for entry in reported), (
             f"1120xx, which is full, was not warned of: {reported}"
+        )
+
+
+class TestMQCDeclaredPartitions:
+    """A range with a recorded start and end, for a subject whose category filled."""
+
+    def MQC_CMN_UNI_112804_a_declared_partition_absent_from_the_design_is_reported(
+        self,
+    ) -> None:
+        """The partitions this code declares are the partitions the design tabulates.
+
+        **A forced duplicate, compared rather than trusted.** The table has to
+        exist in the design, which is the single registry of identifiers, and
+        in code, because a scheme nothing reads is the state the hundred-slot
+        partition was in when it broke in three places at once.
+
+        Design: ``harness_test_taxonomy.md`` section 3.2.1.5.
+
+        Returns:
+            None
+        """
+        step(1, "read the partition rows section 3.2.1.5 tabulates")
+        tabulated = tabulated_partitions(_TAXONOMY)
+        assert tabulated, "section 3.2.1.5 tabulates no partition"
+
+        step(2, "compare them against the ranges this code declares")
+        declared = {(one.start, one.end) for one in PARTITIONS}
+        assert declared == tabulated, (
+            f"the code declares {sorted(declared)} and the design tabulates "
+            f"{sorted(tabulated)}, so one of the two is a partition nobody else "
+            f"knows about"
+        )
+
+    def MQC_CMN_UNI_112805_an_identifier_in_a_partition_is_read_from_the_record(
+        self, tmp_path: Path
+    ) -> None:
+        """A declared partition says which layer and module its identifiers carry.
+
+        Its digits say neither, so the record is the authority and the check
+        compares it against the tokens in the name. Read positionally, every
+        identifier in a partition would be reported.
+
+        Design: ``harness_test_taxonomy.md`` sections 3.2.1.4 and 3.2.1.5.
+
+        Args:
+            tmp_path (Path): Where the probe tree is written.
+
+        Returns:
+            None
+        """
+        first = PARTITIONS[0]
+
+        step(1, "resolve an identifier inside the first declared partition")
+        assert partition_of(f"{first.start:06d}") is first, (
+            f"{first.start} is not resolved to the partition declaring it"
+        )
+
+        step(2, "resolve the number one below its start")
+        assert partition_of(f"{first.start - 1:06d}") is None, (
+            f"{first.start - 1} sits below the partition and was resolved to it"
+        )
+
+        step(3, "collect a callable whose tokens are the ones the record declares")
+        probe = tmp_path / "tests"
+        probe.mkdir()
+        agreeing = (
+            f"MQC_{first.module}_{first.layer}_{first.start:06d}_carries_the_record"
+        )
+        (probe / "mqc_uni_probe.py").write_text(
+            f"def {agreeing}() -> None:\n    pass\n", encoding="utf-8"
+        )
+        assert not identifier_block_problems(tmp_path), (
+            f"{agreeing} agrees with the partition holding it and was reported: "
+            f"{identifier_block_problems(tmp_path)}"
+        )
+
+        step(4, "and one whose tokens disagree with the record")
+        (probe / "mqc_uni_probe.py").write_text(
+            f"def MQC_ING_SYS_{first.start:06d}_contradicts_the_record() -> None:\n"
+            f"    pass\n",
+            encoding="utf-8",
+        )
+        assert identifier_block_problems(tmp_path), (
+            f"a callable carrying ING and SYS inside a partition holding "
+            f"{first.module} and {first.layer} was not reported"
+        )
+
+        # THE SELECTOR READS THE RECORD TOO, or a partition belongs to neither
+        # repository's count and nothing watches it fill.
+        step(5, "select the partition's identifiers for the repository owning them")
+        inside = {f"{first.start:06d}"}
+        assert select_blocks(inside, layers="12", modules="1234") == inside, (
+            f"{first.start} belongs to {first.module} and {first.layer} by "
+            f"record, and the selector read its digits instead"
+        )
+
+        step(6, "and for a repository owning neither its layer nor its module")
+        assert not select_blocks(inside, layers="345", modules="5"), (
+            f"{first.start} was selected by a repository owning neither "
+            f"{first.layer} nor {first.module}"
+        )
+
+    def MQC_CMN_UNI_112806_a_declared_partition_at_nine_tenths_is_warned_of(
+        self,
+    ) -> None:
+        """Nine tenths of a partition's own width is warned of, one below is not.
+
+        **The threshold is a fraction and not a number**, because a partition
+        is declared at whatever width it needs: 90 would be nine tenths of a
+        category and a hundredth of a ten-thousand-wide partition.
+
+        Design: ``harness_test_taxonomy.md`` section 11.9.6.
+
+        Returns:
+            None
+        """
+        first = PARTITIONS[0]
+        threshold = first.width * 9 // 10
+
+        step(1, "assign one identifier fewer than nine tenths of the partition")
+        below = {f"{first.start + offset:06d}" for offset in range(threshold - 1)}
+        assert not capacity_warnings(below), capacity_warnings(below)
+
+        step(2, "assign the one that reaches nine tenths and measure again")
+        reported = capacity_warnings(below | {f"{first.start + threshold:06d}"})
+        assert len(reported) == 1 and str(first.start) in reported[0], reported
+
+        step(3, "and confirm a partition is not counted as a category")
+        assert not any("xx holds" in entry for entry in reported), (
+            f"a partition was reported as a category, whose threshold is a "
+            f"hundredth of this one: {reported}"
         )

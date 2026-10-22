@@ -3,13 +3,12 @@
 """Code standards checks, the style rules pylint cannot express, run over a source tree.
 
 Created: 2026-09-23
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 This file contains ``annotation_gaps`` and ``future_annotation_imports`` for the
 annotation rules; ``header_problems`` and ``markup_header_problems`` for SPDX
 headers; ``encoding_gaps`` for a file opened with no encoding;
 ``unfrozen_records`` for an undeclared mutable dataclass;
-``identifier_block_problems`` for a case whose digits contradict its tokens;
 ``unregistered_code_literals`` for a failure code the registry lacks;
 ``artifact_mandate_gaps`` for a workflow step emitting one mandated artifact
 without the other; ``flag_coverage_problems`` for a flag no case proves; and
@@ -707,73 +706,12 @@ def unfrozen_records(root: Path) -> list[str]:
     return problems
 
 
-# THE POSITIONAL SCHEME, as `harness_test_taxonomy.md` section 3.2.1 states it. Held
-# here rather than in the document alone, because a scheme nothing reads is the
-# state the hundred-slot partition was in when it broke in three places.
-_LAYER_DIGIT: Final[dict[str, str]] = {
-    "UNI": "1", "SYS": "2", "EVAL": "3", "TOOL": "4", "SEC": "5", "MUT": "6",
-}
-_MODULE_DIGIT: Final[dict[str, str]] = {
-    "ING": "1", "CMN": "2", "EXE": "3", "EVL": "4", "CAS": "5",
-}
-
-_IDENTIFIED = re.compile(r"^MQC_([A-Z]{3})_([A-Z]{3,5})_(\d+)_[a-z0-9_]+$")
-
-
-def identifier_block_problems(root: Path) -> list[str]:
-    """Report every collected callable whose digits contradict its tokens.
-
-    An identifier is six positional digits: the domain, the layer, the module,
-    the category and the case. This reads the layer and module tokens from the
-    name and checks the digits that encode them.
-
-    **It compares two halves of one name**, which is what makes it different
-    from the duplicate-binding check: two modules occupying one block are two
-    distinct identifiers, so counting bindings cannot see it.
-
-    Design: ``harness_test_taxonomy.md`` section 3.2.1.4.
-
-    Args:
-        root (Path): The repository root.
-
-    Returns:
-        list[str]: One entry per disagreement. Empty when every identifier's
-        digits say what its tokens say.
-    """
-    problems: list[str] = []
-    for source in sorted((root / "tests").rglob("*.py")):
-        if "__pycache__" in source.parts:
-            continue
-        try:
-            tree = ast.parse(source.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            matched = _IDENTIFIED.match(node.name)
-            if matched is None:
-                continue
-            module, layer, digits = matched.groups()
-            where = f"{source.relative_to(root).as_posix()}::{node.name}"
-            if len(digits) != 6:
-                problems.append(
-                    f"{where} carries {len(digits)} digits, and the scheme is six"
-                )
-                continue
-            expected_layer = _LAYER_DIGIT.get(layer)
-            expected_module = _MODULE_DIGIT.get(module)
-            if expected_layer is not None and digits[1] != expected_layer:
-                problems.append(
-                    f"{where} says layer {layer}, whose digit is "
-                    f"{expected_layer}, and carries {digits[1]}"
-                )
-            if expected_module is not None and digits[2] != expected_module:
-                problems.append(
-                    f"{where} says module {module}, whose digit is "
-                    f"{expected_module}, and carries {digits[2]}"
-                )
-    return problems
+# THE POSITIONAL SCHEME AND THE CHECK OVER IT MOVED TO `cmn.identifier_capacity`
+# on 2026-10-22, with `identifier_block_problems`. A declared partition
+# (`harness_test_taxonomy.md` section 3.2.1.5) is the authority for an
+# identifier whose digits no longer carry its layer and module, and the
+# partition table lives there: what a number means and how much of the space is
+# spent are one subject.
 
 
 # SECTION 9.1'S TABLE, as that document writes it: a group, a backticked field

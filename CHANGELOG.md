@@ -29,6 +29,52 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A partition is a declared range, so a full category has somewhere to go, 2026-10-22
+
+**`1123xx` filled and the remedy had nothing to give.** A full category takes
+the next free category in the same block, which is how `1120xx` came to
+continue in `1127xx`; by this change **all ten categories of `CMN`/`UNI` were
+allocated** and two were full, while the block held 445 of its 1,000 numbers.
+Section 11.9.4's remedy is for a full block, and this block is 45 percent used:
+what was exhausted was the partition, not the numbers.
+
+**The project owner's ruling:** existing ranges stay as they are, the
+unallotted ones open, and a newer partition can be 10,000 wide rather than 100.
+So a partition is now **a range with a recorded start and an end** rather than
+one derived from digit positions, and the first is `400000` to `409999`,
+holding governance and traceability where `1123xx` left off
+(`harness_test_taxonomy.md` section 3.2.1.5, `MQC_REQ_HAR_CMN_0209`, cases
+`112804` to `112806`, six injections).
+
+**Cut from `400000` and not `200000`, which is the first range after the one in
+use.** Section 3.2.1.0 promised `2` to performance and `3` to networking on
+2026-10-02 and said why in the same sentence: recording a reserved domain is a
+commitment not to spend its numbers on something else. Taking one to solve a
+numbering problem is that spend.
+
+**What a reader loses is named rather than left to be discovered.** A declared
+partition's digits carry neither the layer nor the module, so
+`MQC_CMN_UNI_400000` is resolved by looking the range up. The name still
+carries both tokens, so the check comparing an identifier's two halves still
+works, with the record as the authority for the half the digits no longer hold.
+The alternative was renumbering 445 identifiers to avoid one lookup.
+
+**`identifier_block_problems` moved to `cmn/identifier_capacity.py`** with the
+digit tables it reads, because the partition table is the authority for an
+identifier the digits do not describe and `cmn/code_standards.py` stood at 891
+lines of a 900-line runway. One subject, one module: what a number means and
+how much of the space is spent.
+
+**And a design cited a module that had not held its function for weeks.**
+`cmn.code_standards.file_date_problems` moved to `cmn.file_dates`, so a reader
+was sent to the wrong module. Found by a survey for every module, path and
+callable the documents name and the tree does not hold: **eight candidates, one
+defect, seven deliberate references to a file renamed, split, deleted or
+refused.** Recorded as a gap, because a check admitting the seven reports seven
+false positives for one real finding.
+
+962 test cases, 359 requirements.
+
 ### A section is where its number says it is, and a check keeps it there, 2026-10-22
 
 **A citation resolved and the section was somewhere else.** Section 7.3 made

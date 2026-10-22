@@ -3,7 +3,7 @@
 """Unit preconditions for adding a layer, an outcome, a verdict rule or an engine.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 The cases here check the registries in ``cmn.layers`` and ``cmn.verdict``. A
 newly registered layer keeps its declared graded flag and distribution
@@ -56,7 +56,7 @@ from typing import Any, Iterator
 
 import pytest
 
-from cmn.code_standards import identifier_block_problems
+from cmn.identifier_capacity import identifier_block_problems
 from cmn.config import unrostered_adapters
 from cmn.demotion import DemotionCandidate, count_demoted, demotion_order, exceeds_ceiling
 from cmn.layers import (

@@ -212,7 +212,7 @@ is the state section 3.2.1 was written in 2026-09-23 to end and did not.
 
 | Position | Carries | Values |
 |---|---|---|
-| 1, `D` | The **domain** | `1` functional and security quality, `2` performance, `3` networking and resilience, `4`-`9` unallocated |
+| 1, `D` | The **domain**, except `4` | `1` functional and security quality, `2` performance, `3` networking and resilience, `4` declared partitions (section 3.2.1.5), `5`-`9` unallocated |
 | 2, `L` | The layer | `1` UNI, `2` SYS, `3` EVAL, `4` TOOL, `5` SEC, `6`-`9` unallocated |
 | 3, `M` | The module | `1` ING, `2` CMN, `3` EXE, `4` EVL, `5` CAS, `6`-`9` unallocated |
 | 4, `C` | The category within the module | `0`-`9`, a hundred slots each |
@@ -235,7 +235,8 @@ would be the hundred-slot mistake repeated one level up.
 | `1` | Functional and security quality. Every case that exists | In use |
 | `2` | **Performance**: latency against a budget, how it scales with output length, cost per unit of work | Reserved, unmeasured |
 | `3` | **Networking and resilience**: behaviour under timeout, retry, gateway failure and partial response | Reserved, unmeasured |
-| `4`-`9` | Unallocated | |
+| `4` | **Declared partitions**, where a subject that filled its category continues (section 3.2.1.5) | In use since 2026-10-22 |
+| `5`-`9` | Unallocated | |
 
 **A domain is a programme, and a layer is a kind of check inside one.** The
 distinction decides which axis an addition takes: performance measured on a
@@ -247,6 +248,13 @@ which is the extensibility the layer registry in section 3 already states.
 **Which axis an addition takes is decided when it is allocated**, not now.
 Recording the two reserved domains is not a commitment to measure them; it is a
 commitment not to spend their numbers on something else.
+
+**Digit `4` is not a programme, and that is a departure this table should not
+hide.** Every other value here names a thing the project measures; `4` names
+space, the space a subject takes when its category fills (section 3.2.1.5).
+The project owner ruled on 2026-10-22 that the existing ranges stay and the
+unallotted ones open, and spending an **unpromised** digit is what keeps `2`
+and `3` available for the programmes they were recorded for.
 
 **Positional rather than sequential**, because a reader seeing `112103` should
 be able to say what it is without a lookup: functional quality, a unit
@@ -346,8 +354,14 @@ tokens have to agree. **Nothing checked the old allocation**, which is how
 `EXE/UNI` came to sit inside `EVL`'s block, `EVL/UNI` inside `CAS`'s, and
 `CMN/UNI` past its last allocated block, all at once and all silently.
 
-`cmn.code_standards.identifier_block_problems` reads every collected callable
-and reports one whose digits contradict its tokens:
+`cmn.identifier_capacity.identifier_block_problems` reads every collected
+callable and reports one whose digits contradict its tokens:
+
+**It moved there from `cmn.code_standards` on 2026-10-22**, with the digit
+tables it reads, because a declared partition (section 3.2.1.5) is the
+authority for an identifier the digits no longer describe and the partition
+table is in that module. One subject, one module: what a number means and
+how much of the space is spent.
 
 | Read from the name | Checked against |
 |---|---|
@@ -363,6 +377,78 @@ check sees what the other does.
 **Shared, with two callers**, like the annotation and header rules: the harness
 owns no case data and the module blocks span both repositories, so one
 implementation reads each root.
+
+#### 3.2.1.5 A partition is a declared range, because the next free category ran out
+
+Added 2026-10-22 at the project owner's ruling, after `MQC_CMN_UNI_112399`
+took the last identifier in `1123xx`: "existing ranges stay as they are. But
+not all ranges have been allocated and allotted. is there anything after
+200000? May be start there."
+
+**The remedy section 11.9.1 names had nothing to give.** A full category takes
+the next free category in the same block, which is what `1120xx` did in taking
+`1127xx`; by 2026-10-22 **all ten categories of `CMN`/`UNI` were allocated**
+and two of them were full, while the block held 445 of 1,000. What was
+exhausted was the partition, not the numbers, and section 11.9.4's remedy for
+a full block does not apply to a block that is 45 percent used.
+
+**So a partition is a declared range rather than a derived one**, and the
+record of where one starts and another ends is what makes it a partition. The
+owner's criterion, in their words: "As long as we keep record of where one
+starts and another ends."
+
+| | |
+|---|---|
+| Existing ranges | **Unchanged.** Domain 1 stays positional, ten categories of a hundred in each module and layer block |
+| A subject that fills its category | Takes a declared partition, **10,000 wide**, from the space above `400000` |
+| What says which | This table, and `cmn.identifier_capacity.PARTITIONS` beside it |
+
+##### The declared partitions
+
+| Partition | Holds | Continues | Allocated |
+|---|---|---|---|
+| `400000`-`409999` | `CMN`/`UNI`, governance and traceability | `1123xx`, full at 100 of 100 | 2026-10-22 |
+
+**One subject per partition, and numbers run in sequence inside it.** No
+sub-partition until something needs one: ten thousand against a hundred is the
+whole of the ruling, and six digits hold 999,999 identifiers against the 445
+one block has spent.
+
+##### Why not `200000`, which is the first range after the one in use
+
+**Section 3.2.1.0 promised `2` to performance and `3` to networking and
+resilience** on 2026-10-02, and said why in the same sentence: "Recording the
+two reserved domains is not a commitment to measure them; it is a commitment
+not to spend their numbers on something else." Taking `200000` to solve a
+numbering problem is exactly that spend, so the first partition is cut from
+`400000`, which is promised to nothing.
+
+##### What a reader loses, and what the record buys
+
+**The layer and the module are not derivable from a declared partition's
+digits.** `MQC_CMN_UNI_400000` carries `0` where a positional identifier
+carries the layer and the module, so a reader resolves it by looking the range
+up rather than by reading it.
+
+| | Positional, domain 1 | A declared partition |
+|---|---|---|
+| Domain, layer, module | Read from the digits | **Read from the record** |
+| The tokens in the name | `MQC_CMN_UNI_` | `MQC_CMN_UNI_`, unchanged |
+| What section 3.2.1.4 compares | The digits against the tokens | **The partition's record against the tokens** |
+
+**The name still carries the answer**, which is what keeps section 3.2.1.4's
+check meaningful: it compares two halves of one name either way, and the
+record is the authority for the half the digits no longer hold.
+
+**The alternative was renumbering**, which section 3.2 forbids outside the one
+recorded exception, and which would have rebound 445 identifiers in this block
+alone to avoid one lookup.
+
+**Held in code as well as here**, for the reason section 3.2.1 already gives:
+a scheme nothing reads is the state the hundred-slot partition was in when it
+broke in three places at once. `cmn.identifier_capacity` holds the table,
+`MQC_CMN_UNI_112804` compares the two, and a partition added to one and not
+the other fails the run.
 
 #### 3.2.2 `CAS` is a module in another repository, and shares this registry
 
@@ -2346,6 +2432,12 @@ over from `1120xx`. **Nothing is renumbered and no family changes**: a full
 category is a numbering event, not a statement about what the model was asked
 to do.
 
+**Where no category in the block is free, the subject takes a declared
+partition instead** (section 3.2.1.5). That is not a different kind of event,
+only a different place to put the numbers: `CMN`/`UNI` reached it on
+2026-10-22 with all ten of its categories allocated and the block 45 percent
+used.
+
 #### 11.9.2 A family is separated only where section 11.2 says a family exists
 
 Size alone never makes a family. **The separated part must pass section 11.2
@@ -2408,6 +2500,7 @@ moment the hundred-slot partition was found broken in three places (section
 |---|---|---|
 | A category's assigned identifiers reach | **90** of 100 | Ten free numbers is one more subject's worth of cases, which is when the next category should be chosen |
 | A block's assigned identifiers pass | **800** of 1,000 | Two categories' worth left, which is when an allocation decision in section 3.2.1 is due |
+| A declared partition's assigned identifiers reach | **nine tenths of its own width**, 9,000 of 10,000 | A partition is declared at whatever width it needs (section 3.2.1.5), so a fixed number would mean one thing in a category and another here |
 
 **Assigned, not live.** A struck inventory row is a retired identifier, never
 reused, so it occupies its slot exactly as a live one does and is counted.
@@ -2431,6 +2524,9 @@ and `EVL`, and the case repository counts `CAS` and the graded blocks.
 | `112801` | A block is warned of at 801 assigned and not at 800 |
 | `112802` | A struck inventory row counts as assigned |
 | `112803` | This repository's own crowded categories and blocks are warned of, and the run still passes |
+| `112804` | The partitions this code declares are the partitions section 3.2.1.5 tabulates |
+| `112805` | An identifier inside a declared partition takes its layer and module from the record: a callable whose tokens disagree is reported, and the block selector keeps it for the repository the record names rather than the one its digits would. **The selector half was unasserted until an injection found it**, no identifier in a partition existing yet for the repository callers to read |
+| `112806` | A declared partition is warned of at nine tenths of its own width and not one below it |
 
 ## 12. The Document Register
 

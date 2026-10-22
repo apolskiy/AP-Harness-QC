@@ -3254,6 +3254,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112801` | B | `a_block_past_eight_hundred_assigned_is_warned_of` (taxonomy 11.9.6) |
 | `112802` | N | `a_struck_inventory_row_still_counts_as_assigned` (taxonomy 11.9.6) |
 | `112803` | P | `this_repository_warns_of_its_own_crowded_blocks` (taxonomy 11.9.6) |
+| `112804` | N | `a_declared_partition_absent_from_the_design_is_reported` (taxonomy 3.2.1.5) |
+| `112805` | N | `an_identifier_in_a_partition_is_read_from_the_record` (taxonomy 3.2.1.5) |
+| `112806` | B | `a_declared_partition_at_nine_tenths_is_warned_of` (taxonomy 3.2.1.5) |
 | `112900` | P | `a_passing_assertion_is_recorded_as_a_verification_step` (taxonomy 8.2.4) |
 | `112901` | N | `a_failing_assertion_is_recorded_and_the_case_fails` (taxonomy 8.2.4) |
 | `112902` | P | `an_action_is_the_code_since_the_previous_verification` (taxonomy 8.2.4) |
@@ -3265,7 +3268,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 
-**Inventory: 433 cases, 261 negative, 124 positive, 48 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 436 cases, 263 negative, 124 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -4793,7 +4796,7 @@ docstring: a `Created:` and a `Last updated:` line in third and fourth place,
 each a real date, the first no later than the second, neither in the future,
 and a file that differs from its last commit carrying a `Last updated` of today
 or after that commit. It plants each defect in a scratch repository, reads
-`cmn.code_standards.file_date_problems`, then reads this repository's own root.
+`cmn.file_dates.file_date_problems`, then reads this repository's own root.
 
 **The staleness half needs local edits to compare, and an ordinary CI checkout
 has none**, so there it checks nothing and passes. It bites on a working tree

@@ -3,7 +3,7 @@
 """Test helpers that read the taxonomy document's tables, for the registry comparison cases.
 
 Created: 2026-10-15
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 This file provides ``table_after``, which returns the first Markdown table after a
 heading as one mapping per row, ``bare`` and ``yes`` for reading a cell,
@@ -34,7 +34,32 @@ ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 TAXONOMY: Final[Path] = ROOT / "docs" / "design" / "harness_test_taxonomy.md"
 
 _ROW: Final[re.Pattern[str]] = re.compile(r"^\|(.+)\|\s*$")
+
+# A DECLARED PARTITION'S BOUNDS, as section 3.2.1.5 writes the first cell: a
+# backticked start and a backticked end.
+_PARTITION_BOUNDS: Final[re.Pattern[str]] = re.compile(r"^`(\d{6})`-`(\d{6})`$")
 _RULE: Final[re.Pattern[str]] = re.compile(r"^\|[\s|:-]+\|\s*$")
+
+
+def tabulated_partitions(path: Path) -> set[tuple[int, int]]:
+    """Return the identifier ranges section 3.2.1.5 of the taxonomy tabulates.
+
+    Read rather than copied, for the reason every reader here exists: a second
+    list of the same facts drifts from the first.
+
+    Args:
+        path (Path): The taxonomy document.
+
+    Returns:
+        set[tuple]: Each declared partition's start and end. Empty where the
+        section tabulates none.
+    """
+    found: set[tuple[int, int]] = set()
+    for row in table_after(path, "The declared partitions"):
+        bounds = _PARTITION_BOUNDS.match(row.get("Partition", ""))
+        if bounds is not None:
+            found.add((int(bounds.group(1)), int(bounds.group(2))))
+    return found
 
 
 def table_after(path: Path, heading: str) -> list[dict[str, str]]:

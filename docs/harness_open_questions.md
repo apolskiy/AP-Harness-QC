@@ -114,31 +114,6 @@ and `QC_HARNESS_JUDGEMENT_STALE` should exist, and whether
 decision rather than an omission, and overturning one costs every stored row
 that carries the old code.
 
-### 2.7 Where does the next governance case get its number?
-
-Opened 2026-10-22. `MQC_CMN_UNI_112399` took the last free identifier in
-category `1123xx`, which is governance and traceability, so the capacity
-warning now reads "100 of 100 identifiers, 0 left" for the second category in
-this module after `1120xx`.
-
-**The remedy section 11.9.1 of `harness_test_taxonomy.md` names has nothing to
-give.** A full category takes the next free category in the same block, which
-is what `1120xx` did in taking `1127xx`, and **all ten categories of
-`CMN`/`UNI` are now allocated** while the block itself holds 445 of 1,000.
-Section 11.9.4 covers a full block and this block is not full: what is
-exhausted is the partition, not the numbers.
-
-**It is a question rather than a gap because every answer costs something.**
-Continuing a subject in a category allocated to another subject breaks the
-property section 3.2.1.1 states, that a category is a subject. Repartitioning
-the block rebinds identifiers, which section 3.2 forbids outside the one
-recorded exception. Widening the digits changes every identifier in both
-repositories.
-
-**Nothing is blocked today.** The next case in this subject is, and the
-warning is what says so before an allocation finds no free number, which is
-section 11.9.6's whole purpose.
-
 ## 2A. Settled, and where the reasoning now lives
 
 Removed from section 2 once the decision was recorded. The question is here so a
@@ -147,6 +122,7 @@ because a second copy drifts.
 
 | Question | Settled | Recorded in |
 |---|---|---|
+| Where does the next governance case get its number? | Settled 2026-10-22, in a declared partition at `400000` | `harness_test_taxonomy.md` section 3.2.1.5. The owner's ruling: existing ranges stay, the unallotted ones open, and a newer partition can be 10,000 wide. `200000` and `300000` stay reserved for the two recorded domains |
 | Where should a judge panel's divergence be published? | Withdrawn 2026-09-26, a panel is out of scope | `tier3_evaluation.md` |
 | Should invalid-coupon abuse be logged, and is that assertable? | 2026-09-26, assertable by asking directly | The `code_comprehension` corpus |
 | Should the `screen_evasion` exemption be capped? | 2026-09-26, at 15% of payloads | `tier1_ingestion.md` section 7.3.4 |
@@ -184,6 +160,7 @@ Recorded so the absence is on the record. None needs a decision.
 | A re-record needing fewer observations than the previous run leaves the surplus behind | Pruned by hand three times on 2026-10-12. Nothing prunes at the point of recording |
 | Nothing checks that an assertion matches a figure the fixture declares rather than a verdict's vocabulary | `DESIGN.md` section 7.8. Three assertions in `premise_discrimination` shipped as synonym lists and produced a false positive on the first recorded run. The rule is written and **review is the only thing enforcing it**: a pattern carrying no digit is not reliably wrong, so the obvious check would refuse legitimate assertions |
 | A heading's rank disagrees with the depth of its number in 69 places | A heading's parent by rank is the nearest heading above it with fewer hashes, and its parent by number is the longest prefix of its number the document also numbers. Where they disagree a section renders under its neighbour: a fourth-level 9.12 under a third-level 9.11, now corrected. **Reordering took the twelve documents from 152 to 69**, because a section in the wrong place usually had the wrong parent by rank as well, and the 69 that remain are hash counts rather than positions. Changing them is a decision about rendering, so it is recorded rather than swept (`code-style.md` section 7.5.2) |
+| Nothing checks that a module, path or callable a document names is one that exists | A survey on 2026-10-22 read every backticked `module.callable` and every backticked path in both repositories' documents and found **eight the tree does not hold, of which one was a defect**: a design cited `cmn.code_standards.file_date_problems` after the function moved to `cmn.file_dates`, so a reader was sent to the wrong module. **The other seven are deliberate**, naming a file that was renamed, split, deleted or refused, and a check admitting them reports seven false positives for one real one. Section 7.3's lesson applies: a pattern burying its signal trains a reader to ignore it. **The missing half is the one the citation checker has**, a way to mark a reference as historical |
 | `evaluate-live-weekly.yml` runs no case, and the probe dispatches it | It runs the graded markers in this repository, which owns no graded case, and `probe-model-version-nightly.yml` dispatches it on a version change rather than the case repository's run against the green harness. `harness_ci_pipeline.md` section 2.0.1 records the first half. Both are retired at the probe move, which is the next step of the probe and calibration plan. **Its three single-layer steps became one on 2026-10-21**, which was a separate defect: each recorded a full selection while measuring a third of the graded layers |
 
 ## 2C. Gaps since closed, and where the closure is recorded

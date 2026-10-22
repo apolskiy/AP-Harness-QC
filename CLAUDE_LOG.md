@@ -12239,3 +12239,56 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   run (929 UNI, 24 SYS), all passing, exit 0. Pylint 10.00/10, exit 0 checked
   rather than the score line; 358 requirements. The mutation audits were not
   re-run: no audited module changed.
+
+## 2026-10-22, later: A partition with a recorded start and end
+
+* **Ruled by the project owner**, closing question 2.7 the same day it was
+  opened: "existing ranges stay as they are. But not all ranges have been
+  allocated and allotted. is there anything after 200000? May be start there."
+  With it: "There is a reason why I wanted 6 digits to a test case number.
+  999999 takes a while to fill, partitions don't need to be in 100s. As long as
+  we keep record of where one starts and another ends."
+* **I asked where to cut the range from and the owner answered the better
+  question.** My options all assumed the first free range should be found by
+  reading the scheme; the answer was that the unallotted space is the point of
+  six digits, and the record is what makes a range a partition.
+* **Built:** `PARTITIONS` and `partition_of` in `cmn/identifier_capacity.py`,
+  the first range `400000` to `409999`. The capacity warning is a fraction of a
+  partition's own width rather than a fixed 90, since 90 is nine tenths of a
+  category and a hundredth of this. `MQC_REQ_HAR_CMN_0209`, `112804` to
+  `112806`, six injections.
+* **`200000` was the owner's suggestion and `400000` is what landed**, with the
+  reason recorded rather than silently substituted: section 3.2.1.0 reserved
+  `2` for performance and `3` for networking on 2026-10-02, and spending a
+  reservation to solve a numbering problem is what the reservation exists to
+  prevent. `4` was promised to nothing.
+* **Moved:** `identifier_block_problems` and the digit tables, from
+  `cmn/code_standards.py` at 891 lines to `cmn/identifier_capacity.py`. The
+  check now consults the partition record first, which is where the layer and
+  module of a declared identifier live, so the two belong in one module.
+* **Digressions the user spotted, and the fix:**
+  * **The suite caught two of my own mistakes in one run.** Section 3.2.1.5 was
+    written above 3.2.1.4, which the order check built this morning reported;
+    and the table reader I wrote inside the case module is support code, which
+    `112328` reported with the registry entry it would need. The reader went to
+    `tests/cmn/table_support.py`, which already reads this document's tables.
+  * **One injection of six went NOT CAUGHT**, the selector reading the digits
+    of an identifier a partition declares. No identifier in a partition exists
+    yet, so the repository callers could not see it; the case asserts it
+    directly now.
+  * **I emitted three filler Bash commands**, two carrying `python -` and one
+    a heredoc, both long since banned. Each hung or needed stopping. Recorded
+    in memory as its own rule: a Bash call that does nothing is where a banned
+    construct comes back.
+* **Surveyed, for the owner's standing instruction that nothing designed is
+  unimplemented:** every backticked module, path and callable the documents
+  name, against the tree. **Eight absent, one a defect**, a design citing
+  `cmn.code_standards.file_date_problems` weeks after it moved to
+  `cmn.file_dates`. The other seven name a file renamed, split, deleted or
+  refused, and each says so in its own sentence. Also checked the inventory
+  direction nothing checks: **no live inventory row in either repository lacks
+  a case**, 973 live rows against 962 bound identifiers and 74 struck.
+* **Code Quality & Compliance Audit:** 962 test cases, 956 in the precondition
+  run (932 UNI, 24 SYS), all passing, exit 0. Pylint 10.00/10, exit 0 checked
+  rather than the score line; 359 requirements. The mutation audits were not
+  re-run: no audited module changed.
