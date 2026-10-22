@@ -29,6 +29,88 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The runbooks name the selectors that were built for them, 2026-10-22
+
+**Nine selectors were designed, traced, implemented and covered, and no
+runbook named one of them.** `--tests`, `--tests-file`, `--priority`,
+`--module`, `--family`, `--requirement`, `--tag`, `--case-index` and
+`--with-prerequisites` appear in the designs, in the matrices and in the
+suites. The two operator runbooks, which are what somebody opens to run
+something, named none.
+
+**What they named instead was `pytest -k`**, the selector the project retired
+`--case` in favour of replacing. It has the two properties the harness
+selectors exist to remove: a name no case carries selects nothing and exits
+0, and a selector pytest owns makes the run's selection mode `manual`, so it
+yields no verdict (section 7.1.4).
+
+**The runbook's own example demonstrated the first.** `pytest -k 11141` is
+what section 7 gave for running one case, and no identifier beginning `1114`
+exists in either repository. Run today it reports 965 deselected, 0 selected,
+and exits 0: the command for running a single case ran none and said nothing
+was wrong.
+
+**Both runbooks now carry a selector table**, with what each selector resolves
+through and whether the run keeps its verdict, and `-k` is kept where it is
+right, a substring sweep across names rather than naming a case you already
+have.
+
+Found 2026-10-22 by reading the selectors against the documents that name
+them, which is the same reading that produced the flag check below and found
+nothing wired to tell anybody these flags exist.
+
+### A flag a document names is a flag something declares, 2026-10-22
+
+**A document naming a flag is telling a reader to type it, and four of them
+named something that did not exist.** `--module` and `--tag` reached section
+7.1.2's selection table with no registry behind them in October, found by
+reading; section 7.7.5 recorded the check that would have caught them as
+absent "in either direction for prose tables" and nothing was built.
+
+**The check found the other two on its first run.** `--log-level` sits in
+section 7.1.1's table of the harness's own diagnostic flags, beside three
+registered ones, and is pytest's flag with nothing saying so. The case
+repository's `consumer_ci.md` sent a reader to the withdrawal flag under a
+name `tools/findings.py` has never declared, its flag being
+`--hold-unreproduced`.
+
+**The rename is the costlier shape.** A flag that never existed fails the
+moment somebody types it and they look at the document. A renamed one fails
+identically and sends them to look for their own mistake, because the
+document describing the behaviour is the thing that is wrong.
+
+**A flag resolves through one of four declarations**: the pytest option
+registry, a script of the repository read from its syntax tree, a registry
+naming what owns a flag from outside the repository, and a registry naming a
+flag of ours that was retired. **The foreign registry carries no expiry**,
+unlike every other declaration file here, because `--junitxml` belonging to
+pytest is a permanent fact rather than an absence somebody will close, and an
+entry that lapsed would report pytest as a defect on a Tuesday
+(`cmn_verdict_and_cli.md` section 7.1.0.4, `MQC_REQ_HAR_CMN_0210`, cases
+`400000` to `400002`, six injections).
+
+**The first identifiers in a declared partition.** `400000` through `400002`
+are the first cases the partition record resolves rather than the digits,
+which the partition declared the day before could not demonstrate with
+nothing in it.
+
+**And the external account had gone stale where nothing could check it.**
+`harness_problems_found.md` stated 24 findings against the 38 the registers
+hold, 69 graded cases against 94, 688 harness preconditions against 959 and
+84 case-repository ones against 161, and its class breakdown named three
+codes the registers no longer carry. **The harness owns no case data**, so no
+check here can read `config/findings/`, and the paragraph claiming the figure
+was recomputed by the case repository's README check was wrong about which
+document that check reads. Every figure is now recomputed, with that
+limitation stated where the figures are.
+
+**Section 4A** groups a defect shape the index had no place for: a document
+that sends a reader somewhere that is not there. Four dangling citations, two
+sections sharing a number, 37 headings out of order, a module citation left
+behind by a move, and now two flags.
+
+965 test cases, 360 requirements.
+
 ### A partition is a declared range, so a full category has somewhere to go, 2026-10-22
 
 **`1123xx` filled and the remedy had nothing to give.** A full category takes

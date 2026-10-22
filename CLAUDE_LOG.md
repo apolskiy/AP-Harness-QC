@@ -12292,3 +12292,111 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   run (932 UNI, 24 SYS), all passing, exit 0. Pylint 10.00/10, exit 0 checked
   rather than the score line; 359 requirements. The mutation audits were not
   re-run: no audited module changed.
+
+## 2026-10-22, third iteration: A flag a document names
+
+* **The owner's standing instruction** is the one from this morning: perform a
+  number of iterations so there are no gaps between design, documentation, RTM
+  and implementation, and where implementation has to widen, iterate back to
+  design.
+* **Three gap classes surveyed, two of them clean.** A registered failure code
+  no production code names: **0 of 75**, every one named. A production function
+  with no caller: 184 of 526 have no caller in production code and every one is
+  a checker a case calls, which is the one-implementation-two-callers
+  arrangement working rather than a defect; **0 are named by nothing at all**
+  once the other repository's tests are counted, which is the half a survey of
+  one repository cannot see.
+* **The third class yielded.** Section 7.7.5 records the check as absent: "a
+  comparison between the flags a design names and the registry, which does not
+  exist in either direction for prose tables". Built as
+  `cmn.flag_citations.undeclared_flags`, and it reported two defects on its
+  first run.
+* **What it found:**
+  * `--log-level`, in section 7.1.1's table of the harness's own diagnostic
+    flags beside three registered ones. It is pytest's flag and the table did
+    not say so.
+  * The case repository's `consumer_ci.md` section 9.4.7 sent a reader to the
+    withdrawal flag under a name `tools/findings.py` has never declared.
+  * And by reading, not by the check: section 7.1.1 still explained `--case`
+    in the present tense, nineteen days after the row above it recorded the
+    retirement.
+* **The other direction is clean**, measured at the same time: all 26
+  registered flags are named by a live document.
+* **The foreign registry is not a declared gap**, and saying so is the design
+  decision in this change. Every other declaration file here carries a reason
+  and an expiry, because a gap is an absence somebody will close. A flag
+  belonging to pytest is not an absence, so an entry carries what owns the
+  flag instead, and nothing expires.
+* **`MQC_CMN_UNI_400000` to `400002`** are the first identifiers in the
+  partition declared yesterday. That partition had nothing in it, which is why
+  one of its six injections went uncaught; it now has three cases the record
+  resolves rather than the digits.
+* **Digressions the user spotted, and the fix:**
+  * **The suite caught my support helper again**, the same shape as yesterday:
+    `_write_document` in the case module, reported by `112328`. It went to
+    `tests/cmn/flag_citations_support.py`.
+  * **One injection of six went NOT CAUGHT**, two undeclared flags on one
+    line reported as one. The case had two occurrences in one document and not
+    two in one line, and a mistyped flag sits in a whole command beside the
+    others. Asserted directly now, six of six.
+  * **I verified pylint through a pipe and read the wrong exit code.**
+    `pylint ... | tail` reports tail's status, so `$?` was 0 while pylint had
+    exited 12 on an unused import and a duplicate block left by yesterday's
+    move. Both fixed, and the exit code is now read from the command itself.
+    The rule was already in memory and the pipe is how it was evaded.
+* **The duplicate was worth removing rather than silencing.** `ast.parse`
+  inside a `try` and then `ast.walk` stood in two modules after
+  `identifier_block_problems` moved; `cmn.code_standards.walked_nodes` is that
+  block once, and `cmn/flag_citations.py` is its third caller.
+* **The external account had gone stale where no check can reach it.**
+  `harness_problems_found.md` is written for an outside reader and stated 24
+  findings against 38, 69 graded cases against 94, 688 harness preconditions
+  against 959 and 84 case-repository ones against 161. The harness owns no
+  case data, so nothing here may read `config/findings/`, and the sentence
+  claiming the figure was recomputed by a check named a check that reads a
+  different document. Recomputed, with the limitation stated in place.
+* **Code Quality & Compliance Audit:** 965 test cases. Harness 959 in the
+  precondition run, 935 `UNI` and 24 `SYS`, all passing, exit 0 read from the
+  command. Model 161 preconditions, all passing, exit 0. Pylint 10.00/10 and
+  **exit 0** in both. 360 harness requirements, 176 model requirements. The
+  mutation audits were not re-run: no audited module changed.
+
+## 2026-10-22, fourth iteration: The selectors nobody was told about
+
+* **The project owner asked whether the tag selector was implemented**, on the
+  principle that something designed, documented and traced but not implemented
+  is a gap. It is implemented, and the question found a larger one.
+* **`--tag` is sound.** `cmn/selection.py` resolves it through the per-case
+  index, refuses a tag no case carries by name, and refuses the flag outright
+  when no `--case-index` is given. `docs/testing/case_index.csv` is generated
+  by `tools/case_index.py` and `MQC_CAS_UNI_115417` fails when it disagrees
+  with the corpus. Nothing was missing in the code.
+* **What was missing is that no operator document says any of it exists.**
+  Nine selectors, none named in either runbook: `--tests`, `--tests-file`,
+  `--priority`, `--module`, `--family`, `--requirement`, `--tag`,
+  `--case-index` and `--with-prerequisites`.
+* **The owner also asked whether `--case` had not been the single-test flag.**
+  It was, and `--tests` took both jobs when it was retired: one identifier or
+  a comma-separated list, with `--tests-file` for a file. The capability was
+  never lost; it was never written down where an operator would find it.
+* **The runbooks named `pytest -k` instead**, which is what `--tests` replaced.
+  Two properties make it the wrong instrument for naming a case: a name no
+  case carries selects nothing and exits 0, and a pytest-owned selector makes
+  the run `manual`, so it yields no verdict.
+* **The harness runbook's example ran nothing.** `pytest -k 11141` matches no
+  identifier in either repository, and reports 965 deselected, 0 selected,
+  exit 0. The document recommending the silent-success selector demonstrated
+  the silent success.
+* **Digressions the user spotted, and the fix:**
+  * **Two of the four commands I wrote for the case repository's runbook did
+    not work**, found by running them rather than by reading them back.
+    `--tag control` alone is refused with `QC_HARNESS_DEPENDENCY_UNMET`
+    because the selection rests on foundations it excludes, and the band
+    example had no `--mode replay`, so a reader following a local-run section
+    would have spent provider quota. Both corrected, and what each command
+    needs is now stated beside it.
+  * **A documented command is not documentation until it has been run.** That
+    is the same rule as a case being verified by injection, applied to prose,
+    and `-k 11141` is what a decade of unrun examples looks like.
+* **Kept rather than removed:** `-k` for a substring sweep, which is what it
+  is good at and what `--tests` deliberately refuses.

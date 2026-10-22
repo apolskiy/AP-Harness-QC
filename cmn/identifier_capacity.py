@@ -36,6 +36,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Iterable, Optional
 
+from cmn.code_standards import walked_nodes
+
 # AN INVENTORY ROW, LIVE OR STRUCK THROUGH. A retired identifier keeps its
 # slot, so unlike the binding checks this reader matches both.
 _ASSIGNED_ROW: Final[re.Pattern[str]] = re.compile(r"^\|\s*(?:~~)?`(\d{6})`(?:~~)?\s*\|")
@@ -169,11 +171,7 @@ def identifier_block_problems(root: Path) -> list[str]:
     for source in sorted((root / "tests").rglob("*.py")):
         if "__pycache__" in source.parts:
             continue
-        try:
-            tree = ast.parse(source.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
-        for node in ast.walk(tree):
+        for node in walked_nodes(source):
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             matched = _IDENTIFIED.match(node.name)

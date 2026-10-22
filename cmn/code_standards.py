@@ -12,8 +12,8 @@ headers; ``encoding_gaps`` for a file opened with no encoding;
 ``unregistered_code_literals`` for a failure code the registry lacks;
 ``artifact_mandate_gaps`` for a workflow step emitting one mandated artifact
 without the other; ``flag_coverage_problems`` for a flag no case proves; and
-the readers ``python_sources``, ``markup_sources``, ``section_lines`` and
-``required_result_fields``.
+the readers ``python_sources``, ``markup_sources``, ``walked_nodes``,
+``section_lines`` and ``required_result_fields``.
 
 Precondition cases in both repositories call these with their own root and
 licence, and a violation fails the unit layer.
@@ -41,6 +41,7 @@ import ast
 import re
 from datetime import date
 from pathlib import Path
+from collections.abc import Iterator
 from typing import Any, Final
 
 import yaml
@@ -197,6 +198,28 @@ def header_problems(root: Path, licence: str) -> list[str]:
             problems.append(f"{relative} lost its module docstring")
 
     return problems
+
+
+def walked_nodes(source: Path) -> Iterator[ast.AST]:
+    """Yield every node of a file's syntax tree, and nothing where it has none.
+
+    **A file that does not parse yields nothing rather than failing a check.**
+    A scanner is not a compiler, and pytest and pylint both report a syntax
+    error against the line that caused it, which a scanner reading many files
+    cannot do as usefully.
+
+    Args:
+        source (Path): The file to read.
+
+    Returns:
+        Iterator[ast.AST]: Every node, in walk order. Empty on a
+        :exc:`SyntaxError`.
+    """
+    try:
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return
+    yield from ast.walk(tree)
 
 
 # How each format writes a comment. The header says the same two things in all
@@ -444,11 +467,7 @@ def encoding_gaps(root: Path) -> list[str]:
     """
     problems: list[str] = []
     for source in python_sources(root):
-        try:
-            tree = ast.parse(source.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
-        for node in ast.walk(tree):
+        for node in walked_nodes(source):
             if not isinstance(node, ast.Call):
                 continue
             name = _called_name(node)

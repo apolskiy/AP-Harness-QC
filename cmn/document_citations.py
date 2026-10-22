@@ -5,8 +5,10 @@
 Created: 2026-10-12
 Last updated: 2026-10-22
 
-This file contains ``numbered_headings``, every numbered heading a document
-carries with its line, and ``document_sections``, the numbers alone;
+This file contains ``live_documents``, the documents that describe the
+repository as it is now rather than as it was; ``numbered_headings``, every
+numbered heading a document carries with its line, and ``document_sections``,
+the numbers alone;
 ``duplicate_sections``, which reports a document numbering one section twice;
 ``citations_in``, the document and section pairs a document cites;
 ``unresolved_citations``, which reports a citation whose target document is in
@@ -105,8 +107,8 @@ _NUMBER: Final[re.Pattern] = re.compile(_SEGMENTS)
 _HISTORICAL: Final[frozenset[str]] = frozenset({"CLAUDE_LOG.md", "CHANGELOG.md"})
 
 
-def _citing_documents(root: Path) -> list[Path]:
-    """Return the documents whose citations are checked.
+def live_documents(root: Path) -> list[Path]:
+    """Return the documents that describe the repository as it is now.
 
     **`.claude/logs/` is excluded and that is not an optimisation.** It holds
     the untracked prompt log, which must not reach a published artifact: a
@@ -211,7 +213,7 @@ def duplicate_sections(root: Path) -> list[str]:
         where every section is numbered once.
     """
     problems: list[str] = []
-    for path in _citing_documents(root):
+    for path in live_documents(root):
         numbers = document_sections(path)
         repeated = sorted({
             number for number in numbers if numbers.count(number) > 1
@@ -294,7 +296,7 @@ def unresolved_citations(root: Path, owned: Iterable[str] = ()) -> list[str]:
     sections = {name: set(document_sections(path)) for name, path in targets.items()}
     extra = frozenset(owned)
     problems: list[str] = []
-    for path in _citing_documents(root):
+    for path in live_documents(root):
         where = path.relative_to(root).as_posix()
         for document, number in citations_in(path):
             if document not in targets or document in extra:
@@ -353,7 +355,7 @@ def disordered_sections(root: Path) -> list[str]:
     Design: ``.claude/rules/code-style.md`` section 7.5.
     """
     problems: list[str] = []
-    for path in _citing_documents(root):
+    for path in live_documents(root):
         where = path.relative_to(root).as_posix()
         headings = numbered_headings(path)
         for index in range(1, len(headings)):

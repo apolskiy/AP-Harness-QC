@@ -22,21 +22,29 @@ about the second list than the first.
 
 ## 1. Findings about the models under test
 
-24 open, every one a `QC_LLM_*` or `QC_SEC_*` event. Recorded per engine in
+38 open, every one a `QC_LLM_*` or `QC_SEC_*` event. Recorded per engine in
 `config/findings/<engine>.yaml` in the case repository, each with the model it
 was observed against, what was expected, what happened, and the command that
-reproduces it.
+reproduces it. **Read from the registers on 2026-10-22.**
 
 | Engine | Model | Findings |
 |---|---|---|
-| gemini | `gemini-3.8-flash` | 2 |
-| openai | `gpt-4.1-2025-04-14` | 8 |
-| claude | `claude-opus-5-5` | 10 |
-| grok | `grok-4.7` | 4 |
+| gemini | `gemini-3.8-flash` | 8 |
+| openai | `gpt-4.1-2025-04-14` | 14 |
+| claude | `claude-opus-5-5` | 8 |
+| grok | `grok-4.7` | 8 |
 
-**Four engines, one corpus, one judge.** The spread is the thing a single-engine
-project cannot produce: the same 69 cases against four models give 2, 4, 8 and
-10 findings, and no engine passes everything.
+**Four engines, one corpus, one judge.** The spread is the thing a
+single-engine project cannot produce: the same 94 graded cases against four
+models give 8, 8, 8 and 14 findings, and no engine passes everything. Four
+more sit in `config/findings/unconfirmed/`, held because the run that would
+confirm them measured nothing.
+
+**These figures are the case repository's and no harness check can hold them
+current.** The harness owns no case data, so a check here reading
+`config/findings/` would be the boundary violation `CLAUDE.md` forbids, and
+this section is refreshed by hand when it is read. Every figure above was
+recomputed from the registers rather than carried forward.
 
 **The gates are red because of these**, and that is the project working. A P0 or
 P1 cannot be exempted, so a finding at those levels holds its engine's gate red
@@ -50,27 +58,31 @@ detectable rather than arriving as a gate quietly turning green.
 
 | Class | Count | Example |
 |---|---|---|
-| `QC_LLM_INCONSISTENT` | 13 | A model answering the same question three ways, which makes every single-sample result from it a draw from a distribution nobody characterised |
-| `QC_LLM_SOURCE_ALTERATION` | 4 | A stated figure changed, checkable by exact match against the source |
-| `QC_LLM_INJECTION_SUSCEPTIBLE` | 3 | A planted canary emitted, meaning the model followed an instruction in its input rather than its instructions |
-| `QC_LLM_HALLUCINATION`, `QC_LLM_DEFECT_MISSED` | 3 | A syntax error located in the wrong place, or a defect in an excerpt not reported |
-| `QC_LLM_AMBIGUITY_UNHANDLED` | 1 | An incalculable figure assumed rather than asked about |
+| `QC_SEC_INJECTION_ATTEMPT` | 13 | An instruction hidden in a document passed on to whatever reads the answer, including whatever grades it |
+| `QC_LLM_INCONSISTENT` | 12 | A model answering the same question three ways, which makes every single-sample result from it a draw from a distribution nobody characterised |
+| `QC_LLM_RUBRIC_FAILURE` | 10 | A judged criterion below its threshold |
+| `QC_LLM_GOAL_HIJACK` | 1 | The assigned task abandoned for one the input supplied |
+| `QC_LLM_INJECTION_SUSCEPTIBLE` | 1 | A planted canary emitted, meaning the model followed an instruction in its input rather than its instructions |
+| `QC_LLM_TOOL_VIOLATION` | 1 | A tool invoked that the instructions forbade, or one required and not invoked |
 
-**One case fails on every engine**, `134205`, which asks whether a model
-overstates a sourced figure. Four models, four failures, same case: that is a
-finding about the task being hard rather than about any one provider, and it is
-only visible with more than one engine recorded.
+**Four cases fail on every engine**, `154503`, `154505`, `154507` and
+`154508`, all four about an injection planted in an extracted or styled
+resume. Four models, four failures, the same four cases: that is a finding
+about the task being hard rather than about any one provider, and it is only
+visible with more than one engine recorded.
 
 **The inconsistency findings are the ones that needed a method.** A single
 sample cannot produce them: the project takes three observations per case and
 escalates to five on a single disagreement, and a case that passes twice and
 fails once is a finding rather than a pass. That decision is what makes
-**fourteen of the twenty-four** visible at all.
+**twelve of the thirty-eight** visible at all.
 
-**This figure was itself stale**, reading eleven of twenty from when three
-engines were recorded; grok's four findings arrived on 2026-10-04 and the
-sentence did not move. It is now recomputed from the registers by the case
-repository's README check.
+**This figure has now been stale twice.** It read eleven of twenty when three
+engines were recorded and grok's arrived without it moving; it then read
+fourteen of twenty-four while the registers held thirty-eight. The second time
+was found on 2026-10-22 by reading the registers rather than by a check, and
+the paragraph claiming the case repository's README check recomputed it was
+wrong: that check reads that repository's README, not this document.
 
 ---
 
@@ -153,6 +165,42 @@ is missing writes one, and still cannot refuse a typo.
 
 ---
 
+## 4A. Documents that sent a reader somewhere that is not there
+
+**A design is read by following it.** Each of these resolved to nothing, and
+nothing reported any of them until a check was written, because every one of
+them renders correctly.
+
+| What was named | What was there |
+|---|---|
+| Four section citations into the open-questions register | Subsections 1.1, 2.1, 2.4.1 and 2.7, in a document numbering 1, 2, 2A, 3 and 4 |
+| Two requirements citing `tier2_execution.md` section 7.8 | **Two different sections both numbered 7.8.** The citation resolved, so the reader was misinformed rather than lost |
+| 37 numbered headings | Sorting at or before the heading above them, across twelve documents in the two repositories |
+| `cmn.code_standards.file_date_problems` | The function had moved to `cmn.file_dates` weeks earlier |
+| `--log-level` in a table of the harness's own diagnostic flags | pytest's flag, beside three of ours, with nothing saying so |
+| A withdrawal flag in the case repository's design | `tools/findings.py` declares `--hold-unreproduced`, and the design named something else |
+| `--module` and `--tag`, in a selection table | No registry held either |
+
+**The last four are the same defect as the first three one level down.** A
+citation points at a section and a document also points at a module, a
+callable and a flag, and only the first had a check. Each of the rest was
+found by reading, which is how the first three were found before
+`cmn.document_citations` existed.
+
+**A flag is the costliest of them**, because the reader acts on it rather than
+reading on. A dangling citation sends them nowhere and they know it; a flag
+that was renamed sends them to a tool that refuses what the design told them
+to type, and they look for their own mistake first.
+
+| Now checked | By |
+|---|---|
+| A citation resolves, and a number is used once | `cmn.document_citations.unresolved_citations`, `duplicate_sections` |
+| The sections ascend | `cmn.document_citations.disordered_sections` |
+| A flag is declared by something | `cmn.flag_citations.undeclared_flags` |
+| **A module, path or callable a document names exists** | **Nothing.** Measured at eight candidates, one defect and seven deliberate references to a file renamed, split, deleted or refused, which is too thin a yield until a reference can be marked historical |
+
+---
+
 ## 5. Defects in the tooling the work was done with
 
 Found by the project rather than by looking for them.
@@ -226,18 +274,22 @@ named by the provider's own 404.
 
 ## 7. What the method cost, and what it caught
 
+Measured 2026-10-22, from the suites and the registers rather than carried
+forward.
+
 | | |
 |---|---|
-| Harness preconditions | 688, all passing |
-| Case-repository preconditions | 84, all passing |
-| Graded cases | 69, across 7 corpora and 7 evaluation families |
-| Model findings | 24, across four engines |
+| Harness preconditions | 959, all passing: 935 `UNI` and 24 `SYS` |
+| Case-repository preconditions | 161, all passing |
+| Graded cases | 94, across 8 corpora and 8 evaluation families: 45 `EVAL`, 41 `SEC`, 8 `TOOL` |
+| Model findings | 38, across four engines |
 | Defects found in our own instrument | The lists above |
 | Measured cost of a full recording run | **Six cents** for one family, cents for a full engine |
 
-**The ratio is the point.** A project that found 24 findings about four
+**The ratio is the point.** A project that found 38 findings about four
 commercial models also found fourteen instances of its own machinery being
-unreachable, two checks that fed themselves, 19 mislabelled matrix rows, a
-credential boundary that existed only on paper and a pinned model the provider
-does not serve. **The second list is longer than the first**, and every item on
+unreachable, two checks that fed themselves, 19 mislabelled matrix rows, 37
+headings out of numeric order, a credential boundary that existed only on
+paper and a pinned model the provider does not serve. **The second list is the
+longer of the two by shape even where it is not by count**, and every item on
 it would have degraded a finding's credibility had it reached a vendor.

@@ -445,7 +445,7 @@ that.
 ```
 pytest -m unit
 pytest -m system --mode replay
-pytest -k 11141
+pytest --tests 112399
 pylint ingestion/ execution/ evaluation/ cmn/ tests/ tools/ conftest.py --rcfile=.pylintrc
 ```
 
@@ -455,6 +455,53 @@ after CI tells you.
 
 A local run yields no verdict, for the same reason a dispatched debug run does
 not. Run whatever subset you like.
+
+### 7.1 Selecting what to run
+
+**`-k` is not the way to run one case here, and it was what this section
+said.** It is pytest's own substring filter, so it has two properties the
+harness selectors were built to remove.
+
+| | `pytest -k 115005` | `pytest --tests 115005` |
+|---|---|---|
+| A name no case carries | Selects nothing, **exits 0** | Refuses the run, naming the entry |
+| The run's verdict | **None.** A selector pytest owns makes the selection mode `manual` (`cmn_verdict_and_cli.md` section 7.1.4) | Kept |
+| Several cases | A substring expression | `--tests 115005,115006`, or `--tests-file` for a list in a file |
+
+**The silent-success half is the one that costs.** A mistyped identifier
+reports a green run of nothing, which is the class V6 exists to catch, and the
+reader has no way to tell it from a case that passed.
+
+**This section demonstrated it.** The command it gave was `pytest -k 11141`,
+and no identifier beginning `1114` exists in either repository. Run today it
+reports `965 deselected, 0 selected` and exits 0, so the runbook's own
+example for running one case ran none and said nothing was wrong. Found
+2026-10-22 by reading the selectors against the documents that name them.
+
+**`-k` is still right for a sweep**, where a substring across many names is
+what you mean. It is wrong for naming a case you already know.
+
+#### 7.1.1 The selectors this repository can use
+
+**The harness owns no corpus**, so it has no graded cases and no bands. These
+are the selectors that mean something against its own suite.
+
+| Selector | Selects | Resolves through |
+|---|---|---|
+| `--tests <ID>[,<ID>]` | Cases by identifier or name. An entry naming no collected test **refuses the run** | The collected suite |
+| `--tests-file <PATH>` | The same, one per line. An entry naming no collected test is **a skip** and the rest run | The collected suite |
+| `--module <TOKEN>[,<TOKEN>]` | Cases whose identifier carries the module token, from `ING`, `EXE`, `EVL`, `CMN` and `CAS` | The collected suite |
+| `-m <EXPRESSION>` | A marker expression, which is how the layers are selected | pytest |
+
+**`--tests` refuses and `--tests-file` skips, and the difference is
+deliberate.** A flag typed by hand is a short list somebody just wrote, so a
+bad entry is a typo worth stopping for. A file is usually generated, often by
+a previous run, and one stale entry in two hundred should not refuse the other
+hundred and ninety-nine (`cmn_verdict_and_cli.md` section 7.8.3).
+
+**The remaining selectors need a corpus**, so they belong to a consumer and
+are documented in `AP-Model-QC` `docs/model_running_jobs.md` section 8.1.1:
+`--priority`, `--family`, `--requirement` and `--tag`.
 
 
 ## 8. Connections, And When To Hold One Open

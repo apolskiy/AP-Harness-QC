@@ -35,7 +35,6 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112806  a_declared_partition_at_nine_tenths_is_warned_of
 # ------------------------------------------------------------ end of cases
 
-import re
 import warnings
 from pathlib import Path
 from typing import Final

@@ -1613,6 +1613,102 @@ a column policy wired to nothing, an assertion covering one of two halves, a
 gate that could not start, an identifier deduplicated away, and now a mandate
 with no reader.
 
+##### 7.1.0.4 A flag a document names is a flag something declares
+
+Added 2026-10-22, closing the absence section 7.7.5 records: "a comparison
+between the flags a design names and the registry, which does not exist in
+either direction for prose tables".
+
+**Section 7.1.0 asks whether a registered flag does anything.** This asks the
+other direction, whether a flag a reader is told to type exists at all.
+
+| | Asks |
+|---|---|
+| Section 7.1.0, through `flag_coverage.yaml` | Every registered flag is named by a case |
+| This section | Every flag a live document names is declared by something |
+
+**Four reached a document with no declaration behind them.** `--module` and
+`--tag` sat in section 7.1.2's selection table and in no registry, found on
+2026-10-03 by reading. The check found the other two on its first run:
+`--log-level` sits in section 7.1.1's diagnostic table beside three registered
+flags and is pytest's own flag rather than one of ours, and the case
+repository's `consumer_ci.md` sent a reader to the withdrawal flag under a
+name `tools/findings.py` has never declared, its flag being
+`--hold-unreproduced`.
+
+**This section applies to itself**, which is why the dead name is described
+rather than written. A document naming it would carry the defect it reports,
+as `code-style.md` section 7.3 records of a document describing a dangling
+citation.
+
+**The rename is the costlier shape.** A flag that never existed fails the
+moment somebody types it, and they look at the document. A flag that was
+renamed fails identically and sends the reader to look for their own mistake,
+because the document describing the behaviour is the thing that is wrong.
+
+###### What declares a flag
+
+| Declaration | Read from |
+|---|---|
+| The pytest option registry | `cmn.options.registered_options`, one registry for both repositories |
+| A script of this repository | Its own `add_argument` or `addoption` call |
+| Something outside this repository | `cmn.flag_citations.FOREIGN_FLAGS`, naming what owns each flag |
+| A flag of ours, retired | `cmn.flag_citations.RETIRED_FLAGS`, naming the date and the section |
+
+**Parsed rather than matched.** A script's declarations are read from its
+syntax tree, for the reason `112202` and `112226` parse: a file describing
+this rule names these strings, and a substring check reports itself.
+
+###### The foreign registry is not a declared gap, and carries no expiry
+
+`--junitxml` belonging to pytest is a permanent fact rather than an absence
+somebody will close. The idiom `cmn.declared_gaps` enforces, a reason and a
+date, would be wrong here: an entry that lapsed would report pytest as a
+defect on a Tuesday. What an entry carries instead is **what owns the flag**,
+which is the fact a reader needs in order to check it.
+
+| Registry | An entry carries | Expires |
+|---|---|---|
+| `flag_coverage.yaml`, `module_runway.yaml` and the rest | A reason and a date | Yes, by design |
+| `FOREIGN_FLAGS` | The program or script that owns the flag | **No. It records what is true of something else** |
+
+**Two entries are the other repository's scripts**, and that is the split
+rather than an exception to it. A harness design names `--case-branch`, which
+`AP-Model-QC` declares in `tools/harness_pin.py`, and the case repository's
+`CLAUDE.md` quotes `tools/refresh_file_dates.py --root .`, which the harness
+declares and the wheel does not ship. Neither root can resolve the other's
+scripts, so each is declared by name with its owner, which is the boundary
+`code-style.md` section 7.3 already handles for a citation naming the other
+repository's document.
+
+###### A retired flag stays resolvable, and history is not read
+
+`--case` was retired on 2026-10-03 and section 7.8.4 records it. **Twelve live
+lines still name it**, every one of them describing the retirement, and that
+is correct: an identifier stays retired rather than being erased, so a reader
+of stored history can resolve what they find. The registry is what makes it
+resolve, and it is one entry rather than a rule about how such a line is
+worded.
+
+`CHANGELOG.md` and `CLAUDE_LOG.md` are not read at all. They record what was
+true when they were written, and rewriting a progress record to agree with a
+later state is the one thing it must not do, which `testing-standards.md`
+already states about the word for an instrument defect.
+
+###### Enforced, not remembered
+
+`cmn.flag_citations.undeclared_flags` reports every flag a live document names
+that none of the four declarations above holds, naming the document, the line
+and the flag. `MQC_CMN_UNI_400000` through `400002` and `MQC_CAS_UNI_115779`
+call it with each root, the one-implementation-two-callers arrangement
+sections 7.2, 7.3, 7.4 and 7.5 of `code-style.md` already use.
+
+**`MQC_CMN_UNI_400000` is the first identifier in a declared partition**
+(`harness_test_taxonomy.md` section 3.2.1.5). The partition was declared the
+same day with nothing in it, which left `select_blocks` reading digits no
+identifier carried and one injection of six uncaught. This is the first case
+the record resolves rather than the digits.
+
 #### 7.1.1 Diagnostic runs
 
 Troubleshooting and hotfix verification need a single case run from a terminal, not a CI pipeline.
@@ -1621,10 +1717,10 @@ Troubleshooting and hotfix verification need a single case run from a terminal, 
 |---|---|
 | `--tests <ID>[,<ID>]` | Select cases by identifier, or `@file` for a list (§7.8). **Replaced `--case`, retired 2026-10-03** |
 | `--observations <N>` | Override the configured observation count |
-| `--log-level <LEVEL>` | Raise verbosity for the run |
+| `--log-level <LEVEL>` | Raise verbosity for the run. **pytest's own flag** rather than one of ours, so the registry does not hold it (section 7.1.0.4) |
 | `--out-dir <PATH>` | Write artifacts somewhere a real run will not be overwritten |
 
-**`--case` validates the identifier.** `pytest -k` on an unknown name selects zero tests and does not fail, which is the same silent-success class as the empty run that V6 exists to catch. An unknown identifier is an error naming it, not a run of nothing reporting success.
+**`--tests` validates the identifier**, which is what it was retired for rather than renamed. `pytest -k` on an unknown name selects zero tests and does not fail, the same silent-success class as the empty run V6 exists to catch. An unknown identifier is an error naming it, not a run of nothing reporting success. The paragraph said `--case` in the present tense for nineteen days after the row above retired it, found 2026-10-22 while reading every flag these documents name.
 
 **`--observations` matters for cost.** A4 gives every case three observations; troubleshooting usually needs one, and in live mode three spends triple the quota to answer a question one answers.
 
@@ -2184,6 +2280,8 @@ This project has found the same defect at least nine times: the thing is right a
 | What the recorded reason got wrong | It said the vocabulary was absent. There were **79 tags and every task carried one**; what was missing was anything that could refuse a tag not among them |
 
 **The check that would have caught both** is a comparison between the flags a design names and the registry, which does not exist in either direction for prose tables. §7.1.0 records the reverse case, a registry entry nothing reads, and it was found the same way: by reading rather than by a check.
+
+**Closed 2026-10-22 by §7.1.0.4**, in the direction that found two more. The other direction was measured at the same time and is clean, every one of the 26 registered flags being named by a live document.
 
 #### 7.7.6 The case index, which closes `--tag` and fixes `--family`
 
@@ -3267,8 +3365,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112907` | B | `a_graded_case_is_not_recorded_as_a_precondition` (taxonomy 8.2.4) |
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
+| `400000` | N | `a_flag_a_document_names_and_nothing_declares_is_reported` (7.1.0.4) |
+| `400001` | P | `a_flag_declared_outside_this_repository_is_not_reported` (7.1.0.4) |
+| `400002` | P | `this_repository_names_no_undeclared_flag` (7.1.0.4) |
 
-**Inventory: 436 cases, 263 negative, 124 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 439 cases, 264 negative, 126 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
