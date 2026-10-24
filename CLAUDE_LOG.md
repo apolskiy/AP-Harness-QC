@@ -12794,3 +12794,21 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   non-blocking decision from the other end, that a survivor is a statement
   about coverage rather than about a measurement; this is the same boundary
   read from inside the tool.
+* **Then the push proved I had written the owner's own rule and broken it.**
+  Section 7.4.3 said the publishing job "fails visibly on its own row without
+  blocking anything". A job failing inside a gate workflow concludes the
+  **run** as failure, and the case repository's pairing resolver reads a run's
+  conclusion: the Pages setting was not enabled, the deploy returned 404, and
+  **all four model gates refused the commit** with
+  `QC_HARNESS_UPSTREAM_UNVERIFIED` while every harness gate had passed on both
+  platforms. Four publisher runs skipped behind them.
+* **The cost of the shellcheck line, totalled honestly**: harness unit, system
+  and publish skipped on one push; on the next, four model gates refused and
+  four publishers skipped. One `ls` in a file count, and then one setting,
+  stopped the repository that measures models twice in half an hour.
+* **`continue-on-error: true` is the mechanism the sentence assumed**, and
+  `MQC_CMN_UNI_420005` asserts it for a publisher that shares a workflow with
+  gates while not requiring it of one that is a workflow of its own. **This is
+  the authoring rule's third row again**: the hole was in the design, which
+  claimed a property of a mechanism that did not exist, and the implementation
+  was faithful to it.

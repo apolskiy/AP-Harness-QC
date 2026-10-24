@@ -1165,8 +1165,27 @@ that needed changing is there.
 
 **A rendering failure says nothing about the code.** The deploy is a job of its
 own taking `needs:` on the gates, so it runs only against results that passed,
-and it fails visibly on its own row without blocking anything. That is the
-arrangement Gate 8 already has for the same reason (section 5A).
+and it fails visibly on its own row. That is the arrangement Gate 8 already has
+for the same reason (section 5A).
+
+**"Without blocking anything" takes `continue-on-error`, and this section said
+it before it was true.** Corrected 2026-10-24, on the first push where the job
+ran: a job failing inside a gate workflow makes the **run** conclude failure,
+and the case repository's pairing resolver reads a run's conclusion rather than
+a job's. So a Pages setting nobody had enabled refused all four model gates
+with `QC_HARNESS_UPSTREAM_UNVERIFIED`, and the repository that measures models
+measured nothing.
+
+| | The job | The run |
+|---|---|---|
+| Without `continue-on-error` | Red | **Red**, and every consumer pinning the commit refuses it |
+| With it | **Red, on its own row** | Green, which is what the gates established |
+
+**The rule is about reachability, as the trigger rule is.** A publishing job in
+a workflow whose other jobs are gates declares `continue-on-error: true`; a
+publisher that is a workflow of its own, as the case repository's is, has no
+conclusion to poison and declares nothing. `MQC_CMN_UNI_420005` checks the
+first and does not require the second.
 
 **Least privilege, on that job alone.** `pages: write` and `id-token: write`
 are declared on the publishing job rather than at the workflow level, so no
@@ -1176,8 +1195,11 @@ step that runs a test can reach the deployment credential.
 
 **Pages must be enabled with GitHub Actions as its source**, once per
 repository, in the repository's settings. Until it is, the deploy job fails
-with a permissions error and the gates stay green, which is the correct failure
-shape: the picture is missing and nothing about the measurement is in doubt.
+with `Failed to create deployment (status: 404)` on its own row while the gates
+stay green, which is the correct failure shape: the picture is missing and
+nothing about the measurement is in doubt. **That shape is bought by
+`continue-on-error`** (section 7.4.3), and this paragraph claimed it before it
+was true.
 
 This is the same boundary as the onboarding rule in `testing-standards.md`
 section 5. A setting outside the tree is named in the documentation and not

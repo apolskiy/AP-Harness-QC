@@ -29,6 +29,32 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The publishing job fails without failing the run, 2026-10-24
+
+**A design claiming enforcement it does not have is worse than one claiming
+none**, and this repository's own authoring rule says so. Section 7.4.3 said
+the publishing job "fails visibly on its own row without blocking anything"
+and section 7.4.4 said the gates stay green while Pages is unenabled. Neither
+was true: **a job failing inside a gate workflow makes the run conclude
+failure**, and the case repository's pairing resolver reads a run's conclusion
+rather than a job's.
+
+So the first push where the job actually ran cost this: every harness gate
+passed on both platforms, the report generated and uploaded, the deploy failed
+with `status: 404` because Pages was not enabled, the run concluded failure,
+and **all four model gates refused the commit** with
+`QC_HARNESS_UPSTREAM_UNVERIFIED`, each skipping its own publisher in turn. A
+repository setting nobody had enabled stopped the repository that measures
+models from measuring anything.
+
+`continue-on-error: true` on the job buys the shape the design described: the
+job is red on its own row and the run concludes success, which is what the
+gates established. **The rule is about reachability**, as the trigger rule is:
+a publishing job sharing a workflow with gates declares it, and a publisher
+that is a workflow of its own, as the case repository's is, has no conclusion
+to poison and declares nothing. `MQC_CMN_UNI_420005` checks the first and does
+not require the second.
+
 ### An audit says what it set aside, 2026-10-24
 
 **Twice in two days a case was written that reads source or the manifest as

@@ -81,6 +81,12 @@ _DEPLOY_ACTION: Final[str] = "actions/deploy-pages"
 # credential that writes the site.
 _DEPLOY_PERMISSIONS: Final[tuple[str, ...]] = ("pages", "id-token")
 
+# WHAT KEEPS A RENDERING FAILURE OFF THE RUN'S CONCLUSION. A consumer's
+# pairing resolver reads the conclusion of a workflow run, not of a job, so a
+# publisher sharing a workflow with the gates has to fail softly or it refuses
+# every consumer pinning the commit (`harness_ci_pipeline.md` 7.4.3).
+_SOFT_FAILURE: Final[str] = "continue-on-error"
+
 # A PULL REQUEST NEVER PUBLISHES. A fork's run cannot hold the credential, and
 # a run that could would overwrite the branch's picture with a proposal's. The
 # rule is about reachability rather than about one guard: a workflow a pull
@@ -401,22 +407,27 @@ def report_publication_gaps(root: Path) -> list[str]:
         ]
 
     problems: list[str] = []
-    for name, job_name, job, reachable in publishers:
-        problems.extend(_publisher_problems(f"{name} job {job_name}", job, reachable))
+    for name, job_name, job, reachable, shares in publishers:
+        problems.extend(
+            _publisher_problems(f"{name} job {job_name}", job, reachable, shares)
+        )
     return problems
 
 
-def _publishing_jobs(root: Path) -> list[tuple[str, str, dict[str, Any], bool]]:
-    """Return every job that generates a report, with whether a proposal reaches it.
+def _publishing_jobs(
+    root: Path,
+) -> list[tuple[str, str, dict[str, Any], bool, bool]]:
+    """Return every job that generates a report, with what its workflow exposes it to.
 
     Args:
         root (Path): The repository root.
 
     Returns:
-        list: The workflow's filename, the job's name, the job, and whether its
-        workflow can be triggered by a pull request.
+        list: The workflow's filename, the job's name, the job, whether its
+        workflow can be triggered by a pull request, and whether other jobs
+        share that workflow.
     """
-    publishers: list[tuple[str, str, dict[str, Any], bool]] = []
+    publishers: list[tuple[str, str, dict[str, Any], bool, bool]] = []
     for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
         definition = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
         # `on:` IS READ AS A BOOLEAN BY A YAML 1.1 LOADER, which is why the
@@ -428,17 +439,24 @@ def _publishing_jobs(root: Path) -> list[tuple[str, str, dict[str, Any], bool]]:
                 str((step or {}).get("run") or "") for step in (job or {}).get("steps") or []
             )
             if _GENERATE_COMMAND in scripts:
-                publishers.append((workflow.name, str(job_name), job or {}, reachable))
+                publishers.append((
+                    workflow.name, str(job_name), job or {}, reachable,
+                    len(definition.get("jobs") or {}) > 1,
+                ))
     return publishers
 
 
-def _publisher_problems(where: str, job: dict[str, Any], reachable: bool) -> list[str]:
+def _publisher_problems(
+    where: str, job: dict[str, Any], reachable: bool, shares: bool
+) -> list[str]:
     """Report what one publishing job is missing.
 
     Args:
         where (str): The workflow and job, for the message.
         job (dict): The job definition.
         reachable (bool): Whether a pull request can trigger its workflow.
+        shares (bool): Whether other jobs share its workflow, which decides
+            whether its failure can reach the run's conclusion.
 
     Returns:
         list[str]: One entry per missing property, empty where it publishes as
@@ -471,6 +489,12 @@ def _publisher_problems(where: str, job: dict[str, Any], reachable: bool) -> lis
         problems.append(
             f"{where} generates no history, so each published report starts the "
             f"trend again"
+        )
+    if shares and not job.get(_SOFT_FAILURE):
+        problems.append(
+            f"{where} publishes beside other jobs and declares no "
+            f"{_SOFT_FAILURE}, so a rendering failure concludes the whole run "
+            f"failure and every consumer pinning the commit refuses it"
         )
     return problems
 

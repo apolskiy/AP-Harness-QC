@@ -405,7 +405,44 @@ class TestMQCGroupingPublication:
             "was accepted, so a proposal could overwrite the branch's report"
         )
 
-        step(5, "a repository rendering nothing at all is reported")
+        step(5, "a publisher beside a gate that fails hard is reported")
+        shared = tmp_path / "shared" / ".github" / "workflows"
+        shared.mkdir(parents=True)
+        (shared / "gate-on-change.yml").write_text(
+            "\n".join([
+                "name: gate-on-change",
+                "on:",
+                "  push:",
+                "jobs:",
+                "  unit:",
+                "    runs-on: ubuntu-24.04",
+                "    steps:",
+                "      - run: pytest -m unit",
+                "  publish:",
+                "    needs: unit",
+                "    runs-on: ubuntu-24.04",
+                "    permissions:",
+                "      pages: write",
+                "      id-token: write",
+                "    steps:",
+                "      - name: Generate the report",
+                "        run: |",
+                "          mkdir -p reports/allure-results/history",
+                "          allure generate reports/allure-results -o allure-report",
+                "      - uses: actions/deploy-pages@v4",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        assert any(
+            "continue-on-error" in gap
+            for gap in report_publication_gaps(tmp_path / "shared")
+        ), (
+            "a publisher sharing a workflow with a gate and failing hard was "
+            "accepted, so a rendering failure would conclude the run failure and "
+            "every consumer pinning the commit would refuse it"
+        )
+
+        step(6, "a repository rendering nothing at all is reported")
         bare = tmp_path / "bare" / ".github" / "workflows"
         bare.mkdir(parents=True)
         (bare / "gate-on-change.yml").write_text(

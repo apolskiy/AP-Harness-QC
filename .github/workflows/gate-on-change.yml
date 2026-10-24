@@ -144,6 +144,12 @@ jobs:
     # proposal's. MQC_CMN_UNI_420005 asserts this condition.
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
+    # IT FAILS ON ITS OWN ROW AND THE RUN STAYS GREEN. A job failing inside
+    # this workflow makes the **run** conclude failure, and the case
+    # repository's pairing resolver reads that conclusion: without this, a
+    # Pages setting nobody had enabled refused four model gates with
+    # QC_HARNESS_UPSTREAM_UNVERIFIED. Design section 7.4.3.
+    continue-on-error: true
     # ON THE JOB AND NOT THE WORKFLOW, so no step that runs a test can reach
     # the credential that writes the site.
     permissions:
