@@ -3,11 +3,12 @@
 """The harness's pytest configuration, which wires the run's hooks and shared fixtures.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file contains the pytest hooks for this repository's suite, which declare
 the execution flags, record the invocation, label each case's Allure severity
-from its priority, select the requested bands and modules, order and enforce
+from its priority and its epic, capability and scenario from the declared
+grouping, select the requested bands and modules, order and enforce
 dependencies between cases, record each assertion as a step, refuse a skipped
 or empty precondition, and print the band summary. It also holds the shared
 fixtures, sample anchors, rubric, task and rule payloads, minimal and furnished
@@ -71,6 +72,7 @@ from cmn.pytest_support import (
     announce_test,
     add_mqc_options,
     configure_invocation,
+    label_grouping,
     label_priority_severity,
 )
 from cmn.dependencies import (
@@ -162,6 +164,9 @@ def pytest_collection_modifyitems(
     # (`harness_test_taxonomy.md` 15.13.1).
     deselect_unrequested_audits(config, items)
     label_priority_severity(items)
+    # AND THE GROUPING A REPORT IS READ BY, from one declaration rather than
+    # from a decorator on each of 239 classes (`harness_test_taxonomy.md` 16).
+    label_grouping(items, config.rootpath)
     # BEFORE THE ORDERING, because `arrange_dependencies` refuses a suite whose
     # dependencies name no collected base, and a band that had dropped its
     # foundations would be exactly that suite.

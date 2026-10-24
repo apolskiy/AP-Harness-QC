@@ -1101,6 +1101,90 @@ JUnit XML and Allure raw results, per `testing-standards.md` section 5. No bespo
 
 90 days, GitHub's maximum for public repositories. This is why durable history depends on something outside this repository collecting artifacts, and why the project does not attempt its own history store.
 
+### 7.4 The report is generated and published, and the artifact stays the contract
+
+Added 2026-10-24 at the project owner's ruling, with the reason the ruling
+came from: pytest output answers which case failed, and the report is what a
+reader assesses readiness from.
+
+**Nothing rendered the results.** Every run uploaded Allure raw results and
+`harness_running_jobs.md` section 5.2 told a reader to install the Allure
+command line and generate a report from a downloaded artifact. That is three
+steps and a toolchain between a run and the picture, so in practice the
+picture was never looked at, and a format nobody renders is a format nobody
+reads.
+
+| | Answers | Where |
+|---|---|---|
+| JUnit XML | Which case failed | The artifact, as before |
+| Allure raw results | What it did, with its steps and parameters | The artifact, as before |
+| **The generated report** | **Whether the thing is ready**, by feature and by severity | **GitHub Pages, per repository** |
+
+#### 7.4.1 Both repositories publish, and they answer different questions
+
+| Repository | Published by | Says |
+|---|---|---|
+| `AP-Harness-QC` | `gate-on-change.yml`, on a push to the default branch | Instrument health: the preconditions that have to hold before any model result means anything |
+| `AP-Model-QC` | Its graded run | Model readiness, by capability and by engine |
+
+**A pull request does not publish.** A fork's run cannot hold the Pages
+credential, and a run that could would overwrite the default branch's picture
+with a proposal's, so the pull request keeps the artifact it already had.
+
+**The rule is reachability, not one guard**, because the two repositories reach
+it differently. The harness gate is triggered by a push and by a pull request,
+so its publishing job names the event. The case repository gates four targets
+in four workflows on every push, so one publisher there would race three
+others: its publisher sits outside them, triggered by their completion on the
+default branch, and names no event because no pull request can reach it.
+
+#### 7.4.2 Why this is not the history store section 7.3 refuses
+
+**The refusal is about a record of truth, and it stands.** What section 7.3
+rules out is this repository becoming the durable store a collector should be,
+with results that exist nowhere else and a retention policy of its own.
+
+| | The artifacts | The published report |
+|---|---|---|
+| Holds a result that exists nowhere else | No | **No.** Every case in it came from the uploaded artifacts |
+| Read by a downstream collector | Yes, that is the contract | No, and nothing is invited to |
+| Survives the 90 days | No | Yes, which is what makes it worth publishing |
+
+**The trend directory is a convenience and not evidence.** Allure carries
+history by reading the previous report before generating the next, so the run
+fetches the published site's history directory first. Where that fetch finds
+nothing, which is every first run and any run after the site is reset, **the
+report generates without history rather than failing**: a missing trend is a
+weaker picture, and a failed publish over a missing trend would be a job going
+red about nothing.
+
+`testing-standards.md` section 5 carries the amendment, because the sentence
+that needed changing is there.
+
+#### 7.4.3 It is its own job, and it never gates a merge
+
+**A rendering failure says nothing about the code.** The deploy is a job of its
+own taking `needs:` on the gates, so it runs only against results that passed,
+and it fails visibly on its own row without blocking anything. That is the
+arrangement Gate 8 already has for the same reason (section 5A).
+
+**Least privilege, on that job alone.** `pages: write` and `id-token: write`
+are declared on the publishing job rather than at the workflow level, so no
+step that runs a test can reach the deployment credential.
+
+#### 7.4.4 One prerequisite is a repository setting rather than a change here
+
+**Pages must be enabled with GitHub Actions as its source**, once per
+repository, in the repository's settings. Until it is, the deploy job fails
+with a permissions error and the gates stay green, which is the correct failure
+shape: the picture is missing and nothing about the measurement is in doubt.
+
+This is the same boundary as the onboarding rule in `testing-standards.md`
+section 5. A setting outside the tree is named in the documentation and not
+pretended to be code.
+
+`MQC_CMN_UNI_420005` and `MQC_REQ_HAR_CMN_0219`.
+
 ---
 
 ## 8. Secrets

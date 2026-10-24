@@ -3,7 +3,7 @@
 """Unit case for a rule that checks both the model's tool calls and its text.
 
 Created: 2026-10-16
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 Its one case checks :func:`evaluation.pipeline.evaluate_observation` on a rule
 declaring a tool expectation and a programmatic assertion together. The rule
@@ -24,7 +24,6 @@ A failure here is **not a model finding**, so the module carries no priority mar
 
 from typing import Any
 
-import allure
 import pytest
 
 from execution.normalize import ToolCall
@@ -62,8 +61,6 @@ _RULES = type(
 )()
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Evaluation")
 class TestMQCCombinedChecks:
     """Tool checks join the assertions as conjunctive gates."""
 

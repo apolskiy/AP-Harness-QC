@@ -3,7 +3,7 @@
 """Unit preconditions for telling a crash from a failure.
 
 Created: 2026-10-15
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 The case here runs a nested pytest session wired to ``cmn.broken`` and
 ``cmn.band_summary`` the way both repositories wire theirs, and checks that a
@@ -29,8 +29,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-import allure
 import pytest
+
+from cmn.grouping import story
 
 pytestmark = pytest.mark.unit
 
@@ -99,12 +100,10 @@ def test_setup_crashes(broken_setup: None) -> None:
 '''
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Cross-cutting")
 class TestMQCBroken:
     """A crash is broken in every output, and the run says nothing was measured."""
 
-    @allure.story("A crash is broken, not failed")
+    @story("A crash is broken, not failed")
     def MQC_CMN_UNI_112385_a_case_that_crashes_is_broken_and_the_run_exits_3(
         self, tmp_path: Path
     ) -> None:

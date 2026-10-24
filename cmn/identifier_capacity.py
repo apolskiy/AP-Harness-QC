@@ -3,7 +3,7 @@
 """The identifier space: what a six-digit number means, and how much is spent.
 
 Created: 2026-10-18
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 This file contains ``PARTITIONS`` and ``partition_of``, the ranges declared
 with a start and an end rather than derived from digit positions;
@@ -118,6 +118,24 @@ PARTITIONS: Final[tuple[Partition, ...]] = (
         subject="the mutation audit and its declarations",
         continues="1123xx, then 1124xx",
         allocated="2026-10-23",
+    ),
+    Partition(
+        start=420000,
+        end=429999,
+        layer="UNI",
+        module="CMN",
+        subject="the grouping tree a readiness view is read from",
+        continues="nothing, the first subject to begin in a partition",
+        allocated="2026-10-24",
+    ),
+    Partition(
+        start=430000,
+        end=439999,
+        layer="UNI",
+        module="CAS",
+        subject="the grouping tree in the case repository",
+        continues="nothing, a subject beginning now takes a partition",
+        allocated="2026-10-24",
     ),
 )
 

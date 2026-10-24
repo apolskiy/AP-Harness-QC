@@ -3,7 +3,7 @@
 """Result emission, which publishes each case's observations to its Allure result.
 
 Created: 2026-10-04
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file contains ``begin_case``, which clears the previous case's record,
 with ``current_run_context`` and ``reset_run_context`` for the context it keeps;
@@ -38,6 +38,10 @@ that knows whether to attach the reproduction.
 **Nothing here decides anything.** The parameters come from ``cmn.reporting``
 and the fields from ``cmn.metadata``, both pure, because a function that called
 into Allure could only be tested by running a reporter.
+
+**Published through ``cmn.reporter`` rather than through Allure itself**, so
+a machine with no reporting library installed runs the suite and publishes
+nothing, instead of failing to import this module (section 16.7).
 """
 
 import json
@@ -45,10 +49,9 @@ import logging
 from dataclasses import replace
 from typing import Any, Final, Optional
 
-import allure
-
 from cmn.dependencies import inquest_dependency
 from cmn.observations import Observation, RunContext
+from cmn.reporter import reporter
 from cmn.reporting import exchange_report, observation_parameters, vendor_report
 
 logger = logging.getLogger(__name__)
@@ -278,13 +281,13 @@ def publish_result(item: Any, report: Any) -> int:
         item, [observation for observation, _ in recorded]
     )
     for name, value in published_fields(observations, _RUN["context"]).items():
-        allure.dynamic.parameter(name, value)
+        reporter.dynamic.parameter(name, value)
 
     # ALSO A LABEL, which `testing-standards.md` section 4 requires so that
     # root-cause class is filterable rather than only readable.
     chosen = representative(observations)
     if chosen.taxonomy_code is not None:
-        allure.dynamic.label("taxonomy_code", chosen.taxonomy_code)
+        reporter.dynamic.label("taxonomy_code", chosen.taxonomy_code)
 
     # ON A FAILURE, AND A SKIP IS NOT ONE. A skipped report is not passed
     # either, so reading `passed` alone began filing a vendor report for every
@@ -321,10 +324,10 @@ def attach_exchanges(
         list(results),
         [observation.passed for observation, _ in recorded],
     )
-    allure.attach(
+    reporter.attach(
         json.dumps(report, indent=2, default=str),
         name="exchanges",
-        attachment_type=allure.attachment_type.JSON,
+        attachment_type=reporter.attachment_type.JSON,
     )
 
 
@@ -357,10 +360,10 @@ def attach_history(item: Any, recorded: tuple[tuple[Observation, Any], ...]) -> 
         calls,
         [observation.passed for observation, _ in recorded],
     )
-    allure.attach(
+    reporter.attach(
         json.dumps(report, indent=2, default=str),
         name="vendor-report",
-        attachment_type=allure.attachment_type.JSON,
+        attachment_type=reporter.attachment_type.JSON,
     )
     logger.info(
         "attached %d call(s) for %s, which is what a provider ticket is "

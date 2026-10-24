@@ -431,6 +431,8 @@ starts and another ends."
 |---|---|---|---|
 | `400000`-`409999` | `CMN`/`UNI`, governance and traceability | `1123xx`, full at 100 of 100 | 2026-10-22 |
 | `410000`-`419999` | `CMN`/`UNI`, the mutation audit and its declarations | `1123xx`, then `1124xx` | 2026-10-23 |
+| `420000`-`429999` | `CMN`/`UNI`, the grouping tree a readiness view is read from (section 16) | Nothing. The first subject to begin in a partition | 2026-10-24 |
+| `430000`-`439999` | `CAS`/`UNI`, the same subject in the case repository (section 16.5) | Nothing. `1157xx` held 83 of 100 and two categories were free, and a subject beginning now takes a partition | 2026-10-24 |
 
 **One subject per partition, and numbers run in sequence inside it.** No
 sub-partition until something needs one: ten thousand against a hundred is the
@@ -1463,6 +1465,7 @@ runs**, which takes it out of the total rather than putting a non-outcome in it:
 |---|---|---|
 | `local` | Not under CI | The local credential-file loader, which is inert on a runner by design |
 | `paired` | The case repository is checked out beside this one | The one case reading the consumer's hook |
+| `reporter` | The Allure module and its pytest plugin both resolve | The two cases that read what a real reporter wrote (section 16.7) |
 
 ```
 Before:  704 total, 700 executed, 700 passed, 0 failed, 4 skipped   99.44%, green
@@ -3204,6 +3207,45 @@ skipped audits would say the change was measured. The summary names each
 refused module and the line to re-declare. The per-case outcome is unchanged
 from section 15.2.1, because nothing about the survivors was measured.
 
+#### 15.7.1.1 A case that reads the manifest as text is deselected from an audit's own targets
+
+Added 2026-10-24, on the first audit run after section 15.7.2's case was
+written.
+
+**`410003` copies the audited modules and the manifest, and asserts the copy is
+accepted.** That is true of every ordinary run and false of every audit: while
+a module is held, the file on disk is its own unparse, so a copy of it cannot
+hash to the digest declared for the module it came from. The control therefore
+failed, and a failing control refuses the audit rather than reporting kills it
+has not earned (section 15.4).
+
+| | |
+|---|---|
+| What it cost | **Every module refused**, with the audit's own control as the reason, for any audit after 2026-10-23 |
+| Where it was found | A re-measure of `cmn/environments.py` on 2026-10-24, run because the `reporter` scope changed it |
+| Why it was not found sooner | No audit had run since the case was written, and the push that would have run one had not completed |
+
+**The list was re-measured rather than extended one refusal at a time.**
+Deselecting the copy comparison exposed a fifth case, the file-date reader,
+which fails because `ast.unparse` re-emits a docstring as a single string
+literal: the `Created:` and `Last updated:` lines stop being line-shaped text,
+so the reader finds none and reports the file. Rather than add it and run
+again, the targets were run against an unparsed module and every failure read
+at once, which is what the first measurement did and what the entry recording
+it says.
+
+| Run | Named |
+|---|---|
+| The first refusal | `410003` alone, the control stopping at the first failure it reported |
+| The deliberate measurement | `112526` and nothing else, so the list is five and complete as of 2026-10-24 |
+
+**It is the same defect as the digest precondition's, one case along**, and the
+remedy is the one already declared: `AUDIT_TARGETS` deselects it, as it
+deselects the header scan, the runway scan and the digest precondition, for the
+reason this section's heading gives. **A case reading source or the manifest as
+text belongs in that list when it is written**, which is the step that was
+missed.
+
 #### 15.7.2 The job compares every declaration before it measures one
 
 Added 2026-10-24 at the project owner's instruction: "we don't want CI running
@@ -3795,3 +3837,206 @@ full targets; `112429`. The second is the general answer: whatever else makes
 the seeing cases fail on their own, the audit now refuses instead of reporting
 kills. `MQC_REQ_HAR_CMN_0204` and `0205`.
 
+---
+
+## 16. The Grouping Tree, Which A Readiness View Is Read From
+
+Added 2026-10-24 at the project owner's instruction: "allure output is wired
+into all tests. while pytest output is useful for trouble shooting allure
+output is usefull to assess product readiness and gives a discernible
+graphical picture of quality."
+
+### 16.1 The output was wired everywhere and the grouping was not
+
+**The emission is complete and it is enforced.** Every workflow invocation
+passes `--alluredir`, or `--out-dir` which derives it, and
+`MQC_REQ_HAR_CMN_0101` fails the suite where a step emits one mandated
+artifact without the other. Every case publishes its observation fields as
+parameters, its taxonomy code as a label, its severity from the priority
+marker, its numbered steps through `allure.step` and, on a failure, its
+exchange as an attachment (`cmn_verdict_and_cli.md` sections 5.1 to 5.4).
+
+**What a report groups by is a different dimension, and it was almost empty.**
+Measured 2026-10-24 by reading the decorators off the class statements rather
+than by counting the word:
+
+| | This repository | The case repository |
+|---|---|---|
+| `@allure.epic` | **13 of 239 classes** | 65 of 92 |
+| `@allure.feature` | **13 of 239** | 65 of 92 |
+| `@allure.story` | **37 of 970 cases** | 224 of 255 |
+| Modules naming nothing | 89 of 95 | 12 of 39 |
+
+So both repositories published per-case detail into a tree with almost no
+branches on one side of it. A reviewer opening the behaviours view of the
+harness sees 226 classes grouped under nothing, which is the difference
+between an artifact useful for triaging a failure and one a release is judged
+from.
+
+### 16.2 Each of the three labels is derived, and a decorator overrides one
+
+**The rule stood for the project's life and the implementation went the other
+way 226 times.** `testing-standards.md` section 4 has required all three since
+the standard was written, nothing read it, and the single mechanism that does
+work is the one that was never typed by hand: severity, derived from the
+priority marker by a collection hook since A11.5. The project owner ruled on
+2026-10-24 that the labels are derived in that hook.
+
+| Label | Carried by | Value |
+|---|---|---|
+| `epic` | The hook, from `config/allure_features.yaml` | The repository, `AP-Harness-QC` here and `AP-Model-QC` there |
+| `feature` | The hook, from the map in the same file | A capability name from the declared vocabulary |
+| `story` | The hook, from the test class | The class's scenario, `TestMQCMutationLock` reading as "Mutation lock" |
+| `severity` | The hook, from the priority marker | Unchanged, section 4.3 |
+
+**A label a person types is a label a person forgets**, and the cost is not
+one missing branch: a tree that holds some of the suite is read as if it held
+all of it, which is worse than an empty one. Deriving also makes the vocabulary
+a single declaration rather than a convention spread across 95 files.
+
+#### 16.2.1 A derived label is added only where the item declares none
+
+`allure_pytest.utils.allure_labels` unions the label markers an item carries,
+and `epic`, `feature` and `story` are **not** in its `ALLURE_UNIQUE_LABELS`
+set, which holds `severity`, `framework`, `host` and the three suite labels. So
+a hook adding a feature to a class that already declares one publishes **both**,
+and the report grows a branch for each.
+
+**The hook therefore reads the item's own markers first** and adds only the
+label types it finds none of. That makes a decorator an override rather than a
+competitor, which is what keeps the 37 stories here and the 224 in the case
+repository worth more than a derived name.
+
+### 16.3 The vocabulary is capability names, and it is declared rather than typed
+
+**Section 4 named the tier under test, and neither repository used that
+vocabulary.** It lists `Ingestion`, `Execution` and `Evaluation`; this
+repository's 13 labelled classes carry `Cross-cutting`, `Evaluation` and
+`Programmatic assertions`, and the case repository carries fifteen capability
+names such as `Grounding`, `Model security` and `Tool compliance`. **The rule
+was the thing that was wrong**, which is the opposite of the usual direction
+and the reason the owner's ruling settles the vocabulary rather than the
+sweep: a reviewer asks whether grounding is sound, not whether `Execution` is.
+
+| | Holds | Checked by |
+|---|---|---|
+| `epic` | The repository's distribution name | Compared with `pyproject.toml`, so the two cannot drift |
+| `features` | The declared vocabulary, one capability per line | A map value outside it is reported |
+| `modules` | Every collected test module, mapped to one capability | A collected module absent from it is reported, and an entry naming no file is reported |
+
+**A declared map with a check is the pattern this repository already uses**
+for `flag_coverage.yaml`, `mutation_survivors.yaml` and `module_runway.yaml`. A
+new test module fails the unit layer until it declares the capability it tests,
+which is the same shape as the inventory rule: the absence is reported at the
+moment it is created rather than discovered in a report months later.
+
+### 16.4 The story is the class, because the class is the scenario
+
+**A story per case would group nothing.** Deriving it from the behaviour suffix
+every identifier carries gives 970 stories for 970 cases, a level with one leaf
+each, and the test name already carries that text. The class is the grouping a
+module already makes: 239 stories under twelve features reads as a tree.
+
+```
+AP-Harness-QC                        epic
+  The mutation audit                 feature
+    Mutation baseline                story, from TestMQCMutationBaseline
+      112414 an_audit_refuses_...    the case, with its steps and parameters
+```
+
+**The hand-written stories stay**, by section 16.2.1, because a scenario a
+person named reads better than one split out of a class name.
+
+### 16.5 One mechanism, two repositories, two declarations
+
+The hook ships here and the case repository consumes it, exactly as the
+severity hook already does. **Each repository declares its own epic and its own
+map**, because the epic is what tells a collector reading both which one
+produced a result, and a shared file would make that distinction a runtime
+accident. The forced-duplicate rule in `framework-rules.md` section 4.2 does
+not apply: these are two different declarations of two different facts, not two
+copies of one.
+
+**The case repository's cases number from `430000`.** A partition is per layer
+and module, so `CAS`/`UNI` takes its own: `MQC_CAS_UNI_430000` to `430002`
+assert of that repository what `420000` to `420005` assert of this one, through
+the same implementations called with the other root.
+
+### 16.6 What is checked, and what is deliberately not
+
+| Checked | By |
+|---|---|
+| Every collected module declares a capability | `MQC_CMN_UNI_420000` |
+| Every declared capability is in the vocabulary, and every entry names a file | `MQC_CMN_UNI_420001` |
+| The declared epic is the distribution's own name | `MQC_CMN_UNI_420002` |
+| A real reporter writes all three labels for a collected case | `MQC_CMN_UNI_420003` |
+| A case declaring its own story keeps exactly one | `MQC_CMN_UNI_420004` |
+| **Whether a capability is the right name for a module** | **Nothing. It is a judgement, recorded in one file** |
+
+**The last row is the honest limit.** A map entry is a reading of what a module
+is about, and a check comparing it to anything would be comparing it to a
+second copy of the same judgement. What the checks buy is that the judgement
+exists for every module, is spelled from a declared list, and reaches the
+report.
+
+`MQC_REQ_HAR_CMN_0216`, `0217` and `0218`.
+
+### 16.7 Allure is optional at runtime, and the suite runs without it
+
+Added 2026-10-24 at the project owner's instruction, in the same conversation
+as section 16: "while allure is necessary for CI, if they want to run scripts
+from cli on a local machine. I don't want those scripts to fail, because of
+lack of allure. If there is no allure on the machine, or for some reason it did
+not install tests should still run."
+
+**The report is how readiness is assessed and the suite is how it is
+measured.** Only the second has to work everywhere: CI installs the reporting
+extra and publishes a report, and a developer on a fresh clone, or on a clone
+whose install half failed, runs `pytest -m unit` and gets results.
+
+#### 16.7.1 Three ways it failed, measured rather than assumed
+
+Measured by blocking every Allure import in a subprocess and by disabling the
+plugin, which are two different absences:
+
+| What is absent | What happened | Whose defect |
+|---|---|---|
+| The `allure` module | `cmn/emission.py` raised `ImportError` at import, so `conftest.py` never loaded and **no case ran** | Standing, since the emission hook landed on 2026-10-03 |
+| The `allure` module, with the plugin installed | `allure_pytest/plugin.py` imports `allure` itself, so pytest failed at plugin load | A broken install rather than an absent one, and the same remedy covers it |
+| The plugin, with the module present | **`INTERNALERROR: 'allure_label' not found in markers configuration option`**, under `--strict-markers`, before any case executed | **Introduced by section 16**, this same day |
+
+**The third is worth stating plainly because it was a regression of ours.**
+The severity hook adds its label marker only to a case carrying a priority, so
+a precondition run never carried one and this was never reached; the grouping
+hook adds one to **every** collected item. A marker registered by an optional
+plugin and by nothing else therefore turned a reporting nicety into a
+suite that would not start.
+
+#### 16.7.2 Four answers, one per way it failed
+
+| | |
+|---|---|
+| The marker | **Registered in `pytest.ini`**, in both repositories, rather than only by the plugin. It is a forced duplicate, so `framework-rules.md` section 4.2 applies and `MQC_CMN_UNI_112355` compares the two registries |
+| The import | **One module imports Allure**, `cmn/reporter.py`, which exposes `reporter`: the real module where it is installed and a silent stand-in where it is not. The stand-in accepts a parameter, a label, an attachment and a step block, and does nothing with any of them |
+| A case that needs a real reporter | **Declares the `reporter` environment scope** and is deselected where the extra is absent, which leaves the total rather than putting a non-outcome in it (section 7.5.1) |
+| A case that names its own scenario | **`cmn.grouping.story`**, a marker, rather than `@allure.story`. Allure's own decorator applies exactly this marker, so the published label is identical and the import is gone |
+
+**The stand-in is silent and not a warning.** A run with no reporter installed
+is a complete run: its results reach the JUnit artifact and the log, and the
+report is the one thing it does not produce. The person who did not install a
+reporter did not ask for one.
+
+#### 16.7.3 What is checked
+
+| Checked | By |
+|---|---|
+| A run with every Allure import refused passes, and nothing refuses a derived marker | `MQC_CMN_UNI_420006`, which runs a module in such a process |
+| No module outside `cmn/reporter.py` imports the reporting library | `MQC_CMN_UNI_420007`, parsed rather than matched |
+| The marker registries of the two repositories agree | `MQC_CMN_UNI_112355` and `MQC_CAS_UNI_115741`, which already existed |
+
+**The first is a nested run and not a static read**, because what is being
+asserted is that the suite executes: a scanner can say no module imports
+Allure and say nothing about whether a hook refuses a marker at collection,
+which is how the regression above arrived.
+
+`MQC_REQ_HAR_CMN_0220` and `0221`.

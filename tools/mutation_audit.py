@@ -3,7 +3,7 @@
 """Mutation audit, which changes production code one point at a time to find what tests miss.
 
 Created: 2026-10-13
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 This file contains ``mutation_points``, which lists every operator or
 constant change it can make to a module, and ``mutant_source``, which makes
@@ -134,7 +134,7 @@ _RUN_TIMEOUT_SEC: Final[int] = 600
 # process. One means the in-place audit (section 15.15).
 DEFAULT_WORKERS: Final[int] = 4
 
-# THE THREE CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they
+# THE FOUR CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they
 # fail on the reformatting the mutator performs and would kill every mutant for
 # the wrong reason. Measured rather than guessed: the suite was run against an
 # unparsed module and these are what failed. Declared once, for the audit cases
@@ -144,6 +144,18 @@ DEFAULT_WORKERS: Final[int] = 4
 # it was written: the control writes a module as its own unparse, which by
 # construction does not hash to the declared digest, so every audit refused
 # with its own control as the reason (section 15.4.4).
+#
+# AND THE COPY COMPARISON IS THE FOURTH, added 2026-10-24 for the same reason
+# one case along: it copies the audited modules and the manifest and asserts
+# the copy is accepted, which is true of every ordinary run and false of every
+# audit, the module on disk being its own unparse while it is held.
+#
+# THE FILE-DATE READER IS THE FIFTH, and the list was **re-measured** on
+# 2026-10-24 rather than extended one refusal at a time: the targets were run
+# against an unparsed module and this is the only other case that failed.
+# `ast.unparse` re-emits a docstring as one string literal, so the `Created:`
+# and `Last updated:` lines stop being line-shaped text and the reader finds
+# none (section 15.7.1.1).
 AUDIT_TARGETS: Final[tuple[str, ...]] = (
     "-m", "unit",
     "--deselect",
@@ -155,6 +167,12 @@ AUDIT_TARGETS: Final[tuple[str, ...]] = (
     "--deselect",
     "tests/cmn/mqc_uni_mutation_declarations.py::TestMQCMutationDeclarations"
     "::MQC_CMN_UNI_410000_every_audited_module_hashes_to_its_declared_digest",
+    "--deselect",
+    "tests/cmn/mqc_uni_mutation_declarations.py::TestMQCMutationDeclarations"
+    "::MQC_CMN_UNI_410003_a_stale_declaration_from_the_command_line_exits_four",
+    "--deselect",
+    "tests/cmn/mqc_uni_file_dates.py::TestMQCFileDates"
+    "::MQC_CMN_UNI_112526_a_file_date_line_missing_or_stale_is_reported",
 )
 
 

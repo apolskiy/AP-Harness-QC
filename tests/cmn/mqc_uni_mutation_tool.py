@@ -57,12 +57,12 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
-import allure
 import pytest
 import yaml
 
 from tests.cmn.mutation_tool_support import MODULE, SOURCE, write_manifest
 from cmn.case_steps import step
+from cmn.grouping import story
 from tools.mutation_audit import (
     _BACKUP_SUFFIX,
     AUDIT_TARGETS,
@@ -93,12 +93,10 @@ _WORKFLOW = (
 )
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Cross-cutting")
 class TestMQCMutationBaseline:
     """The audit refuses a baseline it cannot vouch for."""
 
-    @allure.story("A baseline that is not the declared one")
+    @story("A baseline that is not the declared one")
     def MQC_CMN_UNI_112363_a_module_not_matching_its_declared_digest_is_refused(
         self, tmp_path: Path
     ) -> None:
@@ -147,7 +145,7 @@ class TestMQCMutationBaseline:
             f"declare, so a reader has to compute it: {undeclared}"
         )
 
-    @allure.story("A control killed part-way through")
+    @story("A control killed part-way through")
     def MQC_CMN_UNI_112364_a_control_rewrite_leaves_a_recoverable_backup(
         self, tmp_path: Path
     ) -> None:
@@ -197,7 +195,7 @@ class TestMQCMutationBaseline:
             "again, which puts its rewrite outside the backup window"
         )
 
-    @allure.story("Declaring a digest keeps the reasons")
+    @story("Declaring a digest keeps the reasons")
     def MQC_CMN_UNI_112365_a_declared_digest_is_written_without_losing_the_reasons(
         self, tmp_path: Path
     ) -> None:
@@ -255,12 +253,10 @@ class TestMQCMutationBaseline:
         assert declared[MODULE]["digest"] == second, "the first entry moved"
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Cross-cutting")
 class TestMQCMutationLock:
     """One audit at a time, and a dead one does not hold a module forever."""
 
-    @allure.story("A live audit holds the module")
+    @story("A live audit holds the module")
     def MQC_CMN_UNI_112377_an_audit_refuses_a_module_a_live_audit_holds(
         self, tmp_path: Path
     ) -> None:
@@ -289,7 +285,7 @@ class TestMQCMutationLock:
             release_lock(module)
         assert not list(tmp_path.glob("*.mutation-lock")), "the lock outlived its audit"
 
-    @allure.story("A dead audit's lock is cleared")
+    @story("A dead audit's lock is cleared")
     def MQC_CMN_UNI_112378_a_lock_left_by_a_dead_audit_is_cleared(
         self, tmp_path: Path
     ) -> None:
@@ -326,12 +322,10 @@ class TestMQCMutationLock:
             release_lock(module)
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Cross-cutting")
 class TestMQCMutationCrash:
     """An audit runs without a terminal and leaves nothing behind when it crashes."""
 
-    @allure.story("No standard input")
+    @story("No standard input")
     def MQC_CMN_UNI_112383_an_audit_run_reads_no_standard_input(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -360,7 +354,7 @@ class TestMQCMutationCrash:
             "standard input, so a session without one cannot start it"
         )
 
-    @allure.story("A crashed control leaves no backup")
+    @story("A crashed control leaves no backup")
     def MQC_CMN_UNI_112384_a_control_that_raises_leaves_no_backup(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -397,12 +391,10 @@ class TestMQCMutationCrash:
         )
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Cross-cutting")
 class TestMQCMutationWorkflow:
     """Gate 8 runs when the harness changes, and says when it could not."""
 
-    @allure.story("Gate 8 runs on a harness update")
+    @story("Gate 8 runs on a harness update")
     def MQC_CMN_UNI_112379_the_mutation_audit_runs_on_a_harness_update(self) -> None:
         """The workflow fires on main for every audited module and reports refusals.
 
@@ -446,7 +438,7 @@ class TestMQCMutationWorkflow:
         )
         assert "secrets." not in source, "an audit of our own code references a credential"
 
-    @allure.story("The declarations are compared before anything is measured")
+    @story("The declarations are compared before anything is measured")
     def MQC_CMN_UNI_410004_the_job_compares_the_declarations_before_it_measures(
         self,
     ) -> None:
@@ -492,12 +484,10 @@ class TestMQCMutationWorkflow:
         )
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Cross-cutting")
 class TestMQCMutationControl:
     """A refused control says which cases failed it."""
 
-    @allure.story("A refused control names its failures")
+    @story("A refused control names its failures")
     def MQC_CMN_UNI_112426_a_refused_control_names_the_failing_cases(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -525,7 +515,7 @@ class TestMQCMutationControl:
         assert refusal is not None and failed in refusal, f"the refusal read {refusal!r}"
 
 
-    @allure.story("The command line audits against the audit's own targets")
+    @story("The command line audits against the audit's own targets")
     def MQC_CMN_UNI_112427_the_command_line_defaults_to_the_audit_targets(self) -> None:
         """No ``--target`` runs the unit layer without the two text-reading cases.
 
@@ -543,7 +533,7 @@ class TestMQCMutationControl:
         step(2, "resolve the targets for a command line naming one")
         assert audit_targets(["tests/cmn"]) == ["tests/cmn"], "a named target was replaced"
 
-    @allure.story("A refusal reaches the operator as an exit code")
+    @story("A refusal reaches the operator as an exit code")
     def MQC_CMN_UNI_410001_a_refusal_from_the_command_line_exits_four(
         self,
     ) -> None:

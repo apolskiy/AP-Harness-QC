@@ -3,7 +3,7 @@
 """Unit tests for what a run publishes about each case and each priority band.
 
 Created: 2026-10-02
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 Its cases check ``observation_parameters`` and ``vendor_report`` in
 ``cmn/reporting.py``, ``emit_result`` in ``cmn/metadata.py`` and the band summary
@@ -47,8 +47,9 @@ A failure here is **not a model finding**, so the module carries no priority mar
 from pathlib import Path
 from typing import Any, Final, Optional
 
-import allure
 import pytest
+
+from cmn.grouping import story
 
 from cmn.code_standards import required_result_fields
 from cmn.metadata import emit_result
@@ -343,12 +344,10 @@ class TestMQCNormativeFieldList:
         )
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Cross-cutting")
 class TestMQCBandSummary:
     """What a band job states about its own selection."""
 
-    @allure.story("A band states both of its denominators")
+    @story("A band states both of its denominators")
     def MQC_CMN_UNI_112332_a_band_summary_states_its_own_denominator(
         self,
     ) -> None:
@@ -436,7 +435,7 @@ class TestMQCBandSummary:
     # **cause** per case. That is a different assertion, so the identifier
     # stays retired rather than being rebound (design section 7.11.3).
 
-    @allure.story("Every skip names its own case and cause")
+    @story("Every skip names its own case and cause")
     def MQC_CMN_UNI_112051_every_skip_names_its_case_and_its_cause(self) -> None:
         """One line per skipped case, carrying the code and what it means.
 
@@ -513,7 +512,7 @@ class TestMQCBandSummary:
         )
         assert any("no code, no cause recorded" in line for line in blank), blank
 
-    @allure.story("A healthy total never hides a blocking failure")
+    @story("A healthy total never hides a blocking failure")
     def MQC_CMN_UNI_112333_a_band_table_total_overriding_a_blocking_band_is_reported(
         self,
     ) -> None:

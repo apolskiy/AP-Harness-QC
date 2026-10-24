@@ -3,7 +3,7 @@
 """Environment scopes, which deselect a case where what it needs is absent.
 
 Created: 2026-10-08
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file contains ``mark_environment`` and ``environment_marker``, which a case uses
 to declare a scope; ``registered_environment_scopes``, ``scope_available``,
@@ -30,6 +30,7 @@ that already knew it and nothing here depends on a consumer existing.
 
 import logging
 import os
+from importlib.util import find_spec
 from configparser import ConfigParser
 from pathlib import Path
 from typing import Any, Final, Optional
@@ -43,7 +44,9 @@ logger = logging.getLogger(__name__)
 # THE REGISTERED SCOPES, pinned like every other registry so that adding one is
 # deliberate: a new scope is a new way for a precondition to leave a run, which
 # is the thing section 7.5.1 exists to control.
-_ENVIRONMENT_SCOPES: Final[frozenset[str]] = frozenset({"local", "paired"})
+_ENVIRONMENT_SCOPES: Final[frozenset[str]] = frozenset(
+    {"local", "paired", "reporter"}
+)
 
 _MARKER: Final[str] = "environment"
 
@@ -52,9 +55,10 @@ def registered_environment_scopes() -> frozenset[str]:
     """Return every registered environment scope.
 
     Returns:
-        frozenset[str]: ``local`` for a developer's machine and ``paired`` for a
-        sibling checkout, which are counted differently by nothing: a case is
-        either this run's to measure or it is not.
+        frozenset[str]: ``local`` for a developer's machine, ``paired`` for a
+        sibling checkout and ``reporter`` for an installed Allure runtime,
+        which are counted differently by nothing: a case is either this run's
+        to measure or it is not.
     """
     return _ENVIRONMENT_SCOPES
 
@@ -96,6 +100,16 @@ def scope_available(scope: str, sibling: str = "", root: Optional[Path] = None) 
         )
     if scope == "local":
         return not under_ci()
+    # THE REPORTING EXTRA, MODULE AND PLUGIN BOTH. A case declaring this reads
+    # what a real reporter wrote, so it needs the plugin that writes results
+    # and the module the plugin imports. Resolved rather than imported, so
+    # asking the question costs nothing and imports nothing
+    # (`harness_test_taxonomy.md` section 16.7).
+    if scope == "reporter":
+        return all(
+            find_spec(package) is not None
+            for package in ("allure", "allure_pytest")
+        )
     base = (root or Path(__file__).resolve().parents[1]).parent
     return bool(sibling) and (base / sibling).is_dir()
 

@@ -3,14 +3,16 @@
 """Workflow standards checks, what the CI definitions must hold, checked before a push.
 
 Created: 2026-10-04
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file contains ``uncapped_spending_steps``, which reports a workflow step
 that can spend on a provider and names no ``--max-spend`` ceiling;
 ``pylint_invocations`` and ``disagreeing_pylint_invocations``, which report a
 pylint command differing from its copies; ``duplicate_yaml_keys``;
-``engine_list_gaps``, a workflow engine list disagreeing with the roster; and
-``unoffered_credentials``, a live-capable workflow missing a credential.
+``engine_list_gaps``, a workflow engine list disagreeing with the roster;
+``unoffered_credentials``, a live-capable workflow missing a credential; and
+``report_publication_gaps``, which reports a repository that renders no report
+or renders one from a job that could publish a proposal's results.
 
 Precondition cases in both repositories call these with their own root, so a
 workflow defect fails the unit layer locally instead of surfacing in CI.
@@ -64,6 +66,35 @@ _EVERY_BRANCH: Final[str] = "**"
 # which is what makes it a debug workflow (harness_ci_pipeline.md section 2).
 _ON_DEMAND_SUFFIX: Final[str] = "-on-demand.yml"
 _UPLOAD_ACTION: Final[str] = "actions/upload-artifact"
+
+# THE PUBLISHING JOB, by what it does rather than by its name. A job is the
+# publisher when it generates the report; everything else is checked of that
+# job, so a renamed job is still found (`harness_ci_pipeline.md` 7.4).
+_GENERATE_COMMAND: Final[str] = "allure generate"
+_DEPLOY_ACTION: Final[str] = "actions/deploy-pages"
+
+# WHAT THE DEPLOYMENT NEEDS AND NOTHING ELSE MAY HAVE. Declared on the job
+# rather than the workflow, so no step that runs a test can reach the
+# credential that writes the site.
+_DEPLOY_PERMISSIONS: Final[tuple[str, ...]] = ("pages", "id-token")
+
+# A PULL REQUEST NEVER PUBLISHES. A fork's run cannot hold the credential, and
+# a run that could would overwrite the branch's picture with a proposal's. The
+# rule is about reachability rather than about one guard: a workflow a pull
+# request cannot trigger needs no condition, and one it can needs the job to
+# name the event.
+_PULL_REQUEST: Final[str] = "pull_request"
+_EVENT_GUARD: Final[str] = "github.event_name"
+
+# THE TREND, WHICH ALLURE CARRIES BY READING THE PREVIOUS REPORT. A job that
+# generates without fetching it publishes a report whose history starts again
+# every run, which reads as a project with no past.
+#
+# THE PATH AND NOT THE WORD. The history has to land in the results directory
+# `allure generate` reads, and a job mentioning the word somewhere else would
+# have satisfied a looser spelling of this: the first injection of
+# `MQC_CAS_UNI_430002` passed for exactly that reason.
+_HISTORY: Final[str] = "allure-results/history"
 
 # A run withholding the judge, written literally, and the input value a debug
 # workflow offers to ask for one (tier3_evaluation.md section 5A.5.3).
@@ -333,6 +364,111 @@ def collectable_debug_uploads(root: Path) -> list[str]:
                         f"{workflow.name} job {job_name} uploads {name!r}, which does not "
                         f"start with {DEBUG_PREFIX!r}"
                     )
+    return problems
+
+
+def report_publication_gaps(root: Path) -> list[str]:
+    """Report what stops this repository publishing a readable report.
+
+    One job generates the report and deploys it. Four properties are checked
+    of it: that it exists, that it deploys what it generated, that it declares
+    the deployment permissions itself, and that it carries the trend forward.
+    A fifth is checked of its reachability: a job in a workflow a pull request
+    can trigger names the event, and a job in a workflow a pull request cannot
+    reach needs no condition.
+
+    **Keyed on the command rather than on a job name**, so renaming the job
+    does not silence the check, which is the same reasoning
+    :func:`artifact_mandate_gaps` uses about the artifact flags.
+
+    Design: ``harness_ci_pipeline.md`` section 7.4.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per gap, empty where the report is published as
+        the design states.
+    """
+    publishers = _publishing_jobs(root)
+    if not publishers:
+        return [
+            f"no workflow runs {_GENERATE_COMMAND!r}, so the raw results are published "
+            f"and nothing renders them"
+        ]
+
+    problems: list[str] = []
+    for name, job_name, job, reachable in publishers:
+        problems.extend(_publisher_problems(f"{name} job {job_name}", job, reachable))
+    return problems
+
+
+def _publishing_jobs(root: Path) -> list[tuple[str, str, dict[str, Any], bool]]:
+    """Return every job that generates a report, with whether a proposal reaches it.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list: The workflow's filename, the job's name, the job, and whether its
+        workflow can be triggered by a pull request.
+    """
+    publishers: list[tuple[str, str, dict[str, Any], bool]] = []
+    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
+        definition = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+        # `on:` IS READ AS A BOOLEAN BY A YAML 1.1 LOADER, which is why the
+        # true key is tried first and the word second.
+        triggers = definition.get(True, definition.get("on", {})) or {}
+        reachable = _PULL_REQUEST in set(triggers)
+        for job_name, job in (definition.get("jobs") or {}).items():
+            scripts = " ".join(
+                str((step or {}).get("run") or "") for step in (job or {}).get("steps") or []
+            )
+            if _GENERATE_COMMAND in scripts:
+                publishers.append((workflow.name, str(job_name), job or {}, reachable))
+    return publishers
+
+
+def _publisher_problems(where: str, job: dict[str, Any], reachable: bool) -> list[str]:
+    """Report what one publishing job is missing.
+
+    Args:
+        where (str): The workflow and job, for the message.
+        job (dict): The job definition.
+        reachable (bool): Whether a pull request can trigger its workflow.
+
+    Returns:
+        list[str]: One entry per missing property, empty where it publishes as
+        section 7.4 states.
+    """
+    problems: list[str] = []
+    steps = [step or {} for step in job.get("steps") or []]
+    uses = " ".join(str(step.get("uses") or "") for step in steps)
+    scripts = " ".join(str(step.get("run") or "") for step in steps)
+    granted = set((job.get("permissions") or {}))
+
+    if _DEPLOY_ACTION not in uses:
+        problems.append(
+            f"{where} generates the report and does not use {_DEPLOY_ACTION}, so "
+            f"nothing publishes what it rendered"
+        )
+    missing = [one for one in _DEPLOY_PERMISSIONS if one not in granted]
+    if missing:
+        problems.append(
+            f"{where} publishes and declares no {', '.join(missing)} permission of "
+            f"its own, so the deploy fails or depends on a workflow-wide grant"
+        )
+    if reachable and _EVENT_GUARD not in str(job.get("if") or ""):
+        problems.append(
+            f"{where} publishes from a workflow a pull request can trigger and "
+            f"names no event condition, so a proposal could overwrite the default "
+            f"branch's report with its own results"
+        )
+    if _HISTORY not in scripts:
+        problems.append(
+            f"{where} generates no history, so each published report starts the "
+            f"trend again"
+        )
     return problems
 
 

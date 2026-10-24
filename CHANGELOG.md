@@ -29,6 +29,111 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The suite runs where Allure is not installed, 2026-10-24
+
+**The reporting extra is CI's dependency, not the suite's**, at the project
+owner's instruction: a script run from the command line on a local machine must
+not fail for the lack of Allure, whether it was never installed or its install
+half failed. Measured by blocking every Allure import in a subprocess and by
+disabling the plugin, which are two different absences, and the suite failed
+three ways.
+
+| What is absent | What happened |
+|---|---|
+| The `allure` module | `cmn/emission.py` raised `ImportError` at import, so `conftest.py` never loaded and **no case ran** |
+| The module, with the plugin installed | The plugin imports `allure` itself, so pytest failed at plugin load |
+| The plugin, with the module present | **`INTERNALERROR` under `--strict-markers`** before any case executed, because `allure_label` was registered by the plugin and by nothing else |
+
+**The third was a regression introduced by the grouping work the same day.**
+The severity hook adds its label marker only to a case carrying a priority, so
+a precondition run never carried one and this was never reached; the grouping
+hook adds one to every collected item.
+
+**Four answers, one per failure.** The marker is registered in `pytest.ini` in
+both repositories rather than only by the plugin, which the existing
+registry-comparison case already checks both ways. One module imports Allure,
+`cmn/reporter.py`, which exposes the real module where it is installed and a
+silent stand-in where it is not, so a run with no reporter records its results
+and publishes no report. A case that reads what a real reporter wrote declares
+the new `reporter` environment scope and is deselected where the extra is
+absent. And a case names its own scenario with `cmn.grouping.story`, a marker,
+rather than `@allure.story`: Allure's decorator applies that same marker, so
+the published label is identical and the import is gone from all 38 test
+modules that had one.
+
+Two cases, `MQC_CMN_UNI_420006` and `420007`, and two requirements,
+`MQC_REQ_HAR_CMN_0220` and `0221`. The README's figures move to 978 cases and
+371 requirements.
+
+### Every audit refused with its own control as the reason, 2026-10-24
+
+**`MQC_CMN_UNI_410003`, written on 2026-10-24, copies the audited modules and
+the manifest and asserts the copy is accepted.** That is true of every ordinary
+run and false of every audit: while a module is held the file on disk is its
+own unparse, so a copy cannot hash to the digest declared for it. The control
+failed, and a failing control refuses the audit rather than reporting kills it
+has not earned.
+
+**It is the digest precondition's defect one case along.** `410000` was
+deselected from `AUDIT_TARGETS` on 2026-10-23 for exactly this reason, and the
+case written the next day did not join it. The list now holds four entries, and
+`harness_test_taxonomy.md` section 15.7.1.1 records the rule a reader needs:
+**a case that reads source or the manifest as text joins that list in the
+change that creates it.** Found by re-measuring `cmn/environments.py`, which
+the new environment scope changed.
+
+### The report groups every case, and it is published, 2026-10-24
+
+**The results were complete and the picture was almost empty.** Every workflow
+invocation already emitted Allure raw results, enforced, and every case already
+published its parameters, its taxonomy code, its severity, its numbered steps
+and, on a failure, its exchange. What a report **groups** by was a different
+dimension, and measuring it found that `@allure.epic` and `@allure.feature`
+carried 13 of this repository's 239 collected classes and a story 37 of its 970
+cases. A reviewer opening the behaviours view saw 226 classes grouped under
+nothing, which is the difference between an artifact for triaging a failure and
+one a release is judged from.
+
+**The standard had required all three on every class since it was written**, and
+three things had gone wrong behind that. No design document covered the grouping
+dimension at all, so there was nothing for the rule to be measured against. The
+vocabulary the rule named, the tier under test, was used by neither repository:
+this one carried `Cross-cutting`, `Evaluation` and `Programmatic assertions`,
+and the case repository fifteen capability names. And nothing checked any of
+it, which is why a rule stood for the project's whole life while the
+implementation went the other way 226 times.
+
+**So the labels are derived rather than typed.** `config/allure_features.yaml`
+declares the epic, the capability vocabulary and one capability per collected
+test module; a collection hook gives every item its epic, its capability and a
+scenario taken from its test class, beside the severity the same hook has always
+derived from the priority marker. A decorator still overrides a derived label
+and never adds to one, because Allure unions them and a second feature is a
+second branch of the tree, so the 37 hand-written stories here and the 224 in
+the case repository keep their wording. A module absent from the map fails the
+unit layer, a capability spelled outside the vocabulary fails it, and an epic
+that is not the distribution's own name fails it.
+
+**And the report is published.** Nothing rendered the raw results: the
+documented way to see a report was to install a toolchain and generate one from
+a downloaded artifact, which is three steps and in practice never taken, so a
+format nobody renders is a format nobody reads. A push to the default branch now
+renders the report and deploys it to GitHub Pages from a job of its own, which
+carries the deployment permissions itself, takes the trend from the previously
+published site, generates without history rather than failing where there is
+none, and never gates a merge. A pull request does not publish: a fork cannot
+hold the credential, and a proposal must not overwrite the branch's picture.
+**Pages must be enabled with GitHub Actions as its source**, once per
+repository, which is a setting rather than a change here.
+
+Six cases, `MQC_CMN_UNI_420000` to `420005`, in the declared partition
+`420000`-`429999` allocated for this subject. Four requirements,
+`MQC_REQ_HAR_CMN_0216` to `0219`. The README's figures move to 976 cases and 369
+requirements, and `testing-standards.md` sections 4 and 5 are rewritten: section
+4 because its vocabulary was the thing that was wrong, and section 5 because its
+refusal of a history store would have refused a rendering of artifacts the run
+already uploaded.
+
 ### The audit asks what it costs nothing to ask, before it measures, 2026-10-24
 
 **One stale declaration cost a full audit and the job went red anyway.** The

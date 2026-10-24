@@ -3,7 +3,7 @@
 """Unit preconditions for what a run may leave out, and what it may not skip.
 
 Created: 2026-10-08
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 The cases here check ``cmn.environments``: that ``refuse_precondition_skips``
 fails a run in which a precondition skipped, that
@@ -134,7 +134,7 @@ class TestMQCEnvironmentScope:
     """A case the environment cannot run is not this run's to measure."""
 
     def MQC_CMN_UNI_112345_a_case_whose_environment_scope_is_absent_is_deselected(
-        self, tmp_path: Path
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Deselected before it runs, so it leaves the total rather than it.
 
@@ -150,7 +150,19 @@ class TestMQCEnvironmentScope:
         """
         # THE REGISTRY IS PINNED, so a new scope is deliberate: each one is a
         # new way for a precondition to leave a run silently.
-        assert registered_environment_scopes() == frozenset({"local", "paired"})
+        assert registered_environment_scopes() == frozenset(
+            {"local", "paired", "reporter"}
+        )
+
+        # THE REPORTING EXTRA IS ASKED FOR AS A RESOLUTION, both packages. A
+        # machine with the module and no plugin cannot read what a reporter
+        # wrote, so the scope is unavailable there as well: the mutation audit
+        # reported the polarity of this test as asserted by nothing
+        # (`harness_test_taxonomy.md` section 16.7).
+        assert scope_available("reporter")
+        monkeypatch.setattr("cmn.environments.find_spec", lambda name: None)
+        assert not scope_available("reporter")
+        monkeypatch.undo()
 
         # A SIBLING THAT EXISTS SATISFIES `paired`, and one that does not, does
         # not. The directory name comes from the case, so this repository names

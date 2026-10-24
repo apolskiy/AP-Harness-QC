@@ -128,6 +128,78 @@ jobs:
           path: reports/
           retention-days: 90
 
+  # THE READINESS VIEW. Gate 7 uploads the raw results and nothing rendered
+  # them: the documented way to see a report was to install a toolchain and
+  # generate one from a downloaded artifact, which is three steps and in
+  # practice never taken. Design section 7.4.
+  #
+  # ITS OWN JOB, NEVER A GATE. A rendering failure says nothing about the
+  # code, so this fails on its own row and blocks nothing, which is the
+  # arrangement Gate 8 already has.
+  publish:
+    name: publish the report
+    needs: [unit, system]
+    # A PUSH ONLY. A fork's run cannot hold the Pages credential, and a run
+    # that could would overwrite the default branch's picture with a
+    # proposal's. MQC_CMN_UNI_420005 asserts this condition.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    # ON THE JOB AND NOT THE WORKFLOW, so no step that runs a test can reach
+    # the credential that writes the site.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      # ONE PLATFORM'S RESULTS, DELIBERATELY. The two runners measure the same
+      # cases and a report merging both would show every case twice. Ubuntu is
+      # the platform the live suite also runs on.
+      - uses: actions/download-artifact@v6
+        with:
+          name: mqc-reports-unit-none-replay-ubuntu-24.04
+          path: downloaded/unit
+      - uses: actions/download-artifact@v6
+        with:
+          name: mqc-reports-system-none-replay-ubuntu-24.04
+          path: downloaded/system
+      - name: Gather them into one results directory
+        run: |
+          mkdir -p reports/allure-results
+          cp -r downloaded/unit/allure-results/. reports/allure-results/ || true
+          cp -r downloaded/system/allure-results/. reports/allure-results/ || true
+          echo "results: $(ls reports/allure-results | wc -l) files"
+      # THE TREND, WHICH ALLURE CARRIES BY READING THE PREVIOUS REPORT. A
+      # missing one generates a weaker report rather than failing the job:
+      # every first run has no site to read, and a job going red over an
+      # absent trend would be red about nothing.
+      - name: Carry the history forward from the published site
+        run: |
+          mkdir -p reports/allure-results/history
+          base="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+          for name in history.json duration-trend.json retry-trend.json categories-trend.json; do
+            curl --silent --fail --create-dirs --max-time 30 \
+              --output "reports/allure-results/history/$name" \
+              "$base/history/$name" || echo "no published $name yet"
+          done
+      - name: Install the Allure command line
+        run: npm install -g allure-commandline@2.41.0
+      - name: Generate the report
+        run: allure generate reports/allure-results -o allure-report --clean
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: allure-report
+      - name: Deploy it
+        id: deployment
+        uses: actions/deploy-pages@v4
+
   # GATES 4 TO 7 ARE NOT HERE, AND THAT IS THE BOUNDARY RATHER THAN AN OMISSION.
   # They ran `pytest -m evaluator`, `-m tool` and `-m sec` and then computed a
   # verdict. This repository contains no graded case: CLAUDE.md states that the

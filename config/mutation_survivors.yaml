@@ -101,9 +101,9 @@ survivors:
           gives the same last element for every string.
         expires_on: 2026-12-31
   cmn/environments.py:
-    digest: d7b1059756dbef7dbfcb242ff26bfd466acc074806b8bdc70ee36c522ac47688
+    digest: 394b7e049995e73bf8e646b9c6422aa6395e880f49025958e75301707b57c643
     accepted:
-      - mutation: "line 99: 1 to 2"
+      - mutation: "line 113: 1 to 2"
         kind: unobservable
         reason: >-
           The default root of a sibling lookup moves one directory up. Telling

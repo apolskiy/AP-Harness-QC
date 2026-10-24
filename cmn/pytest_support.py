@@ -3,13 +3,14 @@
 """Shared pytest hook bodies, which each repository's ``conftest.py`` delegates to.
 
 Created: 2026-09-23
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file contains ``add_mqc_options``, which registers the execution flags
 from the shared option registry; ``configure_invocation``, which records what
 the run was invoked with and adopts the corpus selection and artifact
 destinations; ``require_rostered_engine``; ``label_priority_severity``, which
-turns a priority marker into an Allure severity; and the readers
+turns a priority marker into an Allure severity; ``label_grouping``, which
+gives each item the epic, feature and story a report groups by; and the readers
 ``case_module``, ``case_identifier``, ``item_priority`` and ``announce_test``.
 
 pytest calls these through the hooks of both repositories' ``conftest.py`` at
@@ -46,6 +47,7 @@ The consumer's ``conftest.py`` is therefore a delegation:
     def pytest_runtest_setup(item): enforce_dependencies(item)
     def pytest_collection_modifyitems(config, items):
         label_priority_severity(items)
+        label_grouping(items, config.rootpath)
         select_priority_bands(config, items)
         arrange_dependencies(items)
 
@@ -68,6 +70,7 @@ from typing import Any, Final, Optional
 import pytest
 
 from cmn.config import load_engines, packaged_roster_path
+from cmn.grouping import load_grouping, story_for
 from cmn.options import Option, build_invocation, registered_options
 
 logger = logging.getLogger(__name__)
@@ -375,6 +378,74 @@ def label_priority_severity(items: list[pytest.Item]) -> None:
             )
             continue
         item.add_marker(pytest.mark.allure_label(severity, label_type="severity"))
+
+
+# THE LABEL MARKER ALLURE READS, which both hooks below write and read. A
+# decorator writes the same marker, which is what makes a declared label
+# visible here and therefore overridable.
+_LABEL_MARKER: Final[str] = "allure_label"
+
+
+def _declared_label_types(item: pytest.Item) -> set[str]:
+    """Return every label type an item already carries.
+
+    Args:
+        item (pytest.Item): The collected item.
+
+    Returns:
+        set[str]: The ``label_type`` of each Allure label marker on the item,
+        its class and its module.
+    """
+    return {
+        str(marker.kwargs.get("label_type") or "")
+        for marker in item.iter_markers(name=_LABEL_MARKER)
+    }
+
+
+def label_grouping(items: list[pytest.Item], root: Path) -> None:
+    """Give each collected item the epic, feature and story a report groups by.
+
+    The epic and the capability come from ``config/allure_features.yaml`` and
+    the story from the test class, so the grouping arrives derived rather than
+    typed on 239 classes (``harness_test_taxonomy.md`` section 16).
+
+    **A label an item already declares is left alone.** Allure unions the
+    label markers an item carries and treats none of these three as unique, so
+    adding one beside a declared one publishes both and the report grows a
+    branch for each. A decorator is therefore an override rather than a
+    competitor, which is what keeps a hand-written story worth writing
+    (section 16.2.1).
+
+    **A module with no declared capability is labelled with what there is.**
+    The absence is a unit failure in its own case, and refusing the run from a
+    collection hook would turn a reporting gap into a suite that does not
+    execute.
+
+    Args:
+        items (list): The collected test items.
+        root (Path): The repository root, which the declaration is read from
+            and module paths are taken relative to.
+
+    Returns:
+        None
+    """
+    grouping = load_grouping(root)
+    for item in items:
+        declared = _declared_label_types(item)
+        holder = getattr(item, "cls", None)
+        story = story_for(holder.__name__) if holder is not None else ""
+        try:
+            module = item.path.relative_to(root).as_posix()
+        except ValueError:
+            module = ""
+        wanted = (
+            ("epic", grouping.epic),
+            ("feature", grouping.modules.get(module, "")),
+            ("story", story),
+        )
+        for label_type, value in wanted:
+            if value and label_type not in declared:
+                item.add_marker(pytest.mark.allure_label(value, label_type=label_type))
 
 
 # Identifiers look like MQC_<MODULE>_<LAYER>_<5 digits>_<behaviour>.

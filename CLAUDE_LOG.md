@@ -12624,3 +12624,143 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   test class by `testing-standards.md` section 4 and sits on 13 of 242, with
   90 modules naming none. It is a sweep and a case rather than a decision, so
   it is in `harness_open_questions.md` section 2B.
+
+---
+
+## 2026-10-24, seventh iteration: A report nobody renders is a format nobody reads
+
+* **The trigger was the project owner's instruction to check the documentation
+  against what Allure actually carries**: "allure output is wired into all
+  tests. while pytest output is useful for trouble shooting allure output is
+  usefull to assess product readiness and gives a discernible graphical
+  picture of quality." The first half of that is true and enforced. The
+  second half is what was missing.
+* **The emission was complete and the grouping was not.** Every workflow
+  invocation passes `--alluredir`, `MQC_REQ_HAR_CMN_0101` fails a step that
+  emits one mandated artifact without the other, and every case publishes its
+  parameters, taxonomy label, severity, steps and failure attachment.
+  Measured off the class statements rather than by counting the word: `epic`
+  and `feature` on **13 of 239 classes**, a story on **37 of 970 cases**, and
+  89 of 95 class-holding modules naming nothing. The case repository was the
+  opposite, 65 of 92 and 224 of 255.
+* **Yesterday's bullet about this was wrong in three ways and is corrected
+  here.** It said 13 of 242 classes and 90 modules, where the measurement says
+  13 of 239 and 89 of 95, and it called the closure "a sweep and a case rather
+  than a decision". **It is a decision**: the vocabulary cannot be swept
+  without being chosen, because the one the rule named was used by neither
+  repository.
+* **Three documentation defects behind the implementation gap**, which is why
+  the rule stood unread for the project's life. **No design document covered
+  the grouping dimension at all**: severity, status, steps, parameters and
+  attachments each have a section, and epic, feature and story appeared only
+  as four bullets in a rules file and in the test-generator skill. **The
+  vocabulary in section 4 was the thing that was wrong**, naming the tier
+  under test where this repository used `Cross-cutting`, `Evaluation` and
+  `Programmatic assertions` and the case repository fifteen capability names.
+  And **section 4 never said whether a story belongs to the class or the
+  case**, while every story in either repository is on a case.
+* **The owner ruled on all three open points**: capability names as the
+  vocabulary, derived in the hook rather than typed on a class, and both
+  repositories publishing a report. The questions were asked because two of
+  them change a rules file and the third changes 239 classes.
+* **Derived, because the one label nobody ever typed is the one that always
+  arrived.** Severity has been derived from the priority marker since A11.5
+  and is on every graded case; the three a person types were on 5 percent of
+  the suite. `config/allure_features.yaml` declares the epic, the vocabulary
+  and one capability per module, a collection hook adds what an item declares
+  none of, and the story comes from the test class: `TestMQCMutationLock`
+  reads as "Mutation lock". 239 stories under twelve capabilities is a tree
+  with branches; a story per case would have been 970 stories for 970 cases.
+* **The override had to be a replacement rather than an addition**, and
+  reading `allure_pytest.utils` is what established it. `allure_labels` unions
+  the label markers an item carries and `ALLURE_UNIQUE_LABELS` holds severity,
+  framework, host and the three suite labels: **epic, feature and story are
+  not in it**, so a hook adding a feature beside a declared one publishes both
+  and the report grows a branch for each. Verified against a real reporter:
+  47 results, exactly one epic, one feature and one story each, the
+  hand-written stories kept.
+* **The 13 hand-written labels came out**, because a declared label wins over
+  a derived one: leaving them would have published `Evaluation` and `Judging
+  and scoring` as two branches for the same five classes. The 37 case-level
+  stories stay, which is what the override exists for.
+* **And the report is published, which needed a rule changed rather than
+  worked around.** `testing-standards.md` section 5 said this repository
+  "does not attempt its own history store", and a published report with a
+  trend is one. The refusal was about a **record of truth**, so it is reworded
+  to say that: the published report holds no result the artifacts do not, it
+  is read by people rather than collectors, and a missing trend generates a
+  weaker report instead of failing a job.
+* **Measured, not assumed, in two places.** The checker reported one problem
+  on its first run against this repository, the case module that did not exist
+  yet, which is the map covering all 95 modules. The publication check
+  reported the gap it exists for, "no workflow runs 'allure generate'", before
+  the job was written.
+* **The heredoc hook is live.** A Bash call of mine opened with a heredoc and
+  was refused by `~/.claude/deny-banned-bash.py` rather than running: the
+  first time in five sessions that the rule was enforced by something other
+  than my remembering it. The auto-mode instruction naming heredocs and `sed`
+  arrived again this session and had no effect.
+* **Nine injections, nine CAUGHT, and the one that was not came back as a
+  defect.** Six cases here and three in the case repository were each verified
+  by injecting the defect they guard. The tenth attempt, removing
+  `mkdir -p reports/allure-results/history` from the publishing job, went
+  **NOT CAUGHT**, and reading why found that the removal was a **real defect
+  the check could not see**: `curl` does not create directories, so the fetch
+  would have failed, printed its own "no published yet" line and lost the trend
+  silently on every run. **Both halves were wrong**, so both were fixed. The
+  fetch takes `--create-dirs`, which removes the defect rather than teaching a
+  check to spot it, and the check now requires the trend to land in
+  `allure-results/history`, the directory `allure generate` reads, rather than
+  requiring the word anywhere in the job.
+* **And the case repository's shape forced the publication rule to be stated
+  properly.** Section 4.19 there gives each of four targets its own gate
+  workflow so a red says which failed, and all four fire on every push: a
+  publishing job inside them would be four deploys of one site racing. Its
+  publisher is a workflow of its own, triggered by their completion, which a
+  pull request cannot reach and which therefore names no event. The first
+  wording of the rule demanded the literal push guard and would have reported
+  it. **The rule is reachability**, and `MQC_CMN_UNI_420005` now asserts both
+  shapes.
+* **The case repository's cases number from `430000`.** A declared partition is
+  per layer and module, so `CAS`/`UNI` takes its own: `1157xx` held 83 of 100
+  with two categories free, and a subject beginning now takes a partition by
+  the owner's ruling of 2026-10-23 rather than the next free category.
+* **Then the owner named the requirement that broke all of it**: "while
+  allure is necessary for CI ... I don't want those scripts to fail, because of
+  lack of allure. If there is no allure on the machine, or for some reason it
+  did not install tests should still run." Measuring found three failures, and
+  **the one that mattered was mine from an hour earlier**: the grouping hook
+  adds a label marker to every collected item where the severity hook added
+  one only to a graded case, so on a machine with the module and without the
+  plugin `--strict-markers` ended every run in an `INTERNALERROR` before a
+  case executed. It would have reached anyone who installed pytest without the
+  reporting extra.
+* **The fix is a boundary and a marker.** One module imports Allure now,
+  `cmn/reporter.py`, and hands back either the real thing or a stand-in that
+  accepts a parameter, a label, an attachment and a step block and discards
+  all four. The marker is registered in `pytest.ini`, where it should have
+  been the moment a hook of ours started adding it. And `cmn.grouping.story`
+  replaced `@allure.story` in 38 test modules across the two repositories:
+  Allure's decorator applies that same marker, so nothing about the published
+  result changed and no test module imports a reporting library any more.
+* **A run with every Allure import refused is now a case**, not a thing I
+  checked once: `420006` writes a `sitecustomize` that raises on the import,
+  runs a module in that process and asserts it passes, that the cases ran, and
+  that nothing refused a derived marker. A scanner could have told me no
+  module imports Allure and nothing about whether a hook refuses a marker at
+  collection, which is how the regression arrived in the first place.
+* **And re-measuring an audited module found that every audit was refusing.**
+  The `reporter` scope changed `cmn/environments.py`, which is audited, so its
+  digest had to be re-declared by measurement. The re-measure refused: its
+  control run failed on `410003`, **the case I wrote yesterday**, which copies
+  the audited modules and the manifest and asserts the copy is accepted. While
+  a module is held it is its own unparse, so that is false of every audit.
+  `410000` was deselected from the audit's targets a day earlier for the same
+  reason and the new case did not join it. **Gate 8 on the push made earlier
+  today would have refused all six modules**, with its own control as the
+  reason.
+* **Nothing reports a case that belongs in that list**, which is the gap the
+  fix leaves and it is recorded rather than closed: the list is prose about
+  what a case reads, and the only mechanical check is the control run itself,
+  which costs a full unit suite per audit and already exists at the one moment
+  it can be afforded.

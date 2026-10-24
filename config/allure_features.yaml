@@ -1,0 +1,170 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+# The grouping tree a readiness view is read from: the epic this repository
+# publishes under, the capability vocabulary, and which capability each
+# collected test module tests.
+#
+# THE RULE IS `harness_test_taxonomy.md` SECTION 16. The three grouping
+# labels are derived at collection from this file and from the test class,
+# because the typed form carried 13 of 239 classes while
+# `testing-standards.md` section 4 required all three on every one of them.
+#
+# CAPABILITY NAMES, NOT TIERS, at the project owner's ruling of 2026-10-24. A
+# reviewer asks whether the verdict is sound or the mutation audit is honest,
+# not whether `cmn` is. The tier is already carried by the module token in
+# every identifier and by the suite labels Allure derives from the path.
+#
+# A MODULE ABSENT FROM `modules` FAILS THE UNIT LAYER, which is the point: a
+# new test module declares what it is about at the moment it is written rather
+# than being discovered as an unlabelled branch in a report months later.
+# `MQC_CMN_UNI_420000` reports the absence and `420001` a value spelled
+# outside the vocabulary below.
+#
+# WHAT IS NOT CHECKED is whether a capability is the right reading of a
+# module. That is a judgement, and a check comparing it to anything would be
+# comparing it to a second copy of the same judgement (section 16.6).
+
+# The epic every result from this repository carries. Compared with the
+# distribution name in `pyproject.toml` by `MQC_CMN_UNI_420002`, so the two
+# cannot drift: the epic is what tells a collector reading both repositories
+# which one produced a result.
+epic: AP-Harness-QC
+
+# The vocabulary. A value in `modules` outside this list is reported, so the
+# tree cannot grow a branch by typo.
+features:
+  - Case ingestion
+  - Engine dispatch
+  - Judging and scoring
+  - Verdict and bands
+  - Selection and invocation
+  - The result record
+  - The readiness view
+  - Governance and traceability
+  - Project standards
+  - The dependency cascade
+  - The mutation audit
+  - Whole-chain integration
+
+modules:
+  # Ingestion: loading, validation and referential integrity.
+  tests/ingestion/mqc_sys_pipeline.py: Case ingestion
+  tests/ingestion/mqc_uni_adversarial_rubric.py: Case ingestion
+  tests/ingestion/mqc_uni_case_identifiers.py: Case ingestion
+  tests/ingestion/mqc_uni_coverage.py: Case ingestion
+  tests/ingestion/mqc_uni_invariants.py: Case ingestion
+  tests/ingestion/mqc_uni_loaders.py: Case ingestion
+  tests/ingestion/mqc_uni_planted_score.py: Case ingestion
+  tests/ingestion/mqc_uni_schemas.py: Case ingestion
+
+  # Execution: one request per case, through an adapter, and what it returns.
+  tests/execution/mqc_sys_dispatch.py: Engine dispatch
+  tests/execution/mqc_uni_adapters.py: Engine dispatch
+  tests/execution/mqc_uni_conformance.py: Engine dispatch
+  tests/execution/mqc_uni_conformance_claude.py: Engine dispatch
+  tests/execution/mqc_uni_conformance_gemini.py: Engine dispatch
+  tests/execution/mqc_uni_conformance_grok.py: Engine dispatch
+  tests/execution/mqc_uni_conformance_openai.py: Engine dispatch
+  tests/execution/mqc_uni_dispatch.py: Engine dispatch
+  tests/execution/mqc_uni_judgement_replay.py: Engine dispatch
+  tests/execution/mqc_uni_normalize.py: Engine dispatch
+  tests/execution/mqc_uni_preflight.py: Engine dispatch
+  tests/execution/mqc_uni_refusal.py: Engine dispatch
+  tests/execution/mqc_uni_replay.py: Engine dispatch
+  tests/execution/mqc_uni_reproduction.py: Engine dispatch
+  tests/execution/mqc_uni_spending.py: Engine dispatch
+
+  # Evaluation: the screen, the assertions and the judge.
+  tests/evaluation/mqc_sys_evaluation.py: Judging and scoring
+  tests/evaluation/mqc_uni_aggregation.py: Judging and scoring
+  tests/evaluation/mqc_uni_assertions.py: Judging and scoring
+  tests/evaluation/mqc_uni_calibration.py: Judging and scoring
+  tests/evaluation/mqc_uni_combined_checks.py: Judging and scoring
+  tests/evaluation/mqc_uni_isolation.py: Judging and scoring
+  tests/evaluation/mqc_uni_judge.py: Judging and scoring
+  tests/evaluation/mqc_uni_judge_prompt.py: Judging and scoring
+  tests/evaluation/mqc_uni_judgement_gaps.py: Judging and scoring
+  tests/evaluation/mqc_uni_pipeline.py: Judging and scoring
+  tests/evaluation/mqc_uni_reported_injection.py: Judging and scoring
+  tests/evaluation/mqc_uni_response_only_judging.py: Judging and scoring
+  tests/evaluation/mqc_uni_score_scale.py: Judging and scoring
+  tests/evaluation/mqc_uni_screening.py: Judging and scoring
+  tests/evaluation/mqc_uni_tool_compliance.py: Judging and scoring
+  tests/evaluation/mqc_uni_withheld_judge.py: Judging and scoring
+  tests/cmn/mqc_uni_judge_selection.py: Judging and scoring
+
+  # What a run concludes, and the rules it concludes it by.
+  tests/cmn/mqc_uni_band_arithmetic.py: Verdict and bands
+  tests/cmn/mqc_uni_consistency.py: Verdict and bands
+  tests/cmn/mqc_uni_criticality.py: Verdict and bands
+  tests/cmn/mqc_uni_graded_selection.py: Verdict and bands
+  tests/cmn/mqc_uni_quarantine.py: Verdict and bands
+  tests/cmn/mqc_uni_skip_accounting.py: Verdict and bands
+  tests/cmn/mqc_uni_thresholds.py: Verdict and bands
+  tests/cmn/mqc_uni_verdict.py: Verdict and bands
+  tests/cmn/mqc_uni_verdict_invariants.py: Verdict and bands
+
+  # How a run is asked for, and what it is allowed to measure.
+  tests/cmn/mqc_uni_cli.py: Selection and invocation
+  tests/cmn/mqc_uni_engine_roster.py: Selection and invocation
+  tests/cmn/mqc_uni_environments.py: Selection and invocation
+  tests/cmn/mqc_uni_execution_identity.py: Selection and invocation
+  tests/cmn/mqc_uni_extensibility.py: Selection and invocation
+  tests/cmn/mqc_uni_run_context.py: Selection and invocation
+  tests/cmn/mqc_uni_selection.py: Selection and invocation
+  tests/cmn/mqc_uni_selection_mode.py: Selection and invocation
+
+  # What a result carries, and what reaches the artifact.
+  tests/cmn/mqc_uni_broken.py: The result record
+  tests/cmn/mqc_uni_case_steps.py: The result record
+  tests/cmn/mqc_uni_emission.py: The result record
+  tests/cmn/mqc_uni_frozen_records.py: The result record
+  tests/cmn/mqc_uni_metadata.py: The result record
+  tests/cmn/mqc_uni_pricing.py: The result record
+  tests/cmn/mqc_uni_reporting.py: The result record
+  tests/cmn/mqc_uni_steps.py: The result record
+
+  # The tree a reader assesses readiness from, which is this file's own
+  # subject. Its module is mapped here like any other, because the check
+  # that every module declares a capability has to hold for it too.
+  tests/cmn/mqc_uni_grouping.py: The readiness view
+
+  # That every claim, identifier and citation resolves to something.
+  tests/cmn/mqc_uni_case_coverage.py: Governance and traceability
+  tests/cmn/mqc_uni_case_summaries.py: Governance and traceability
+  tests/cmn/mqc_uni_code_registration.py: Governance and traceability
+  tests/cmn/mqc_uni_document_citations.py: Governance and traceability
+  tests/cmn/mqc_uni_document_naming.py: Governance and traceability
+  tests/cmn/mqc_uni_families.py: Governance and traceability
+  tests/cmn/mqc_uni_flag_citations.py: Governance and traceability
+  tests/cmn/mqc_uni_governance.py: Governance and traceability
+  tests/cmn/mqc_uni_identifier_capacity.py: Governance and traceability
+  tests/cmn/mqc_uni_model_coherence.py: Governance and traceability
+  tests/cmn/mqc_uni_registries.py: Governance and traceability
+  tests/cmn/mqc_uni_registry_tables.py: Governance and traceability
+  tests/cmn/mqc_uni_requirement_statements.py: Governance and traceability
+  tests/cmn/mqc_uni_traceability.py: Governance and traceability
+
+  # The rules every file in the repository keeps.
+  tests/cmn/mqc_uni_branch_policy.py: Project standards
+  tests/cmn/mqc_uni_credentials.py: Project standards
+  tests/cmn/mqc_uni_file_dates.py: Project standards
+  tests/cmn/mqc_uni_file_standards.py: Project standards
+  tests/cmn/mqc_uni_packaging.py: Project standards
+
+  # A case whose foundation failed, and what its result is worth.
+  tests/cmn/mqc_uni_cascade_policy.py: The dependency cascade
+  tests/cmn/mqc_uni_dependency.py: The dependency cascade
+
+  # Gate 8: the audit of the suite itself.
+  tests/cmn/mqc_uni_mutation_declarations.py: The mutation audit
+  tests/cmn/mqc_uni_mutation_guard.py: The mutation audit
+  tests/cmn/mqc_uni_mutation_parallel.py: The mutation audit
+  tests/cmn/mqc_uni_mutation_redeclare.py: The mutation audit
+  tests/cmn/mqc_uni_mutation_stop.py: The mutation audit
+  tests/cmn/mqc_uni_mutation_tool.py: The mutation audit
+  tests/mutation/mqc_mut_registries.py: The mutation audit
+  tests/mutation/mqc_mut_verdict.py: The mutation audit
+
+  # Ingestion to verdict in one pass, which no single tier's cases cover.
+  tests/cmn/mqc_sys_whole_chain.py: Whole-chain integration

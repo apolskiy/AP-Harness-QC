@@ -3,10 +3,11 @@
 """Document naming check, whether a document's filename names its repository.
 
 Created: 2026-10-08
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file contains ``repository_token``, the token a repository's document
-names carry; ``documents_under``, the tracked Markdown under a folder;
+names carry; ``project_name``, the distribution it declares;
+``documents_under``, the tracked Markdown under a folder;
 ``undifferentiated_documents``, which reports a document under ``docs`` whose
 name names no repository; and ``root_conventions``, the root filenames exempt
 by convention.
@@ -68,15 +69,20 @@ def repository_token(root: Path) -> str:
         str: The lowercase token, or an empty string where neither the project
         name nor the directory name carries a recognisable one.
     """
-    for name in (_project_name(root), root.resolve().name.lower()):
+    for name in (project_name(root), root.resolve().name.lower()):
         for candidate in ("harness", "model"):
             if candidate in name:
                 return candidate
     return ""
 
 
-def _project_name(root: Path) -> str:
+def project_name(root: Path) -> str:
     """Return the declared project name, lowercased.
+
+    **Public because two rules read it.** The naming token comes from it, and
+    so does the epic comparison in ``cmn/grouping.py``: the distribution name
+    is what makes an epic a statement about a repository rather than a string
+    somebody typed (``harness_test_taxonomy.md`` section 16.3).
 
     Args:
         root (Path): The repository root.

@@ -3,7 +3,7 @@
 """Unit preconditions for what a run publishes to Allure, and what a failing case attaches.
 
 Created: 2026-10-04
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 The cases here check ``cmn.emission`` and ``cmn.reporting``: that a recorded
 observation publishes its fields, that a skipped case publishes and files
@@ -266,7 +266,7 @@ class TestMQCPublishedRecord:
             None
         """
         recorder = _Recorder()
-        monkeypatch.setattr(emission, "allure", recorder)
+        monkeypatch.setattr(emission, "reporter", recorder)
         emission.begin_case(RunContext(
             run_context="ci", selection_mode="full", preconditions_executed=True,
         ))
@@ -330,7 +330,7 @@ class TestMQCPublishedRecord:
             None
         """
         recorder = _Recorder()
-        monkeypatch.setattr(emission, "allure", recorder)
+        monkeypatch.setattr(emission, "reporter", recorder)
         emission.begin_case(RunContext(
             run_context="ci", selection_mode="full", preconditions_executed=True,
         ))
@@ -379,7 +379,7 @@ class TestMQCPublishedRecord:
             None
         """
         recorder = _Recorder()
-        monkeypatch.setattr(emission, "allure", recorder)
+        monkeypatch.setattr(emission, "reporter", recorder)
         emission.begin_case(RunContext(
             run_context="ci", selection_mode="full", preconditions_executed=True,
         ))
@@ -617,7 +617,7 @@ class TestMQCExchanges:
         ):
             step(2 * number - 1, f"publish a case that dispatched, passing={passed}")
             recorder = _Recorder()
-            monkeypatch.setattr(emission, "allure", recorder)
+            monkeypatch.setattr(emission, "reporter", recorder)
             emission.begin_case()
             emission.record_observation(_observation(0), _Outcome(0), judged_result())
             emission.publish_result(_Item("MQC_EVL_SEC_154100_x"), _Report(passed=passed))
@@ -627,7 +627,7 @@ class TestMQCExchanges:
 
         step(5, "publish a skipped case that dispatched nothing")
         recorder = _Recorder()
-        monkeypatch.setattr(emission, "allure", recorder)
+        monkeypatch.setattr(emission, "reporter", recorder)
         emission.begin_case()
         emission.record_observation(
             _observation(0, outcome="skip", taxonomy_code="QC_HARNESS_QUARANTINED"), None

@@ -234,6 +234,13 @@ a subset costs is the verdict, never the ability to run.
 
 ### 5.2 Viewing it with Allure
 
+**The published report needs none of this.** Every push to the default branch
+renders the report and publishes it to this repository's GitHub Pages site, so
+the quickest answer to "is the instrument sound" is to open that page: the
+behaviours view groups every case by capability and the trend shows the runs
+before it. What follows is for a run that was never published, which is every
+pull request and every local run.
+
 Allure's command line is a separate tool from the pytest plugin that writes the
 results, so the plugin alone cannot show you anything.
 

@@ -3,7 +3,7 @@
 """Unit cases for the programmatic assertions run against a model's response.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 Its cases check :mod:`evaluation.assertions`. Each registered kind is exercised
 in both directions, ``contains``, ``not_contains``, ``regex``, ``json_schema``,
@@ -67,10 +67,10 @@ A failure here is **not a model finding**, so the module carries no priority mar
 from types import SimpleNamespace
 from typing import Any
 
-import allure
 import pytest
 
 from cmn.case_steps import step
+from cmn.grouping import story
 from evaluation.assertions import (
     assertions_passed,
     has_fatal_failure,
@@ -322,12 +322,10 @@ class TestMQCAssertionResults:
         assert result.fatal is False
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Evaluation")
 class TestMQCMarkupNormalisation:
     """Whether a pattern reads what was said or how it was formatted."""
 
-    @allure.story("A figure in backticks is still the figure")
+    @story("A figure in backticks is still the figure")
     def MQC_EVL_UNI_114121_a_pattern_reads_a_figure_in_backticks(self) -> None:
         """A pattern reads a figure wrapped in single backticks.
 
@@ -336,7 +334,7 @@ class TestMQCMarkupNormalisation:
         """
         self._reads_through_markup("the second returns `0`.")
 
-    @allure.story("A figure in backticks is still the figure")
+    @story("A figure in backticks is still the figure")
     def MQC_EVL_UNI_114122_a_pattern_reads_a_figure_in_bold(self) -> None:
         """A pattern reads a figure wrapped in bold markup.
 
@@ -345,7 +343,7 @@ class TestMQCMarkupNormalisation:
         """
         self._reads_through_markup("the second returns **0**.")
 
-    @allure.story("A figure in backticks is still the figure")
+    @story("A figure in backticks is still the figure")
     def MQC_EVL_UNI_114123_a_pattern_reads_a_figure_in_triple_backticks(self) -> None:
         """A pattern reads a figure wrapped in triple backticks.
 
@@ -354,7 +352,7 @@ class TestMQCMarkupNormalisation:
         """
         self._reads_through_markup("the second returns ```0```.")
 
-    @allure.story("A figure in backticks is still the figure")
+    @story("A figure in backticks is still the figure")
     def MQC_EVL_UNI_114124_a_pattern_reads_a_figure_without_markup(self) -> None:
         """A pattern reads a figure carrying no markup.
 
@@ -403,7 +401,7 @@ class TestMQCMarkupNormalisation:
             f"{formatted!r} carries the figure and {result.detail}"
         )
 
-    @allure.story("A counting assertion keeps the raw text")
+    @story("A counting assertion keeps the raw text")
     def MQC_EVL_UNI_114112_a_length_assertion_reads_unnormalised_text(
         self,
     ) -> None:
@@ -442,12 +440,10 @@ class TestMQCMarkupNormalisation:
         )
 
 
-@allure.epic("AP-Harness-QC")
-@allure.feature("Programmatic assertions")
 class TestMQCClaimScope:
     """Whether a sentence asserted something, rather than mentioned it."""
 
-    @allure.story("A hedged mention is not a claim")
+    @story("A hedged mention is not a claim")
     def MQC_EVL_UNI_114113_a_hedged_mention_of_a_forbidden_claim_is_not_a_claim(
         self,
     ) -> None:
@@ -514,7 +510,7 @@ class TestMQCClaimScope:
             "the response again rather than the sentence"
         )
 
-    @allure.story("A forbidding claim states its exclusions")
+    @story("A forbidding claim states its exclusions")
     def MQC_EVL_UNI_114116_a_claim_does_not_read_across_a_line_break(
         self,
     ) -> None:

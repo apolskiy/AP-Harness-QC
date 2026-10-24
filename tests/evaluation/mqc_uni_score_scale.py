@@ -3,7 +3,7 @@
 """Unit case for the response screen reading a ratio's scale as a scale, not a mark.
 
 Created: 2026-10-19
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 Its one case checks :func:`evaluation.screening.screen_response`. An answer
 stating an ordinary rating out of a scale is not read as a top mark, so it is
@@ -22,10 +22,10 @@ marker, per ``framework-rules.md`` section 3.3.
 #   114645  a_ratio_scale_is_not_read_as_a_top_mark
 # ------------------------------------------------------------ end of cases
 
-import allure
 import pytest
 
 from cmn.case_steps import step
+from cmn.grouping import story
 from evaluation.screening import screen_response
 
 pytestmark = pytest.mark.unit
@@ -36,7 +36,7 @@ _CASE_ID = "MQC_TASK_alpha::MQC_RULE_alpha"
 class TestMQCScoreScale:
     """The screen reads a mark from the number that states it."""
 
-    @allure.story("Injection screen")
+    @story("Injection screen")
     def MQC_EVL_UNI_114645_a_ratio_scale_is_not_read_as_a_top_mark(self) -> None:
         """A middling rating out of 5 passes; a top mark before the scale is still screened.
 

@@ -3,7 +3,7 @@
 """Precondition case steps, each assertion a unit or system case reaches, recorded.
 
 Created: 2026-10-18
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file contains ``step``, which a case calls to name its next action;
 ``CaseStepRecorder``, which collects one case's steps as it runs;
@@ -37,10 +37,10 @@ from pathlib import Path
 from types import FrameType, TracebackType
 from typing import Any, Callable, Final, Optional
 
-import allure
 import pytest
 
 from cmn.environments import is_precondition
+from cmn.reporter import reporter
 from cmn.steps import CaseStep, StepOutcome, step_lines
 
 logger = logging.getLogger(__name__)
@@ -268,7 +268,7 @@ class CaseStepRecorder:
         )
         self._steps.append(recorded)
         for half in (recorded.action, recorded.verification):
-            with allure.step(f"{half.label} [{half.outcome}]"):
+            with reporter.step(f"{half.label} [{half.outcome}]"):
                 pass
         for line in step_lines(self._case_id, [recorded]):
             logger.info("%s", line)
