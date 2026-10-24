@@ -12764,3 +12764,33 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   what a case reads, and the only mechanical check is the control run itself,
   which costs a full unit suite per audit and already exists at the one moment
   it can be afforded.
+* **The push went red on one shellcheck finding, and the tool was on this
+  machine the whole time.** `actionlint` reported SC2012 against the new
+  publishing job, counting files with `ls` piped into `wc`, and the lint job
+  blocks everything: the unit, system and publish jobs skipped, so the push
+  measured nothing and published nothing. **Both `actionlint` and `shellcheck`
+  are installed here**, and the local verification ran pylint, two suites,
+  eight injections and the workflow steps as shell without ever asking the one
+  tool that reads a step's shell for style.
+* **Why the omission was available to make.** `cmn/workflow_standards.py` said
+  "none of these replaces actionlint, which validates the workflow schema and
+  runs in CI", and "runs in CI" reads as somebody else's job. It is the gate
+  there and the check here: `harness_ci_pipeline.md` section 10.1 and section
+  5.5 of the runbook now say so, and name the command. **A rule that depends
+  on reading the right sentence is not a rule**, which is this project's own
+  phrase about the heredoc hook, so the runbook carries it where a person
+  pushing a workflow will meet it.
+* **The owner closed the deselect-list gap by changing the question.** I had
+  recorded it as an open item wanting a cheap way to ask "does this case read
+  a file the mutator rewrites". The ruling: "audit is an internal tool ... All
+  we can do is report quarantined tests at the end of the run." **The check I
+  wanted is the control run**, which answers that question one step later and
+  already pays for itself, so what was missing was never the decision, only
+  the visibility.
+* **And the second half of the ruling is the reason the first is safe**: "this
+  is why audit is a separate job and not part of main jobs also." An internal
+  tool may carry a list nothing polices and a control that refuses on its own
+  terms, **because nothing downstream waits on it**. Section 15.6 reached the
+  non-blocking decision from the other end, that a survivor is a statement
+  about coverage rather than about a measurement; this is the same boundary
+  read from inside the tool.

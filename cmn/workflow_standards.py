@@ -26,9 +26,12 @@ source a reader writes, this one about the pipeline definitions and the commands
 written beside them.
 
 **None of these replaces ``actionlint``**, which validates the workflow schema
-and runs in CI. They cover what a local check could have caught before a push:
-a command that disagrees with its copies, a step that can spend without a
-ceiling, and the one malformed-YAML class a parse accepts.
+and runs ``shellcheck`` over every ``run:`` block. They cover what reading the
+definition can catch: a command that disagrees with its copies, a step that can
+spend without a ceiling, and the one malformed-YAML class a parse accepts.
+**What a step's shell says is not read here at all**, so a workflow change is
+linted with ``actionlint`` before it is pushed, from the repository root
+(``harness_ci_pipeline.md`` section 10.1).
 """
 
 import logging

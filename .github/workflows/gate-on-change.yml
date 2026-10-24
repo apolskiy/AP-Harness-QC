@@ -175,7 +175,7 @@ jobs:
           mkdir -p reports/allure-results
           cp -r downloaded/unit/allure-results/. reports/allure-results/ || true
           cp -r downloaded/system/allure-results/. reports/allure-results/ || true
-          echo "results: $(ls reports/allure-results | wc -l) files"
+          echo "results: $(find reports/allure-results -type f | wc -l) file(s)"
       # THE TREND, WHICH ALLURE CARRIES BY READING THE PREVIOUS REPORT. A
       # missing one generates a weaker report rather than failing the job:
       # every first run has no site to read, and a job going red over an

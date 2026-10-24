@@ -3246,6 +3246,64 @@ reason this section's heading gives. **A case reading source or the manifest as
 text belongs in that list when it is written**, which is the step that was
 missed.
 
+#### 15.7.1.2 What the audit sets aside is reported, because nothing can decide the list for it
+
+Added 2026-10-24 at the project owner's ruling, after section 15.7.1.1 left a
+gap nobody could close cheaply: "audit is an internal tool. Granted, it will
+fire down the road on harness tests. Chances are it will not get to model run.
+All we can do is report quarantined tests at the end of the run."
+
+**Deciding membership mechanically is the control run.** The question a check
+would have to answer is "does this case read a file the mutator rewrites",
+which is answered by running the targets against an unparsed module and seeing
+what fails. That run already exists, at the one moment it can be afforded: the
+audit's own control, which refuses rather than reporting kills it has not
+earned (section 15.4).
+
+| | |
+|---|---|
+| What a check would cost | A full unit suite, to answer a question the control answers immediately afterwards |
+| What it would add | Nothing the control does not already say, one step later |
+| What was missing | **Not the decision. The visibility**: a case left the audit silently, and twice a case belonged on the list and nobody saw |
+
+**So the run says what it set aside.** Every audit closes with the line, after
+the survivor count:
+
+```
+1 survivor(s), 0 undeclared
+5 case(s) quarantined from this audit: 112502, 112331, 410000, 410003, 112526
+```
+
+**Read from the targets rather than restated**, so a list extended in one
+place is reported from the same place, and a case that should be on the list
+and is not is visible by its absence to the person the refusal reaches.
+
+##### And this is why the audit is a job of its own
+
+Stated by the project owner in the same exchange: "this is why audit is a
+separate job and not part of main jobs also."
+
+**An internal tool's limits must not reach the pipeline that measures models.**
+Section 15.6 already makes Gate 8 non-blocking and gives it its own workflow,
+on the ground that a survivor is a statement about coverage rather than about
+what a run measured. This is the same argument from the other end: the audit
+carries a list nothing can police and a control that refuses on its own
+terms, and both of those are acceptable **because** nothing downstream waits
+on them.
+
+| | The audit | A gate |
+|---|---|---|
+| What a refusal stops | This job | Everything behind it |
+| What it is about | The suite's own coverage | Whether the harness or the model is sound |
+| Who reads it | Whoever is extending the suite | Whoever is shipping |
+
+**It will reach the harness cases and probably never a model run**, which the
+owner's ruling states plainly and the design should not pretend otherwise: the
+audited modules are production modules of this repository, and a case
+repository's corpus is measured by the graded layers rather than mutated.
+
+`MQC_CMN_UNI_410005` and `MQC_REQ_HAR_CMN_0222`.
+
 #### 15.7.2 The job compares every declaration before it measures one
 
 Added 2026-10-24 at the project owner's instruction: "we don't want CI running

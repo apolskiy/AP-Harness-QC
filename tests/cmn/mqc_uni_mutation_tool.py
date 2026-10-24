@@ -40,6 +40,8 @@ question was looking at the right file.
 # TestMQCMutationCrash
 #   112383  an_audit_run_reads_no_standard_input
 #   112384  a_control_that_raises_leaves_no_backup
+# TestMQCMutationQuarantine
+#   410005  an_audit_names_the_cases_it_set_aside
 # TestMQCMutationWorkflow
 #   112379  the_mutation_audit_runs_on_a_harness_update
 #   410004  the_job_compares_the_declarations_before_it_measures
@@ -66,6 +68,8 @@ from cmn.grouping import story
 from tools.mutation_audit import (
     _BACKUP_SUFFIX,
     AUDIT_TARGETS,
+    quarantine_report,
+    quarantined_cases,
     MutationRefusal,
     acquire_lock,
     audit_targets,
@@ -388,6 +392,56 @@ class TestMQCMutationCrash:
         assert not backup.exists(), (
             "QC_HARNESS_AUDIT_REFUSED: a control that raised left its backup, so "
             "every later audit refuses a module that is not mutated"
+        )
+
+
+class TestMQCMutationQuarantine:
+    """An audit says which cases it set aside, so nobody has to guess."""
+
+    def MQC_CMN_UNI_410005_an_audit_names_the_cases_it_set_aside(self) -> None:
+        """The closing line reads the targets, and an empty list reads as none.
+
+        **Nothing can decide the list for the audit**, because the question a
+        check would answer is the control run itself: does this case read a
+        file the mutator rewrites. What was missing was the visibility, and
+        twice a case belonged on the list with nobody seeing it.
+
+        Design: ``harness_test_taxonomy.md`` section 15.7.1.2.
+
+        Returns:
+            None
+        """
+        step(1, "every deselected case is named")
+        deselected = [
+            AUDIT_TARGETS[index + 1]
+            for index, argument in enumerate(AUDIT_TARGETS[:-1])
+            if argument == "--deselect"
+        ]
+        assert len(quarantined_cases()) == len(deselected), (
+            f"the audit deselects {len(deselected)} case(s) and names "
+            f"{len(quarantined_cases())}, so a reader of the line cannot tell "
+            f"what ran against the mutants"
+        )
+
+        step(2, "and each identifier it names is one the targets deselect")
+        unnamed = [
+            identifier for identifier in quarantined_cases()
+            if not any(identifier in node for node in deselected)
+        ]
+        assert not unnamed, (
+            f"the line names {unnamed}, which the targets do not deselect"
+        )
+
+        step(3, "the line carries the count and the identifiers")
+        reported = quarantine_report()
+        assert all(identifier in reported for identifier in quarantined_cases()), (
+            f"the closing line omits an identifier it counted: {reported!r}"
+        )
+
+        step(4, "and a target list deselecting nothing reads as none")
+        assert quarantine_report(["-m", "unit"]).endswith("none"), (
+            "a run that set nothing aside does not say so, so an empty list "
+            "and an unread one look alike"
         )
 
 

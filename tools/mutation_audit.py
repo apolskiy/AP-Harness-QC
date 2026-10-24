@@ -134,6 +134,10 @@ _RUN_TIMEOUT_SEC: Final[int] = 600
 # process. One means the in-place audit (section 15.15).
 DEFAULT_WORKERS: Final[int] = 4
 
+# THE IDENTIFIER INSIDE A DESELECTED NODE ID, for the line that reports what
+# the audit set aside. Five or six digits, as the resolver elsewhere reads.
+_CASE_IDENTIFIER: Final[re.Pattern[str]] = re.compile(r"MQC_[A-Z]+_[A-Z]{3,5}_(\d{5,6})_")
+
 # THE FOUR CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they
 # fail on the reformatting the mutator performs and would kill every mutant for
 # the wrong reason. Measured rather than guessed: the suite was run against an
@@ -174,6 +178,52 @@ AUDIT_TARGETS: Final[tuple[str, ...]] = (
     "tests/cmn/mqc_uni_file_dates.py::TestMQCFileDates"
     "::MQC_CMN_UNI_112526_a_file_date_line_missing_or_stale_is_reported",
 )
+
+
+def quarantined_cases(targets: Optional[list[str]] = None) -> list[str]:
+    """Return every case the audit sets aside, by identifier.
+
+    A case that reads source or the manifest as text fails on the
+    reformatting the mutator performs rather than on a mutant, so the control
+    deselects it and this names which. **Read from the targets rather than
+    restated**, so a list extended in one place is reported from the same
+    place (``harness_test_taxonomy.md`` section 15.7.1.2).
+
+    Args:
+        targets (Optional[list]): The pytest arguments to read, defaulting to
+            the audit's own.
+
+    Returns:
+        list[str]: The six-digit identifier of each deselected case, in the
+        order the list declares them, empty where none is deselected.
+    """
+    reading = list(AUDIT_TARGETS) if targets is None else list(targets)
+    found: list[str] = []
+    for index, argument in enumerate(reading[:-1]):
+        if argument != "--deselect":
+            continue
+        match = _CASE_IDENTIFIER.search(reading[index + 1])
+        if match is not None:
+            found.append(match.group(1))
+    return found
+
+
+def quarantine_report(targets: Optional[list[str]] = None) -> str:
+    """Return the line a run closes with, naming what it set aside.
+
+    Args:
+        targets (Optional[list]): The pytest arguments to read, defaulting to
+            the audit's own.
+
+    Returns:
+        str: One sentence, with the count and the identifiers, reading
+        ``none`` where the list is empty.
+    """
+    quarantined = quarantined_cases(targets)
+    return (
+        f"{len(quarantined)} case(s) quarantined from this audit: "
+        f"{', '.join(quarantined) or 'none'}"
+    )
 
 
 def audit_targets(named: list[str]) -> list[str]:
@@ -790,6 +840,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     for problem in problems:
         logger.error("%s", problem)
     logger.info("%d survivor(s), %d undeclared", len(found), len(problems))
+    # AND WHAT THE RUN SET ASIDE. Nothing can decide membership of the
+    # deselect list for us, so the run says what is on it: a reader of a
+    # refusal sees which cases did not run against the mutants, and a case
+    # that should have been on the list and was not is visible by its absence
+    # (section 15.7.1.2).
+    logger.info("%s", quarantine_report(audit_targets(parsed.target)))
     return 1 if problems else 0
 
 

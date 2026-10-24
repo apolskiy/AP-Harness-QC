@@ -299,6 +299,23 @@ python -c "import xml.etree.ElementTree as ET; [print(c.get('classname'), c.get(
 
 ---
 
+## 5.5 Before you push a workflow change
+
+```
+actionlint
+```
+
+No arguments, from the repository root, under a second. **It runs `shellcheck`
+over every `run:` block**, which is the half the precondition suite cannot
+reach: those cases read what a step names and have no opinion on the shell it
+writes.
+
+The `lint` job runs the same tool on Ubuntu and **blocks every job behind it**,
+so a finding there costs a full cycle: the unit, system and publish jobs skip,
+and the push measures nothing. Design `harness_ci_pipeline.md` section 10.1.
+
+---
+
 ## 6. When Something Refuses
 
 | Exit | Means | Do |

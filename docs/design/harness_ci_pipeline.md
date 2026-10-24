@@ -1497,6 +1497,34 @@ Workflow files are configuration, not collected code, so `pytest.ini` never sees
 
 **The logic is tested in Python; the YAML is linted.** Putting decision logic in workflow expressions would move it somewhere no test can reach, which is why selection and gating live in `cmn/` and the workflows only call them.
 
+### 10.1 A workflow change is linted before the push, on the machine that made it
+
+Added 2026-10-24, after a push went red on one finding in a step written the
+same day: `shellcheck`'s SC2012, counting files with `ls` piped into `wc`
+inside the new publishing job. **Every other gate had passed and nothing
+downstream ran**, so the cost of the finding was a full cycle for a line.
+
+| | |
+|---|---|
+| What it reported | `gate-on-change.yml:174:9: shellcheck reported issue in this script: SC2012` |
+| What it cost | The `unit`, `system` and `publish` jobs skipped behind the lint job, so the push measured nothing |
+| Where the tool was | **Installed on the machine the change was written on**, as `actionlint` and `shellcheck` both |
+
+**`actionlint` runs `shellcheck` over every `run:` block**, which is the half a
+Python check cannot reach: `cmn/workflow_standards.py` reads what a step
+*names* and has no opinion on the shell it writes. So a change to a workflow
+is verified by running `actionlint` from the repository root, which takes under
+a second and needs no arguments, and the suite's own workflow checks are run
+as they always were.
+
+**The earlier wording said actionlint "runs in CI"**, which is true and reads
+as somebody else's job. It runs there as the gate; it runs here as the check.
+
+| Changed | Run |
+|---|---|
+| A workflow definition | `actionlint`, then the precondition suite |
+| Anything else | The precondition suite, as before |
+
 ---
 
 ## 11. The Split, As Built

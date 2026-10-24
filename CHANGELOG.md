@@ -29,6 +29,35 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### An audit says what it set aside, 2026-10-24
+
+**Twice in two days a case was written that reads source or the manifest as
+text and did not join the audit's deselect list**, and each time every audit
+refused with its own control as the reason. The list is what keeps a case that
+fails on the mutator's reformatting from killing every mutant for the wrong
+reason, and nothing reported a case that belonged on it.
+
+**Policing it mechanically is the control run.** The question a check would
+answer, does this case read a file the mutator rewrites, is answered by running
+the targets against an unparsed module, which is exactly what the control does
+immediately afterwards. So the project owner ruled that the audit, being an
+internal tool that fires on harness cases and will probably never reach a model
+run, reports what it set aside instead:
+
+```
+1 survivor(s), 0 undeclared
+5 case(s) quarantined from this audit: 112502, 112331, 410000, 410003, 112526
+```
+
+Read from the targets the run used rather than from a second list, so a list
+extended in one place is reported from the same place. **And it is why the
+audit is a job of its own**: an internal tool carrying a list nothing can
+police and a control that refuses on its own terms is acceptable precisely
+because nothing downstream waits on it, which section 15.6 already decided from
+the other end.
+
+`MQC_CMN_UNI_410005` and `MQC_REQ_HAR_CMN_0222`.
+
 ### The suite runs where Allure is not installed, 2026-10-24
 
 **The reporting extra is CI's dependency, not the suite's**, at the project
