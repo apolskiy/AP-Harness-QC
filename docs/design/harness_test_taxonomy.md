@@ -3204,6 +3204,83 @@ skipped audits would say the change was measured. The summary names each
 refused module and the line to re-declare. The per-case outcome is unchanged
 from section 15.2.1, because nothing about the survivors was measured.
 
+#### 15.7.2 The job compares every declaration before it measures one
+
+Added 2026-10-24 at the project owner's instruction: "we don't want CI running
+for 21, when a 35 second fail occurs."
+
+**Section 15.2.1.1 moved the baseline check and changed what a refusal costs.**
+It was right about scope, and what it traded is worth stating, because the two
+arrangements are wrong in opposite directions:
+
+| Where the comparison sat | One stale declaration | The job took |
+|---|---|---|
+| The setup fixture, over every audited module | Six skips, five of them about modules in order | 31s to 38s, red |
+| The measurement, per module | **One skip and five measurements** | **About 21 minutes, red** |
+
+**The second is the better report and the worse bill.** Five modules are
+measured and their survivors are current, which is what section 15.2.1.1
+existed to recover; the job still ends red on the sixth, so the measurement is
+paid for in full and then read as a backlog item, which is the state section
+15.10.1 was written about.
+
+**So the job asks the question once, before it measures anything.** The
+comparison is six hashes and a manifest read, 48 milliseconds measured on
+2026-10-24, against minutes per module for a measurement. A disagreement ends
+the job there and names every module it found, so a stale declaration costs a
+checkout and an install rather than the whole audit.
+
+##### The comparison is made in three places, and each has its own subject
+
+| Where | Asks | Costs | On a disagreement |
+|---|---|---|---|
+| Gate 2, `MQC_CMN_UNI_410000` | Does the manifest describe the repository | 48 ms | Fails the pull request, section 15.10.1 |
+| **Gate 8's job, before its measurement step** | **Is this audit worth starting** | **343 ms, one process** | **Ends the job, and nothing is measured** |
+| The measurement, per module | May this module be measured | Nothing, being the first thing it does | Refuses that module, which the case reports as a skip, section 15.2.1.1 |
+
+**None of the three is redundant.** Gate 2 runs on a pull request and the job
+runs on a push to `main` and on dispatch, so neither covers the other's
+trigger. The per-module check is what a local run and an on-demand audit
+reach, where no workflow step runs at all.
+
+**The per-case outcome model is unchanged.** The preflight runs before pytest,
+so nothing is collected and nothing is skipped: a job that stops there reports
+no cases at all rather than six refusals for one defect.
+
+**It is a cost decision and not a scope one**, which is what separates it from
+the fixture section 15.2.1.1 removed. That fixture let a statement about one
+module decide six cases' outcomes, and five of those outcomes were wrong. This
+stops the job before there are any outcomes to be wrong about, and what it
+reports is the manifest's state rather than any module's survivors.
+
+##### A command, because a step in a workflow is not a place for a program
+
+The preflight runs `python -m tools.mutation_declarations`, which prints every
+stale declaration and exits 4, the code section 15.4.3 gives a refusal from a
+command line. **One implementation and three callers**, so a workflow step
+cannot drift from what Gate 2 asserts: the step, the precondition and the
+measurement all reach `declaration_problems`.
+
+**An operator runs the same command**, which is what makes the job's red
+reproducible at a desk rather than only in Actions.
+
+##### The job states what it took, because nothing read the duration
+
+The history that produced section 15.10.1 was legible only as a duration, 21m
+34s green and then 31 to 38 seconds red for four pushes running. **Nothing in
+the repository read that number**, and a reader who does not put four job pages
+side by side never sees it.
+
+So the summary carries the elapsed time of the measurement step and how many of
+the audited modules it reached. **A floor in seconds is deliberately not
+asserted.** Runner speed is not ours to promise, and the fact worth checking is
+whether every audited module was measured, which the preflight and the refusal
+report establish between them; what the elapsed time adds is that a reader sees
+it without opening anything.
+
+`MQC_CMN_UNI_410003`, `MQC_CMN_UNI_410004`, `MQC_REQ_HAR_CMN_0214` and
+`MQC_REQ_HAR_CMN_0215`.
+
 ### 15.8 What the first pass found
 
 `cmn/verdict.py`, 88 points, 11 survivors, and the classes matter more than

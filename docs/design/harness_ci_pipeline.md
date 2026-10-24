@@ -893,13 +893,14 @@ section states only the job.
 
 | | |
 |---|---|
-| Starts on | A push to `main` touching `cmn/`, `ingestion/`, `execution/`, `evaluation/`, `tests/`, `tools/mutation_audit.py` or `config/mutation_survivors.yaml`, and manual dispatch. **No schedule** until `main` is stable, section 2.0.1 |
-| Runs | `pytest -m mutation tests/mutation`, Ubuntu only: platform coverage is the gate's question, not this one's |
+| Starts on | A push to `main` touching `cmn/`, `ingestion/`, `execution/`, `evaluation/`, `tests/`, `tools/mutation_*.py` or `config/mutation_survivors.yaml`, and manual dispatch. **No schedule** until `main` is stable, section 2.0.1 |
+| Runs | `python -m tools.mutation_declarations`, then `pytest -m mutation tests/mutation`, Ubuntu only: platform coverage is the gate's question, not this one's |
+| Stops before measuring | A declaration that is not the module on disk. Six hashes decide it, so a manifest that cannot describe the commit costs an install rather than the whole audit, taxonomy section 15.7.2 |
 | Credentials | None. It mutates our code and runs our suite; nothing reaches a provider |
 | Blocks | Nothing. **No required status**: a survivor is a fact about coverage, taxonomy section 15.6 |
 | Red when | A survivor is undeclared, a declaration no longer survives, **or an audit refused**, taxonomy section 15.7.1 |
 | Concurrency | One per ref, superseded runs cancelled: an audit of a commit `main` has moved past answers nothing |
-| Record | An artifact outside the collector's pattern, so a coverage audit never reads as a measurement |
+| Record | An artifact outside the collector's pattern, so a coverage audit never reads as a measurement. The summary carries the elapsed time of the measurement and how many audited modules it reached |
 
 **A refusal is a skip at the case and red at the job.** The edit that
 triggered the run usually invalidates the edited module's digest, so this is
@@ -908,6 +909,22 @@ re-declare rather than leaving a green job over audits that did not run.
 
 **Not in the pull-request sequence**, for the cost taxonomy section 15.7
 measured: minutes per module against seconds for every precondition.
+
+**The cheap question is asked first.** A measurement costs minutes per module,
+and the comparison deciding whether it is worth starting costs 48 milliseconds,
+so the job compares every declaration before it measures one and stops there
+when the manifest does not describe the repository. Taxonomy section 15.7.2
+carries why that is a cost decision rather than a change to what a case
+reports.
+
+**The trigger covers the audit's own tools as a pattern rather than by name.**
+`tools/mutation_audit.py` was named when the audit was one file. The manifest
+API moved to `tools/mutation_declarations.py` on 2026-10-23 and the parallel
+measurement to `tools/mutation_parallel.py`, and neither path triggered
+anything, so a change to what gets audited ran no audit.
+`tools/mutation_*.py` covers the next split as well, and
+`MQC_CMN_UNI_112379` asserts that every file matching it is matched by a
+declared path.
 
 ## 6. `diagnose-on-demand.yml`: Runnable, Never Counted, Never Silent
 

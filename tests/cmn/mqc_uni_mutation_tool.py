@@ -3,7 +3,7 @@
 """Unit tests for the safeguards of the mutation audit tool itself.
 
 Created: 2026-10-14
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 Its cases check ``tools/mutation_audit.py`` and the manifest functions it calls
 from ``tools/mutation_declarations.py``. ``baseline_problem`` refuses a module
@@ -42,6 +42,7 @@ question was looking at the right file.
 #   112384  a_control_that_raises_leaves_no_backup
 # TestMQCMutationWorkflow
 #   112379  the_mutation_audit_runs_on_a_harness_update
+#   410004  the_job_compares_the_declarations_before_it_measures
 # TestMQCMutationControl
 #   112426  a_refused_control_names_the_failing_cases
 #   112427  the_command_line_defaults_to_the_audit_targets
@@ -52,6 +53,7 @@ import ast
 import os
 import subprocess
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
@@ -405,8 +407,8 @@ class TestMQCMutationWorkflow:
         """The workflow fires on main for every audited module and reports refusals.
 
         It runs the mutation marker, fires on a push to ``main`` whose paths
-        cover every audited module, the audit and its manifest, turns red when
-        an audit refused, and references no secret.
+        cover every audited module, every file the audit is built from and its
+        manifest, turns red when an audit refused, and references no secret.
 
         Design: ``harness_ci_pipeline.md`` section 5A, ``harness_test_taxonomy.md``
         section 15.7.1.
@@ -423,14 +425,71 @@ class TestMQCMutationWorkflow:
         assert "main" in (push.get("branches") or []), "the audit does not run on main"
         paths = set(push.get("paths") or [])
         needed = {f"{Path(module).parts[0]}/**" for module in AUDITED}
-        needed |= {"tools/mutation_audit.py", "config/mutation_survivors.yaml", "tests/**"}
+        needed |= {"config/mutation_survivors.yaml", "tests/**"}
         assert needed <= paths, f"a change to {sorted(needed - paths)} does not trigger the audit"
+
+        # AND EVERY TOOL THE AUDIT IS BUILT FROM, matched by a declared path
+        # rather than named one at a time. `tools/mutation_audit.py` was the
+        # only name here while the audit was one file, and the manifest API and
+        # the parallel measurement moved out of it on 2026-10-23 without
+        # triggering anything (`harness_ci_pipeline.md` section 5A).
+        root = Path(__file__).resolve().parents[2]
+        for tool in sorted((root / "tools").glob("mutation_*.py")):
+            relative = tool.relative_to(root).as_posix()
+            assert any(fnmatch(relative, declared) for declared in paths), (
+                f"a change to {relative} triggers no audit"
+            )
 
         assert "pytest -m mutation tests/mutation" in source, "the audit is not run"
         assert "QC_HARNESS_AUDIT_REFUSED" in source and "exit 1" in source, (
             "a refused audit leaves the job green, so an unmeasured change reads as measured"
         )
         assert "secrets." not in source, "an audit of our own code references a credential"
+
+    @allure.story("The declarations are compared before anything is measured")
+    def MQC_CMN_UNI_410004_the_job_compares_the_declarations_before_it_measures(
+        self,
+    ) -> None:
+        """A step compares every declaration, and it precedes the measurement step.
+
+        **The order is the whole of the saving.** The same comparison made
+        after the measurement reports the same disagreement and saves nothing,
+        which is the state this came from: one stale declaration cost five
+        measurements and about twenty-one minutes, and the job went red anyway.
+
+        Design: ``harness_test_taxonomy.md`` section 15.7.2,
+        ``harness_ci_pipeline.md`` section 5A.
+
+        Returns:
+            None
+        """
+        workflow = yaml.safe_load(_WORKFLOW.read_text(encoding="utf-8"))
+        runs = [str(stage.get("run") or "") for stage in workflow["jobs"]["audit"]["steps"]]
+
+        step(1, "find the step comparing the declarations, and the step measuring")
+        compared = [index for index, run in enumerate(runs)
+                    if "tools.mutation_declarations" in run]
+        measured = [index for index, run in enumerate(runs) if "pytest -m mutation" in run]
+        assert compared, (
+            "no step compares the declarations, so a manifest that cannot describe "
+            "the commit is paid for in full before anything reports it"
+        )
+
+        step(2, "assert a measurement step exists at all")
+        assert measured, "no step measures anything, so the job is not Gate 8"
+
+        step(3, "assert the comparison runs first")
+        assert compared[0] < measured[0], (
+            f"the declarations are compared at step {compared[0]} and the measurement "
+            f"starts at step {measured[0]}, so the comparison saves nothing"
+        )
+
+        step(4, "assert the summary states what the measurement took")
+        reported = [run for run in runs if "GITHUB_STEP_SUMMARY" in run]
+        assert any("elapsed" in run for run in reported), (
+            "the summary does not state how long the measurement took, and the "
+            "history this gate came from was legible only as a duration"
+        )
 
 
 @allure.epic("AP-Harness-QC")

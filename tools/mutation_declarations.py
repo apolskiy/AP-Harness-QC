@@ -3,14 +3,15 @@
 """The manifest of accepted survivors: what it declares, and which modules it describes.
 
 Created: 2026-10-23
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 This file contains ``AUDITED``, the production modules the mutation layer
 audits; ``declared_survivors`` and ``declare_digest``, which read and write
 ``config/mutation_survivors.yaml``; ``baseline_problem`` and
-``baseline_refusal``, which say whether a module may be measured at all; and
+``baseline_refusal``, which say whether a module may be measured at all;
 :func:`declaration_problems`, which reports each audited module whose content
-does not hash to the digest declared for it.
+does not hash to the digest declared for it; and :func:`main`, which reports
+those from the command line and exits 4 where it finds one.
 
 **It is read before an audit and again at the moment one measures.**
 ``MQC_CMN_UNI_410000`` calls :func:`declaration_problems` in the unit layer, so
@@ -18,6 +19,12 @@ a declaration that has gone stale fails Gate 2 rather than waiting for the
 mutation job to refuse on a push to main; ``tools/mutation_audit.py`` and
 ``tools/mutation_parallel.py`` call ``baseline_refusal`` as they start, and
 ``tools/mutation_redeclare.py`` writes through ``declare_digest``.
+
+**Gate 8's job runs the command before its measurement step.** Six hashes
+decide whether an audit is worth starting, and a measurement costs minutes per
+module, so a manifest that does not describe the repository stops the job there
+rather than being paid for in full and read as a backlog item (section 15.7.2).
+
 
 The comparison reads a hash and a declaration and nothing else, so what it
 reports is a disagreement about which code was measured, never a survivor: a
@@ -29,11 +36,14 @@ runway on 2026-10-23 (``code-style.md`` section 5.1). The manifest is the
 second subject in that file: the audit measures, and this says what was
 measured and what is accepted.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` sections 15.2.2, 15.10
-and 15.10.1.
+Specified by ``docs/design/harness_test_taxonomy.md`` sections 15.2.2, 15.7.2,
+15.10 and 15.10.1.
 """
 
+import argparse
 import ast
+import logging
+import sys
 from pathlib import Path
 from typing import Any, Final, Optional
 
@@ -41,7 +51,14 @@ import yaml
 
 from cmn.mutation_guard import module_digest
 
+logger = logging.getLogger(__name__)
+
 MANIFEST: Final[str] = "config/mutation_survivors.yaml"
+
+# THE CODE A REFUSAL CARRIES, as section 15.4.3 gives it for the audit. A
+# declaration that is not the module on disk is the same kind of answer: not a
+# survivor, and not a measurement either.
+REFUSED: Final[int] = 4
 
 # EVERY MODULE THE MUTATION LAYER AUDITS, held in the harness rather than
 # beside the cases, because the manifest's API belongs here and a precondition
@@ -207,3 +224,52 @@ def baseline_refusal(
             f"rather than re-measuring it"
         )
     return None
+
+def main(argv: Optional[list[str]] = None) -> int:
+    """Report every stale declaration, and return the code a refusal carries.
+
+    **The comparison a precondition makes, runnable by an operator and by a
+    workflow step.** Gate 8's job calls this before it measures anything, so
+    one implementation answers in three places and no step carries a copy.
+
+    **The root is an argument so that the comparison can be run against a
+    copy**, which is how its refusal is asserted without making this
+    repository's manifest stale. It is positional rather than a flag, and it
+    defaults to the checkout this file ships in, which is what the workflow
+    step and an operator both use.
+
+    Design: ``harness_test_taxonomy.md`` section 15.7.2.
+
+    Args:
+        argv (Optional[list[str]]): Arguments, or None for ``sys.argv``.
+
+    Returns:
+        int: ``0`` when every audited module hashes to the digest declared for
+        it, and :data:`REFUSED` where any does not.
+    """
+    parser = argparse.ArgumentParser(
+        prog="mutation-declarations",
+        description="Report each audited module that is not the module its survivors describe",
+    )
+    parser.add_argument(
+        "root", type=Path, nargs="?", default=Path(__file__).resolve().parents[1],
+        help="The repository to read; the checkout this file ships in by default",
+    )
+    parsed = parser.parse_args(argv)
+
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    problems = declaration_problems(parsed.root)
+    for problem in problems:
+        logger.error("QC_HARNESS_AUDIT_REFUSED: %s", problem)
+    if problems:
+        return REFUSED
+    logger.info("%d declaration(s) describe the module on disk", len(AUDITED))
+    return 0
+
+
+if __name__ == "__main__":
+    # NOT DELEGATED TO THE IMPORTED MODULE, unlike ``tools/mutation_audit.py``.
+    # That delegation exists because a refusal crosses the boundary as an
+    # exception, and under ``-m`` the two copies of the class are two objects
+    # (section 15.4.3). Nothing here raises: the comparison returns strings.
+    sys.exit(main())

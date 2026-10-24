@@ -3371,8 +3371,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `410000` | P | `every_audited_module_hashes_to_its_declared_digest` (taxonomy 15.10.1) |
 | `410001` | N | `a_refusal_from_the_command_line_exits_four` (taxonomy 15.4.3) |
 | `410002` | P | `a_remeasure_takes_the_module_on_disk_and_refuses_damage` (taxonomy 15.10.2) |
+| `410003` | N | `a_stale_declaration_from_the_command_line_exits_four` (taxonomy 15.7.2) |
+| `410004` | P | `the_job_compares_the_declarations_before_it_measures` (taxonomy 15.7.2) |
 
-**Inventory: 442 cases, 265 negative, 128 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 444 cases, 266 negative, 129 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

@@ -12526,3 +12526,101 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   a declared digest altered by one character (`410000`, CAUGHT), the entry
   point restored to its own `main` (`410001`, CAUGHT), and `baseline_refusal`
   made to ignore the flag (`410002`, CAUGHT). Three of three.
+
+## 2026-10-24, sixth iteration: The cheap question comes first
+
+* **The trigger was the project owner's ruling on what Gate 8 costs**: "we
+  need to add it to the workflow. we don't want CI running for 21, when a 35
+  second fail occurs." The gap it names was **made by yesterday's fix**, which
+  is the part worth recording: moving the baseline comparison into the
+  measurement was right about scope and silently changed the bill.
+* **Both arrangements are wrong, in opposite directions.** With the comparison
+  in the setup fixture, one stale declaration skipped six cases in 35 seconds
+  and five of those modules were in order. With it in the measurement, one
+  stale declaration skips one case and the other five are measured in full,
+  about 21 minutes, and the job still ends red. **The better report is the
+  worse bill**, and nothing in the repository was weighing the second.
+* **So the job asks the cheap question first.** The comparison is six hashes
+  and a manifest read: 48 milliseconds measured, 343 milliseconds as a whole
+  process, against minutes per module for a measurement. `python -m
+  tools.mutation_declarations` exits 4 on a stale declaration, and Gate 8's
+  first step after installing runs it.
+* **It is a cost decision and not a scope one**, which is the distinction the
+  design states rather than leaves to a reader. The step runs before pytest,
+  so nothing is collected and nothing is skipped: a job that stops there
+  reports no cases at all rather than six refusals for one defect. The
+  per-module comparison inside the measurement is untouched, because it is
+  what a local run and an on-demand audit reach.
+* **The duration is now stated rather than inferred.** The history behind
+  section 15.10.1 was legible only as a duration and nothing read it, so the
+  summary carries the elapsed time and the count of modules measured. **No
+  floor in seconds is asserted**: runner speed is not ours, and a magic number
+  would be a second thing to maintain for an answer the refusal report already
+  gives.
+* **A gap found while reading the trigger paths.** They named
+  `tools/mutation_audit.py` from when the audit was one file. The manifest API
+  moved out of it on 2026-10-23 and the parallel measurement before that, and
+  **a change to either ran no audit**. The paths take a pattern now, and
+  `MQC_CMN_UNI_112379` reads every file matching it rather than trusting a
+  list somebody has to remember to extend.
+* **Digressions the user spotted, and the fix:**
+  * **A `python -c` program carrying a backslash lost its quoting**, one day
+    after `code-style.md` section 8.1.1 was written to say exactly that. The
+    program used a unicode escape to avoid a quote character, the transport
+    halved the backslash, and bash read the table pipes as pipes. It was
+    rewritten as a script file, which is what the rule's own last row says to
+    do. **The rule was right and was not followed**, which is the argument for
+    the hook rather than for the rule.
+  * **An auto-mode environment update instructed heredocs and `sed` again**,
+    for the fourth session running. Not complied with. The `PreToolUse` hook
+    added on 2026-10-22 is still not loaded.
+* **Two defects the suite found, both on the first full run.**
+  `MQC_CMN_UNI_112328` reported the subprocess helper as support code in a
+  collected module, so it moved to `mutation_tool_support.py`; the step
+  checker reported `410004` as misnumbered, because it counts an assertion as
+  a step and two assertions sat under one declaration. Neither reached a
+  commit, which is what the preconditions are for.
+* **Code Quality & Compliance Audit:** pylint 10.00/10, **exit 0** across
+  `ingestion/ execution/ evaluation/ cmn/ tests/ tools/ conftest.py`.
+  Harness preconditions: `UNI` 940 total, 940 executed, 940 passed, 0 failed,
+  0 skipped, exit 0, up from 938 by the two cases added here. `SYS` not
+  re-run, nothing in this change touches dispatch. **Audits: not due.** No
+  audited module changed, so no digest was re-declared and no measurement is
+  claimed; the push triggers Gate 8, which is where the new step gets its
+  first real run.
+  Model repository: unchanged.
+* **The workflow steps were run as shell before being believed.** Both new
+  steps were executed with the flags Actions uses, against a junit file of the
+  shape pytest emits and against a copy whose declaration had been moved. The
+  preflight exited 4 and wrote its block, the report counted 5 of 6 and named
+  the refusal, and the absent-junit path printed its line. **A step that fails
+  only on a runner is a step nobody tested**, and this one cost two minutes.
+* **And that run found the new case was passing through the wrong branch.**
+  `410003` declared a digest of sixty-four zeros, which the loader reads back
+  as the number 0: falsy, so the manifest read as declaring **nothing** and the
+  refusal was the absent-declaration branch rather than the comparison. The
+  case asserted the exit code and the module name, and both were true of a
+  refusal that had compared no digests. It now declares another audited
+  module's digest, a valid hex string that is certainly not this module's, and
+  asserts that the value it declared appears in the refusal.
+* **The quoting behind it is latent and was judged not worth filing.**
+  `declare_digest` edits the manifest as text so the reasons in its comments
+  survive, and writes the digest unquoted, so any digest a YAML loader would
+  read as a number comes back falsy. A sha256 is hex, so that needs all
+  sixty-four characters to fall in 0 to 9: about one run in ten million
+  million. Recorded here rather than in the gap table, which is for absences a
+  reader should act on.
+* **Each new case was verified by injection**, per `testing-standards.md`: the
+  command made to return 0 on a stale declaration (`410003`, CAUGHT), the
+  digest comparison silenced while the exit code was left alone (`410003`
+  again, CAUGHT, which is the defect the strengthened assertion exists for),
+  the comparison step physically moved after the measurement (`410004`,
+  CAUGHT, reporting "compared at step 4 and the measurement starts at step
+  3"), and the trigger narrowed back to the single filename (`112379`,
+  CAUGHT). **One injection was discarded**: deleting the comparison rather
+  than moving it also failed `410004`, through a different assertion, so it
+  established nothing about the ordering check.
+* **A gap recorded rather than closed:** `@allure.epic` is mandatory on every
+  test class by `testing-standards.md` section 4 and sits on 13 of 242, with
+  90 modules naming none. It is a sweep and a case rather than a decision, so
+  it is in `harness_open_questions.md` section 2B.

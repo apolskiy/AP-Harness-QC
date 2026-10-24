@@ -3,17 +3,18 @@
 """Test helpers that build a synthetic module and manifest for the mutation audit cases.
 
 Created: 2026-10-14
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 This file provides ``write_manifest``, ``harness_tree`` and ``pointed_tree``, which
 lay out a small harness with a declared digest, ``hold_module``, ``exited_pid`` and
 ``write_stop_request``, which stage a live or abandoned audit and a stop request,
-pytest stand-ins in ``AuditItem``, ``AuditConfig`` and ``launcher``, and
-``restored_baseline``, which checks a module was put back.
+pytest stand-ins in ``AuditItem``, ``AuditConfig`` and ``launcher``,
+``restored_baseline``, which checks a module was put back, and
+``run_declarations``, which runs the declaration comparison as a command.
 
-They serve ``mqc_uni_mutation_tool.py``, ``mqc_uni_mutation_guard.py`` and
-``mqc_uni_mutation_stop.py``, so those cases audit a throwaway module rather than
-a production one.
+They serve ``mqc_uni_mutation_tool.py``, ``mqc_uni_mutation_guard.py``,
+``mqc_uni_mutation_stop.py`` and ``mqc_uni_mutation_declarations.py``, so those
+cases audit a throwaway module rather than a production one.
 
 **A sibling module collection does not reach**, per `MQC_CMN_UNI_112328`: a
 collected module holds cases and nothing else.
@@ -407,4 +408,26 @@ def restored_baseline(module: Path) -> bool:
         module_digest(module.read_text(encoding="utf-8")) == module_digest(POINTED)
         and not module.with_name(module.name + BACKUP_SUFFIX).exists()
         and not module.with_name(module.name + LOCK_SUFFIX).exists()
+    )
+
+def run_declarations(root: Path) -> subprocess.CompletedProcess[str]:
+    """Run the declaration comparison over a root and return the finished command.
+
+    **A subprocess, because the exit code is the contract.** Gate 8's job and
+    an operator read the status rather than a function's return value, so the
+    case runs the command the way they run it.
+
+    Design: ``harness_test_taxonomy.md`` section 15.7.2.
+
+    Args:
+        root (Path): The repository the command reads.
+
+    Returns:
+        subprocess.CompletedProcess[str]: The finished command, its output
+        captured.
+    """
+    return subprocess.run(
+        [sys.executable, "-m", "tools.mutation_declarations", str(root)],
+        cwd=Path(__file__).resolve().parents[2], capture_output=True, text=True,
+        encoding="utf-8", check=False, stdin=subprocess.DEVNULL, timeout=120,
     )

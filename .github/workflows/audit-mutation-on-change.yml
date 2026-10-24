@@ -10,6 +10,11 @@
 # changes on main, and on demand. NO SCHEDULE UNTIL MAIN IS STABLE, the rule
 # section 2.0.1 sets for every workflow.
 #
+# THE CHEAP QUESTION IS ASKED FIRST. A measurement costs minutes per module and
+# the comparison deciding whether it is worth starting costs six hashes, so the
+# declarations are compared before anything is measured and a manifest that
+# does not describe this commit stops the job there (taxonomy section 15.7.2).
+#
 # IT BLOCKS NOTHING AND IS NOT A REQUIRED CHECK. A survivor is a fact about
 # coverage rather than about what a run measured (taxonomy section 15.6). It
 # does go red: on an undeclared survivor, on a declaration that no longer
@@ -25,7 +30,12 @@ on:
       - "execution/**"
       - "evaluation/**"
       - "tests/**"
-      - "tools/mutation_audit.py"
+      # A PATTERN RATHER THAN A NAME. `tools/mutation_audit.py` was the whole
+      # audit until 2026-10-23, when the manifest API moved to
+      # `tools/mutation_declarations.py` and the measurement to
+      # `tools/mutation_parallel.py`; neither path triggered anything, so a
+      # change to what gets audited ran no audit (pipeline section 5A).
+      - "tools/mutation_*.py"
       - "config/mutation_survivors.yaml"
   workflow_dispatch:
 
@@ -60,6 +70,33 @@ jobs:
       - name: Install
         run: python -m pip install --editable ".[dev]"
 
+      # SIX HASHES BEFORE MINUTES PER MODULE. One stale declaration used to
+      # cost five measurements and about twenty-one minutes, and the job went
+      # red anyway: the manifest disagreeing with the repository is not a
+      # measurement and nothing below it can be one (taxonomy section 15.7.2).
+      - name: Compare the declarations with the modules
+        id: declarations
+        shell: bash
+        run: |
+          status=0
+          stale=$(python -m tools.mutation_declarations 2>&1) || status=$?
+          echo "$stale"
+          echo "started=$(date +%s)" >> "$GITHUB_OUTPUT"
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          {
+            echo "## Mutation audit"
+            echo ""
+            echo "**Not started.** The manifest does not describe the modules on disk,"
+            echo "so nothing here could measure the commit that triggered it."
+            echo ""
+            echo "$stale"
+            echo ""
+            echo "Re-measure each module named above and declare its digest, then push again."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
       - name: Gate 8, mutation audit
         id: audit
         run: pytest -m mutation tests/mutation --junitxml=reports/junit_mqc_mutation.xml --alluredir=reports/allure-results
@@ -68,13 +105,29 @@ jobs:
       # triggered this run usually invalidates the edited module's digest, and
       # a green job over audits that did not run would say the change was
       # measured (taxonomy section 15.7.1).
-      - name: Report audits that refused
+      #
+      # AND THE SUMMARY STATES WHAT IT TOOK. The history this gate came from
+      # was legible only as a duration, twenty-one minutes green and then
+      # thirty-one seconds red four times over, and nothing read that number.
+      # No floor is asserted: runner speed is not ours, and what is worth
+      # checking is whether every audited module was measured.
+      - name: Report what was measured, and what refused
         if: always()
         shell: bash
         run: |
-          refused=$(grep -o 'QC_HARNESS_AUDIT_REFUSED[^"&]*' reports/junit_mqc_mutation.xml || true)
+          report=reports/junit_mqc_mutation.xml
+          if [ ! -f "$report" ]; then
+            echo "no measurement ran, so there is nothing to report"
+            exit 0
+          fi
+          elapsed=$(( $(date +%s) - ${{ steps.declarations.outputs.started }} ))
+          audits=$(grep -o '<testcase ' "$report" | wc -l || true)
+          skipped=$(grep -o '<skipped' "$report" | wc -l || true)
+          refused=$(grep -o 'QC_HARNESS_AUDIT_REFUSED[^"&]*' "$report" || true)
           {
             echo "## Mutation audit"
+            echo ""
+            echo "Measured $(( audits - skipped )) of $audits audits in $(( elapsed / 60 ))m $(( elapsed % 60 ))s."
             echo ""
             if [ -n "$refused" ]; then
               echo "**Refused, so not measured.** Re-measure and re-declare each digest:"

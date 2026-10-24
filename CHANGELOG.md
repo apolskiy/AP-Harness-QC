@@ -29,6 +29,53 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The audit asks what it costs nothing to ask, before it measures, 2026-10-24
+
+**One stale declaration cost a full audit and the job went red anyway.** The
+entry of 2026-10-23 moved the baseline comparison out of the setup fixture and
+into the measurement, so a refusal is about the module it names rather than
+about every module in the layer. That recovered five measurements a single
+stale digest had been withholding, and it changed what a refusal costs: the
+five current modules are now measured in full, about 21 minutes of CI, and the
+sixth still refuses, so the bill is paid and the result is a red job nobody can
+act on any faster than before.
+
+**The comparison that decides whether the audit is worth starting costs 48
+milliseconds**, six hashes and a manifest read, measured against minutes per
+module for a measurement. So Gate 8's job asks first. `python -m
+tools.mutation_declarations` prints every stale declaration and exits 4, the
+code a refusal carries, and the job's first step after installing runs it: a
+manifest that does not describe the commit stops the run there, at 343
+milliseconds and an install, rather than after 21 minutes.
+
+**It is a cost decision and not a change to what a case reports.** The step
+runs before pytest, so nothing is collected and nothing is skipped, and the
+per-module comparison inside the measurement stays exactly as it was: it is
+what a local run and an on-demand audit reach, where no workflow step runs at
+all. One implementation now answers in three places, the precondition, the
+step and the measurement, so none of them can drift from the others.
+
+**The job also states what it took.** The history this came from was legible
+only as a duration, 21 minutes 34 seconds green and then 31 to 38 seconds red
+for four pushes running, and nothing in the repository read that number. The
+summary now carries the elapsed time of the measurement and how many audited
+modules it reached. **No floor in seconds is asserted**: runner speed is not
+ours to promise, and what is worth checking is whether every audited module was
+measured.
+
+**And the trigger covers the audit's own tools again.** It named
+`tools/mutation_audit.py` from when the audit was one file. The manifest API
+moved to `tools/mutation_declarations.py` on 2026-10-23 and the parallel
+measurement to `tools/mutation_parallel.py`, and neither path triggered
+anything, so a change to what gets audited ran no audit.
+`tools/mutation_*.py` covers the next split as well, and
+`MQC_CMN_UNI_112379` now reads every file matching that pattern and asserts a
+declared path matches it.
+
+`MQC_CMN_UNI_410003` and `410004`, `MQC_REQ_HAR_CMN_0214` and `0215`,
+`harness_test_taxonomy.md` section 15.7.2 and `harness_ci_pipeline.md`
+section 5A. 970 test cases, 365 requirements.
+
 ### A stale declaration is reported, and re-measuring it has a command, 2026-10-23
 
 **The mutation audit measured nothing for four merges and said so only where

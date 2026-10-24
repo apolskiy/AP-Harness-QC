@@ -3,21 +3,22 @@
 """Unit preconditions for the manifest that says which modules were measured.
 
 Created: 2026-10-23
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 The cases here check ``tools/mutation_declarations.py``. One reads this
 repository and asserts that every audited module hashes to the digest declared
-for it; the other checks ``baseline_refusal`` against a scratch manifest, where
-a run asked to re-measure accepts the module on disk and still refuses a module
-that reads as its own unparse.
+for it; one checks ``baseline_refusal`` against a scratch manifest, where a run
+asked to re-measure accepts the module on disk and still refuses a module that
+reads as its own unparse; and one runs the command Gate 8's job calls before it
+measures, over a copy of the audited modules whose declaration is moved.
 
 **The first is the gate that was missing.** Until 2026-10-23 a declaration that
 had gone stale was reported by nothing until the mutation job refused on a push
 to main, and four merges passed with the layer measuring nothing. A failure here
 is **not a model finding**, so the module carries no priority marker.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` sections 15.10.1 and
-15.10.2.
+Specified by ``docs/design/harness_test_taxonomy.md`` sections 15.7.2, 15.10.1
+and 15.10.2.
 """
 
 # ------------------------------------------------------------- cases in here
@@ -26,10 +27,13 @@ Specified by ``docs/design/harness_test_taxonomy.md`` sections 15.10.1 and
 # TestMQCMutationDeclarations
 #   410000  every_audited_module_hashes_to_its_declared_digest
 #   410002  a_remeasure_takes_the_module_on_disk_and_refuses_damage
+#   410003  a_stale_declaration_from_the_command_line_exits_four
 # ------------------------------------------------------------ end of cases
 
 import ast
+import shutil
 from pathlib import Path
+from typing import Final
 
 import pytest
 
@@ -37,15 +41,35 @@ from cmn.case_steps import step
 from cmn.mutation_guard import module_digest
 from tools.mutation_declarations import (
     AUDITED,
+    MANIFEST,
+    REFUSED,
     baseline_refusal,
     declaration_problems,
+    declare_digest,
 )
 
-from tests.cmn.mutation_tool_support import MODULE, SOURCE, write_manifest
+from tests.cmn.mutation_tool_support import (
+    MODULE,
+    SOURCE,
+    run_declarations,
+    write_manifest,
+)
 
 pytestmark = pytest.mark.unit
 
 _ROOT = Path(__file__).resolve().parents[2]
+
+# THE MODULE WHOSE DECLARATION IS MOVED IN A COPY. `cmn/layers.py` holds no
+# accepted survivors, so moving its digest moves nothing else.
+_MOVED: Final[str] = "cmn/layers.py"
+
+# AND THE CONTENT ITS DECLARATION IS MOVED TO. Another audited module's digest
+# is a valid hex string and certainly not this module's, which is what makes
+# the refusal the comparison rather than the branch beside it: a digest of
+# sixty-four zeros is read back by the loader as the number 0, so a manifest
+# carrying one reads as declaring nothing at all.
+_OTHER: Final[str] = "cmn/verdict.py"
+
 
 
 class TestMQCMutationDeclarations:
@@ -108,3 +132,69 @@ class TestMQCMutationDeclarations:
             "the refusal rewrote the manifest, so a declaration moved without a "
             "measurement behind it"
         )
+
+    def MQC_CMN_UNI_410003_a_stale_declaration_from_the_command_line_exits_four(
+        self, tmp_path: Path
+    ) -> None:
+        """The command exits 0 over a copy it describes, and 4 once a digest moves.
+
+        **Over a copy rather than over this repository.** Moving a declaration
+        here would leave the manifest wrong for every later case in the run,
+        so the audited modules and the manifest are copied and the copy's
+        declaration is the one that moves.
+
+        **Both directions are asserted**, because a command that refuses
+        everything passes a one-sided check and would stop Gate 8's job on
+        every push.
+
+        Design: ``harness_test_taxonomy.md`` section 15.7.2.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        checkout = tmp_path / "checkout"
+        (checkout / "config").mkdir(parents=True)
+        for module in AUDITED:
+            (checkout / module).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy(_ROOT / module, checkout / module)
+        shutil.copy(_ROOT / MANIFEST, checkout / MANIFEST)
+
+        step(1, "run the command over a copy every declaration describes")
+        described = run_declarations(checkout)
+        assert described.returncode == 0, (
+            f"a byte-for-byte copy of the audited modules was reported stale, so "
+            f"the comparison refuses what it should accept: "
+            f"{(described.stdout + described.stderr)[-400:]!r}"
+        )
+
+        step(2, "declare one module's digest as another module's content")
+        moved = module_digest((checkout / _OTHER).read_text(encoding="utf-8"))
+        declare_digest(checkout / MANIFEST, _MOVED, moved)
+        stale = run_declarations(checkout)
+        printed = stale.stdout + stale.stderr
+        assert stale.returncode == REFUSED, (
+            f"a stale declaration exited {stale.returncode} rather than "
+            f"{REFUSED}, so a workflow step cannot tell a refusal from a "
+            f"measurement: {printed[-400:]!r}"
+        )
+
+        step(3, "read what it named")
+        assert _MOVED in printed and "Traceback" not in printed, (
+            f"the stale module was not named, or it arrived as a traceback: "
+            f"{printed[-400:]!r}"
+        )
+        # AND IT IS THE COMPARISON THAT REFUSED, not the absent-declaration
+        # branch beside it, which reports the same module and the same exit
+        # code while saying nothing about any digest having been compared.
+        assert moved in printed and "declares no baseline digest" not in printed, (
+            f"the refusal does not name the digest that was declared, so it is "
+            f"not the comparison that refused: {printed[-400:]!r}"
+        )
+
+        # AND ONLY THAT ONE. The comparison is per module, so a job stopped by
+        # one stale declaration still says which of the six to re-measure.
+        swept = [one for one in AUDITED if one != _MOVED and one in printed]
+        assert not swept, f"modules in order were reported stale as well: {swept}"
