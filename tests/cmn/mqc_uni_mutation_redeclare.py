@@ -3,7 +3,7 @@
 """Unit precondition for re-declaring an audited module whose code did not change.
 
 Created: 2026-10-21
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 The case here checks ``redeclare`` in ``tools/mutation_redeclare.py`` against a
 scratch repository holding one audited module with one declared survivor: a
@@ -33,7 +33,8 @@ import pytest
 
 from cmn.case_steps import step
 from cmn.mutation_guard import module_digest
-from tools.mutation_audit import MutationRefusal, declared_survivors
+from tools.mutation_audit import MutationRefusal
+from tools.mutation_declarations import declared_survivors
 from tools.mutation_redeclare import redeclare
 
 from tests.cmn.file_dates_support import git_in

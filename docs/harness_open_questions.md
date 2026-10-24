@@ -123,6 +123,7 @@ because a second copy drifts.
 | Question | Settled | Recorded in |
 |---|---|---|
 | Where does the next governance case get its number? | Settled 2026-10-22, in a declared partition at `400000` | `harness_test_taxonomy.md` section 3.2.1.5. The owner's ruling: existing ranges stay, the unallotted ones open, and a newer partition can be 10,000 wide. `200000` and `300000` stay reserved for the two recorded domains |
+| `CMN`/`UNI` category 4 holds three subjects against a table naming one. Partition, or a corrected table? | Settled 2026-10-23, a declared partition at `410000` | `harness_test_taxonomy.md` section 3.2.1.5, which now records the direction as well as the range. The owner's ruling: "use declared partition. at the end of the day we will need to use declared partitions. 100 test cases per partition is just not enough." So a partition is what a new subject takes, and the sixteen mutation cases already in `1123xx` and `1124xx` stay where they were assigned |
 | Where should a judge panel's divergence be published? | Withdrawn 2026-09-26, a panel is out of scope | `tier3_evaluation.md` |
 | Should invalid-coupon abuse be logged, and is that assertable? | 2026-09-26, assertable by asking directly | The `code_comprehension` corpus |
 | Should the `screen_evasion` exemption be capped? | 2026-09-26, at 15% of payloads | `tier1_ingestion.md` section 7.3.4 |

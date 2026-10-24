@@ -3,15 +3,17 @@
 """Unit tests for the safeguards of the mutation audit tool itself.
 
 Created: 2026-10-14
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
-Its cases check ``tools/mutation_audit.py``. ``baseline_problem`` refuses a
-module not matching its declared digest, ``declare_digest`` writes a digest
-without losing the recorded reasons, and a control rewrite leaves a recoverable
-backup. ``acquire_lock`` refuses a module a live audit holds and clears one a dead
-audit left, an audit reads no standard input, and a control that raises leaves no
+Its cases check ``tools/mutation_audit.py`` and the manifest functions it calls
+from ``tools/mutation_declarations.py``. ``baseline_problem`` refuses a module
+not matching its declared digest, ``declare_digest`` writes a digest without
+losing the recorded reasons, and a control rewrite leaves a recoverable backup.
+``acquire_lock`` refuses a module a live audit holds and clears one a dead audit
+left, an audit reads no standard input, and a control that raises leaves no
 backup. One case reads the Gate 8 workflow and checks it runs the audit on a
-harness update.
+harness update, and one runs the command line and reads the status a refusal
+exits with.
 
 The audit rewrites production modules in place, so these safeguards decide
 whether a crash or a second audit can leave the harness damaged or measured
@@ -43,6 +45,7 @@ question was looking at the right file.
 # TestMQCMutationControl
 #   112426  a_refused_control_names_the_failing_cases
 #   112427  the_command_line_defaults_to_the_audit_targets
+#   410001  a_refusal_from_the_command_line_exits_four
 # ------------------------------------------------------------ end of cases
 
 import ast
@@ -57,7 +60,6 @@ import pytest
 import yaml
 
 from tests.cmn.mutation_tool_support import MODULE, SOURCE, write_manifest
-from tests.mutation.mutation_support import AUDITED
 from cmn.case_steps import step
 from tools.mutation_audit import (
     _BACKUP_SUFFIX,
@@ -65,10 +67,7 @@ from tools.mutation_audit import (
     MutationRefusal,
     acquire_lock,
     audit_targets,
-    baseline_problem,
     control_problem,
-    declare_digest,
-    declared_survivors,
     module_digest,
     process_alive,
     recover,
@@ -77,6 +76,12 @@ from tools.mutation_audit import (
     survivors,
 )
 from tools import mutation_audit
+from tools.mutation_declarations import (
+    AUDITED,
+    baseline_problem,
+    declare_digest,
+    declared_survivors,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -473,8 +478,46 @@ class TestMQCMutationControl:
         step(1, "resolve the targets for a command line naming none")
         targets = audit_targets([])
         assert targets == list(AUDIT_TARGETS) and "unit" in targets and all(
-            any(case in target for target in targets) for case in ("112502", "112331")
+            any(case in target for target in targets) for case in ("112502", "112331", "410000")
         ), f"a bare command line audits against {targets}"
 
         step(2, "resolve the targets for a command line naming one")
         assert audit_targets(["tests/cmn"]) == ["tests/cmn"], "a named target was replaced"
+
+    @allure.story("A refusal reaches the operator as an exit code")
+    def MQC_CMN_UNI_410001_a_refusal_from_the_command_line_exits_four(
+        self,
+    ) -> None:
+        """An audit refused in a parallel copy exits 4 and prints the refusal.
+
+        **Run as a subprocess, which is the only way the defect appears.** Under
+        ``-m`` the module is imported twice, as ``__main__`` and under its own
+        name when the parallel helper imports it, so the refusal's class and the
+        class the ``except`` names were two objects and the refusal escaped as a
+        traceback with exit 1. Calling ``main`` in process gives one copy of the
+        class and cannot see it.
+
+        Design: ``harness_test_taxonomy.md`` section 15.4.3.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+
+        step(1, "audit a module the manifest declares no digest for")
+        refused = subprocess.run(
+            [sys.executable, "-m", "tools.mutation_audit", "cmn/document_citations.py"],
+            cwd=root, capture_output=True, text=True, encoding="utf-8", check=False,
+            stdin=subprocess.DEVNULL, timeout=300,
+        )
+        printed = refused.stdout + refused.stderr
+        assert refused.returncode == 4, (
+            f"a refused audit exited {refused.returncode} rather than 4, so an "
+            f"operator reading the status cannot tell a refusal from a survivor: "
+            f"{printed[-400:]!r}"
+        )
+
+        step(2, "read what it printed")
+        assert "QC_HARNESS_AUDIT_REFUSED" in printed and "Traceback" not in printed, (
+            f"the refusal was not named, or it arrived as a traceback: {printed[-400:]!r}"
+        )

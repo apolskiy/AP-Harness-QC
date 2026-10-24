@@ -29,6 +29,72 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A stale declaration is reported, and re-measuring it has a command, 2026-10-23
+
+**The mutation audit measured nothing for four merges and said so only where
+nobody is stopped.** An audited module was edited on 2026-10-21, two gloss
+strings and a docstring, and the digest `config/mutation_survivors.yaml`
+declares for it was not re-declared. The push before that edit measured six
+modules in 21 minutes 34 seconds. The three pushes after it refused six in
+about 35 seconds each, and Gate 8 is non-blocking by design, so the red read
+as a backlog item while the layer asserted nothing.
+
+**Three defects, each of which hid the next.**
+
+A refusal about one module skipped every case in the layer. The setup fixture
+checked all six declarations, so five modules that were in order were never
+measured. The baseline check now sits with the measurement, which makes it per
+module, and the fixture keeps only the backup recovery, which is the one
+refusal that is about the repository rather than about a module.
+
+Neither tool could re-measure what had gone stale. The audit refused a stale
+baseline and named `tools/mutation_redeclare.py`, which refuses a code change
+and names the audit. The only escape was editing the digest by hand, which
+certifies content that nothing measured. `--remeasure` takes the module on
+disk as the baseline and declares its digest after the measurement returns; a
+backup, a lock, a failing control and a module reading as its own unparse each
+still refuse, and no survivor is accepted without a reason and an expiry
+somebody wrote.
+
+A refusal from the command line exited 1 with a traceback instead of 4. Under
+`-m` the module is imported twice, as `__main__` and again under its own name
+when the parallel helper imports it, so the exception class had two identities
+and the `except` in `main` named the wrong one. The same refusal exited 4
+through `--workers 1`. Nothing exercised either entry point, which is how a
+documented exit code came to be wrong for every refusal raised in parallel.
+
+**What is new.** A unit precondition hashes each audited module and compares it
+with its declaration, so a stale declaration fails Gate 2 on the pull request
+rather than Gate 8 after the merge. It reports a disagreement about which code
+was measured and never a survivor: a survivor stays with the audit, which is
+still allowed to be red. The manifest's own functions moved to
+`tools/mutation_declarations.py`, the audit module having reached the 900-line
+runway.
+
+**The new precondition failed the audit's own control on its first run**, and
+that is recorded rather than patched quietly. The control writes each module as
+its own unparse to establish that the reformatting kills nothing, and an
+unparsed module cannot hash to its declared digest, so all six audits refused
+naming the new case. It joins the two cases the audit already deselects, the
+authorship header and the runway ceiling, which read source as text for the
+same reason. The list is declared once and `MQC_CMN_UNI_112427` asserts that a
+bare command line carries all three.
+
+**The three cases take a declared partition**, `410000`-`419999`, the second
+one allocated. The mutation tooling began in `1123xx`, which is full at 100 of
+100, and continued into `1124xx`, which the design gives to the dependency
+cascade; nothing reported the overflow because no check compares a case
+against the subject its category declares. A category holds a hundred
+identifiers and a partition holds ten thousand, so a subject beginning after
+2026-10-23 takes a partition. Existing identifiers stay where they were
+assigned.
+
+`MQC_CMN_UNI_410000` to `410002`, `MQC_REQ_HAR_CMN_0211` to `0213`, and
+`harness_test_taxonomy.md` sections 3.2.1.1, 3.2.1.5, 15.2.1.1, 15.4.3,
+15.4.4, 15.10.1 and 15.10.2. `code-style.md` section 8.1.1 records what a
+short program passed to the interpreter loses to the shell.
+968 test cases, 363 requirements.
+
 ### The runbooks name the selectors that were built for them, 2026-10-22
 
 **Nine selectors were designed, traced, implemented and covered, and no

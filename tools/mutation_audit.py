@@ -3,7 +3,7 @@
 """Mutation audit, which changes production code one point at a time to find what tests miss.
 
 Created: 2026-10-13
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 This file contains ``mutation_points``, which lists every operator or
 constant change it can make to a module, and ``mutant_source``, which makes
@@ -61,8 +61,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final, Iterator, Optional
 
-import yaml
-
+from tools.mutation_declarations import (
+    baseline_refusal,
+    declare_digest,
+    declared_survivors,
+)
 from cmn.mutation_guard import (
     AUDIT_ENV,
     BACKUP_SUFFIX,
@@ -131,11 +134,16 @@ _RUN_TIMEOUT_SEC: Final[int] = 600
 # process. One means the in-place audit (section 15.15).
 DEFAULT_WORKERS: Final[int] = 4
 
-# THE TWO CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they fail
-# on the reformatting the mutator performs and would kill every mutant for the
-# wrong reason. Measured rather than guessed: the suite was run against an
+# THE THREE CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they
+# fail on the reformatting the mutator performs and would kill every mutant for
+# the wrong reason. Measured rather than guessed: the suite was run against an
 # unparsed module and these are what failed. Declared once, for the audit cases
 # and the command line alike (sections 15.4 and 15.4.2).
+#
+# THE DIGEST PRECONDITION IS THE THIRD, added 2026-10-23 on the first run after
+# it was written: the control writes a module as its own unparse, which by
+# construction does not hash to the declared digest, so every audit refused
+# with its own control as the reason (section 15.4.4).
 AUDIT_TARGETS: Final[tuple[str, ...]] = (
     "-m", "unit",
     "--deselect",
@@ -144,6 +152,9 @@ AUDIT_TARGETS: Final[tuple[str, ...]] = (
     "--deselect",
     "tests/cmn/mqc_uni_file_standards.py::TestMQCModuleRunway"
     "::MQC_CMN_UNI_112331_a_module_at_the_runway_ceiling_is_reported",
+    "--deselect",
+    "tests/cmn/mqc_uni_mutation_declarations.py::TestMQCMutationDeclarations"
+    "::MQC_CMN_UNI_410000_every_audited_module_hashes_to_its_declared_digest",
 )
 
 
@@ -286,39 +297,6 @@ def _mutate(tree: ast.Module, point: MutationPoint) -> bool:
             return True
         return False
     return False
-
-
-def baseline_problem(manifest: Path, module: str, text: str) -> Optional[str]:
-    """Report why this content may not serve as a baseline, or None.
-
-    Design: ``harness_test_taxonomy.md`` section 15.10.
-
-    Args:
-        manifest (Path): ``config/mutation_survivors.yaml``.
-        module (str): The module path, as the declaration keys it.
-        text (str): The content on disk.
-
-    Returns:
-        Optional[str]: The reason to refuse, or None when the content hashes
-        to the declared digest.
-    """
-    declared = (declared_survivors(manifest).get(module) or {}).get("digest")
-    found = module_digest(text)
-    if not declared:
-        return (
-            f"{module} declares no baseline digest, so nothing establishes "
-            f"that this content is the module the survivors were measured "
-            f"against. Add `digest: {found}` beside its `accepted` list"
-        )
-    if declared != found:
-        return (
-            f"{module} hashes to {found} and {manifest.name} declares "
-            f"{declared}. Either an earlier run left the module altered, or "
-            f"it was edited and the survivors need re-measuring against it; "
-            f"where only its docstrings or comments changed, "
-            f"`python -m tools.mutation_redeclare {module}` is enough"
-        )
-    return None
 
 
 def recover(module: Path) -> Optional[str]:
@@ -504,7 +482,8 @@ def control_problem(
 
 
 def survivors(
-    root: Path, module: Path, targets: list[str], *, limit: int = 0
+    root: Path, module: Path, targets: list[str], *, limit: int = 0,
+    remeasure: bool = False,
 ) -> list[MutationPoint]:
     """Return every change the suite failed to notice.
 
@@ -513,6 +492,8 @@ def survivors(
         module (Path): The production module to mutate.
         targets (list[str]): The pytest arguments naming what to run.
         limit (int): Stop after this many points, or zero for all of them.
+        remeasure (bool): True to take the module on disk as the baseline
+            instead of comparing it with the declared digest (section 15.10.2).
 
     Returns:
         list[MutationPoint]: The survivors, in walk order.
@@ -525,13 +506,15 @@ def survivors(
             section 15.2.1: none of those says anything about the survivors.
     """
     with held_audit(root, module) as progress:
-        found = _survivors_held(root, module, targets, progress, limit=limit)
+        found = _survivors_held(root, module, targets, progress, limit=limit,
+                                remeasure=remeasure)
     progress.finish(f"restored, {len(found)} survivor(s)")
     return found
 
 
 def _survivors_held(
-    root: Path, module: Path, targets: list[str], progress: ProgressLog, *, limit: int = 0
+    root: Path, module: Path, targets: list[str], progress: ProgressLog, *,
+    limit: int = 0, remeasure: bool = False,
 ) -> list[MutationPoint]:
     """Return every change the suite failed to notice, the lock already held.
 
@@ -562,8 +545,9 @@ def _survivors_held(
     # `finally` restores it. A damaged baseline that reaches those steps is
     # preserved by them rather than caught (section 15.10).
     original = module.read_text(encoding="utf-8")
-    stale = baseline_problem(
-        root / _MANIFEST, module.relative_to(root).as_posix(), original
+    stale = baseline_refusal(
+        root / _MANIFEST, module.relative_to(root).as_posix(), original,
+        remeasure=remeasure,
     )
     if stale is not None:
         raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {stale}")
@@ -673,65 +657,6 @@ def _run_control(root: Path, module: Path, targets: list[str], original: str) ->
         raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {refusal}")
 
 
-def declared_survivors(path: Path) -> dict[str, dict[str, Any]]:
-    """Return the accepted survivors, per module.
-
-    Args:
-        path (Path): ``config/mutation_survivors.yaml``.
-
-    Returns:
-        dict: Module path to its declaration. Empty when the file is absent,
-        which is the state a repository with no accepted survivor is in.
-    """
-    if not path.is_file():
-        return {}
-    loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return loaded.get("survivors") or {}
-
-
-def declare_digest(manifest: Path, module: str, digest: str) -> None:
-    """Record the baseline digest a module's survivors were measured against.
-
-    **Edited in place rather than re-serialized.** Dumping the parsed mapping
-    back would drop every comment, and the comments are the reasons section
-    15.2 requires each accepted survivor to carry.
-
-    Design: ``harness_test_taxonomy.md`` section 15.2.2.
-
-    Args:
-        manifest (Path): ``config/mutation_survivors.yaml``.
-        module (str): The module path, as the declaration keys it.
-        digest (str): The hex digest to declare.
-
-    Returns:
-        None
-    """
-    text = manifest.read_text(encoding="utf-8") if manifest.is_file() else ""
-    entry = f"  {module}:\n"
-    declared = (declared_survivors(manifest).get(module) or {}).get("digest")
-    if declared:
-        manifest.write_text(
-            text.replace(f"    digest: {declared}\n",
-                         f"    digest: {digest}\n", 1),
-            encoding="utf-8", newline="\n",
-        )
-        return
-    if entry in text:
-        manifest.write_text(
-            text.replace(entry, f"{entry}    digest: {digest}\n", 1),
-            encoding="utf-8", newline="\n",
-        )
-        return
-    # A MODULE WITH NO ENTRY AT ALL, which is an audited module that has
-    # accepted nothing. The digest alone is the correct statement, and
-    # `survivor_problems` reads an absent `accepted` as an empty list.
-    opener = "" if text.endswith("\n") or not text else "\n"
-    manifest.write_text(
-        f"{text}{opener}{entry}    digest: {digest}\n",
-        encoding="utf-8", newline="\n",
-    )
-
-
 def survivor_problems(
     module: str, found: list[MutationPoint], declaration: dict[str, Any]
 ) -> list[str]:
@@ -799,6 +724,10 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="Stop after this many mutation points")
     parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
                         help="Copies measuring at once; 1 audits in place")
+    parser.add_argument(
+        "--remeasure", action="store_true",
+        help="Take the module on disk as the baseline and declare its digest once measured",
+    )
     parsed = parser.parse_args(argv)
 
     root = Path(__file__).resolve().parents[1]
@@ -812,19 +741,27 @@ def main(argv: Optional[list[str]] = None) -> int:
     if parsed.module is None:
         parser.error("name a module to audit, or pass --stop")
 
+    # READ BEFORE THE AUDIT AND DECLARED AFTER IT, so the digest records the
+    # bytes that were measured rather than whatever the run left behind.
+    measured = (root / parsed.module).read_text(encoding="utf-8")
     try:
         if parsed.workers > 1:
             # IMPORTED HERE, because the parallel audit is built on this module.
             parallel = importlib.import_module("tools.mutation_parallel")
             found = parallel.parallel_survivors(root, root / parsed.module,
                                                 audit_targets(parsed.target),
-                                                workers=parsed.workers, limit=parsed.limit)
+                                                workers=parsed.workers, limit=parsed.limit,
+                                                remeasure=parsed.remeasure)
         else:
             found = survivors(root, root / parsed.module, audit_targets(parsed.target),
-                              limit=parsed.limit)
+                              limit=parsed.limit, remeasure=parsed.remeasure)
     except (MutationRefusal, subprocess.TimeoutExpired) as error:
         logger.error("%s", error)
         return 4
+
+    if parsed.remeasure:
+        declare_digest(root / _MANIFEST, parsed.module.as_posix(), module_digest(measured))
+        logger.info("%s declared at %s", parsed.module, module_digest(measured)[:8])
 
     problems = survivor_problems(
         parsed.module.as_posix(), found,
@@ -839,4 +776,8 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # DELEGATED TO THE IMPORTED MODULE, not to the copy running as ``__main__``.
+    # A helper raising ``MutationRefusal`` imports it from ``tools.mutation_audit``,
+    # which is a second copy of this file with a second copy of the class, and
+    # the ``except`` in ``main`` would name the wrong one (section 15.4.3).
+    sys.exit(importlib.import_module("tools.mutation_audit").main())

@@ -12443,3 +12443,86 @@ design with a one-line pointer, which is where reasoning belongs anyway.
 * **Code Quality & Compliance Audit:** no code changed, so no suite was
   re-run beyond the document checks: order, duplicate sections, citations and
   flags all report nothing in both repositories.
+
+## 2026-10-23, fifth iteration: A gate nobody is stopped by is a gate nobody passes
+
+* **The trigger was a red CI job the project owner pointed at**, the mutation
+  audit of 2026-10-22. It was one stale digest and four defects, and the first
+  measurement of the session was the job history rather than the code: green
+  at 21m 34s on 2026-10-22, then red at 31 to 38 seconds for four consecutive
+  pushes. **A job that drops from twenty-one minutes to thirty-one seconds has
+  stopped working rather than found something**, and nothing read the duration.
+* **What went stale, and why nothing caught it.** `cmn/band_summary.py` was
+  edited on 2026-10-21, two skip glosses and a docstring, and the digest
+  declared for it was not re-declared. The memory rule for an audited module
+  says to re-declare; it held in a memory file and in no check, and the
+  pull-request gates read the manifest for nothing.
+* **One refusal withheld six measurements.** The setup fixture checked every
+  audited module, so a refusal about one skipped the whole layer. Five modules
+  were in order and none of them was measured. The baseline check moved to the
+  measurement, which already makes it per module; the fixture keeps the backup
+  recovery, which is the one refusal that is about the repository.
+* **Each tool sent an author to the other.** The audit refused a stale
+  baseline and named `mutation_redeclare`; `mutation_redeclare` refused a code
+  change and named the audit. The design states the remedy as "re-measure and
+  re-declare" and nothing implemented it, so the only escape was editing the
+  digest by hand, which is what had to be done to measure `band_summary`
+  again: 2 survivors, 0 undeclared, exit 0 against the new baseline.
+* **The command line reported a refusal as a crash.** With the default workers
+  it exited 1 with a traceback, and the same refusal exited 4 through
+  `--workers 1`. Under `-m` the module is imported twice, as `__main__` and
+  under its own name when the parallel helper imports it, so
+  `MutationRefusal` had two identities and the `except` named the wrong one.
+  **Nothing exercised either entry point**, so the only untested part of the
+  contract was the part an operator reads.
+* **The project owner's ruling on the remedy**, asked for because it was
+  theirs to pick: "I would go with 2 a precondition should report a stale
+  declaration. we can discuss 1. if that implementation is still useful."
+  **Option 1 was then load-bearing rather than optional**, which was put back
+  to them: a blocking precondition whose only remedy is an undocumented
+  hand-edit is a wedge rather than a gate, so both shipped together.
+* **Why it does not contradict section 15.6.** A survivor is a statement about
+  coverage and still never blocks. A declaration that is not the module on
+  disk is not a measurement at all: it is the manifest disagreeing with the
+  repository, which is the class `112303` and `112313` already block for.
+* **The fourth defect was found by running it.** The new precondition failed
+  the audit's own control, and all six refused naming it. The control writes
+  each module as its own unparse to establish that the reformatting kills
+  nothing, and an unparsed module cannot hash to its declared digest. It is
+  the third case of that shape, after the authorship header and the runway
+  ceiling, and the deselect list had been named for the first two
+  (section 15.4.4). **The seven minutes that run cost were the cheapest part
+  of this iteration**: nothing short of running it would have shown this.
+* **The partitions, at the owner's ruling:** "use declared partition. at the
+  end of the day we will need to use declared partitions. 100 test cases per
+  partition is just not enough." So `410000`-`419999` holds the mutation
+  subject, the three cases written today are its first inhabitants, and
+  section 3.2.1.5 now records the **direction** rather than a second instance:
+  a subject beginning from here takes a partition, because a category holds a
+  hundred and three subjects had already outgrown one. The sixteen mutation
+  cases in `1123xx` and `1124xx` stay where they were assigned.
+* **Digressions the user spotted, and the fix:**
+  * **A `python -c` command lost a word to bash.** Backticks inside the
+    program were read as command substitution, so a written comment arrived
+    with a word missing and the script still reported success. At the owner's
+    instruction the workaround is now a rule, `code-style.md` section 8.1.1,
+    and it was measured rather than assumed: single quotes stop the backtick
+    and the dollar sign, and **do not stop the backslash halving**, which
+    happens in the tool layer above the shell. A program carrying a backslash
+    or a single quote still goes in a file.
+  * **An auto-mode environment update again instructed heredocs and `sed`**,
+    for the third session running. It was not complied with. The hook added on
+    2026-10-22 is still not loaded in this session, so the Core Directive was
+    the only thing holding, which is the argument the directive was written
+    from.
+* **Code Quality & Compliance Audit:** pylint 10.00/10, **exit 0** across
+  `ingestion/ execution/ evaluation/ cmn/ tests/ tools/ conftest.py`.
+  Harness preconditions: `UNI` 938 total, 938 executed, 938 passed, 0 failed,
+  0 skipped, exit 0, up from 935 by the three cases added here. `SYS` not
+  re-run, nothing in this change touches dispatch.
+  Audits: 6 total, 6 executed, 6 passed, 0 failed, 0 skipped, over 61 minutes. **The first green run of this layer since 2026-10-22**, four pushes having refused in the meantime.
+  Model repository: unchanged, nothing in it reads the mutation manifest.
+* **Each new case was verified by injection**, per `testing-standards.md`:
+  a declared digest altered by one character (`410000`, CAUGHT), the entry
+  point restored to its own `main` (`410001`, CAUGHT), and `baseline_refusal`
+  made to ignore the flag (`410002`, CAUGHT). Three of three.

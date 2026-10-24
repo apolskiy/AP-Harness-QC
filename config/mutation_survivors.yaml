@@ -86,15 +86,15 @@ survivors:
           returns None either way.
         expires_on: 2026-12-31
   cmn/band_summary.py:
-    digest: f38c8bedad53ac0da8a72b95077cc19cc24e7cf362aab998cf951b67b22d6d4c
+    digest: 0914b06fb036636a6c1942e54fbdba66169e39d582d03a06aea3939632a7b5f0
     accepted:
-      - mutation: "line 167: 1 to 2"
+      - mutation: "line 177: 1 to 2"
         kind: equivalent
         reason: >-
           The code is the first element of split(":", 1), and maxsplit 2 gives
           the same first element for every string.
         expires_on: 2026-12-31
-      - mutation: "line 348: 1 to 2"
+      - mutation: "line 358: 1 to 2"
         kind: equivalent
         reason: >-
           The case name is the last element of rsplit("::", 1), and maxsplit 2

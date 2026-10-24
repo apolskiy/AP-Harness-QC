@@ -295,6 +295,28 @@ against ten slots, so there the category is the subject they share.
 | `1128xx` | Identifier capacity: how full each category and block is (section 11.9.6). Allocated 2026-10-18, `1123xx` holding 91 | `identifier_capacity` |
 | `1129xx` | Precondition steps: the recorder giving every `UNI` and `SYS` case its steps (section 8.2.4). Allocated 2026-10-18 | `case_steps` |
 
+**Three subjects reached `1124xx` without a row being written**, found
+2026-10-23 and recorded rather than renumbered. The dependency cascade is the
+row above; the exchange report (`112419`, `112420`) belongs to `1122xx` by
+subject, a branch the policy accepts (`112421`) to `1125xx` where that
+module's other six cases are, and the mutation audit's tooling (`112414` to
+`112418`, `112422` to `112429`) to no row at all, having started in `1123xx`
+and continued here when that filled at 100 of 100.
+
+**The mutation subject continues in the declared partition at `410000`**, per
+section 3.2.1.5, and a subject beginning after 2026-10-23 takes a partition
+rather than a category. The identifiers above stay where they were assigned,
+because an identifier is never renumbered and the partition's record says what
+it continues from.
+
+**Nothing reports this and that is the gap it leaves.**
+`MQC_CMN_UNI_112800` warns that a category is filling and
+`MQC_CMN_UNI_112804` compares the partitions with their design table; no check
+compares a case against the subject its category declares, because the subject
+is prose and the mapping from a test module to it is a judgement. The remedy
+the partitions give is to stop asking the question: a subject with ten
+thousand numbers does not spill.
+
 **Grouped by subject rather than split by file count**, because a category a
 reader cannot name is a category nobody will allocate from correctly. The
 grouping follows the design sections these cases are inventoried under, which
@@ -408,11 +430,46 @@ starts and another ends."
 | Partition | Holds | Continues | Allocated |
 |---|---|---|---|
 | `400000`-`409999` | `CMN`/`UNI`, governance and traceability | `1123xx`, full at 100 of 100 | 2026-10-22 |
+| `410000`-`419999` | `CMN`/`UNI`, the mutation audit and its declarations | `1123xx`, then `1124xx` | 2026-10-23 |
 
 **One subject per partition, and numbers run in sequence inside it.** No
 sub-partition until something needs one: ten thousand against a hundred is the
 whole of the ruling, and six digits hold 999,999 identifiers against the 445
 one block has spent.
+
+##### A partition is the normal way to start a subject, not the overflow valve
+
+Added 2026-10-23 at the project owner's ruling, on the second partition being
+allocated a day after the first: "at the end of the day we will need to use
+declared partitions. 100 test cases per partition is just not enough."
+
+**The second partition was asked for by the same failure as the first, one
+category along.** The mutation audit's tooling began in `1123xx`, which filled
+at 100 of 100, and continued into `1124xx`, which the table gives to the
+dependency cascade. Nothing reported it: `MQC_CMN_UNI_112800` warns that a
+category is full and nothing compares a case against the subject its category
+declares, so the overflow read as an ordinary allocation for nine days.
+
+| | |
+|---|---|
+| What a positional category holds | **100.** Three subjects had already outgrown one |
+| What a declared partition holds | **10,000**, and the record says which subject |
+| Which a new subject takes | **A partition**, from 2026-10-23 |
+
+**So the direction is settled rather than discovered each time.** A subject
+beginning now takes the next partition above `400000`; the positional
+categories of domain 1 stay exactly as they are, because an identifier is
+never renumbered and the record is what resolves one either way. The question
+a hundred slots forced, which category a subject should spill into, stops
+being asked.
+
+**The three identifiers allocated on 2026-10-23 are this partition's first
+inhabitants**, moved into it before anything stored carried them: they were
+written in a working tree and no commit, run or artifact had resolved them, so
+this is an allocation rather than the renumbering section 3.2.1 forbids. The
+sixteen mutation cases already in `1123xx` and `1124xx` stay where they are,
+and `cmn.identifier_capacity.PARTITIONS` records what the partition continues
+from so a reader of either range can get to the other.
 
 ##### Why not `200000`, which is the first range after the one in use
 
@@ -2860,6 +2917,34 @@ layer, which is why `QC_HARNESS_FIXTURE_MISSING` skips a graded case rather
 than failing it. The mutation layer was the one place the rule had been
 written as an exception without anybody deciding to make one.
 
+##### 15.2.1.1 A refusal is about one module, and skips the cases about that module
+
+Added 2026-10-23, after one stale declaration withheld six measurements.
+
+`cmn/band_summary.py` was edited on 2026-10-21 and its digest was not
+re-declared, so section 15.10 refused it. **The other five modules were in
+order and none of them was measured**: the setup fixture checked every entry
+in `AUDITED`, so a refusal about one module skipped every case in the layer
+and the job reported six refusals for one defect.
+
+| Refusal | Says something about |
+|---|---|
+| A backup from a killed run | **The repository.** Any suite that ran since reported results about code nobody wrote, whichever module holds the backup |
+| A declaration that is not the module on disk | **That module.** It says nothing about another module's survivors |
+
+**So the two are checked in different places.** The recovery stays in setup
+and stays repository-wide, because that is the scope of what it means. The
+baseline check moves to the measurement, which already performs it per module
+and already raises a refusal the case turns into a skip, so the fixture's copy
+of it was both redundant and wider than its subject.
+
+**The case body starting is not a cost.** Section 15.2.1 moved the gate into
+setup so that nothing ran which could not measure anything, and the baseline
+check is the first thing the measurement does: no copy is laid out, no control
+runs and no mutant is written before it refuses. What changes is which cases
+the refusal reaches, and five of the six it reached had nothing wrong with
+them.
+
 #### 15.2.2 The manifest's API belongs to the harness
 
 Added 2026-10-13 at the project owner's instruction. **A manifest may live
@@ -2952,6 +3037,76 @@ ran through the `MUT` cases, which carried the list themselves. The list is
 declared once now, as `tools.mutation_audit.AUDIT_TARGETS`; the cases import it
 and the command line falls back to it when no `--target` is named, through
 `audit_targets`. `MQC_REQ_HAR_CMN_0203`, `112427`.
+
+#### 15.4.3 The command line reports a refusal as a refusal
+
+Added 2026-10-23, after the audit's own refusal escaped as a stack trace.
+
+`main` catches `MutationRefusal` and returns 4. With the default workers it
+returned 1 and a traceback, and the same refusal through `--workers 1`
+returned 4 and one line.
+
+**A module run with `-m` is imported twice.** It is executed as `__main__`,
+and `tools/mutation_parallel.py` imports `MutationRefusal` from
+`tools.mutation_audit`, which loads a second copy of the module under its real
+name. The class then has two identities, the `except` in `main` names the one
+belonging to `__main__`, and the refusal raised in the parallel path is the
+other.
+
+| Path | Refusal raised by | Caught | Exit |
+|---|---|---|---|
+| `--workers 1`, in place | The `__main__` copy | Yes | 4 |
+| The default, in parallel copies | The `tools.mutation_audit` copy | **No** | **1, as a traceback** |
+
+**So the entry point delegates rather than calling its own `main`.** The
+`__main__` guard imports `tools.mutation_audit` and calls that module's
+`main`, which leaves one copy of the class in the path that catches it.
+
+**Nothing exercised either command line**, which is how a documented exit code
+came to be wrong for every refusal the parallel path raises: the cases call
+`audit_targets`, `baseline_problem` and `redeclare` directly and never the
+entry point that wraps them. An exit code is a contract with the operator
+runbooks and with a reader of a red job, and it was the only part untested.
+`MQC_CMN_UNI_410001`.
+
+#### 15.4.4 A case that reads an audited module's bytes cannot run inside the audit
+
+Added 2026-10-23, on the first full run after section 15.10.1's precondition
+was written. **All six audits refused, and the reason was the new case.**
+
+The control writes each module as its own `ast.unparse` and runs the suite,
+which is what establishes that the reformatting alone kills nothing. An
+unparsed module does not hash to the digest declared for it, by construction,
+so the precondition that compares the two failed the control and every audit
+refused with its own control as the reason:
+
+    control failed: exit 1, 935 case(s) collected; failed:
+    MQC_CMN_UNI_410000_every_audited_module_hashes_to_its_declared_digest
+
+**It is the third case of this shape and the list was named for the first
+two.** `112502` reads every file's SPDX header and `112331` counts a module's
+lines; both read source as text rather than importing it, and both were found
+the same way, by running the suite against an unparsed module.
+
+| Reads | Why the reformatting breaks it |
+|---|---|
+| `112502`, the authorship header | A comment above the docstring, which an unparse drops |
+| `112331`, the runway ceiling | A line count, which an unparse changes |
+| `410000`, the declared digest | **A hash of the whole file, which an unparse changes by definition** |
+
+**So the deselect list is a property of the audit rather than a workaround.**
+A case asserting something about a module's bytes is asserting something the
+audit deliberately changes for the length of one run, and the audit's job is
+to measure what the suite notices about **behaviour**. The three are declared
+once in `tools.mutation_audit.AUDIT_TARGETS`, named by node identifier so a
+rename fails loudly rather than silently selecting them again, and
+`MQC_CMN_UNI_112427` asserts that a bare command line carries all three.
+
+**What this costs, stated rather than hidden.** The digest precondition does
+not run inside the audit, so nothing checks the declarations while an audit is
+measuring. That is the right trade: Gate 2 checks them on every pull request
+and every merge, and an audit in flight is the one moment when a module is
+**expected** not to match.
 
 ### 15.5 A killed run leaves a mutant on disk, and recovers from it
 
@@ -3124,9 +3279,107 @@ the module and the audit refuses until somebody re-measures and re-declares.
 That is the correct coupling, and it was absent.
 
 **What it costs.** Every edit to an audited module needs its digest
-re-declared. That is accepted rather than regretted: Gate 8 is scheduled and
-non-blocking by section 15.6, so the friction lands on the one job that is
-allowed to be red without stopping anything.
+re-declared. That is accepted rather than regretted, and **where the cost
+lands was revised on 2026-10-23**: it was placed on Gate 8 alone, which
+section 15.6 allows to be red without stopping anything, and four merges then
+passed with the whole layer withheld. Section 15.10.1 moves the detection to
+Gate 2 and section 15.10.2 gives the re-declaration a command, because a
+friction nobody is stopped by is a friction nobody pays.
+
+### 15.10.1 A stale declaration is reported before an audit is asked for
+
+Added 2026-10-23 at the project owner's instruction.
+
+**Section 15.10 made a stale declaration refuse an audit, and nothing else.**
+The pull-request gates read the manifest for nothing, so an edit to an audited
+module merged green and the measurement it invalidated was simply withheld.
+
+`cmn/band_summary.py` was edited on 2026-10-21, two gloss strings and a
+docstring, and its digest was not re-declared. What followed is the whole
+argument for this section:
+
+| Run | Outcome | Took |
+|---|---|---|
+| The push before the edit | Green, six modules measured | 21m 34s |
+| The edit, and the three pushes after it | Red, six refusals | 31s to 38s each |
+
+**Four merges went by with the mutation layer measuring nothing**, and the
+only signal was a red job that is non-blocking by design. A job allowed to be
+red is a job whose red is read as a backlog item, and a job that goes from
+twenty-one minutes to thirty-one seconds has stopped doing its work rather
+than found something.
+
+**So a precondition compares the declarations with the modules**, hashing each
+audited module and reading nothing else. It costs six hashes, needs no network
+and no subprocess, and reports the module, the digest on disk and the digest
+declared. `MQC_CMN_UNI_410000` and `MQC_REQ_HAR_CMN_0211`. **It is deselected
+inside an audit**, which rewrites the modules it reads (section 15.4.4).
+
+#### It reports a disagreement, never a survivor
+
+**This does not make a survivor blocking, and section 15.6 stands unchanged.**
+A survivor is a statement about what the suite notices, which is why it never
+stops a release and never gates a merge.
+
+A declaration that is not the module on disk is not a measurement at all. It
+is the manifest disagreeing with the repository about which code was measured,
+and that is the class the preconditions already block for: a collected case
+with no inventory row (`112303`), a requirement traced to nothing (`112313`),
+a marker registered on one side only (`112355`).
+
+| | Blocking |
+|---|---|
+| An undeclared survivor, or a declaration that no longer survives | No. Gate 8's own job, section 15.6 |
+| **The manifest and the repository disagreeing about what was measured** | **Yes. Gate 2, as a traceability defect** |
+
+**The distinction is what the check reads.** This one reads a hash and a
+declaration, so it can say nothing about coverage; it says only that nobody
+knows what the declaration describes. Reading the survivors would make it the
+audit, which costs minutes per module and belongs where it is.
+
+### 15.10.2 A code edit is re-measured, and only the audit can measure
+
+Added 2026-10-23, after each of the two tools sent an author to the other.
+
+Section 15.10 states the remedy for an edited module as re-measuring and
+re-declaring, and section 15.14 refuses a prose re-declaration when the code
+changed, with "run its audit". **The audit refuses as well**, because it
+checks the baseline before it measures. The declaration only a measurement can
+refresh is the thing that stops the measurement.
+
+| Asked | Answered |
+|---|---|
+| `python -m tools.mutation_audit cmn/band_summary.py` | The survivors need re-measuring, and for a prose edit `mutation_redeclare` is enough |
+| `python -m tools.mutation_redeclare cmn/band_summary.py` | Its code changed since it was measured, so run its audit |
+
+**The only escape was to edit the digest in the manifest by hand**, which is
+undeclared, unchecked, and certifies content that nothing measured: the
+self-consistency section 15.10 rejected a backup's own digest for. It is also
+what had to be done on 2026-10-23 to measure `cmn/band_summary.py` again, and
+that is the argument for the flag rather than an objection to it.
+
+    python -m tools.mutation_audit cmn/band_summary.py --remeasure
+
+**It takes the module on disk as the baseline and declares what it measured,
+in that order.** The digest is written after a passing control and a completed
+pass, never before. A digest written first would certify the content ahead of
+any measurement, which is the shape section 15.10 exists to refuse.
+
+| Kept | Why |
+|---|---|
+| A backup or a lock beside the module refuses | An audit is running or died, section 15.5 |
+| A module reading exactly as its own `ast.unparse` refuses | The 2026-10-13 damage, which the full-text digest exists for |
+| A control that does not pass refuses | Section 15.4. Nothing is measured against a red suite |
+| **No survivor is accepted** | A survivor carries a reason and an expiry that a person writes, section 15.2 |
+
+**So the flag turns a refusal into a measurement, and a measurement into a
+report.** Afterwards a declaration that no longer survives, and a survivor
+nothing declares, are ordinary failures of the mutation layer: a state an
+author can act on, where a refusal is a state nobody can leave.
+
+**Asked for by name, so nothing re-declares a baseline as a side effect.**
+Without the flag the audit refuses exactly as before.
+`MQC_CMN_UNI_410002` and `MQC_REQ_HAR_CMN_0213`.
 
 ### 15.11 One audit at a time
 
@@ -3358,7 +3611,7 @@ their line numbers move.
 
 | Refused when | Because |
 |---|---|
-| The code changed | Survivors may differ, so the audit runs |
+| The code changed | Survivors may differ, so the audit runs, with `--remeasure` (section 15.10.2) |
 | The module reads exactly as its own `ast.unparse` | That is the 2026-10-13 damage, which a fingerprint cannot see and the full-text digest exists for |
 | No version in history hashes to the declared digest | Nothing establishes what was measured |
 | A backup or lock sits beside the module | An audit is running or died, section 15.5 |

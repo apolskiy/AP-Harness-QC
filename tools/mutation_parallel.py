@@ -3,7 +3,7 @@
 """Parallel mutation audit, which measures each point in its own copy of the repository.
 
 Created: 2026-10-21
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 This file contains ``parallel_survivors``, which audits one module with several
 workers and returns the changes nothing failed on, in walk order;
@@ -40,11 +40,11 @@ from typing import Callable, Final
 
 from cmn.code_standards import python_sources
 from cmn.mutation_guard import ProgressLog, module_digest, stop_requested
+from tools.mutation_declarations import baseline_refusal
 from tools.mutation_audit import (
     DEFAULT_WORKERS,
     MutationPoint,
     MutationRefusal,
-    baseline_problem,
     control_problem,
     held_audit,
     mutant_source,
@@ -306,7 +306,7 @@ class _Measurement:
 
 def parallel_survivors(
     root: Path, module: Path, targets: list[str], *, workers: int = DEFAULT_WORKERS,
-    limit: int = 0,
+    limit: int = 0, remeasure: bool = False,
 ) -> list[MutationPoint]:
     """Return every change the suite failed to notice, measured in parallel copies.
 
@@ -316,6 +316,8 @@ def parallel_survivors(
         targets (list[str]): The pytest arguments naming what to run.
         workers (int): How many copies measure at once.
         limit (int): Stop after this many points, or zero for all of them.
+        remeasure (bool): True to take the module on disk as the baseline
+            instead of comparing it with the declared digest (section 15.10.2).
 
     Returns:
         list[MutationPoint]: The survivors, in walk order.
@@ -326,6 +328,22 @@ def parallel_survivors(
             not be laid out, the control did not pass, or a run collected nothing.
     """
     with held_audit(root, module, isolated=True) as progress:
+        # THE TWO CHEAP REFUSALS ARE RAISED HERE, inside the lock and in this
+        # order: a stop asked for ends the audit before it touches anything,
+        # and a baseline that is not the declared module is refused before any
+        # copy is laid out. They sit above the measurement so that whether the
+        # run was asked to re-measure is answered once, by the caller that was
+        # told (section 15.10.2).
+        if stop_requested(root, os.getpid()):
+            raise MutationRefusal(
+                "QC_HARNESS_AUDIT_REFUSED: stopped on request before its control"
+            )
+        stale = baseline_refusal(
+            root / _MANIFEST, module.relative_to(root).as_posix(),
+            module.read_text(encoding="utf-8"), remeasure=remeasure,
+        )
+        if stale is not None:
+            raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {stale}")
         found = _measured(root, module, targets, progress, max(1, workers), limit)
     progress.finish(f"untouched, {len(found)} survivor(s)")
     return found
@@ -374,7 +392,7 @@ def _first_targets(
 
 def _measured(root: Path, module: Path, targets: list[str], progress: ProgressLog,
               workers: int, limit: int) -> list[MutationPoint]:
-    """Check, copy, control and measure, the lock already held.
+    """Copy, control and measure, the lock held and the baseline already accepted.
 
     Args:
         root (Path): The repository root.
@@ -390,13 +408,8 @@ def _measured(root: Path, module: Path, targets: list[str], progress: ProgressLo
     Raises:
         MutationRefusal: As :func:`parallel_survivors` describes.
     """
-    if stop_requested(root, os.getpid()):
-        raise MutationRefusal("QC_HARNESS_AUDIT_REFUSED: stopped on request before its control")
     relative = module.relative_to(root).as_posix()
     original = module.read_text(encoding="utf-8")
-    stale = baseline_problem(root / _MANIFEST, relative, original)
-    if stale is not None:
-        raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {stale}")
     points = mutation_points(original)[: limit or None]
     progress.line(f"baseline {module_digest(original)[:8]}, {len(points)} points, "
                   f"{workers} workers")

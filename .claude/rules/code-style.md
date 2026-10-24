@@ -862,6 +862,51 @@ the fourth was recoverable. A regex that lost an escape **passes**, reports
 nothing, and leaves a check that looks like coverage and is not.
 
 
+#### 8.1.1 A short program is single-quoted, and still goes in a file once it carries a backslash
+
+Added 2026-10-23 at the project owner's instruction, after a comment written
+through the interpreter's program flag arrived with a word missing and the
+script that wrote it reported success.
+
+**A double-quoted program is read by the shell before the interpreter sees
+it.** Backticks inside it are command substitution and a dollar sign is an
+expansion, so the text that runs is not the text that was written. What landed
+in the comment was the sentence with the backticked identifier deleted, and
+nothing failed: the program ran, the file was written, and the damage was
+found by reading the result.
+
+**Single quotes stop that, and nothing else does.** Measured on 2026-10-23 by
+writing a known body through the flag and printing what arrived:
+
+| Written inside single quotes | Arrived |
+|---|---|
+| A backtick pair around a command name | Verbatim, unsubstituted |
+| A dollar sign and a variable name | Verbatim, unexpanded |
+| A doubled backslash before an `n` | **Single. One level was removed** |
+
+**So the quoting fixes the shell and does not fix the transport.** The third
+row is section 8.1 one layer up: one level of backslash unescaping happens in
+the tool layer carrying the command, above the shell, and no quoting reaches
+it. A program carrying a backslash is still written with the Write tool and
+run by path.
+
+| The program carries | Pass it |
+|---|---|
+| Nothing but letters, digits and double-quoted strings | With the flag, in single quotes |
+| A backtick or a dollar sign | With the flag, in single quotes, which is what they are for |
+| **A backslash, or a single quote** | **In a script file, run by path** |
+
+**A single-quoted shell string cannot contain a single quote at all**, so the
+program uses double quotes throughout, which is this document's rule for
+Python strings anyway. A program needing both is a program that belongs in a
+file.
+
+**Why the rule is a quoting rule and not "always write a file".** A one-line
+read of a registry is worth a single command, and the alternative is a file
+per question. What the measurement establishes is where the line sits: the
+shell is handled by quoting, and the transport is handled only by a file.
+
+
 ### 8.2 The encoding rule is enforced, not merely followed
 
 Added 2026-09-24, after the security corpus became the first data in the

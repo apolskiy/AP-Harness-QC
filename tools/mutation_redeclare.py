@@ -3,7 +3,7 @@
 """Mutation re-declaration, which re-declares an audited module whose code did not change.
 
 Created: 2026-10-21
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 This file contains ``measured_version``, which finds the committed text of a
 module that hashes to its declared digest; ``redeclare``, which writes a
@@ -36,12 +36,8 @@ from pathlib import Path
 from typing import Final, Optional
 
 from cmn.mutation_guard import BACKUP_SUFFIX, LOCK_SUFFIX, behaviour_fingerprint, module_digest
-from tools.mutation_audit import (
-    MutationRefusal,
-    declare_digest,
-    declared_survivors,
-    mutation_points,
-)
+from tools.mutation_audit import MutationRefusal, mutation_points
+from tools.mutation_declarations import declare_digest, declared_survivors
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +105,8 @@ def _redeclare_refusal(root: Path, module: str, digest: str, text: str) -> Optio
         return (f"{refusal}: no committed version hashes to {digest[:12]}, so nothing "
                 f"establishes what was measured; commit the measured version or run its audit")
     if behaviour_fingerprint(measured) != behaviour_fingerprint(text):
-        return f"{refusal}: its code changed since it was measured; run its audit"
+        return (f"{refusal}: its code changed since it was measured; run its audit, "
+                f"`python -m tools.mutation_audit {module} --remeasure`")
     return None
 
 
