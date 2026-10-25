@@ -61,6 +61,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Final, Iterator, Optional
 
+# RE-EXPORTED, NOT RESTATED. The targets, the exclusions and the scope moved
+# to `tools/mutation_scope.py` on 2026-10-25 and are imported back under the
+# names every caller already uses (`code-style.md` section 5.1).
+from tools.mutation_scope import (  # noqa: F401  pylint: disable=unused-import
+    AUDIT_TARGETS,
+    audit_targets,
+    changed_lines,
+    quarantine_report,
+    quarantined_cases,
+)
 from tools.mutation_declarations import (
     baseline_refusal,
     declare_digest,
@@ -134,108 +144,16 @@ _RUN_TIMEOUT_SEC: Final[int] = 600
 # process. One means the in-place audit (section 15.15).
 DEFAULT_WORKERS: Final[int] = 4
 
-# THE IDENTIFIER INSIDE A DESELECTED NODE ID, for the line that reports what
-# the audit set aside. Five or six digits, as the resolver elsewhere reads.
-_CASE_IDENTIFIER: Final[re.Pattern[str]] = re.compile(r"MQC_[A-Z]+_[A-Z]{3,5}_(\d{5,6})_")
-
-# THE FOUR CASES THAT READ SOURCE AS TEXT RATHER THAN IMPORTING IT, so they
-# fail on the reformatting the mutator performs and would kill every mutant for
-# the wrong reason. Measured rather than guessed: the suite was run against an
-# unparsed module and these are what failed. Declared once, for the audit cases
-# and the command line alike (sections 15.4 and 15.4.2).
-#
-# THE DIGEST PRECONDITION IS THE THIRD, added 2026-10-23 on the first run after
-# it was written: the control writes a module as its own unparse, which by
-# construction does not hash to the declared digest, so every audit refused
-# with its own control as the reason (section 15.4.4).
-#
-# AND THE COPY COMPARISON IS THE FOURTH, added 2026-10-24 for the same reason
-# one case along: it copies the audited modules and the manifest and asserts
-# the copy is accepted, which is true of every ordinary run and false of every
-# audit, the module on disk being its own unparse while it is held.
-#
-# THE FILE-DATE READER IS THE FIFTH, and the list was **re-measured** on
-# 2026-10-24 rather than extended one refusal at a time: the targets were run
-# against an unparsed module and this is the only other case that failed.
-# `ast.unparse` re-emits a docstring as one string literal, so the `Created:`
-# and `Last updated:` lines stop being line-shaped text and the reader finds
-# none (section 15.7.1.1).
-AUDIT_TARGETS: Final[tuple[str, ...]] = (
-    "-m", "unit",
-    "--deselect",
-    "tests/cmn/mqc_uni_file_standards.py::TestMQCAuthorshipHeader"
-    "::MQC_CMN_UNI_112502_every_python_file_carries_its_spdx_header",
-    "--deselect",
-    "tests/cmn/mqc_uni_file_standards.py::TestMQCModuleRunway"
-    "::MQC_CMN_UNI_112331_a_module_at_the_runway_ceiling_is_reported",
-    "--deselect",
-    "tests/cmn/mqc_uni_mutation_declarations.py::TestMQCMutationDeclarations"
-    "::MQC_CMN_UNI_410000_every_audited_module_hashes_to_its_declared_digest",
-    "--deselect",
-    "tests/cmn/mqc_uni_mutation_declarations.py::TestMQCMutationDeclarations"
-    "::MQC_CMN_UNI_410003_a_stale_declaration_from_the_command_line_exits_four",
-    "--deselect",
-    "tests/cmn/mqc_uni_file_dates.py::TestMQCFileDates"
-    "::MQC_CMN_UNI_112526_a_file_date_line_missing_or_stale_is_reported",
-)
 
 
-def quarantined_cases(targets: Optional[list[str]] = None) -> list[str]:
-    """Return every case the audit sets aside, by identifier.
-
-    A case that reads source or the manifest as text fails on the
-    reformatting the mutator performs rather than on a mutant, so the control
-    deselects it and this names which. **Read from the targets rather than
-    restated**, so a list extended in one place is reported from the same
-    place (``harness_test_taxonomy.md`` section 15.7.1.2).
-
-    Args:
-        targets (Optional[list]): The pytest arguments to read, defaulting to
-            the audit's own.
-
-    Returns:
-        list[str]: The six-digit identifier of each deselected case, in the
-        order the list declares them, empty where none is deselected.
-    """
-    reading = list(AUDIT_TARGETS) if targets is None else list(targets)
-    found: list[str] = []
-    for index, argument in enumerate(reading[:-1]):
-        if argument != "--deselect":
-            continue
-        match = _CASE_IDENTIFIER.search(reading[index + 1])
-        if match is not None:
-            found.append(match.group(1))
-    return found
 
 
-def quarantine_report(targets: Optional[list[str]] = None) -> str:
-    """Return the line a run closes with, naming what it set aside.
-
-    Args:
-        targets (Optional[list]): The pytest arguments to read, defaulting to
-            the audit's own.
-
-    Returns:
-        str: One sentence, with the count and the identifiers, reading
-        ``none`` where the list is empty.
-    """
-    quarantined = quarantined_cases(targets)
-    return (
-        f"{len(quarantined)} case(s) quarantined from this audit: "
-        f"{', '.join(quarantined) or 'none'}"
-    )
 
 
-def audit_targets(named: list[str]) -> list[str]:
-    """Return the pytest arguments an audit runs, the declared ones when none are named.
 
-    Args:
-        named (list[str]): The ``--target`` arguments, empty when none were given.
 
-    Returns:
-        list[str]: The arguments.
-    """
-    return list(named) if named else list(AUDIT_TARGETS)
+
+
 
 
 _PASSED = re.compile(r"(\d+) passed")
@@ -549,9 +467,26 @@ def control_problem(
     return None
 
 
+@dataclass(frozen=True)
+class _Measurement:
+    """What one audit was asked to measure.
+
+    Attributes:
+        limit (int): Stop after this many points, or zero for all of them.
+        remeasure (bool): Take the module on disk as the baseline rather than
+            comparing it with the declared digest (section 15.10.2).
+        scope (frozenset[int]): The lines to measure, or empty for all of
+            them (section 15.6A.4).
+    """
+
+    limit: int = 0
+    remeasure: bool = False
+    scope: frozenset[int] = frozenset()
+
+
 def survivors(
     root: Path, module: Path, targets: list[str], *, limit: int = 0,
-    remeasure: bool = False,
+    remeasure: bool = False, scope: frozenset[int] = frozenset(),
 ) -> list[MutationPoint]:
     """Return every change the suite failed to notice.
 
@@ -562,6 +497,10 @@ def survivors(
         limit (int): Stop after this many points, or zero for all of them.
         remeasure (bool): True to take the module on disk as the baseline
             instead of comparing it with the declared digest (section 15.10.2).
+        scope (frozenset[int]): The lines to measure, or empty for all of
+            them. **A scope that excludes every point measures nothing and
+            says so**, rather than reporting a clean audit of a module nobody
+            looked at (section 15.6A.4).
 
     Returns:
         list[MutationPoint]: The survivors, in walk order.
@@ -574,15 +513,17 @@ def survivors(
             section 15.2.1: none of those says anything about the survivors.
     """
     with held_audit(root, module) as progress:
-        found = _survivors_held(root, module, targets, progress, limit=limit,
-                                remeasure=remeasure)
+        found = _survivors_held(
+            root, module, targets, progress,
+            _Measurement(limit=limit, remeasure=remeasure, scope=scope),
+        )
     progress.finish(f"restored, {len(found)} survivor(s)")
     return found
 
 
 def _survivors_held(
-    root: Path, module: Path, targets: list[str], progress: ProgressLog, *,
-    limit: int = 0, remeasure: bool = False,
+    root: Path, module: Path, targets: list[str], progress: ProgressLog,
+    asked: _Measurement,
 ) -> list[MutationPoint]:
     """Return every change the suite failed to notice, the lock already held.
 
@@ -591,7 +532,8 @@ def _survivors_held(
         module (Path): The production module to mutate.
         targets (list[str]): The pytest arguments naming what to run.
         progress (ProgressLog): Where each event is written as it happens.
-        limit (int): Stop after this many points, or zero for all of them.
+        asked (_Measurement): The limit, the baseline choice and the scope,
+            as :func:`survivors` describes each.
 
     Returns:
         list[MutationPoint]: The survivors, in walk order.
@@ -615,7 +557,7 @@ def _survivors_held(
     original = module.read_text(encoding="utf-8")
     stale = baseline_refusal(
         root / _MANIFEST, module.relative_to(root).as_posix(), original,
-        remeasure=remeasure,
+        remeasure=asked.remeasure,
     )
     if stale is not None:
         raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {stale}")
@@ -626,9 +568,14 @@ def _survivors_held(
     backup.write_text(original, encoding="utf-8", newline="\n")
 
     points = mutation_points(original)
-    if limit:
-        points = points[:limit]
-    progress.line(f"baseline {module_digest(original)[:8]}, {len(points)} points")
+    if asked.scope:
+        points = [point for point in points if point.lineno in asked.scope]
+    if asked.limit:
+        points = points[: asked.limit]
+    scoped = f", {len(asked.scope)} line(s) in scope" if asked.scope else ""
+    progress.line(
+        f"baseline {module_digest(original)[:8]}, {len(points)} points{scoped}"
+    )
 
     progress.line("control started")
     _run_control(root, module, targets, original)
@@ -725,23 +672,54 @@ def _run_control(root: Path, module: Path, targets: list[str], original: str) ->
         raise MutationRefusal(f"QC_HARNESS_AUDIT_REFUSED: {refusal}")
 
 
+def _declared_line(mutation: str) -> int:
+    """Return the line a declaration names, or zero where it names none.
+
+    Args:
+        mutation (str): A declaration's ``mutation`` value, such as
+            ``line 113: 1 to 2``.
+
+    Returns:
+        int: The line number, or 0 when the text carries none, which keeps an
+        unparseable declaration out of every scope rather than in all of them.
+    """
+    found = re.match(r"line (\d+):", mutation)
+    return int(found.group(1)) if found is not None else 0
+
+
 def survivor_problems(
-    module: str, found: list[MutationPoint], declaration: dict[str, Any]
+    module: str, found: list[MutationPoint], declaration: dict[str, Any],
+    scope: frozenset[int] = frozenset(),
 ) -> list[str]:
     """Compare what survived against what was accepted, in both directions.
 
     **A declared entry that no longer survives is a problem too**, because it
     describes a gap that has been closed and the list is meant to shrink.
 
+    **A scoped run compares only what it measured.** The first scoped audit
+    reported a declared survivor on line 113 as closed because the scope held
+    lines 103 to 112: a partial measurement judged against a whole declaration
+    says a gap closed that nobody looked at (section 15.6A.4).
+
     Args:
         module (str): The module path, as the declaration keys it.
         found (list[MutationPoint]): What survived this run.
         declaration (dict): The entry for this module, or an empty mapping.
+        scope (frozenset[int]): The lines this run measured, or empty when it
+            measured all of them.
 
     Returns:
         list[str]: One entry per disagreement. Empty when every survivor is
         declared and every declaration still survives.
     """
+    if scope:
+        declaration = {
+            **declaration,
+            "accepted": [
+                entry for entry in (declaration.get("accepted") or [])
+                if _declared_line(str(entry.get("mutation", ""))) in scope
+            ],
+        }
     accepted = {
         str(entry.get("mutation", "")): entry
         for entry in (declaration.get("accepted") or [])
@@ -796,10 +774,33 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--remeasure", action="store_true",
         help="Take the module on disk as the baseline and declare its digest once measured",
     )
+    parser.add_argument(
+        "--quarantined", action="store_true",
+        help="Print the cases an audit sets aside and exit, measuring nothing",
+    )
+    parser.add_argument(
+        "--since", default="",
+        help="Audit only the points on lines this module gained since a git ref",
+    )
     parsed = parser.parse_args(argv)
 
     root = Path(__file__).resolve().parents[1]
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+    # ASKED WITHOUT MEASURING, so a workflow step can put the line in a job
+    # summary without paying for an audit (section 15.7.1.2).
+    if parsed.quarantined:
+        logger.info("%s", quarantine_report(audit_targets(parsed.target)))
+        return 0
+
+    # THE SCOPE, RESOLVED ONCE. An unreadable ref yields no scope rather than
+    # an empty one, so a mistyped ref audits everything instead of nothing.
+    scope: frozenset[int] = frozenset()
+    if parsed.since and parsed.module is not None:
+        scope = changed_lines(root, root / parsed.module, parsed.since)
+        logger.info(
+            "%s changed %d line(s) since %s", parsed.module, len(scope), parsed.since
+        )
 
     if parsed.stop:
         code, lines = stop_audits(root, wait=parsed.wait)
@@ -813,7 +814,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     # bytes that were measured rather than whatever the run left behind.
     measured = (root / parsed.module).read_text(encoding="utf-8")
     try:
-        if parsed.workers > 1:
+        # A SCOPED AUDIT MEASURES IN PLACE. Copying the tree once per worker
+        # to measure three points on a diff costs more than it saves, and the
+        # scope is the shape the audit is meant to be used in (15.6A.4).
+        if parsed.workers > 1 and not scope:
             # IMPORTED HERE, because the parallel audit is built on this module.
             parallel = importlib.import_module("tools.mutation_parallel")
             found = parallel.parallel_survivors(root, root / parsed.module,
@@ -822,7 +826,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                                                 remeasure=parsed.remeasure)
         else:
             found = survivors(root, root / parsed.module, audit_targets(parsed.target),
-                              limit=parsed.limit, remeasure=parsed.remeasure)
+                              limit=parsed.limit, remeasure=parsed.remeasure,
+                              scope=scope)
     except (MutationRefusal, subprocess.TimeoutExpired) as error:
         logger.error("%s", error)
         return 4
@@ -836,6 +841,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         declared_survivors(root / _MANIFEST).get(
             parsed.module.as_posix(), {}
         ),
+        scope,
     )
     for problem in problems:
         logger.error("%s", problem)

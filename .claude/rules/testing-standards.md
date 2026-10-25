@@ -31,7 +31,7 @@ Currently registered layers:
 | `MQC_EVAL_` | `evaluator` | 131000-139999, by module | LLM-as-a-Judge rubric scoring and golden-rule enforcement. |
 | `MQC_TOOL_` | `tool` | 141000-149999, by module | Tool-use compliance: required tools invoked, forbidden tools avoided. |
 | `MQC_SEC_` | `sec` | 151000-159999, by module | Model security behaviour: injection resistance, prompt leakage, tool coercion. **Own suite; exempt from priority distribution ceilings.** |
-| `MQC_MUT_` | `mutation` | 161000-169999, by module | **Mutation audit of this suite.** One production operator or constant is changed and the suite runs: a change no case notices is a **survivor**, and a survivor names behaviour nothing asserts. Ungraded, and **not blocking**, because a survivor is a fact about coverage rather than about what a run measured. Costs minutes per module, so it is its own job and not collected by default. `harness_test_taxonomy.md` section 15. |
+| `MQC_MUT_` | `mutation` | 161000-169999, by module | **Mutation audit of this suite.** One production operator or constant is changed and the suite runs: a change no case notices is a **survivor**, and a survivor names behaviour nothing asserts. Ungraded, **not blocking**, and **not run on a push**: a survivor is a to-do list entry rather than a result, so the audit is dispatched by hand at a module somebody just wrote and narrowed to the lines that changed. `harness_test_taxonomy.md` sections 15 and 15.6A. |
 
 `<MODULE>` is `ING`, `EXE`, `EVL` or `CMN`. Meanings, module and priority definitions, the outcome model and the failure taxonomy are normative in `docs/design/harness_test_taxonomy.md`. This file holds the machine-enforced patterns only.
 

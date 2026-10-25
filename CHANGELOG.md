@@ -29,6 +29,71 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The mutation audit is a tool, not a job, 2026-10-24
+
+**It cost about ten hours of project time in one week while measuring neither
+the harness nor a model.** Measured the same day, on the first audit to
+complete since the suite reached 949 cases: every check of the harness, lint
+and unit and system on both platforms, takes about six minutes; each of the
+four target gates about six; one audit of six modules took **49 minutes 58
+seconds**. The project owner's ruling followed: a targeted tool, manual and in
+CI only, and no recurring job.
+
+**Two modules left the audited set**, because of what their points are.
+Counted from the syntax trees: `cmn/registries.py` has 80 points of which
+**68 are numeric literals**, the criticality ranks and the HTTP statuses, and
+`cmn/band_summary.py` 49 of which 37 are. The nineteen minutes `registries.py`
+took were 68 runs of 949 cases to turn `404` into `405`, one at a time, while
+`MQC_CMN_UNI_112368`, `112370` and `112380` already compare every one of those
+values against the table that declares it, in milliseconds. For declared data
+a table comparison is also **stronger**: it catches a wrong value, a missing
+row and an extra one, where a single-literal mutation asks only whether one
+value was pinned. Their five accepted survivors were all `equivalent`, changes
+that cannot alter behaviour, so nothing measured was lost. `MQC_CMN_MUT_162003`
+and `162004` are retired with them.
+
+**What stays audited is the rules**: `verdict.py` and `threshold_domain.py`,
+where a comparison carries the standard a run is judged against, and
+`layers.py` and `environments.py`, which decide which cases run and what their
+results are worth.
+
+**And the job became a dispatch.** `audit-mutation-on-change.yml` is
+`audit-mutation-on-dispatch.yml`: no push, no path filter, no schedule. It
+takes the module to audit and, with `--since <ref>`, narrows the measurement to
+the points on lines that changed since that ref. On 2026-10-24 that is 2 points
+of 19 for `cmn/environments.py`, and **the only real survivor this project has
+found was on a line its own commit had added** — so the targeted form would
+have found it in about a minute against the fifty the sweep of six modules
+took.
+
+**Why a survivor does not need re-measuring**: it says one thing, that no case
+pins this behaviour, and the remedy is the triple `framework-rules.md` section
+3.2 already requires, a value that passes, a value that fails, and the boundary
+named exactly. Once it exists the mutant dies permanently. Every survivor this
+project has recorded was found the first time its module was audited; none has
+appeared in a module that stood still.
+
+`MQC_CMN_UNI_410006` replaces the retired `112379`, and
+`MQC_REQ_HAR_CMN_0173` is reworded from "runs on a push to main" to the
+behaviour that replaced it. `tools/mutation_scope.py` is new, holding what an
+audit is asked for, because the scoping took `tools/mutation_audit.py` to 956
+lines against the nine-hundred-line runway. The README's figures move to 977
+cases and 372 requirements.
+
+### The trend check reads a path, not one repository's layout, 2026-10-24
+
+The case repository now publishes **a report per engine** rather than one
+merged report, at the project owner's ruling, so its trend lands in a
+directory per engine. The publication check required the literal
+`allure-results/history`, which was this repository's layout rather than a
+rule, and reported the second caller for complying with the design.
+
+It reads `/history/` now, and its comment states what that establishes: the
+trend is **fetched**, not where it lands. The destination is stated in
+`harness_ci_pipeline.md` section 7.4.2 and is not checked, because the
+directory is one the job names. `AP-Model-QC` `consumer_ci.md` section 4.22.2
+carries what the merged report cost.
+
 ### The publishing job fails without failing the run, 2026-10-24
 
 **A design claiming enforcement it does not have is worse than one claiming

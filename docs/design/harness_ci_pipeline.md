@@ -886,14 +886,17 @@ Exhausted backoff **skips** rather than fails, per `MQC_REQ_HAR_EXE_0010`. The g
 
 ---
 
-## 5A. `audit-mutation-on-change.yml`: Gate 8, Which Tests The Tests
+## 5A. `audit-mutation-on-dispatch.yml`: Gate 8, Which Tests The Tests
 
-Added 2026-10-15. Specified by `harness_test_taxonomy.md` section 15; this
-section states only the job.
+Added 2026-10-15, and **made manual on 2026-10-24**: the audit measures
+neither the harness nor a model and cost about ten hours of project time in
+the week before, so it is a tool somebody points at a module rather than a tax
+on every push. Specified by `harness_test_taxonomy.md` sections 15 and 15.6A;
+this section states only the job.
 
 | | |
 |---|---|
-| Starts on | A push to `main` touching `cmn/`, `ingestion/`, `execution/`, `evaluation/`, `tests/`, `tools/mutation_*.py` or `config/mutation_survivors.yaml`, and manual dispatch. **No schedule** until `main` is stable, section 2.0.1 |
+| Starts on | **A manual dispatch, and nothing else.** No push, no path filter, no schedule. It takes the module to audit and a ref to narrow it to, both optional |
 | Runs | `python -m tools.mutation_declarations`, then `pytest -m mutation tests/mutation`, Ubuntu only: platform coverage is the gate's question, not this one's |
 | Stops before measuring | A declaration that is not the module on disk. Six hashes decide it, so a manifest that cannot describe the commit costs an install rather than the whole audit, taxonomy section 15.7.2 |
 | Credentials | None. It mutates our code and runs our suite; nothing reaches a provider |
@@ -1125,7 +1128,7 @@ reads.
 | Repository | Published by | Says |
 |---|---|---|
 | `AP-Harness-QC` | `gate-on-change.yml`, on a push to the default branch | Instrument health: the preconditions that have to hold before any model result means anything |
-| `AP-Model-QC` | Its graded run | Model readiness, by capability and by engine |
+| `AP-Model-QC` | `publish-report-on-merge.yml`, on a gate completing | Model readiness, **one report per engine**, each rendered from that engine's own run of one commit (`consumer_ci.md` section 4.22.2) |
 
 **A pull request does not publish.** A fork's run cannot hold the Pages
 credential, and a run that could would overwrite the default branch's picture

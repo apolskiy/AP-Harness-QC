@@ -37,6 +37,8 @@ from typing import Any, Final, Optional
 
 import yaml
 
+from cmn.mutation_guard import AUDIT_ENV
+
 from tests.cmn.subprocess_support import run_bounded
 
 # A MODULE HOLDING ONE CASE, which is what makes a planted file a module the
@@ -235,5 +237,12 @@ def run_without_reporter(
             "SYSTEMROOT": os.environ.get("SYSTEMROOT", ""),
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONPATH": os.pathsep.join([str(base), str(root)]),
+            # THIS AUDIT'S OWN MARKER, FORWARDED. A mutation audit holds a lock
+            # beside the module it is measuring, and a run that cannot show the
+            # audit's process id refuses rather than importing a held module
+            # (harness_test_taxonomy.md section 15.12). The environment here is
+            # minimal on purpose, and stripping this turned a case into one
+            # that cannot pass inside an audit.
+            **({AUDIT_ENV: os.environ[AUDIT_ENV]} if AUDIT_ENV in os.environ else {}),
         },
     )

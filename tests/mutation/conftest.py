@@ -3,12 +3,19 @@
 """A setup check that skips the mutation cases when the repository cannot be audited.
 
 Created: 2026-10-14
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 This file contains :func:`baselines_ready`, an autouse class fixture run before
-every case in ``tests/mutation/``. For each audited module it restores a backup
-left by a killed run, skipping the class with ``QC_HARNESS_AUDIT_REFUSED`` when
-it finds one.
+every case in ``tests/mutation/``, and :func:`pytest_terminal_summary`, which
+closes the run by naming the cases the audit set aside. For each audited module
+the fixture restores a backup left by a killed run, skipping the class with
+``QC_HARNESS_AUDIT_REFUSED`` when it finds one.
+
+**The closing line is here because this is where the run ends.** The command
+line reports it from ``tools.mutation_audit.main``, and Gate 8 never calls
+that: it runs this suite, whose cases measure directly. A line printed only on
+the path nobody uses in CI is a line nobody reads
+(``harness_test_taxonomy.md`` section 15.7.1.2).
 
 **A refusal is not a measurement, so it skips**, per
 ``docs/design/harness_test_taxonomy.md`` section 15.2.1.
@@ -29,10 +36,12 @@ helpers would have left it never running, which is the shape this project has
 corrected often enough to stop writing new instances of.
 """
 
+from typing import Any
+
 import pytest
 
-from tests.mutation.mutation_support import ROOT
-from tools.mutation_audit import recover
+from tests.mutation.mutation_support import ROOT, TARGETS
+from tools.mutation_audit import quarantine_report, recover
 from tools.mutation_declarations import AUDITED
 
 
@@ -56,3 +65,22 @@ def baselines_ready() -> None:
         recovered = recover(ROOT / module)
         if recovered is not None:
             pytest.skip(f"QC_HARNESS_AUDIT_REFUSED: {recovered}")
+
+
+def pytest_terminal_summary(terminalreporter: Any) -> None:
+    """Close the run by naming the cases the audit set aside.
+
+    **Nothing can decide the list for the audit**, so the run says what is on
+    it: a reader of a refusal sees which cases did not run against the
+    mutants, and a case that should have been on the list and is not is
+    visible by its absence (section 15.7.1.2).
+
+    Args:
+        terminalreporter (Any): pytest's reporter, written to so the line
+            lands with the run's own summary rather than in a log a reader
+            has to go looking for.
+
+    Returns:
+        None
+    """
+    terminalreporter.write_line(quarantine_report(TARGETS))

@@ -99,11 +99,13 @@ _EVENT_GUARD: Final[str] = "github.event_name"
 # generates without fetching it publishes a report whose history starts again
 # every run, which reads as a project with no past.
 #
-# THE PATH AND NOT THE WORD. The history has to land in the results directory
-# `allure generate` reads, and a job mentioning the word somewhere else would
-# have satisfied a looser spelling of this: the first injection of
-# `MQC_CAS_UNI_430002` passed for exactly that reason.
-_HISTORY: Final[str] = "allure-results/history"
+# A PATH AND NOT THE BARE WORD, so a job mentioning history in a comment does
+# not satisfy it. **What this establishes is that the trend is fetched, not
+# where it lands**: the destination is a directory name the job chooses, and
+# one repository renders a report per engine into a directory of its own.
+# The destination rule is stated in `harness_ci_pipeline.md` section 7.4.2
+# and is not checked here.
+_HISTORY: Final[str] = "/history/"
 
 # A run withholding the judge, written literally, and the input value a debug
 # workflow offers to ask for one (tier3_evaluation.md section 5A.5.3).

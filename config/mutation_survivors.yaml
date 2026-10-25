@@ -34,6 +34,13 @@
 # SO AN EDIT TO AN AUDITED MODULE INVALIDATES ITS DECLARATIONS, deliberately.
 # A survivor describes a specific body of code, and re-measuring is what makes
 # the declaration true again.
+# TWO MODULES LEFT THIS MANIFEST ON 2026-10-24: `cmn/registries.py` and
+# `cmn/band_summary.py`. 105 of their 129 mutation points were numeric
+# literals, and `MQC_CMN_UNI_112368`, `112370` and `112380` compare every one
+# against the table that declares it, in milliseconds against the nineteen
+# minutes an audit of one of them took. Their five accepted survivors were all
+# `equivalent`, so nothing measured is lost (`harness_test_taxonomy.md`
+# section 15.6A).
 survivors:
   cmn/verdict.py:
     digest: 3fe07d74bf5e34f19d79ce555176567de1453d051e3fa514f4364ab17583d5ff
@@ -62,44 +69,6 @@ survivors:
     digest: d254883493eb1c34d3aca3fbc5897cc41b6c5aad2cb1e8448901df25e9645b50
   cmn/layers.py:
     digest: 92f251267b12456eab51f94adfec5b6bd2db0b18bb312b59d5fb12f3fb7d0519
-  cmn/registries.py:
-    digest: 267717cb33bc0c70a9668369f2af1ddc869381df25a11744eefba2172c1251d2
-    accepted:
-      - mutation: "line 479: 1 to 2"
-        kind: equivalent
-        reason: >-
-          An unranked code sorts after every ranked group at the last rank plus
-          one or plus two alike; the design asks only that it sort last
-          (taxonomy section 6.5), and unranked_codes is what fails on one.
-        expires_on: 2026-12-31
-      - mutation: "line 756: 1 to 2"
-        kind: equivalent
-        reason: >-
-          The stem is the first element of the split, and maxsplit 1 and 2
-          give the same first element for every string.
-        expires_on: 2026-12-31
-      - mutation: "line 833: Or to And"
-        kind: equivalent
-        reason: >-
-          The two guards differ only for a status equal to True, which is 1,
-          and the status table holds HTTP codes from 100 up, so the lookup
-          returns None either way.
-        expires_on: 2026-12-31
-  cmn/band_summary.py:
-    digest: 0914b06fb036636a6c1942e54fbdba66169e39d582d03a06aea3939632a7b5f0
-    accepted:
-      - mutation: "line 177: 1 to 2"
-        kind: equivalent
-        reason: >-
-          The code is the first element of split(":", 1), and maxsplit 2 gives
-          the same first element for every string.
-        expires_on: 2026-12-31
-      - mutation: "line 358: 1 to 2"
-        kind: equivalent
-        reason: >-
-          The case name is the last element of rsplit("::", 1), and maxsplit 2
-          gives the same last element for every string.
-        expires_on: 2026-12-31
   cmn/environments.py:
     digest: 394b7e049995e73bf8e646b9c6422aa6395e880f49025958e75301707b57c643
     accepted:

@@ -2998,7 +2998,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112376` | P | `a_marker_block_is_read_the_way_pytest_reads_it` (taxonomy 7.5.1) |
 | `112377` | N | `an_audit_refuses_a_module_a_live_audit_holds` (taxonomy 15.11) |
 | `112378` | P | `a_lock_left_by_a_dead_audit_is_cleared` (taxonomy 15.11) |
-| `112379` | N | `the_mutation_audit_runs_on_a_harness_update` (CI pipeline 5A) |
+| ~~`112379`~~ | N | ~~`the_mutation_audit_runs_on_a_harness_update`~~ (CI pipeline 5A) |
 | `112380` | N | `a_registered_code_absent_from_the_taxonomy_is_reported` (taxonomy 6) |
 | `112381` | N | `a_section_number_with_an_inner_letter_is_read_whole` (code-style 7.3) |
 | `112382` | N | `a_requirement_stated_two_ways_is_reported` (10.17.1) |
@@ -3374,6 +3374,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `410003` | N | `a_stale_declaration_from_the_command_line_exits_four` (taxonomy 15.7.2) |
 | `410004` | P | `the_job_compares_the_declarations_before_it_measures` (taxonomy 15.7.2) |
 | `410005` | P | `an_audit_names_the_cases_it_set_aside` (taxonomy 15.7.1.2) |
+| `410006` | P | `the_audit_runs_only_when_somebody_asks_for_it` (taxonomy 15.6A) |
 | `420000` | N | `a_collected_module_declaring_no_capability_is_reported` (taxonomy 16.3) |
 | `420001` | N | `a_capability_outside_the_vocabulary_is_reported` (taxonomy 16.3) |
 | `420002` | P | `the_declared_epic_is_the_distribution_name` (taxonomy 16.3) |
@@ -3383,7 +3384,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `420006` | P | `the_suite_runs_where_no_reporter_is_installed` (taxonomy 16.7) |
 | `420007` | N | `no_module_outside_the_boundary_imports_the_reporter` (taxonomy 16.7) |
 
-**Inventory: 453 cases, 269 negative, 135 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 451 cases, 266 negative, 136 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -5183,14 +5184,21 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `162000` | N | `an_undeclared_survivor_in_the_verdict_is_reported` |
 | `162001` | N | `an_undeclared_survivor_in_the_threshold_domain_is_reported` |
 | `162002` | N | `an_undeclared_survivor_in_the_layer_registry_is_reported` |
-| `162003` | N | `an_undeclared_survivor_in_the_code_registry_is_reported` |
-| `162004` | N | `an_undeclared_survivor_in_the_band_summary_is_reported` |
+| ~~`162003`~~ | N | ~~`an_undeclared_survivor_in_the_code_registry_is_reported`~~ |
+| ~~`162004`~~ | N | ~~`an_undeclared_survivor_in_the_band_summary_is_reported`~~ |
 | `162005` | N | `an_undeclared_survivor_in_environment_scopes_is_reported` |
 
-**Six modules, completed 2026-10-15.** `verdict.py` and `threshold_domain.py`
-hold the standard a run is judged against; `layers.py` and `registries.py` hold
-what every layer, outcome, condition and code means; `band_summary.py` states
-the counts a reader acts on; `environments.py` decides which cases run where.
+**Four modules, since 2026-10-24.** `verdict.py` and `threshold_domain.py`
+hold the standard a run is judged against; `layers.py` holds what every layer
+and outcome means; `environments.py` decides which cases run where.
+
+**`registries.py` and `band_summary.py` left the audited set**, and `162003`
+and `162004` are retired with them, struck through above so a reader of stored
+history can resolve them. 105 of their 129 mutation points are numeric
+literals, and `112368`, `112370` and `112380` already compare every one
+against the table that declares it, in milliseconds against the nineteen
+minutes the audit of one of them took. `harness_test_taxonomy.md` section
+15.6A carries the measurement and the ruling.
 The first audit of the last four found 109 survivors. Most were registry
 values no case compared with the table they mirror, closed by
 `112368` to `112370` and `112380`; the rest were behaviour closed by `112371`

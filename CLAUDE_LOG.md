@@ -12812,3 +12812,54 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   the authoring rule's third row again**: the hole was in the design, which
   claimed a property of a mechanism that did not exist, and the implementation
   was faithful to it.
+
+---
+
+## 2026-10-24, eighth iteration: The audit stops being a tax
+
+* **The owner's ruling, and the number behind it**: "this mutation audit
+  literally ate about 10 hours of project time this week if not more", and
+  "audit should be a targeted tool, not a run everytime tool. There should be
+  no recurring audit job only manual one and only in CI." Measured the same
+  evening: the harness is checked in about six minutes and the corpus in
+  about six, and one audit took 49m58s.
+* **I was wrong about where the saving was, twice, and the measurements said
+  so.** I proposed narrowing each mutant's run to the test modules that can
+  observe the module. Measured: 83 of 95 modules reach `cmn/registries.py` and
+  60 of 95 reach `cmn/verdict.py`, because almost everything imports them
+  transitively through `conftest`. The narrowing pass that already exists is
+  why `band_summary` took two minutes and `registries` still took nineteen.
+* **What the points actually are is what decided it.** Counted from the syntax
+  trees: 68 of `registries.py`'s 80 points are numeric literals, ranks and
+  HTTP statuses, and 37 of `band_summary.py`'s 49. **Nineteen minutes to turn
+  404 into 405, sixty-eight times**, against three unit cases that compare
+  every one of those values with the table that declares it in milliseconds.
+  The owner's question "why test them" had a measurement behind it.
+* **And the owner's test design is the right one, stated in the project's own
+  rules already.** A value or set that returns true, one that returns false,
+  and the out-of-range value where one exists, with the boundary named exactly:
+  `framework-rules.md` section 3.2. Mutation does not test an operator; it asks
+  whether anybody wrote that triple, and it asks by re-running the suite 250
+  times instead of by reading the code.
+* **So a survivor is a to-do list entry.** Once the triple exists the mutant
+  dies permanently and there is nothing to re-measure, which is why auditing
+  unchanged code spends minutes on an answer that cannot have changed. Every
+  survivor on this project's record was found the first time its module was
+  audited.
+* **Four changes, not three.** The audited set is the rules rather than the
+  registers; the workflow is dispatch-only and renamed to match its cadence;
+  `--since <ref>` narrows a measurement to the lines a commit touched, 2 points
+  of 19 on the module I changed today; and `tools/mutation_scope.py` holds what
+  an audit is asked for, because the scoping took `mutation_audit.py` to 956
+  lines against the 900-line runway.
+* **The suite itemised everything I left half-done**, which is the part worth
+  recording: a retired identifier whose inventory row still had to be struck
+  through, a requirement that still said "runs on a push to main", a matrix
+  naming a case the suite no longer holds, two README figures, a stated
+  inventory total, a module past its runway, two unused imports, a date in the
+  future, and a step declared 4 that was 5. Nine corrections, all found by
+  running it rather than by reading.
+* **`MQC_REQ_HAR_CMN_0223` was withdrawn before it shipped.** I wrote it for
+  the new behaviour and then found `0173` already stated the old one, so one
+  requirement is reworded rather than two describing the same rule from
+  opposite ends.

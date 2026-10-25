@@ -23,7 +23,7 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`, `MUT`): tests **of this harness** | **979 test cases, all passing**, each executed once per run, the six mutation audits in their own job. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`, `MUT`): tests **of this harness** | **977 test cases, all passing**, each executed once per run, the six mutation audits in their own job. Nothing here measures a model |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
 | CI workflows | Eight, written and linted |
 | Requirements traced | 372, none uncovered, none untraced |

@@ -21,25 +21,28 @@
 # survives, and on an audit that refused (taxonomy section 15.7.1).
 name: audit-mutation-on-change
 
+# MANUAL ONLY, at the project owner's ruling of 2026-10-24: "There should be
+# no recurring audit job only manual one and only in CI." No push, no path, no
+# schedule. The audit measures neither the harness nor a model, and it cost
+# about ten hours of project time in the week before this
+# (`harness_test_taxonomy.md` section 15.6A).
+#
+# A SURVIVOR IS A TO-DO LIST ENTRY, not a result to re-derive: once the triple
+# that pins the behaviour exists the mutant dies permanently, so an audit over
+# unchanged code spends minutes on an answer that cannot have changed.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "cmn/**"
-      - "ingestion/**"
-      - "execution/**"
-      - "evaluation/**"
-      - "tests/**"
-      # A PATTERN RATHER THAN A NAME. `tools/mutation_audit.py` was the whole
-      # audit until 2026-10-23, when the manifest API moved to
-      # `tools/mutation_declarations.py` and the measurement to
-      # `tools/mutation_parallel.py`; neither path triggered anything, so a
-      # change to what gets audited ran no audit (pipeline section 5A).
-      - "tools/mutation_*.py"
-      - "config/mutation_survivors.yaml"
   workflow_dispatch:
+    inputs:
+      module:
+        description: "The production module to audit, such as cmn/verdict.py"
+        required: false
+        type: string
+      since:
+        description: "Audit only the points on lines changed since this ref"
+        required: false
+        type: string
 
-run-name: "Mutation audit of ${{ github.sha }}"
+run-name: "Mutation audit of ${{ inputs.module || 'every audited module' }}"
 
 # AN AUDIT OF A COMMIT MAIN HAS MOVED PAST ANSWERS NOTHING, so a newer push
 # supersedes it. Unlike the live run, nothing here has spent anything.
@@ -124,6 +127,9 @@ jobs:
           audits=$(grep -o '<testcase ' "$report" | wc -l || true)
           skipped=$(grep -o '<skipped' "$report" | wc -l || true)
           refused=$(grep -o 'QC_HARNESS_AUDIT_REFUSED[^"&]*' "$report" || true)
+          # WHAT THE AUDIT SET ASIDE, read from the tool rather than restated
+          # here, so one list is reported from one place (section 15.7.1.2).
+          quarantined=$(python -m tools.mutation_audit --quarantined || true)
           {
             echo "## Mutation audit"
             echo ""
@@ -135,6 +141,11 @@ jobs:
               echo "- ${refused//$'\n'/$'\n'- }"
             else
               echo "Every audited module was measured."
+            fi
+            if [ -n "$quarantined" ]; then
+              echo ""
+              echo "$quarantined, because each reads source or the manifest as"
+              echo "text and the control rewrites both."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
           if [ -n "$refused" ]; then

@@ -63,9 +63,14 @@ REFUSED: Final[int] = 4
 # EVERY MODULE THE MUTATION LAYER AUDITS, held in the harness rather than
 # beside the cases, because the manifest's API belongs here and a precondition
 # in `tests/cmn/` reads it (taxonomy section 15.2.2).
+# THE RULES, NOT THE REGISTERS. `cmn/registries.py` and `cmn/band_summary.py`
+# left this set on 2026-10-24: 105 of their 129 mutation points are numeric
+# literals, and three unit cases already compare every one of them against the
+# table this document declares, in milliseconds rather than the nineteen
+# minutes the audit of one of them took (section 15.6A.1).
 AUDITED: Final[tuple[str, ...]] = (
-    "cmn/verdict.py", "cmn/threshold_domain.py", "cmn/layers.py", "cmn/registries.py",
-    "cmn/band_summary.py", "cmn/environments.py",
+    "cmn/verdict.py", "cmn/threshold_domain.py", "cmn/layers.py",
+    "cmn/environments.py",
 )
 
 

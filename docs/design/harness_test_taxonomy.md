@@ -3175,6 +3175,112 @@ to punish a documentation gap.
 the suite exits non-zero on an undeclared survivor, and the scheduled job that
 runs it goes red.
 
+### 15.6A The audit is a tool, not a job, and it audits what somebody just wrote
+
+Added 2026-10-24 at the project owner's ruling, which is quoted here because
+the cost is the whole argument: "this mutation audit literally ate about 10
+hours of project time this week if not more", and "audit should be a targeted
+tool, not a run everytime tool. There should be no recurring audit job only
+manual one and only in CI."
+
+**It cost more than everything it is meant to protect.** Measured on
+2026-10-24, on the first audit to complete since the suite reached 949 cases:
+
+| What ran | Wall clock |
+|---|---|
+| Every check of the harness: lint, unit, system, both platforms | **about 6 minutes** |
+| Every check of the corpus: four target gates | **about 6 minutes each, in parallel** |
+| The mutation audit of six modules | **49 minutes 58 seconds** |
+
+A tool that measures neither the harness nor a model cannot cost eight times
+the measurement of both.
+
+#### 15.6A.1 What the points actually are, which decides which modules deserve one
+
+Counted from the syntax trees on 2026-10-24:
+
+| Module | Points | What they are |
+|---|---|---|
+| `cmn/registries.py` | 80 | **68 numeric literals**: criticality ranks 0 to 10, and the HTTP statuses 300, 301, 400, 404, 429, 500 and the rest |
+| `cmn/band_summary.py` | 49 | 37 numeric literals |
+| `cmn/verdict.py` | 65 | 29 comparisons, 15 `and`/`or`, 21 literals |
+| `cmn/layers.py` | 27 | 11 comparisons, 14 literals |
+| `cmn/environments.py` | 19 | 8 comparisons, 7 literals |
+| `cmn/threshold_domain.py` | 10 | 5 comparisons, 3 literals |
+
+**The nineteen minutes `registries.py` took were 68 runs of 949 cases to turn
+`404` into `405`, one at a time.** And three cases already assert the whole of
+that, in milliseconds: `MQC_CMN_UNI_112370` compares every criticality rank
+against the table in this document, `112368` every layer and outcome, and
+`112380` reports a registered code the taxonomy does not hold.
+
+**For declared data a table comparison is not merely cheaper, it is
+stronger.** It catches a wrong value, a missing row and an extra one at once,
+where a single-literal mutation can only ask whether one value was pinned. The
+survivors bear that out: `registries.py` and `band_summary.py` produced five
+accepted survivors between them and **every one is `equivalent`**, a change
+that cannot alter behaviour.
+
+#### 15.6A.2 So the audited set is the rules, not the registers
+
+| Stays audited | Why |
+|---|---|
+| `cmn/verdict.py`, `cmn/threshold_domain.py` | The thresholds a run is judged against, where a comparison carries behaviour |
+| `cmn/layers.py`, `cmn/environments.py` | Which cases run, and what their results are worth |
+
+| Left the audited set, 2026-10-24 | Why |
+|---|---|
+| `cmn/registries.py` | Declared data, compared against its table by `112368`, `112370` and `112380` |
+| `cmn/band_summary.py` | Declared data and arithmetic over it, compared by `112333` and the band cases |
+
+`MQC_CMN_MUT_162003` and `162004` are **retired** with the modules they
+audited, and stay listed struck through so a reader of stored history can
+resolve them.
+
+#### 15.6A.3 And what a survivor is for
+
+**A survivor is a to-do list entry, not a test result.** It says one thing:
+*no case pins this behaviour*. The remedy is the triple
+`framework-rules.md` section 3.2 already requires, named by the project owner
+in the same exchange: a value or set of values that returns true, a value or
+set that returns false, and the out-of-range value where one exists, with the
+boundary named exactly rather than near.
+
+Once that triple exists the mutant dies permanently. **There is nothing to
+re-measure**, which is why re-running an audit over unchanged code is spending
+minutes to re-derive an answer that cannot have changed. Every survivor this
+project has recorded was found the first time its module was audited; none has
+ever appeared in a module that stood still.
+
+| | |
+|---|---|
+| What mutation is good for | Finding a threshold nobody wrote the triple for, in code just written |
+| What it is not | A test, a gate, or a thing to repeat |
+| What replaces the repetition | The per-fix injection rule, which does the same deliberately and for free (`testing-standards.md`) |
+
+#### 15.6A.4 How it runs now
+
+| | |
+|---|---|
+| Trigger | **Manual only.** `audit-mutation-on-dispatch.yml`, and the command line |
+| On a push | **Nothing.** No path, no branch, no schedule |
+| Scope | One module, and with `--since <ref>` only the points on lines that changed since that ref |
+| Blocking | Nothing, as before. It fails its own run and no gate waits on it |
+
+**A scoped run compares only the declarations it measured.** The first scoped
+audit reported the declared survivor on line 113 as closed, because the scope
+held lines 103 to 112 and nothing measured 113: a partial measurement judged
+against a whole declaration says a gap closed that nobody looked at.
+`survivor_problems` takes the scope now, and the comparison narrows with the
+measurement.
+
+**`--since` is the targeted form the ruling asks for.** The one real survivor
+this project found on 2026-10-24 was on a line the same commit had added, so
+the diff-scoped audit of that module would have found it in about a minute
+against the fifty the whole-file sweep of six modules took.
+
+`MQC_CMN_UNI_410006` and `MQC_REQ_HAR_CMN_0173`, reworded with the ruling.
+
 ### 15.7 It is its own job because of what it costs
 
 Measured 2026-10-13 against `cmn/verdict.py`: 88 mutation points, 1455 seconds,
@@ -3273,6 +3379,19 @@ the survivor count:
 1 survivor(s), 0 undeclared
 5 case(s) quarantined from this audit: 112502, 112331, 410000, 410003, 112526
 ```
+
+**In three places, because there are three ways to run an audit**, and the
+first attempt reported it in the one nobody uses in CI:
+
+| How an audit runs | Where the line appears |
+|---|---|
+| `python -m tools.mutation_audit <module>` | The command's own output |
+| `pytest -m mutation`, which is Gate 8 | The run's terminal summary, from the mutation suite's `conftest.py` |
+| Gate 8's job | The job summary, beside the elapsed time and the count measured |
+
+**The first completed audit carried the line zero times**, which is how this
+was found: Gate 8 runs the suite and the suite's cases measure directly, so
+`main` and its closing line were never reached.
 
 **Read from the targets rather than restated**, so a list extended in one
 place is reported from the same place, and a case that should be on the list

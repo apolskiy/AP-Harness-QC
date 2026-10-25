@@ -43,7 +43,7 @@ question was looking at the right file.
 # TestMQCMutationQuarantine
 #   410005  an_audit_names_the_cases_it_set_aside
 # TestMQCMutationWorkflow
-#   112379  the_mutation_audit_runs_on_a_harness_update
+#   410006  the_audit_runs_only_when_somebody_asks_for_it
 #   410004  the_job_compares_the_declarations_before_it_measures
 # TestMQCMutationControl
 #   112426  a_refused_control_names_the_failing_cases
@@ -55,7 +55,6 @@ import ast
 import os
 import subprocess
 import sys
-from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
 
@@ -83,7 +82,6 @@ from tools.mutation_audit import (
 )
 from tools import mutation_audit
 from tools.mutation_declarations import (
-    AUDITED,
     baseline_problem,
     declare_digest,
     declared_survivors,
@@ -93,7 +91,7 @@ pytestmark = pytest.mark.unit
 
 _WORKFLOW = (
     Path(__file__).resolve().parents[2] / ".github" / "workflows"
-    / "audit-mutation-on-change.yml"
+    / "audit-mutation-on-dispatch.yml"
 )
 
 
@@ -444,20 +442,44 @@ class TestMQCMutationQuarantine:
             "and an unread one look alike"
         )
 
+        step(5, "the suite Gate 8 runs closes with the line")
+        root = Path(__file__).resolve().parents[2]
+        conftest = ast.parse(
+            (root / "tests/mutation/conftest.py").read_text(encoding="utf-8")
+        )
+        closing = [
+            node for node in conftest.body
+            if isinstance(node, ast.FunctionDef) and node.name == "pytest_terminal_summary"
+        ]
+        assert closing and "quarantine_report" in ast.unparse(closing[0]), (
+            "the mutation suite does not close by naming what it set aside, so "
+            "the line exists only on the command-line path, which Gate 8 never "
+            "takes: the first completed audit carried it zero times"
+        )
+
+        step(6, "and the job puts it in its summary")
+        workflow = _WORKFLOW.read_text(encoding="utf-8")
+        assert "--quarantined" in workflow and "quarantined" in workflow, (
+            "Gate 8's job does not ask the tool what it set aside, so a reader "
+            "of the job summary cannot see which cases did not run"
+        )
+
 
 class TestMQCMutationWorkflow:
     """Gate 8 runs when the harness changes, and says when it could not."""
 
-    @story("Gate 8 runs on a harness update")
-    def MQC_CMN_UNI_112379_the_mutation_audit_runs_on_a_harness_update(self) -> None:
-        """The workflow fires on main for every audited module and reports refusals.
+    @story("The audit is dispatched, never triggered")
+    def MQC_CMN_UNI_410006_the_audit_runs_only_when_somebody_asks_for_it(self) -> None:
+        """The workflow has one trigger, a dispatch, and takes what to audit.
 
-        It runs the mutation marker, fires on a push to ``main`` whose paths
-        cover every audited module, every file the audit is built from and its
-        manifest, turns red when an audit refused, and references no secret.
+        **`112379` is retired with the behaviour it asserted.** It required a
+        push to `main` to audit every module, which is the tax the project
+        owner's ruling of 2026-10-24 removed: the audit measures neither the
+        harness nor a model and cost about ten hours of project time in a
+        week.
 
-        Design: ``harness_ci_pipeline.md`` section 5A, ``harness_test_taxonomy.md``
-        section 15.7.1.
+        Design: ``harness_test_taxonomy.md`` section 15.6A,
+        ``harness_ci_pipeline.md`` section 5A.
 
         Returns:
             None
@@ -466,31 +488,33 @@ class TestMQCMutationWorkflow:
         workflow = yaml.safe_load(source)
         # PyYAML reads the key `on` as the boolean True.
         triggers = workflow.get("on", workflow.get(True)) or {}
-        push = triggers.get("push") or {}
 
-        assert "main" in (push.get("branches") or []), "the audit does not run on main"
-        paths = set(push.get("paths") or [])
-        needed = {f"{Path(module).parts[0]}/**" for module in AUDITED}
-        needed |= {"config/mutation_survivors.yaml", "tests/**"}
-        assert needed <= paths, f"a change to {sorted(needed - paths)} does not trigger the audit"
-
-        # AND EVERY TOOL THE AUDIT IS BUILT FROM, matched by a declared path
-        # rather than named one at a time. `tools/mutation_audit.py` was the
-        # only name here while the audit was one file, and the manifest API and
-        # the parallel measurement moved out of it on 2026-10-23 without
-        # triggering anything (`harness_ci_pipeline.md` section 5A).
-        root = Path(__file__).resolve().parents[2]
-        for tool in sorted((root / "tools").glob("mutation_*.py")):
-            relative = tool.relative_to(root).as_posix()
-            assert any(fnmatch(relative, declared) for declared in paths), (
-                f"a change to {relative} triggers no audit"
-            )
-
-        assert "pytest -m mutation tests/mutation" in source, "the audit is not run"
-        assert "QC_HARNESS_AUDIT_REFUSED" in source and "exit 1" in source, (
-            "a refused audit leaves the job green, so an unmeasured change reads as measured"
+        step(1, "a dispatch is the only way in")
+        assert set(triggers) == {"workflow_dispatch"}, (
+            f"the audit is triggered by {sorted(triggers)}, so it is a tax on "
+            f"something rather than a tool somebody reaches for"
         )
-        assert "secrets." not in source, "an audit of our own code references a credential"
+
+        step(2, "and it takes the module and the ref to narrow to")
+        inputs = set((triggers.get("workflow_dispatch") or {}).get("inputs") or {})
+        assert {"module", "since"} <= inputs, (
+            f"the dispatch offers {sorted(inputs)}, so an operator cannot point "
+            f"it at one module or at the lines that changed"
+        )
+
+        step(3, "it still runs the audit")
+        assert "pytest -m mutation tests/mutation" in source, "the audit is not run"
+
+        step(4, "and still reddens on a refusal")
+        assert "QC_HARNESS_AUDIT_REFUSED" in source and "exit 1" in source, (
+            "a refused audit leaves the run green, so an unmeasured change reads "
+            "as measured"
+        )
+
+        step(5, "and it reaches no credential")
+        assert "secrets." not in source, (
+            "an audit of our own code references a credential"
+        )
 
     @story("The declarations are compared before anything is measured")
     def MQC_CMN_UNI_410004_the_job_compares_the_declarations_before_it_measures(

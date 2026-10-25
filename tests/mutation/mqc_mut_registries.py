@@ -3,7 +3,7 @@
 """Mutation cases auditing whether the suite notices changes to four registry modules.
 
 Created: 2026-10-15
-Last updated: 2026-10-21
+Last updated: 2026-10-24
 
 Its cases run the mutation audit on ``cmn/layers.py``, ``cmn/registries.py``,
 ``cmn/band_summary.py`` and ``cmn/environments.py``, one case each, and fail
@@ -26,8 +26,6 @@ marker, per ``framework-rules.md`` section 3.3.
 #
 # TestMQCRegistryMutations
 #   162002  an_undeclared_survivor_in_the_layer_registry_is_reported
-#   162003  an_undeclared_survivor_in_the_code_registry_is_reported
-#   162004  an_undeclared_survivor_in_the_band_summary_is_reported
 #   162005  an_undeclared_survivor_in_environment_scopes_is_reported
 # ------------------------------------------------------------ end of cases
 
@@ -52,34 +50,6 @@ class TestMQCRegistryMutations:
         problems = audit("cmn/layers.py")
         assert not problems, (
             f"{len(problems)} mutation finding(s) in the layer registry:\n  "
-            + "\n  ".join(problems)
-        )
-
-    def MQC_CMN_MUT_162003_an_undeclared_survivor_in_the_code_registry_is_reported(
-        self,
-    ) -> None:
-        """Every change to the code, condition and rank registry is noticed, or declared.
-
-        Returns:
-            None
-        """
-        problems = audit("cmn/registries.py")
-        assert not problems, (
-            f"{len(problems)} mutation finding(s) in the code registry:\n  "
-            + "\n  ".join(problems)
-        )
-
-    def MQC_CMN_MUT_162004_an_undeclared_survivor_in_the_band_summary_is_reported(
-        self,
-    ) -> None:
-        """Every change to what a band summary prints is noticed, or declared.
-
-        Returns:
-            None
-        """
-        problems = audit("cmn/band_summary.py")
-        assert not problems, (
-            f"{len(problems)} mutation finding(s) in the band summary:\n  "
             + "\n  ".join(problems)
         )
 
