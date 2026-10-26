@@ -1803,6 +1803,54 @@ pytest caches each rewritten module, and a cache written before
 this change records nothing until the `*-pytest-*.pyc` files under `tests`
 are removed. A fresh checkout, which every CI runner is, is unaffected.
 
+### 8.2.5 A screen that matched and did not stop the observation is not a failed step
+
+Found 2026-10-24, re-recording the findings register after the screen learned
+which prompts forbid a quote (`tier3_evaluation.md` section 4C.4.1).
+
+**The step read the code and not the stop.** `ScreenDecision` carries
+`taxonomy_code` whenever a vector fired and `aborts` separately, because
+section 4C.4 of `tier3_evaluation.md` makes the two different facts: on an
+ordinary case a hit stops the evaluation, and on a **declared adversarial**
+case it is evidence that feeds the grade and the observation continues to its
+assertions and its judge. `_step_screen` reported `failed` on the code alone.
+
+| The screen | The observation | The step said | It should say |
+|---|---|---|---|
+| Found nothing | Continues | `ok` | `ok` |
+| Matched, `aborts` true | Stops, nothing is scored | `failed` | `failed` |
+| **Matched, `aborts` false** | **Continues, and passed** | **`failed`** | **`ok`, naming the match** |
+
+**It published a failure on a green case, which is the worst direction.**
+`grok` `154501` passed all three observations with the judge scoring 5.0 on
+each, and its ledger read `PHASE_04_VERIFY ... failed | QC_SEC_INJECTION_ATTEMPT`
+on two of them. `_halted` then reported those observations as stopped at step
+4, `_measured_outcome` read the step half as `False`, and `consistency_step`
+concluded `1 of 3 measured observations passed` and emitted
+`QC_LLM_INCONSISTENT`. The case passed and its own published record said a
+model answered inconsistently.
+
+**Three readers were wrong at once and all three take one fix**, because each
+reads the phase rather than the screen: the Allure step tree a reviewer reads
+for a quality picture (section 8.3), the `stopped at` clause a failure message
+carries, and the comparison step's ratio.
+
+**The condition is the stop, so the code stays on the line.** A match that did
+not abort is still worth publishing: the pipeline records it in
+`taxonomy_codes` and the family under test is the one whose responses carry a
+payload on purpose. So the phase is `ok`, it keeps `QC_SEC_INJECTION_ATTEMPT`,
+and its detail says the case declared the payload. Dropping the code would
+trade a false failure for a silence, which is the trade this project refuses
+everywhere else.
+
+**Why nothing caught it.** `MQC_CMN_UNI_112336` builds its ledger from a
+result whose screen is clean, and `112337` and `112398` vary the rubric and the
+assertions. No case had ever built one from a screen that matched without
+aborting, which is the state every declared adversarial case is in.
+`MQC_CMN_UNI_112339` builds both and compares them.
+
+`MQC_REQ_HAR_CMN_0225`.
+
 ### 8.3 It reaches the durable record for free
 
 Allure steps are a standard part of the format and are already parsed by collectors that read it. Emitting structured step names through `allure.step` therefore delivers step-level history through an existing field rather than new machinery.
@@ -3280,6 +3328,41 @@ the diff-scoped audit of that module would have found it in about a minute
 against the fifty the whole-file sweep of six modules took.
 
 `MQC_CMN_UNI_410006` and `MQC_REQ_HAR_CMN_0173`, reworded with the ruling.
+
+#### 15.6A.5 An audit is counted apart, and never carries a band
+
+Added 2026-10-25 at the project owner's ruling: "audit tests, and harness
+tests are not the same for tracking and accounting purposes. audit tests are
+more of an internal tool", and "since audit tests are not banded tests, they
+should not have P0, P1 band assigned to them, ever."
+
+**Two totals, because they answer different questions.** A harness run says
+how much of the instrument held; an audit run says how much of the suite's own
+coverage was measured. Adding them produces a figure that answers neither.
+
+| Run | Its total is |
+|---|---|
+| A gate, `-m unit` or `-m system` | The non-audit cases it collected |
+| The audit, `-m mutation tests/mutation` | The audits it collected, and nothing else |
+| The README | **Two figures**: the suite, and the audits beside it |
+
+**The suite figure already excluded them and the README's label did not say
+so.** The row read "Instrument suite (`UNI`, `SYS`, `MUT`) ... 978 test cases
+... the six mutation audits in their own job", while the figure counts the
+stated inventories of the designs, which the audit inventory does not carry.
+So the number was right, the label claimed otherwise, and "six" had been four
+since the audited set shrank. `MQC_CMN_UNI_410008` compares the stated audit
+figure with the audits that exist, which is the half nothing checked.
+
+**And a band is a budget device, which an audit does not compete in.** A
+priority exists so that claims competing for one gate's attention can be
+ordered, and `framework-rules.md` section 3.3 already says a precondition
+carries none because it sits above the scale. An audit sits outside it
+altogether: it measures the suite rather than the harness or a model, it
+blocks nothing, and it runs in a job of its own. The modules say so in prose
+and nothing enforced it; `MQC_CMN_UNI_410007` does.
+
+`MQC_REQ_HAR_CMN_0224`.
 
 ### 15.7 It is its own job because of what it costs
 

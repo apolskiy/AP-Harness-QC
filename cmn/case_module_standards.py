@@ -3,7 +3,7 @@
 """Test module layout checks, where support code may live and how subprocesses wait.
 
 Created: 2026-10-05
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 This file contains ``inline_support``, which lists the module-level support
 definitions a collected test module carries; ``extraction_problems``, which
@@ -221,3 +221,77 @@ def unbounded_subprocess_calls(root: Path) -> list[str]:
                 f"forever and the job is cancelled rather than failed"
             )
     return problems
+
+
+# THE BAND MARKER, which an audit never carries. A band is a gating device
+# over claims that compete for a budget, and an audit competes for nothing:
+# it measures the suite's own coverage, in a job of its own, blocking nothing
+# (``harness_test_taxonomy.md`` section 15.6A.5).
+_PRIORITY_MARKER: Final[str] = "priority"
+_AUDIT_MARKER: Final[str] = "mutation"
+
+
+def banded_audits(root: Path) -> list[str]:
+    """Report every audit case carrying a priority band.
+
+    **Parsed, not matched**, like every other reader here: a marker named in
+    a docstring is prose, and this project has corrected a scanner that could
+    not tell the two apart.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per banded audit, naming the module and the
+        case. Empty where no audit carries a band.
+    """
+    problems: list[str] = []
+    tests = root / "tests"
+    if not tests.is_dir():
+        return problems
+    for module in sorted(tests.rglob(COLLECTED_GLOB)):
+        if _SKIPPED & set(module.parts):
+            continue
+        try:
+            tree = ast.parse(module.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        if _AUDIT_MARKER not in _module_markers(tree):
+            continue
+        relative = module.relative_to(root).as_posix()
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                continue
+            for decorator in node.decorator_list:
+                call = decorator.func if isinstance(decorator, ast.Call) else decorator
+                if isinstance(call, ast.Attribute) and call.attr == _PRIORITY_MARKER:
+                    problems.append(
+                        f"{relative} gives {node.name} a priority band, and an "
+                        f"audit competes for no budget: it measures the suite's "
+                        f"own coverage and gates nothing"
+                    )
+    return problems
+
+
+def _module_markers(tree: ast.Module) -> set[str]:
+    """Return the marker names a module applies to everything it holds.
+
+    Args:
+        tree (ast.Module): The parsed module.
+
+    Returns:
+        set[str]: Each ``pytest.mark.<name>`` assigned to ``pytestmark``.
+    """
+    found: set[str] = set()
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == "pytestmark"
+            for target in node.targets
+        ):
+            continue
+        for part in ast.walk(node.value):
+            if isinstance(part, ast.Attribute):
+                found.add(part.attr)
+    return found

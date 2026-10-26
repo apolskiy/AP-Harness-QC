@@ -41,8 +41,46 @@ env:
   PYTHON_VERSION: "3.14"
 
 jobs:
+  # GATE 2 AND GATE 3 STAND IN FRONT OF THE SPEND, which is where they were
+  # missing. `framework-rules.md` section 1 makes a precondition failure stop
+  # the graded layers and this workflow needed nothing at all, so a corpus that
+  # had stopped loading would have been measured live: on 2026-10-24 one did
+  # stop loading and four engine sweeps measured it, because the graded suite
+  # builds one case at a time and only a corpus-wide check sees a dangling
+  # reference. Design `harness_ci_pipeline.md` section 8.6.
+  #
+  # A JOB RATHER THAN A STEP INSIDE `evaluate`. The job name is the diagnosis:
+  # a red here says nothing was measured and no quota was spent, which is a
+  # different remedy from a graded red (`consumer_ci.md` section 3.12). It also
+  # runs once rather than once per matrix leg.
+  preconditions:
+    name: preconditions, not a model finding
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install
+        run: python -m pip install --editable ".[dev]"
+      - name: Gate 2, the unit preconditions
+        run: pytest -m unit --junitxml=reports/junit_mqc_unit.xml --alluredir=reports/allure-results
+      - name: Gate 3, the system preconditions in replay
+        run: pytest -m system --mode replay --junitxml=reports/junit_mqc_system.xml --alluredir=reports/allure-results
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: mqc-reports-live-preconditions
+          path: reports/
+          retention-days: 90
+
   evaluate:
     name: evaluate (${{ matrix.engine }}, ${{ matrix.mode }})
+    # NOTHING LIVE RUNS BEHIND A RED INSTRUMENT. The default needs-success
+    # gating is what is wanted here, unlike the case repository's bands: there
+    # the bands report independently and name the precondition result, and here
+    # a refusal upstream should skip the spend rather than report it.
+    needs: preconditions
     # Ubuntu only. PLATFORM COVERAGE TESTS THE HARNESS, NOT THE MODEL: a second
     # platform here doubles quota consumption and learns nothing new about the
     # model, while gate-on-change.yml has already established that our code

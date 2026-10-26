@@ -3,13 +3,15 @@
 """Unit tests for the step ledger that reports where a graded case stopped.
 
 Created: 2026-10-07
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 Its cases check ``cmn/steps.py`` through ``ledger``, ``case_steps``,
 ``observation_step``, ``stopped_at``, ``stopped_line``, ``step_lines`` and
 ``summary``, with ``escalation_size`` from ``cmn/observations.py``. A ledger names
 every step and the phase it stopped at, and a rule without a rubric, or without
-programmatic checks, reports the steps it has no use for as inapplicable. Each
+programmatic checks, reports the steps it has no use for as inapplicable. The
+screen phase fails on the stop rather than on the code, so a declared
+adversarial case whose payload matched and was graded stays green. Each
 observation step verifies one request, escalation steps not taken are recorded as
 not run, and the last step verifies only the agreement. One case checks that
 ``announce_test`` in ``cmn/pytest_support.py`` logs a case's node identifier
@@ -38,6 +40,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112336  a_ledger_names_every_step_and_the_phase_it_stopped_at
 #   112337  a_rule_without_a_rubric_reports_its_judge_steps_inapplicable
 #   112398  a_rubric_only_rule_reports_its_check_step_inapplicable
+#   112339  a_screen_that_matched_without_aborting_is_not_a_failed_step
 # TestMQCCaseSteps
 #   112388  an_observation_step_verifies_one_request
 #   112389  escalation_steps_not_taken_are_recorded_as_not_run
@@ -59,7 +62,8 @@ from cmn.steps import (
 )
 
 from tests.cmn.steps_support import (
-    Announced, dispatched, evaluated, failed_check, mixed_observations, unmeasured,
+    Announced, dispatched, evaluated, failed_check, mixed_observations,
+    screened_declared, screened_stop, unmeasured,
 )
 
 pytestmark = pytest.mark.unit
@@ -239,6 +243,72 @@ class TestMQCStepLedger:
         halt = stopped_at(unjudged)
         assert halt is not None and halt.number == 5, (
             f"a result that measured nothing is not reported as a stop at step 5: {halt}"
+        )
+
+
+    def MQC_CMN_UNI_112339_a_screen_that_matched_without_aborting_is_not_a_failed_step(
+        self,
+    ) -> None:
+        """A screen phase fails on the stop, and a declared match keeps the step green.
+
+        The boundary is ``ScreenDecision.aborts``: a hit stops an ordinary
+        case and feeds the grade on a declared adversarial one, where the
+        observation goes on to its assertions and its judge. A step reading
+        the code instead publishes a failed phase, a stopped-at clause and a
+        failing observation on a case that passed.
+
+        Design: ``harness_test_taxonomy.md`` section 8.2.5.
+
+        Returns:
+            None
+        """
+        stopped = ledger(dispatched(), screened_stop())
+        declared = ledger(dispatched(), screened_declared())
+
+        # A HIT THAT STOPPED THE EVALUATION: the phase fails, carrying the code.
+        halt = stopped_at(stopped)
+        assert halt is not None, "a screen that aborted reported no stop"
+        assert (halt.number, halt.phase) == (4, "VERIFY"), (
+            f"the stop is reported at {halt.number} {halt.phase}, not the screen"
+        )
+        assert halt.taxonomy_code == "QC_SEC_INJECTION_ATTEMPT", (
+            f"the stop carries {halt.taxonomy_code!r}"
+        )
+
+        # A HIT THE CASE DECLARED: nothing halted, so every phase is reached.
+        assert stopped_at(declared) is None, (
+            f"a screen that matched without aborting reported a stop: "
+            f"{stopped_line(declared)}"
+        )
+        screen_phase = [
+            entry for entry in declared
+            if entry.number == 4 and entry.phase == "VERIFY"
+        ]
+        assert len(screen_phase) == 1, f"{len(screen_phase)} screen verifications"
+        assert screen_phase[0].outcome == "ok", (
+            f"the screen phase reads {screen_phase[0].outcome!r} although the "
+            f"observation continued and passed"
+        )
+
+        # AND THE MATCH IS STILL PUBLISHED, because it is the evidence this
+        # family exists to produce.
+        assert screen_phase[0].taxonomy_code == "QC_SEC_INJECTION_ATTEMPT", (
+            "the declared match was dropped rather than recorded"
+        )
+
+        # SO THE COMPARISON READS AGREEMENT. Three observations that passed
+        # are not an inconsistency, and no escalation is earned.
+        steps = case_steps([(dispatched(), screened_declared())] * 3, configured=3)
+        comparison = steps[-1].verification
+        assert comparison.outcome == "ok", (
+            f"three passing observations compared as {comparison.outcome!r} "
+            f"with {comparison.taxonomy_code!r}: {comparison.detail}"
+        )
+
+        escalation = steps[3].action
+        assert "not earned" in escalation.detail, (
+            f"escalation was earned on three agreeing observations: "
+            f"{escalation.detail}"
         )
 
 

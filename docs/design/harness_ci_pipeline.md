@@ -1483,6 +1483,87 @@ assignment. `MQC_CMN_UNI_112367` and `MQC_CAS_UNI_115744` call it with each root
 and the variables the rostered adapters declare. **The value is never read**;
 what is checked is the wiring, which is the part a roster addition forgets.
 
+### 8.6 A job that runs graded cases is gated on the preconditions, or it spends on an unchecked instrument
+
+Added 2026-10-25, after a corpus that had stopped loading was measured four
+times.
+
+**The rule is older than this section and is stated in three places.**
+`framework-rules.md` section 1 makes Gate 2 blocking, `testing-standards.md`
+says the graded layers do not execute if a precondition fails because running
+them "spends provider quota to generate noise", and `AP-Model-QC`
+`consumer_ci.md` section 3.12 expresses it as a job graph. **Five workflows
+across the two repositories run graded cases and one of them implemented it.**
+
+#### 8.6.1 What that cost, which is the reason for the section
+
+On 2026-10-24 two assertions were added to the relay rules naming a constraint
+that no task sends, so the join failed referential integrity and
+`MQC_CAS_UNI_115000` reported `QC_DATA_INVARIANT_VIOLATION`. **Four graded
+sweeps ran over it**, one per engine, and each reported ordinary findings: the
+graded suite builds one case at a time, so a corpus-wide check is the only
+thing that sees a dangling reference, and nothing in the ladder ran one.
+
+**The register those sweeps produced was still valid**, because the assertions
+themselves ran, and that is luck rather than a property. A reference that had
+been dangling into a rule rather than out of one would have changed what was
+graded, and the findings would have been filed against three vendors with
+nothing saying the instrument was red.
+
+#### 8.6.2 Two shapes satisfy it, and the difference is what the job holds
+
+| Shape | A graded job | Chosen where |
+|---|---|---|
+| The job graph | `needs:`, directly or transitively, a job that runs the preconditions | A gate whose job names are read as a dashboard. `consumer_ci.md` section 3.12: the band is the diagnosis, so Gate 2 leaves the graded job entirely |
+| Step order | Runs a precondition invocation in an earlier step of its own job, which a failure stops | A job holding a checkout it fetched. `regress-consumers-on-merge.yml` runs the consumer's own preconditions from the registry and then replays its graded layers, and splitting that across jobs would fetch the consumer twice |
+
+**Both prevent the spend and neither is a relaxation of the other.** What the
+job graph buys beyond step order is the diagnosis, and that is worth having
+where somebody reads job names to decide what broke; it buys nothing in a job
+whose subject is one fetched repository.
+
+#### 8.6.3 What is read, and what is deliberately not
+
+| Read | Why |
+|---|---|
+| Every workflow whose file name does not end `-on-demand` | A debug run's rows are `ci_debug` and yield no verdict, which is what a debug workflow is for. Section 8.2.2 and `consumer_ci.md` section 4.21 draw the same line |
+| A local `uses:`, followed into the referenced definition | Section 8.4. The case repository's only graded invocation lives in a composite action, so a reader of jobs alone would call that job ungraded and report nothing |
+| A step whose `working-directory` is a checkout the job fetched | **Not as a graded job of ours.** The cases, the corpus and therefore the preconditions belong to that checkout, and the repository that owns them asserts them in its own gate |
+| Nothing computed | A marker or a command reaching a step through an input or a matrix carries no literal to compare, which is how every check over these files already behaves |
+
+**The third row is a boundary rather than an exemption**, and it is the
+`CLAUDE.md` rule about owning no case data applied to CI: a job that installs
+another repository and runs its cases is measuring that repository's corpus
+against our code, and what gates it is that repository's precondition command.
+
+#### 8.6.4 The two instances this found
+
+| Workflow | Was | Is |
+|---|---|---|
+| `evaluate-live-weekly.yml` | One `evaluate` job, needing nothing, running the graded layers live under a `--max-spend` ceiling | A `preconditions` job runs `pytest -m unit` and `pytest -m system`, and `evaluate` needs it |
+| `AP-Model-QC` `evaluate-engine.yml` | Four graded invocations across three rungs, gated on `resolve` alone | A `preconditions` job ahead of rung 1, which every rung reaches through the chain |
+
+**A scheduled retirement is not a reason to leave it.**
+`evaluate-live-weekly.yml` is retired at a later step of the probe and
+calibration plan and is fixed here anyway, which is the reasoning
+`consumer_ci.md` section 4.21 used about the same workflow's selection.
+
+**The ladder is the one that mattered**, because it is the workflow that
+spends: rung 2 pays for a live judge and rung 3 for a live candidate, and both
+were reachable with the corpus in the state section 8.6.1 describes.
+
+#### 8.6.5 Enforced, from one implementation
+
+`cmn.ci_gating.ungated_graded_jobs` reports every graded job that
+reaches no precondition invocation, naming the file, the job and what it needs.
+`MQC_CMN_UNI_112189` and `MQC_CAS_UNI_115782` call it with each root, the
+one-implementation-two-callers arrangement sections 8.3, 8.5 and 8.5.4 already
+use. `MQC_REQ_HAR_CMN_0226`, and `MQC_REQ_CAS_PRE_0015` on the other side.
+
+**It is not `actionlint`'s subject and not a schema question.** The definition
+is valid YAML and a valid workflow either way; what is wrong is the shape of
+the dependency, which only a reader that knows what the layers mean can see.
+
 ---
 
 ## 9. Exit Codes To Job Status

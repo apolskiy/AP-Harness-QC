@@ -29,6 +29,66 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A job running graded cases stands behind the preconditions, 2026-10-25
+
+**Gate 2 is blocking in three documents and was implemented in one workflow of
+the five that run graded cases.** `framework-rules.md` section 1,
+`testing-standards.md` and the case repository's `consumer_ci.md` section 3.12
+all say the graded layers do not execute when a precondition fails, because
+running them spends provider quota to generate noise. The case repository's
+per-target gate expressed it as a job graph; `evaluate-live-weekly.yml` here
+ran the graded layers live under a spending ceiling and needed nothing, and the
+case repository's ladder gated all three rungs on the resolver alone.
+
+**What the absence cost is on the record.** Two assertions added to the relay
+rules on 2026-10-24 named a constraint no task sends, so the corpus failed
+referential integrity for a day and `MQC_CAS_UNI_115000` reported it. Four
+engine sweeps measured the corpus in that state and reported ordinary findings,
+because the graded suite builds one case at a time and only a corpus-wide check
+sees a dangling reference. The register those sweeps produced was still valid,
+and that was luck rather than a property.
+
+`cmn.ci_gating.ungated_graded_jobs` reports a job that runs graded
+cases out of this repository's checkout and reaches no precondition invocation,
+through a job it needs or an earlier step of its own that a failure stops. A
+debug workflow is exempt by its cadence suffix, a local `uses:` is followed so a
+graded invocation factored into a composite action is still seen, and a step
+running in a checkout the job fetched is that repository's to gate, which is
+what `regress-consumers-on-merge.yml` does from the consumer registry.
+
+`evaluate-live-weekly.yml` has a `preconditions` job running Gate 2 and Gate 3,
+and `evaluate` needs it. A scheduled retirement is not a reason to leave it
+ungated, which is the reasoning `consumer_ci.md` section 4.21 used about the
+same workflow's selection.
+
+`MQC_CMN_UNI_112189` builds both gated shapes, the ungated one, a precondition
+step written after the graded step, and a graded step in a fetched checkout.
+`MQC_REQ_HAR_CMN_0226` traces it, `harness_ci_pipeline.md` section 8.6
+specifies it. Cases 981 to 982, requirements 375 to 376, the
+`cmn_verdict_and_cli.md` inventory 454 to 455.
+
+### A screen that matched without stopping an observation is no longer a failed step, 2026-10-24
+
+**The step ledger published a failure on a passing case.** `_step_screen` read
+`ScreenDecision.taxonomy_code`, which is set whenever a vector fired, instead
+of `aborts`, which says whether the evaluation stopped. A declared adversarial
+case records the match and continues, so every such observation logged
+`PHASE_04_VERIFY ... failed`, `_halted` reported it as stopped at step 4,
+`consistency_step` counted it as a failing observation and emitted
+`QC_LLM_INCONSISTENT`, and `further_observations` earned an escalation that was
+never needed. `grok` `154501` passed three observations scoring 5.0 on each and
+its own record said the model answered inconsistently.
+
+**Four readers were wrong from one line**, and the worst of them is the Allure
+step tree, which is read as a picture of quality. The phase now fails only
+where the screen stopped the observation and keeps the code on the line
+otherwise, so the match is still published as the evidence it is.
+
+`MQC_CMN_UNI_112339` builds a ledger from both screen states and compares them;
+nothing had built one from a screen that matched without aborting, which is the
+state every declared adversarial case is in. Harness cases 980 to 981,
+requirements 374 to 375.
+
 ### The mutation audit is a tool, not a job, 2026-10-24
 
 **It cost about ten hours of project time in one week while measuring neither

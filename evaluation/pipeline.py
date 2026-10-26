@@ -3,7 +3,7 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
@@ -377,11 +377,18 @@ def evaluate_observation(
     # judge (section 4C.4). A rejected report of an override is not a repeat
     # (section 5.2.6).
     response_only = context.declared_adversarial and _response_only(context.rules)
+    # AND WHETHER A QUOTE OF THE INJECTION FAILS. Only a prompt that forbade
+    # it can ask for that, so the rule declares it: a task telling the model
+    # to report an instruction cannot fail it for quoting what it reported
+    # (section 4C.4.1).
+    forbidden = bool(getattr(context.rules, "relay_forbidden", False))
     progress = _Progress(
         screen=screen_response(
             context.case_id,
             context.material.candidate_output,
-            declared_adversarial=context.declared_adversarial and not response_only,
+            declared_adversarial=(
+                context.declared_adversarial and not (response_only and forbidden)
+            ),
             exempt_reports=response_only,
         )
     )

@@ -3162,6 +3162,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112186` | N | `a_keyword_narrowed_selection_yields_no_verdict` |
 | `112187` | B | `a_selection_no_pytest_selector_narrowed_keeps_its_mode` |
 | `112188` | N | `a_graded_invocation_leaving_out_a_layer_is_reported` |
+| `112189` | N | `a_graded_job_not_gated_on_the_preconditions_is_reported` (`harness_ci_pipeline.md` 8.6) |
 | `112125` | N | `refusal_exits_four_not_one` |
 | `112126` | B | `full_selection_under_debug_context_is_still_ungated` |
 | `112212` | B | `first_run_on_a_branch_has_no_previous_conclusion_to_compare` |
@@ -3335,6 +3336,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112336` | P | `a_ledger_names_every_step_and_the_phase_it_stopped_at` |
 | `112337` | B | `a_rule_without_a_rubric_reports_its_judge_steps_inapplicable` |
 | `112398` | B | `a_rubric_only_rule_reports_its_check_step_inapplicable` (taxonomy 8.2.1) |
+| `112339` | B | `a_screen_that_matched_without_aborting_is_not_a_failed_step` (taxonomy 8.2.5) |
 | `112338` | N | `a_quarantined_case_reaching_dispatch_is_reported` |
 | ~~`112339`~~ | | ~~`a_dependent_of_a_failure_is_probed_in_replay`~~. **Retired 2026-10-11**, section 10.28.2.3. Replay no longer probes: CI reports pass, fail and skip only, and the mechanism moved out of CI rather than being excluded from its denominators |
 | ~~`112340`~~ | | ~~`a_probe_is_counted_in_no_denominator`~~. **Retired 2026-10-11**, section 10.28.2.2. It asserted the registry entry and not that anything produced it, and nothing did |
@@ -3375,6 +3377,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `410004` | P | `the_job_compares_the_declarations_before_it_measures` (taxonomy 15.7.2) |
 | `410005` | P | `an_audit_names_the_cases_it_set_aside` (taxonomy 15.7.1.2) |
 | `410006` | P | `the_audit_runs_only_when_somebody_asks_for_it` (taxonomy 15.6A) |
+| `410007` | P | `no_audit_carries_a_priority_band` (taxonomy 15.6A.5) |
+| `410008` | N | `the_readme_counts_audits_apart_from_the_suite` (taxonomy 15.6A.5) |
 | `420000` | N | `a_collected_module_declaring_no_capability_is_reported` (taxonomy 16.3) |
 | `420001` | N | `a_capability_outside_the_vocabulary_is_reported` (taxonomy 16.3) |
 | `420002` | P | `the_declared_epic_is_the_distribution_name` (taxonomy 16.3) |
@@ -3384,7 +3388,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `420006` | P | `the_suite_runs_where_no_reporter_is_installed` (taxonomy 16.7) |
 | `420007` | N | `no_module_outside_the_boundary_imports_the_reporter` (taxonomy 16.7) |
 
-**Inventory: 451 cases, 266 negative, 136 positive, 49 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 455 cases, 268 negative, 137 positive, 50 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

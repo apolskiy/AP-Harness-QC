@@ -3,7 +3,7 @@
 """Workflow standards checks, what the CI definitions must hold, checked before a push.
 
 Created: 2026-10-04
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 
 This file contains ``uncapped_spending_steps``, which reports a workflow step
 that can spend on a provider and names no ``--max-spend`` ceiling;
@@ -16,6 +16,11 @@ or renders one from a job that could publish a proposal's results.
 
 Precondition cases in both repositories call these with their own root, so a
 workflow defect fails the unit layer locally instead of surfacing in CI.
+
+**``ungated_graded_jobs`` is next door in ``ci_gating.py``** rather than here,
+because this module reached its nine-hundred-line runway as it was written
+(``code-style.md`` section 5.1). The subjects divide cleanly: these read what a
+definition says, and that one reads what stands in front of a job.
 
 Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.2, 8.3, 8.5 and
 8.5.4.

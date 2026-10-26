@@ -12863,3 +12863,81 @@ design with a one-line pointer, which is where reasoning belongs anyway.
   the new behaviour and then found `0173` already stated the old one, so one
   requirement is reworded rather than two describing the same rule from
   opposite ends.
+
+---
+
+## 2026-10-24, ninth iteration: A green case publishing its own inconsistency
+
+* **The register rewrite found a defect in the harness, not in the corpus.**
+  Re-reading `grok` `154501` to see why it had stopped reproducing, its step
+  log read `PHASE_04_VERIFY ... failed | QC_SEC_INJECTION_ATTEMPT` on two of
+  three observations and `STEP_06_VERIFY ... failed | QC_LLM_INCONSISTENT | 1
+  of 3 measured observations passed`, while pytest reported the case passed.
+  Reading the result objects settled it: all three observations passed, judged,
+  scoring 5.0.
+* **One line, four wrong readers.** `_step_screen` read
+  `ScreenDecision.taxonomy_code`, which is set whenever a vector fires, instead
+  of `aborts`, which says whether the evaluation stopped. A declared
+  adversarial case records the match and continues, so the phase was reported
+  as a failure; `_halted` then said the observation stopped at step 4,
+  `_measured_outcome` read it as False, `consistency_step` published
+  `QC_LLM_INCONSISTENT`, and `further_observations` earned an escalation
+  nothing needed.
+* **The worst of the four is the Allure step tree**, which is read as a picture
+  of readiness. A reviewer scrolling the published report would have seen
+  failed screen steps under passing security cases and had no way to tell them
+  from real ones.
+* **Nothing caught it because no case had ever built that state.**
+  `112336` builds its ledger from a clean screen and `112337` and `112398` vary
+  the rubric and the assertions. A screen that matched **without** aborting is
+  the state every declared adversarial case is in, and no double produced one:
+  the `evaluated` builder's screen carried `taxonomy_code=None` and no `aborts`
+  attribute at all.
+* **The code stays on the line.** A match that did not abort is the evidence
+  this family exists to produce, so the phase is `ok`, keeps
+  `QC_SEC_INJECTION_ATTEMPT` and says the case declared the payload. Trading a
+  false failure for a silence is the trade this project refuses elsewhere.
+* **The case failed before the fix, at the assertion it was written for**, and
+  then failed again on its own step numbering: each assert is a verification
+  and therefore a step, so five named steps covering nine asserts fail as
+  `QC_HARNESS_STEP_MISNUMBERED`. Every other case in that module uses comments,
+  which is why.
+* **Figures: 980 cases to 981, requirements 374 to 375**, and the stated
+  inventory in `cmn_verdict_and_cli.md` 453 to 454. The suite reported both
+  figure disagreements rather than my noticing them.
+
+### 2026-10-25 - A Rule In Three Documents, Implemented In One Workflow Of Five
+
+**The corpus break of the day before was the evidence, not the subject.** Two
+assertions naming a constraint no task sends broke the join, four engine sweeps
+measured the corpus in that state, and the register they produced was still
+valid because the assertions themselves ran. That is luck. The question worth
+asking afterwards was why four sweeps could run at all, and the answer was that
+nothing in either repository's spending workflow runs Gate 2.
+
+* **The rule was never in doubt.** `framework-rules.md` section 1 makes a
+  precondition failure stop the graded layers, `testing-standards.md` gives the
+  reason as quota spent to generate noise, and the case repository's
+  `consumer_ci.md` section 3.12 expresses it as a job graph. **Five workflows
+  across the two repositories run graded cases and one implemented it**: the
+  per-target gate. `evaluate-live-weekly.yml` here ran the graded layers live
+  under a spending ceiling and needed nothing at all.
+* **A documented rule nobody checks is a convention**, which is the sentence
+  this project has written about the annotation rule, the encoding rule and the
+  section-order rule. It was true of the one rule the whole gating model rests
+  on.
+* **Two shapes satisfy it and the check accepts both.** A job the graded job
+  needs, which is the gate's shape and buys the diagnosis, and a precondition
+  step earlier in the same job, which is what `regress-consumers-on-merge.yml`
+  does with the consumer's own command from the registry. Requiring the first
+  everywhere would have reported a correct job and invited a fix that fetched
+  the consumer twice.
+* **A graded step in a fetched checkout is not ours to gate.** That is
+  `CLAUDE.md`'s rule about owning no case data, applied to CI: the corpus being
+  graded there belongs to the other repository, and so do its preconditions.
+  Writing it as an exemption list would have been the wrong shape.
+* **The case rejects a precondition step written after the graded step.** A
+  step a failure cannot reach gates nothing, and that assertion is the one that
+  would catch a plausible wrong fix.
+* **Figures: 981 cases to 982, requirements 375 to 376**, and the
+  `cmn_verdict_and_cli.md` inventory 454 to 455.

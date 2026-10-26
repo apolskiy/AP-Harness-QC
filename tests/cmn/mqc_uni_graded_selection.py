@@ -1,26 +1,30 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit preconditions for whether a CI selection covers what its rows claim.
+"""Unit preconditions for a graded invocation in CI, what it selects and what gates it.
 
 Created: 2026-10-21
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
-This file contains one case, over
-``cmn.code_standards.partial_graded_selection_gaps``: a graded invocation in a
-workflow or a composite action names every graded layer marker, because the
-harness records a marker expression as a full selection and a step naming one
-layer of three would carry a verdict over part of a run.
+This file contains two cases over the graded invocations the CI definitions
+make. ``cmn.code_standards.partial_graded_selection_gaps``: one names every
+graded layer marker, because the harness records a marker expression as a full
+selection and a step naming one layer of three would carry a verdict over part
+of a run. ``cmn.workflow_standards.ungated_graded_jobs``: the job making it
+reaches a precondition invocation first, through a job it needs or an earlier
+step of its own, because a graded run on an unchecked instrument measures
+nothing and the ones that spend are reached the same way.
 
 **A new module rather than another subject in ``mqc_uni_file_standards.py``**,
-which reached its nine-hundred-line runway as this was added. The subject is
-narrower than that module's: not what a file must look like, but whether what a
-CI step selected covers what its rows report.
+which reached its nine-hundred-line runway as the first was added. The subject
+is narrower than that module's: not what a file must look like, but what a
+graded invocation in CI selects and what stands in front of it.
 
 **A failure here is not a model finding.** The module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
 
-Specified by the case repository's ``docs/design/consumer_ci.md`` section 4.21,
-with the runtime half in ``docs/design/cmn_verdict_and_cli.md`` section 7.1.4.
+Specified by ``docs/design/harness_ci_pipeline.md`` section 8.6 and the case
+repository's ``docs/design/consumer_ci.md`` section 4.21, with the runtime half
+of the selection rule in ``docs/design/cmn_verdict_and_cli.md`` section 7.1.4.
 """
 
 # ------------------------------------------------------------- cases in here
@@ -28,15 +32,26 @@ with the runtime half in ``docs/design/cmn_verdict_and_cli.md`` section 7.1.4.
 #
 # TestMQCGradedSelectionCoverage
 #   112188  a_graded_invocation_leaving_out_a_layer_is_reported
+# TestMQCGradedGating
+#   112189  a_graded_job_not_gated_on_the_preconditions_is_reported
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
 
 import pytest
+import yaml
 
 from cmn.code_standards import partial_graded_selection_gaps
+from cmn.ci_gating import ungated_graded_jobs
 
 pytestmark = pytest.mark.unit
+
+# THE ROOT, which is as far up as a case reads (``code-style.md`` section 8.0).
+_ROOT: Path = Path(__file__).resolve().parents[2]
+
+# A GRADED STEP AND A PRECONDITION STEP, as a workflow writes them.
+_GRADED_STEP: dict = {"name": "graded", "run": 'pytest -m "evaluator or tool or sec"'}
+_PRECONDITION_STEP: dict = {"name": "preconditions", "run": "pytest -m unit"}
 
 
 class TestMQCGradedSelectionCoverage:
@@ -74,4 +89,102 @@ class TestMQCGradedSelectionCoverage:
             "graded invocation(s) select part of the graded layers while the "
             "harness records a full selection, so their rows would carry a "
             "verdict over part of a run: " + "; ".join(gaps)
+        )
+
+
+class TestMQCGradedGating:
+    """A job running graded cases stands behind the preconditions."""
+
+    def MQC_CMN_UNI_112189_a_graded_job_not_gated_on_the_preconditions_is_reported(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A graded job reaches a precondition invocation before it can spend.
+
+        **Gate 2 is blocking in three documents and was implemented in one
+        workflow of five.** ``framework-rules.md`` section 1, this
+        repository's ``testing-standards.md`` and the case repository's
+        ``consumer_ci.md`` section 3.12 all say the graded layers do not
+        execute if a precondition fails, and ``evaluate-live-weekly.yml`` ran
+        the graded layers live under a spending ceiling, needing nothing.
+
+        **Two shapes satisfy it**, a job the graded job needs and an earlier
+        step of its own that a failure stops, because a job holding a checkout
+        it fetched cannot express the first without fetching twice.
+
+        **A step in a fetched checkout is not read as ours at all**: the
+        corpus it grades, and therefore the preconditions it needs, belong to
+        that checkout.
+
+        Design: ``harness_ci_pipeline.md`` section 8.6.
+
+        Args:
+            tmp_path (Path): Where the constructed workflows are written.
+
+        Returns:
+            None
+        """
+        assert not ungated_graded_jobs(_ROOT), (
+            "job(s) run graded cases and reach no precondition invocation, so "
+            "they would measure a model with an instrument nothing checked: "
+            + "; ".join(ungated_graded_jobs(_ROOT))
+        )
+
+        shapes: dict[str, dict] = {
+            "ungated": {"grade": {"steps": [_GRADED_STEP]}},
+            "needs": {
+                "check": {"steps": [_PRECONDITION_STEP]},
+                "grade": {"needs": "check", "steps": [_GRADED_STEP]},
+            },
+            "transitive": {
+                "check": {"steps": [_PRECONDITION_STEP]},
+                "first": {"needs": ["check"], "steps": [_GRADED_STEP]},
+                "second": {"needs": ["first"], "steps": [_GRADED_STEP]},
+            },
+            "stepwise": {
+                "grade": {"steps": [_PRECONDITION_STEP, _GRADED_STEP]},
+            },
+            "after": {
+                "grade": {"steps": [_GRADED_STEP, _PRECONDITION_STEP]},
+            },
+            "fetched": {
+                "grade": {
+                    "steps": [{**_GRADED_STEP, "working-directory": "consumer"}],
+                },
+            },
+        }
+        for shape, jobs in shapes.items():
+            written = tmp_path / shape / ".github" / "workflows"
+            written.mkdir(parents=True)
+            (written / f"{shape}.yml").write_text(
+                yaml.safe_dump({"jobs": jobs}), encoding="utf-8"
+            )
+
+        reported = {
+            shape: ungated_graded_jobs(tmp_path / shape) for shape in shapes
+        }
+
+        assert reported["ungated"], (
+            "a job running the graded layers and needing nothing was not "
+            "reported, so the check reads no definition at all"
+        )
+        assert not reported["needs"], (
+            "a graded job needing the job that runs the preconditions was "
+            f"reported: {reported['needs']}"
+        )
+        assert not reported["transitive"], (
+            "a graded job reaching the preconditions through a job it needs "
+            f"was reported, so the walk stops at one hop: {reported['transitive']}"
+        )
+        assert not reported["stepwise"], (
+            "a graded job running the preconditions in an earlier step of its "
+            f"own was reported: {reported['stepwise']}"
+        )
+        assert reported["after"], (
+            "a precondition step written after the graded step was accepted as "
+            "a gate, and a step a failure cannot reach gates nothing"
+        )
+        assert not reported["fetched"], (
+            "a graded step running in a checkout the job fetched was read as "
+            f"this repository's to gate: {reported['fetched']}"
         )

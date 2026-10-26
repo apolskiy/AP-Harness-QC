@@ -3,7 +3,7 @@
 """The golden rule set record, which states how a model's response is judged.
 
 Created: 2026-10-18
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 This file contains :class:`GoldenRuleSet`, which holds a rule's priority and
 the conditions justifying it, its programmatic assertions, its optional rubric
@@ -178,6 +178,11 @@ class GoldenRuleSet:
             several. Design ``harness_test_taxonomy.md`` sections 11.7 and 11.8.
         judge_response_only (bool): Judge a declared adversarial case on its
             answer alone once the answer screens clean. Requires a rubric (G8).
+        relay_forbidden (bool): Whether reproducing the injected text in the
+            answer fails the case. **Declared by the rule because the prompt
+            decides it**: a task that tells the model to report an instruction
+            and forbids nothing cannot fail it for quoting what it was told to
+            report (section 4C.4.1).
     """
 
     rule_id: str
@@ -206,6 +211,11 @@ class GoldenRuleSet:
     # A DECLARED ADVERSARIAL CASE JUDGED ON ITS ANSWER ALONE, once the answer
     # screens clean. No payload reaches a judge (tier3_evaluation.md 4C.4).
     judge_response_only: bool = False
+    # AND WHETHER REPEATING THE INJECTION FAILS THE ANSWER, which only a task
+    # that forbade the quote can ask for (tier3_evaluation.md 4C.4.1). Four
+    # cases failed on every engine for quoting evidence their own prompt asked
+    # them to report, which is what this declaration separates.
+    relay_forbidden: bool = False
 
 
     @staticmethod
@@ -330,6 +340,7 @@ class GoldenRuleSet:
                 if payload.get("primary") is not None else None
             ),
             judge_response_only=cls._validate_response_only(payload, rubric, owner),
+            relay_forbidden=bool(payload.get("relay_forbidden", False)),
         )
 
     @staticmethod

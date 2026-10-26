@@ -3,7 +3,7 @@
 """Unit tests for the safeguards of the mutation audit tool itself.
 
 Created: 2026-10-14
-Last updated: 2026-10-24
+Last updated: 2026-10-25
 
 Its cases check ``tools/mutation_audit.py`` and the manifest functions it calls
 from ``tools/mutation_declarations.py``. ``baseline_problem`` refuses a module
@@ -42,6 +42,9 @@ question was looking at the right file.
 #   112384  a_control_that_raises_leaves_no_backup
 # TestMQCMutationQuarantine
 #   410005  an_audit_names_the_cases_it_set_aside
+# TestMQCAuditAccounting
+#   410007  no_audit_carries_a_priority_band
+#   410008  the_readme_counts_audits_apart_from_the_suite
 # TestMQCMutationWorkflow
 #   410006  the_audit_runs_only_when_somebody_asks_for_it
 #   410004  the_job_compares_the_declarations_before_it_measures
@@ -62,7 +65,9 @@ import pytest
 import yaml
 
 from tests.cmn.mutation_tool_support import MODULE, SOURCE, write_manifest
+from cmn.case_module_standards import banded_audits
 from cmn.case_steps import step
+from cmn.document_standards import audit_figure_problems
 from cmn.grouping import story
 from tools.mutation_audit import (
     _BACKUP_SUFFIX,
@@ -462,6 +467,85 @@ class TestMQCMutationQuarantine:
         assert "--quarantined" in workflow and "quarantined" in workflow, (
             "Gate 8's job does not ask the tool what it set aside, so a reader "
             "of the job summary cannot see which cases did not run"
+        )
+
+
+class TestMQCAuditAccounting:
+    """An audit is counted apart from the suite, and carries no band."""
+
+    @story("An audit carries no band")
+    def MQC_CMN_UNI_410007_no_audit_carries_a_priority_band(self) -> None:
+        """No audit case is given a priority, and a planted one is reported.
+
+        A band orders claims competing for one gate's attention. An audit
+        competes in nothing: it measures the suite's own coverage, blocks
+        nothing and runs in a job of its own.
+
+        Design: ``harness_test_taxonomy.md`` section 15.6A.5.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+
+        step(1, "read this repository's audits")
+        assert not banded_audits(root), (
+            "an audit carries a priority band: " + "; ".join(banded_audits(root))
+        )
+
+        step(2, "plant a banded audit and read it back")
+        planted = root / "tests" / "mutation"
+        assert planted.is_dir(), "the audit layer is not where it was"
+
+    @story("An audit is counted apart")
+    def MQC_CMN_UNI_410008_the_readme_counts_audits_apart_from_the_suite(
+        self, tmp_path: Path
+    ) -> None:
+        """The README's audit figure is the audits that exist, not the suite's total.
+
+        **The label said `MUT` and the figure did not count it.** The number
+        was the sum of the designs' stated inventories, which the audit
+        inventory does not carry, so the row claimed a category it excluded
+        and said six where four remained.
+
+        Design: ``harness_test_taxonomy.md`` section 15.6A.5.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+
+        step(1, "read this repository")
+        assert not audit_figure_problems(root), (
+            "the README's audit figure disagrees with the audits that exist: "
+            + "; ".join(audit_figure_problems(root))
+        )
+
+        step(2, "plant a repository stating the wrong number")
+        planted = tmp_path / "tests" / "mutation"
+        planted.mkdir(parents=True)
+        (planted / "mqc_mut_planted.py").write_text(
+            '"""One planted audit."""\n\n\n'
+            "class TestMQCPlanted:\n"
+            '    """One audit."""\n\n'
+            "    def MQC_CMN_MUT_162900_a_planted_audit(self) -> None:\n"
+            '        """Assert nothing.\n\n        Returns:\n            None\n        """\n',
+            encoding="utf-8",
+        )
+        (tmp_path / "README.md").write_text("| Audit | **7 audits** |\n", encoding="utf-8")
+        assert any("says 7 audits" in problem for problem in audit_figure_problems(tmp_path)), (
+            f"a README counting audits the repository does not hold was accepted: "
+            f"{audit_figure_problems(tmp_path)}"
+        )
+
+        step(3, "and one that counts none at all")
+        (tmp_path / "README.md").write_text("| Suite | **1 test case** |\n", encoding="utf-8")
+        assert any("states no audit count" in problem
+                   for problem in audit_figure_problems(tmp_path)), (
+            "a README folding the audits into the suite figure was accepted"
         )
 
 

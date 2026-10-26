@@ -3,7 +3,7 @@
 """Case steps, the record of what a graded case did and where it stopped.
 
 Created: 2026-10-07
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 This file contains ``ledger``, which reads one observation's dispatch outcome
 and evaluation result into the ``StepOutcome`` of each pipeline phase;
@@ -630,8 +630,19 @@ def _step_screen(phase: str, result: Any) -> tuple[str, str, str]:
         return _REACHED, "", ""
     screen = getattr(result, "screen", None)
     code = str(getattr(screen, "taxonomy_code", "") or "")
-    if code:
+    if getattr(screen, "aborts", False):
         return _FAILED, "a planted pattern matched the response", code
+    if code:
+        # MATCHED AND CARRIED ON, which is what a declared adversarial case
+        # does: the hit is evidence feeding the grade rather than a stop
+        # (section 8.2.5). The code stays on the line because the match is
+        # worth publishing; only the outcome was wrong.
+        return (
+            _REACHED,
+            "a planted pattern matched, and this case declares one, so it was "
+            "recorded and the observation continued",
+            code,
+        )
     return _REACHED, "", ""
 
 

@@ -3,13 +3,15 @@
 """Test doubles of dispatch outcomes and evaluation results, for the step ledger cases.
 
 Created: 2026-10-07
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 This file provides ``dispatched`` and ``evaluated``, a successful dispatch and a
 passing evaluation with fields overridden, ``failed_check`` and ``unmeasured``
 for an evaluation whose assertion failed or whose judgement was never recorded,
-``mixed_observations`` for five observations with the second failing, and
-``Announced``, an item carrying only a node identifier.
+``mixed_observations`` for five observations with the second failing,
+``screened_stop`` and ``screened_declared`` for an evaluation whose screen
+matched and did or did not stop it, and ``Announced``, an item carrying only a
+node identifier.
 
 They serve ``mqc_uni_steps.py``. A case module holds only cases
 (``harness_test_taxonomy.md`` section 13), so the builders live in this sibling
@@ -54,7 +56,7 @@ def evaluated(**overrides: Any) -> SimpleNamespace:
         SimpleNamespace: The result.
     """
     fields: dict[str, Any] = {
-        "screen": SimpleNamespace(taxonomy_code=None),
+        "screen": SimpleNamespace(taxonomy_code=None, aborts=False),
         "rubric_authored": True,
         "assertion_results": [
             SimpleNamespace(
@@ -98,6 +100,36 @@ def unmeasured() -> SimpleNamespace:
         score=None,
         judge_skipped_reason="judgement_unavailable",
         taxonomy_codes=["QC_HARNESS_FIXTURE_MISSING"],
+    )
+
+
+def screened_stop() -> SimpleNamespace:
+    """Return an evaluation the screen stopped before anything was measured.
+
+    Returns:
+        SimpleNamespace: The result, carrying the injection code and nothing
+        scored, which is what an ordinary case does on a hit.
+    """
+    return evaluated(
+        screen=SimpleNamespace(taxonomy_code="QC_SEC_INJECTION_ATTEMPT", aborts=True),
+        assertion_results=[],
+        score=None,
+        judge_skipped_reason="screen_abort",
+        taxonomy_codes=["QC_SEC_INJECTION_ATTEMPT"],
+    )
+
+
+def screened_declared() -> SimpleNamespace:
+    """Return a passing evaluation whose screen matched without stopping it.
+
+    Returns:
+        SimpleNamespace: The result a declared adversarial case produces: the
+        hit is recorded as evidence, the assertions ran and the judge scored
+        it (``harness_test_taxonomy.md`` section 8.2.5).
+    """
+    return evaluated(
+        screen=SimpleNamespace(taxonomy_code="QC_SEC_INJECTION_ATTEMPT", aborts=False),
+        taxonomy_codes=["QC_SEC_INJECTION_ATTEMPT"],
     )
 
 

@@ -3,7 +3,7 @@
 """Document standards checks, the rules tracked documents must satisfy.
 
 Created: 2026-10-08
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 This file contains ``runbook_problems``, which reports a documented workflow
 dispatch GitHub would reject; ``duplicate_inventory_bindings`` and
@@ -28,6 +28,7 @@ heading a check reads prose out of, and a filename that has to say which
 repository it belongs to. Everything left behind is about Python files.
 """
 
+import ast
 import logging
 import re
 import subprocess
@@ -506,3 +507,56 @@ def _declared_inputs(definition: Path) -> set[str]:
 # The calls that read or write a file and must say in which encoding. `open`
 # is the builtin; the other two are Path methods, matched by attribute name
 # because Tier-crossing would be the only way to know the receiver is a Path.
+
+
+# WHAT THE README CALLS THE AUDIT, counted apart from the suite because it is
+# an internal tool rather than a test of the harness
+# (``harness_test_taxonomy.md`` section 15.6A.5).
+_AUDIT_FIGURE: Final[re.Pattern[str]] = re.compile(r"\*\*(\d+) audits\*\*")
+# PARSED, NOT MATCHED. An audit named inside a string literal is data, and
+# this module plants exactly that in a case: the first version of this reader
+# counted five audits where the suite holds four.
+_AUDIT_NAME: Final[re.Pattern[str]] = re.compile(r"^MQC_[A-Z]+_MUT_\d{5,6}_[a-z_]+$")
+
+
+def audit_figure_problems(root: Path) -> list[str]:
+    """Report a README whose audit count disagrees with the audits that exist.
+
+    **Counted apart from the suite figure**, which section 15.6A.5 requires:
+    an audit measures the suite's own coverage rather than the harness, runs
+    in a job of its own, and belongs in neither total.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry where the README states no audit count or states
+        one the repository contradicts. Empty where they agree, and empty for
+        a repository that holds no audit at all.
+    """
+    audits: set[str] = set()
+    if (root / "tests").is_dir():
+        for module in sorted((root / "tests").rglob("mqc_*.py")):
+            try:
+                tree = ast.parse(module.read_text(encoding="utf-8"))
+            except (OSError, SyntaxError):
+                continue
+            audits.update(
+                node.name for node in ast.walk(tree)
+                if isinstance(node, ast.FunctionDef) and _AUDIT_NAME.match(node.name)
+            )
+    readme = root / "README.md"
+    if not audits or not readme.is_file():
+        return []
+    stated = _AUDIT_FIGURE.search(readme.read_text(encoding="utf-8"))
+    if stated is None:
+        return [
+            f"{readme.name} states no audit count, so {len(audits)} audit(s) are "
+            f"either uncounted or folded into the suite figure"
+        ]
+    if int(stated.group(1)) != len(audits):
+        return [
+            f"{readme.name} says {stated.group(1)} audits, the suite holds "
+            f"{len(audits)}"
+        ]
+    return []
