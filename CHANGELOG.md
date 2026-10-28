@@ -29,6 +29,26 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A wired test session is isolated by declaration, 2026-10-28
+
+**`MQC_CMN_UNI_112385` passed `conftest.py` to pytest's config-file flag**,
+which isolated its subprocess session from this repository's `MQC_` discovery
+rules by accident: pytest read the file, found no configuration and applied
+defaults. pytest 9.2.0 validates the extension and refuses it, so the case
+failed on both platforms with "Config file has an unsupported format" while
+passing locally on 9.1.1.
+
+The session now writes a `pytest.ini` carrying `[pytest]` and nothing else and
+points the flag at that, which is what `tests/cmn/case_steps_support.py`
+already did. Probed under both versions: the old form collects nothing and
+exits 4 on 9.2.0, the new form collects and loads the conftest on both. A sweep
+of both repositories found no other config-file flag pointed at a file that is
+not a config file.
+
+Whether to pin pytest is left open rather than decided: an unpinned framework
+can redden a run on an unrelated day, and a pin stops the suite being told when
+its own usage goes stale.
+
 ### A case a judge can decide no longer blocks a run, 2026-10-28
 
 **`harness_test_taxonomy.md` section 4.1.2 has said since the project began

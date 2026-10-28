@@ -13040,3 +13040,71 @@ to 457 cases, the README 982 to 984 and 376 to 377 requirements.
 `.claude/rules/claude_code_rules_because_of_findings.md` was tracked and named
 in neither the governance list nor the document register, and `112255` failed on
 it until both were corrected.
+
+---
+
+## 2026-10-28: A Session Isolated By Accident, And A Pytest Minor Release
+
+**`gate-on-change` went red on both platforms** at
+`MQC_CMN_UNI_112385_a_case_that_crashes_is_broken_and_the_run_exits_3`, with
+
+```
+ERROR: Config file '.../conftest.py' has an unsupported format.
+Supported extensions are: .cfg, .ini, .toml.
+```
+
+### What it was
+
+The case builds a wired pytest session in `tmp_path` and runs it as a
+subprocess, because the classification it checks has to run through real pytest
+reports rather than imitations of them. That session must **not** inherit this
+repository's `pytest.ini`, whose `python_files` and `python_functions` require
+`MQC_` names while the sample cases are `test_` names.
+
+It achieved that by passing `conftest.py` to the config-file flag. **That
+isolated the session by accident**: pytest read the file, found no
+configuration in it, and applied defaults, which is exactly what was wanted and
+not what the flag means.
+
+**pytest 9.2.0 validates the extension and refuses it.** Probed rather than
+assumed, by building a throwaway session and running it under both versions:
+
+| Flag given | pytest 9.1.1 | pytest 9.2.0 |
+|---|---|---|
+| `conftest.py` | collected, conftest ran | **exit 4, nothing collected** |
+| `pytest.ini` with no discovery keys | collected, conftest ran | collected, conftest ran |
+
+### The fix, and why this version of it
+
+The session now writes a `pytest.ini` holding `[pytest]` and nothing else, and
+the flag points at that. **Isolated by declaration rather than by accident**,
+and the probe confirms the conftest hooks still load and the `test_` defaults
+still collect under 9.2.0.
+
+`tests/cmn/case_steps_support.py` already did it this way with an ini of its
+own, so the correct shape was in the repository and this was the one site that
+differed. A sweep of both repositories found no other config-file flag pointed
+at a file that is not a config file.
+
+### Why it was green on 2026-10-26 and red on 2026-10-28
+
+**Nothing in the change touched this area.** Local pytest is 9.1.1 and the
+runner installed 9.2.0, so a minor release of an unpinned test framework turned
+a latent misuse into a failure on a day whose change was about priority. **CI
+was the only place that could have caught it**, and it did: 951 total, 950
+passed, 1 failed, so 9.2.0 is otherwise fine with this suite.
+
+**Whether to pin pytest is an open decision rather than a fix.** An unpinned
+framework means a release can redden a run on an unrelated day, which is what
+happened; a pin means the suite stops being told when its own usage goes
+stale. The evidence for deciding it is this entry.
+
+### The push order cost one red round, and the resolver was right
+
+The case repository was pushed first and its four engine gates failed Gate 1
+with `E0611: No name 'exceeds_measurement_ceiling' in module 'cmn.demotion'`.
+`config/harness_pin.yaml` sets `require_green: true` for `main`, so the
+resolver installed `cb456dd`, the last **green** harness commit, which predates
+the predicate. **That is the resolver doing its job**: it refuses a commit no
+gate has passed. The commit-message file had recorded that the harness goes
+first for this reason, and the order was the one thing that had to hold.

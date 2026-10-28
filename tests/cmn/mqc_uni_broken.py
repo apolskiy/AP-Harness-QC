@@ -3,7 +3,7 @@
 """Unit preconditions for telling a crash from a failure.
 
 Created: 2026-10-15
-Last updated: 2026-10-24
+Last updated: 2026-10-28
 
 The case here runs a nested pytest session wired to ``cmn.broken`` and
 ``cmn.band_summary`` the way both repositories wire theirs, and checks that a
@@ -100,6 +100,16 @@ def test_setup_crashes(broken_setup: None) -> None:
 '''
 
 
+# A CONFIG FILE OF ITS OWN, carrying no discovery keys, so the wired session
+# takes pytest's defaults and collects the `test_` names above rather than this
+# repository's `MQC_` overrides. The flag it is passed to selects a *config
+# file*: it was once given `conftest.py`, which pytest 9.1 accepted as a file
+# holding no configuration and 9.2 refuses by extension, so a session that was
+# isolated by accident is now isolated by declaration.
+_SESSION_INI = """[pytest]
+"""
+
+
 class TestMQCBroken:
     """A crash is broken in every output, and the run says nothing was measured."""
 
@@ -119,9 +129,10 @@ class TestMQCBroken:
         """
         (tmp_path / "conftest.py").write_text(_CONFTEST, encoding="utf-8")
         (tmp_path / "test_sample.py").write_text(_CASES, encoding="utf-8")
+        (tmp_path / "pytest.ini").write_text(_SESSION_INI, encoding="utf-8")
         finished = subprocess.run(
             [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly", "-p", "no:cacheprovider",
-             "--rootdir", str(tmp_path), "-c", str(tmp_path / "conftest.py"), str(tmp_path)],
+             "--rootdir", str(tmp_path), "-c", str(tmp_path / "pytest.ini"), str(tmp_path)],
             cwd=_ROOT, capture_output=True, text=True, check=False, timeout=120,
             stdin=subprocess.DEVNULL,
         )
