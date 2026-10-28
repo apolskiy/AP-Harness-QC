@@ -29,6 +29,27 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Editing a file in place from the shell is banned, 2026-10-28
+
+**`sed -i` joins the three shapes already refused outright.** The rule had said
+"prefer the Edit tool; a `sed` call must be backslash-free", which is the kind
+of exception withdrawn from the interpreter's program flag earlier the same
+day: it asks whoever types the command to classify the content first, and a
+wrong classification is silent.
+
+The escaping argument was already recorded, where one level of backslash
+unescaping above the shell makes the edit differ from the one written. What was
+not recorded is worse and needs no backslash to occur: **`sed` exits 0 when its
+pattern matches nothing**, so an edit that never landed reports success and
+whatever follows proceeds as though it had. The Edit tool fails loudly instead.
+
+The `PreToolUse` hook now refuses all four shapes, including `python -c`, and
+its remedy text no longer recommends the flag retired that morning. The
+in-place check tokenizes the command rather than matching a letter, so
+`sed -n '1,20p'` and `sed -e 's/i/x/'` still run; a probe covering eleven
+commands that must be refused and eleven that must not reports all twenty two
+correct.
+
 ### The gating tools are pinned exactly, 2026-10-28
 
 **`pytest>=9.1,<10.0` let 9.1.1 sit locally while CI installed 9.2.0**, and the

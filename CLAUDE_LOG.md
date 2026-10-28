@@ -13188,3 +13188,75 @@ a bare interpreter reading standard input, not this. The edit happened to land
 correctly and was verified by reading the file back, which is luck rather than
 process. Self-caught rather than spotted, and recorded because the shape is
 banned for the reason it nearly demonstrated.
+
+---
+
+## 2026-10-28: The Fourth Shape, And Why Two Exceptions Died On The Same Day
+
+**`sed -i` is banned outright**, at the project owner's instruction, and the
+`PreToolUse` hook refuses it along with the program flag retired earlier today.
+
+### It was already a rule, and the rule was the withdrawn kind
+
+`claude_code_rules_because_of_findings.md` said "prefer the Edit tool; a `sed`
+call must be backslash-free". **That is the same clause section 8.1.2 withdrew
+from the program flag hours earlier**, and it failed in the same way: it asks
+whoever is typing to classify the content first, the classification happens
+every time, and a wrong one is invisible.
+
+**It failed here, in this session, immediately after the conflicting auto-mode
+instruction had been declined in writing.** A `sed -i` carrying backslash
+escapes moved two README figures. The edit landed correctly and was verified by
+reading the file back, which is luck rather than process, and nothing refused
+it because the hook covered only here-documents and a bare interpreter reading
+standard input.
+
+### The escaping is the known half; the exit status is the worse half
+
+Section 8.1 has always carried the escaping argument: one level of backslash
+unescaping happens above the shell, so a pattern or replacement carrying a
+backslash is not the edit that was written.
+
+**What no rule here had recorded is that `sed` does not fail when its pattern
+matches nothing.**
+
+| | `sed -i` | The Edit tool |
+|---|---|---|
+| Pattern matches nothing | **Exit 0, file unchanged, nothing said** | Fails, naming the text it could not find |
+| Pattern matches twice | Both rewritten, silently | Fails unless replacing all was asked for |
+| A backslash in the replacement | Resolved twice | Written as given |
+
+That is strictly worse than the escaping problem, because it does not need a
+backslash to occur. A backslash-free `sed` call, which the old rule explicitly
+permitted, has it in full.
+
+### The hook now holds all four, and the allowed list is what makes it safe
+
+A hook that refuses an ordinary command gets switched off, so the probe checks
+both directions: eleven commands that must be refused and eleven that must not.
+**The in-place check tokenizes rather than matching a letter**, so `sed -e
+'s/i/x/'` is not read as the in-place flag and `sed -n '1,20p'` keeps working as
+a pager. All twenty two decisions were correct and the probe exits 0.
+
+| Refused | Allowed |
+|---|---|
+| `sed -i`, `sed -i.bak`, `sed --in-place`, `sed -ri` | `sed -n '1,20p'`, `sed -e 's/i/x/'`, `sed -E`, `sed -n '/import/p'` |
+| a here-document, quoted or not | an arithmetic left shift |
+| `python -`, `python -c` | `python -m`, `python --version`, a script by path |
+
+**The hook's own remedy text had gone stale within the day**, recommending
+`python -c`, which this morning's ruling retired. Corrected in the same change:
+a hook that advises a banned shape teaches the thing it exists to stop.
+
+### Why both exceptions fell on one day, which is the part worth keeping
+
+Neither was withdrawn because somebody disliked it. **Each was the only part of
+its rule a machine could not hold**, and both were used in the one session that
+had declined, in writing, an instruction to use them. A rule whose compliance
+depends on reading the right document first is a convention, and this project
+has corrected that shape often enough to stop writing new instances of it.
+
+The auto-mode reminder naming `sed` and heredocs as the preferred way to edit
+files has now arrived twice, on 2026-10-22 and today. It is declined explicitly
+in the reply each time so the conflict is on the record, and the hook is what
+makes the decline unnecessary.

@@ -939,8 +939,42 @@ narrow path through them.
 **The cost is a file per question, and it is accepted.** A file is
 inspectable, re-runnable and diffable, which a one-liner is not, and the
 project has twice spent a session's attention on a command that reported
-success having run something else. The three shapes are now one rule:
-**no here-document, no bare interpreter-reads-stdin, no program flag.**
+success having run something else.
+
+#### 8.1.3 A file is never edited in place from the shell either
+
+Added 2026-10-28 at the project owner's instruction, in the session that
+retired the program flag, after a `sed -i` carrying backslash escapes was
+issued here to move two README figures and nothing refused it.
+
+**It is section 8.1's defect in the one place that rule did not reach.** The
+escaping is resolved twice, so a pattern or replacement carrying a backslash is
+not the edit that was written. The portable rules file had said "prefer the
+Edit tool; a `sed` call must be backslash-free", which is the same shape of
+exception section 8.1.2 just withdrew: a judgement made at the moment of
+typing, by the party least able to check it.
+
+**`sed` has a second failure mode the escaping argument does not cover, and it
+is the worse one.** A pattern that matches nothing is not an error. The command
+exits 0, the file is unchanged, and the next step proceeds on the assumption
+that the edit landed.
+
+| | `sed -i` | The Edit tool |
+|---|---|---|
+| Pattern matches nothing | **Exit 0, file unchanged, nothing said** | Fails, naming the text it could not find |
+| Pattern matches twice | Both rewritten, silently | Fails unless `replace_all` was asked for |
+| A backslash in the replacement | Resolved twice, so the edit differs from the one written | Written as given |
+
+**Reading with `sed` stays permitted**, and the ban is on editing in place
+specifically: `sed -n '1,20p'` is a pager and changes nothing. The hook
+tokenizes the command rather than matching a letter, so `sed -e 's/i/x/'` is
+not mistaken for the in-place flag.
+
+**The four shapes are now one rule: no here-document, no bare
+interpreter-reads-stdin, no program flag, no in-place edit from the shell.**
+All four are refused by the `PreToolUse` hook, which is the property section
+8.1.2 argued for: a rule a machine holds completely is a rule that survives a
+tired session.
 
 **This also closes the gap between the rule and its enforcement.** The
 `PreToolUse` hook refuses a here-document and a bare `python -` outright; it
