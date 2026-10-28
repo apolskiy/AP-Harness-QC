@@ -27,12 +27,22 @@ Prefer the Edit tool; a `sed` call must be backslash-free.
 It hangs until the tool timeout rather than reading the program from stdin. Do
 not use it even as a no-op or a connectivity check.
 
-### 3. `python -c` only for a one-line program with no backslash and no quote.
+### 3. Never pass a program to the interpreter's command flag either.
 
-Anything longer, or containing a backslash (a Windows path, a regex, `\n`) or a
-single quote, is re-escaped on its way through the shell and the interpreter
-runs a *different* program. It exits 0. Use single quotes around what little
-goes here.
+Retired 2026-10-28. The rule here used to permit a one-line program with no
+backslash and no quote, and that exception is withdrawn: **every program goes
+in a file.**
+
+Anything longer, or containing a backslash (a Windows path, a regex, an escape
+sequence) or a single quote, is re-escaped on its way through the shell and the
+interpreter runs a *different* program. It exits 0.
+
+**The exception was the problem, not the escaping.** It asked whoever typed the
+command to classify the program before writing it, every time, and a wrong
+classification is silent by construction. A hook can refuse a here-document and
+a bare interpreter reading standard input outright; it cannot refuse a program
+flag without parsing the program, so the exception was also the one part of
+these rules that no machine could hold.
 
 ### The shape that works
 

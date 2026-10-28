@@ -901,10 +901,52 @@ program uses double quotes throughout, which is this document's rule for
 Python strings anyway. A program needing both is a program that belongs in a
 file.
 
-**Why the rule is a quoting rule and not "always write a file".** A one-line
+**Why the rule was a quoting rule and not "always write a file".** A one-line
 read of a registry is worth a single command, and the alternative is a file
 per question. What the measurement establishes is where the line sits: the
 shell is handled by quoting, and the transport is handled only by a file.
+
+**Section 8.1.2 supersedes that last judgement, and keeps the measurement.**
+The table above is still what the shell does; it is no longer what this project
+permits.
+
+#### 8.1.2 The interpreter's program flag is retired, and a program goes in a file
+
+Added 2026-10-28 at the project owner's ruling, after the flag came up again in
+a session that had already declined an instruction to use here-documents.
+
+**The rule above was correct and unkeepable.** It asks whoever writes the
+command to classify the program first: letters and digits take the flag, a
+backslash or a single quote takes a file. That classification is made at the
+moment of writing, by the party least able to check it, and the failure mode
+when it is made wrongly is **silent** by construction: one level of backslash
+unescaping happens above the shell, the interpreter runs a different program,
+and the command exits 0.
+
+| | A rule with an exception | A rule without one |
+|---|---|---|
+| What has to be judged | Whether this program is the permitted shape | Nothing |
+| Who judges it | Whoever is typing, every time | Nobody |
+| Cost of judging wrongly | A program that ran and was not the one written | None available |
+| Enforceable by a hook | **No.** The hook cannot parse the program | **Yes** |
+
+**So the flag goes, and the shape that works is the only shape.** Write the
+program with the Write tool and run it by its full absolute path. The measured
+table in 8.1.1 stays because it records what the shell and the transport do,
+which has not changed; what changed is that this project no longer takes the
+narrow path through them.
+
+**The cost is a file per question, and it is accepted.** A file is
+inspectable, re-runnable and diffable, which a one-liner is not, and the
+project has twice spent a session's attention on a command that reported
+success having run something else. The three shapes are now one rule:
+**no here-document, no bare interpreter-reads-stdin, no program flag.**
+
+**This also closes the gap between the rule and its enforcement.** The
+`PreToolUse` hook refuses a here-document and a bare `python -` outright; it
+could never refuse a program flag, because deciding whether a given program was
+safe would mean parsing it. A rule the hook can enforce completely is a rule
+that holds on a machine where somebody is tired.
 
 
 ### 8.2 The encoding rule is enforced, not merely followed

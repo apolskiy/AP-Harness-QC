@@ -1,16 +1,19 @@
 # GENERATED FROM pyproject.toml. Do not edit by hand.
 #
 # Regenerate with:  python tools/generate_requirements.py
-# Checked by:       MQC_CMN_UNI_112222
 #
-# Everything the seven CI gates need, on top of the runtime dependencies.
-# This is what `pip install --editable ".[dev]"` installs, and what CI uses.
+# Everything the CI gates need, on top of the runtime dependencies. This is what
+# `pip install --editable ".[dev]"` installs, and what CI uses.
+#
+# A gating tool is pinned exactly rather than ranged, because it decides what is
+# collected and whether a gate passes: its drift changes the verdict on every
+# other case at once and says nothing. DESIGN.md section 5.0.1.
 
 -r requirements.txt
 
-pytest>=9.1,<10.0
+pytest==9.2.0
 allure-pytest>=2.13,<3.0
 allure-python-commons>=2.13,<3.0
-pylint>=3.3,<4.0
+pylint==3.3.9
 packaging>=24.0
 pytest-randomly>=3.15,<5.0

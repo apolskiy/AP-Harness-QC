@@ -311,7 +311,29 @@ Specified 2026-09-23, after an audit found a dependency the suite relies on and 
 
 **`pyproject.toml` is the single declaration.** Runtime dependencies sit in `dependencies`, and everything the gates need sits in the `dev` extra. CI installs with `pip install --editable ".[dev]"`, so the file CI reads is the file a maintainer edits.
 
-**Ranges, not pins.** An unpinned harness measures a moving target: a parser upgrade that changes how a sentence is counted would read as a model regression, which is the attribution failure this project exists to avoid. Ranges allow patch releases and nothing wider.
+**Ranges for what is measured with, an exact pin for what gates.** An unpinned harness measures a moving target: a parser upgrade that changes how a sentence is counted would read as a model regression, which is the attribution failure this project exists to avoid.
+
+**The earlier wording said "ranges allow patch releases and nothing wider", and that was false of every specifier in the file.** They are all of the form `>=X.Y,<X+1.0`, which admits every minor release up to the next major, and a minor release is exactly what broke this twice. The claim is corrected rather than the ranges tightened, because the two kinds of dependency want different answers.
+
+##### A gating tool is pinned exactly, because it decides the verdict rather than taking part in a measurement
+
+| | A measurement dependency | A gating tool |
+|---|---|---|
+| Examples | `pyyaml`, `anthropic`, `openai`, `google-genai`, `httpx` | `pytest`, `pylint` |
+| What a version change moves | What a model is asked, or how its answer is parsed | **What is collected, and whether a gate passes** |
+| A drift shows up as | A changed result, which the suite reports | **A changed verdict on every other case at once, silently** |
+| So it takes | A range, so a patch fix arrives without a commit | **`==`, so local and CI run the same tool** |
+
+**Both gating tools have now caused the failure the pin prevents.**
+
+| Tool | What the range permitted | What it cost |
+|---|---|---|
+| `pylint` | 4.0.6 locally against a 3.x in CI | Gate 1 exited 0 here and 8 there, on one commit. Two commits were pushed on the strength of a local run measuring a different tool |
+| `pytest` | 9.1.1 locally against 9.2.0 in CI | 9.2.0 validates the config-file flag's extension, so `MQC_CMN_UNI_112385` failed on both platforms on a day whose change was about priority |
+
+**`MQC_CMN_UNI_112231` is what the pin arms.** That case compares the installed version of each gating tool against what is declared here, and it was written after the pylint incident. A range it cannot distinguish is a range it cannot catch: 9.1.1 and 9.2.0 both satisfied `>=9.1,<10.0`, so the case passed on two machines running different runners and reported nothing. The specifier was the weak half, not the check.
+
+**The cost is a deliberate bump**, which is the trade section 5.0.2 already makes for the Ubuntu image and for the same reason: a version arrives when this line is edited and a run proves it, rather than unannounced on somebody's unrelated commit.
 
 ##### Why `requirements.txt` exists anyway, and why it is not a second declaration
 

@@ -3490,6 +3490,24 @@ Neither was a defect in the thing checked. Both were the check reporting what is
 
 It also covers the gap that prompted the section. An audit found `pytest-randomly` installed locally and declared nowhere, so **local runs held a guarantee CI did not**: the suite shuffles test order to catch inter-test dependencies, and the extension cases mutate registries, which is exactly where such a dependency would live. A check comparing the declaration to the environment would have caught it; a check comparing two files to each other does not, which is why the case reads the declaration rather than the installed set.
 
+#### 10.5.1 The implementation moved to `cmn/`, because the case repository needs the same three checks
+
+Changed 2026-10-28. The reading, rendering and comparison sat in `tools/generate_requirements.py`, and these cases imported it from there. **That made them unshareable**, and the case repository had none of them: it declared its dependencies in `pyproject.toml` alone, with no derived files and nothing comparing its imports to its declaration.
+
+**A `tools` module cannot be shared, and this was measured rather than assumed.** Both repositories ship a top-level `tools` package and both are regular packages, so the name resolves to whichever directory wins `sys.path` and the two never merge: from the case repository root, `tools.generate_requirements` resolved to this repository's copy while `tools.harness_pin` was missing entirely, and under pytest the local root wins and the reverse holds.
+
+So the shareable part is now `cmn.dependency_declaration`, beside `cmn.file_dates` and `cmn.module_size`, which sit there for exactly this reason. Each repository keeps a thin generator, and `tools/generate_requirements.py` takes `--root` so one invocation can write either pair.
+
+| Function | Called by |
+|---|---|
+| `generated_files` | `112222` here, `MQC_CAS_UNI_115785` there, and both generators |
+| `undeclared_imports` | `112223` here, `MQC_CAS_UNI_115786` there |
+| `read_declaration` | `112224` and `112231` here |
+
+**`first_party` and `aliases` are arguments rather than constants**, because the two repositories genuinely differ: this one owns four packages plus `tests`, `tools` and `conftest`, and the case repository imports this repository's packages as a declared dependency. The logic that parses, normalizes and compares is the part that must not exist twice.
+
+**What the shared check found immediately.** `pytest` was imported by 43 files in the case repository and declared by nothing: its `pyproject.toml` named `ap-harness-qc` without the `dev` extra that carries pytest, while its four gate workflows hand-wrote `ap-harness-qc[dev]` in their install lines. **CI held a guarantee the declaration did not**, which is the `pytest-randomly` finding above with the two environments swapped. `AP-Model-QC` `consumer_ci.md` section 5.5 carries it.
+
 
 ### 10.6 The annotation checks
 

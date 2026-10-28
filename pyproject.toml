@@ -42,7 +42,24 @@ dependencies = [
 # Gate 1 and Gates 2 to 6. Separated from runtime because a consumer embedding
 # the harness needs neither.
 dev = [
-    "pytest>=9.1,<10.0",
+    # EXACTLY PINNED, NOT A RANGE, AND IT IS THE ONE EXCEPTION TO THE RULE IN
+    # DESIGN.md SECTION 5.0.1. A gating tool decides the verdict on every other
+    # case at once: pytest decides what is collected and how a result is
+    # classified, and pylint decides whether Gate 1 passes. Neither participates
+    # in a measurement, so an exact pin costs no fidelity and removes the one
+    # failure these ranges permitted.
+    #
+    # Both have now caused it. `pylint>=3.3,<4.0` let 4.0.6 sit locally while CI
+    # installed a 3.x, and Gate 1 exited 0 here and 8 there on one commit.
+    # `pytest>=9.1,<10.0` let 9.1.1 sit locally while CI installed 9.2.0, which
+    # validates the config-file flag's extension, and MQC_CMN_UNI_112385 failed
+    # on both platforms on a day whose change was about priority.
+    #
+    # MQC_CMN_UNI_112231 compares what is installed against what is declared
+    # here, and a range it cannot distinguish is a range it cannot catch: both
+    # 9.1.1 and 9.2.0 satisfied the old specifier, so the case passed on two
+    # machines running different runners. The pin is what gives that case teeth.
+    "pytest==9.2.0",
     "allure-pytest>=2.13,<3.0",
     # THE `allure` MODULE ITSELF, which `allure-pytest` depends on and does
     # not provide: `cmn/emission.py` imports it directly to publish a
@@ -50,7 +67,11 @@ dev = [
     # rather than a transitive one. MQC_CMN_UNI_112223 reported the
     # undeclared import.
     "allure-python-commons>=2.13,<3.0",
-    "pylint>=3.3,<4.0",
+    # PINNED FOR THE REASON ABOVE, and this is the tool the reason was measured
+    # on. `<4.0` already excluded the 4.x that caused the incident; what stayed
+    # open was every 3.x minor, so the same divergence could arrive again from a
+    # release nobody chose.
+    "pylint==3.3.9",
     # READS THE PINS ABOVE, so it cannot be one of the things drifting. pylint
     # and pytest both pull it in transitively, and MQC_CMN_UNI_112231 imports it
     # to compare an installed version against a declared specifier: relying on

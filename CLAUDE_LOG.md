@@ -13108,3 +13108,83 @@ resolver installed `cb456dd`, the last **green** harness commit, which predates
 the predicate. **That is the resolver doing its job**: it refuses a commit no
 gate has passed. The commit-message file had recorded that the harness goes
 first for this reason, and the order was the one thing that had to hold.
+
+---
+
+## 2026-10-28: The Pin The Case Was Written For, And A Rule Its Own Hook Could Not Hold
+
+Three changes, from one question the owner asked after the pytest failure: pin
+pytest. The answer widened twice on contact.
+
+### The specifier was the weak half, not the check
+
+`MQC_CMN_UNI_112231` compares each gating tool's installed version against what
+`pyproject.toml` declares. **It was written after exactly this failure**, in
+pylint: 4.0.6 sat locally against a 3.x in CI and Gate 1 exited 0 here and 8
+there on one commit.
+
+**It passed on both machines this time and reported nothing**, because 9.1.1
+and 9.2.0 both satisfy `pytest>=9.1,<10.0`. A range the check cannot
+distinguish is a range it cannot catch, so the case was correct and had nothing
+to bite on.
+
+Both gating tools are now pinned exactly, `pytest==9.2.0` and `pylint==3.3.9`.
+**pylint was pinned on the same argument rather than on instruction**: it is the
+tool the argument was measured on, `<4.0` had excluded only the 4.x that caused
+the incident, and every 3.x minor stayed open. Pinning one while the other
+floated would have been incoherent. Local pytest was upgraded to the pin, so
+this machine and the runner now run one runner.
+
+### `DESIGN.md` section 5.0.1 claimed something false of every line it governed
+
+It said "ranges allow patch releases and nothing wider". **Every specifier in
+both files is `>=X.Y,<X+1.0`**, which admits every minor release up to the next
+major, and a minor release is what broke this twice.
+
+The claim is corrected rather than the ranges tightened, because the two kinds
+of dependency want different answers: a runtime dependency takes part in a
+measurement and a drift shows up as a changed result the suite reports, while a
+gating tool decides what is collected and whether a gate passes, so its drift
+changes the verdict on every other case at once and says nothing.
+
+### The generator could not be shared, and that was measured rather than assumed
+
+The owner asked whether there should be a requirements file for all libraries.
+There should, and the case repository had none at all.
+
+**A `tools` module cannot be shared between the two repositories.** Both ship a
+top-level `tools` package and both are regular packages, so the name resolves to
+whichever directory wins `sys.path` and the two never merge. Probed from the
+case repository root: `tools.generate_requirements` resolved to this
+repository's copy, and `tools.harness_pin` was missing entirely.
+
+So the shareable part moved to `cmn/dependency_declaration.py`, beside
+`cmn.file_dates` and `cmn.module_size`, which sit there for this exact reason.
+`tools/generate_requirements.py` is now a thin wrapper taking `--root`, and
+`112222`, `112223`, `112224` and `112231` call the shared module.
+
+**One design decision inside it is worth recording.** `declared_names` keeps an
+extra as part of the name, so `ap-harness-qc[dev]` yields `ap_harness_qc[dev]`.
+Stripping it would have made the new case repository check unable to tell a
+dependency whose packages arrive only through an extra from one declared
+without it, which is precisely the defect found there. The first draft stripped
+it and would have passed with the extra removed.
+
+### Digressions the user spotted, and the fix
+
+**`python -c` was raised again**, and the rule it came from is now retired
+rather than restated. `code-style.md` section 8.1.1 permitted a one-line
+program with no backslash and no single quote, and section 8.1.2 withdraws that
+exception: the exception was the defect. It asked whoever typed the command to
+classify the program first, every time, and a wrong classification is silent
+because one level of backslash unescaping happens above the shell. **It was
+also the one shape the `PreToolUse` hook could never refuse**, since deciding
+whether a program was safe would mean parsing it. The three shapes are now one
+rule with no exceptions.
+
+**A `sed -i` carrying backslash escapes was issued in this session**, to move
+two README figures, and nothing refused it: the hook covers here-documents and
+a bare interpreter reading standard input, not this. The edit happened to land
+correctly and was verified by reading the file back, which is luck rather than
+process. Self-caught rather than spotted, and recorded because the shape is
+banned for the reason it nearly demonstrated.

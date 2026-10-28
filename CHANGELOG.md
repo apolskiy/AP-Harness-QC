@@ -29,6 +29,29 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The gating tools are pinned exactly, 2026-10-28
+
+**`pytest>=9.1,<10.0` let 9.1.1 sit locally while CI installed 9.2.0**, and the
+case written to catch exactly that, `MQC_CMN_UNI_112231`, passed on both
+machines because both versions satisfied the range. A range the check cannot
+distinguish is a range it cannot catch.
+
+pytest and pylint are now `==9.2.0` and `==3.3.9`. pylint is pinned on the same
+argument rather than separately: it is the tool the argument was measured on,
+where 4.0.6 locally against a 3.x in CI made Gate 1 exit 0 here and 8 there on
+one commit, and `<4.0` had closed only that one case.
+
+`DESIGN.md` section 5.0.1 said ranges "allow patch releases and nothing wider",
+which was false of every specifier it governed; they are all major-bounded. The
+claim is corrected and the distinction stated: a runtime dependency takes part
+in a measurement and keeps its range, a gating tool decides the verdict and
+takes an exact pin.
+
+The reading, rendering and comparison moved from `tools/generate_requirements.py`
+to `cmn/dependency_declaration.py`, so the case repository can run the same
+three checks against its own declaration. `tools/generate_requirements.py` takes
+`--root` and is otherwise a wrapper.
+
 ### A wired test session is isolated by declaration, 2026-10-28
 
 **`MQC_CMN_UNI_112385` passed `conftest.py` to pytest's config-file flag**,

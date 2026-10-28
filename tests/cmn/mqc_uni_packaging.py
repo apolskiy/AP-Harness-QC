@@ -3,10 +3,11 @@
 """Unit tests for the project's declared dependencies and its build configuration.
 
 Created: 2026-10-08
-Last updated: 2026-10-21
+Last updated: 2026-10-28
 
 Its cases check ``pyproject.toml`` against what is installed and on disk, using
-``generate`` and ``read_declaration`` from ``tools/generate_requirements.py``. The
+``cmn.dependency_declaration``, which the case repository's equivalents call
+with their own root. The
 requirements files must match what ``pyproject.toml`` declares, an installed
 gating tool must sit inside its pin, every imported package must be declared,
 random test ordering must be declared, and every package on disk must be
@@ -45,9 +46,6 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112225  every_package_on_disk_is_configured_for_the_build
 # ------------------------------------------------------------ end of cases
 
-import ast
-import re
-import sys
 import tomllib
 from importlib import metadata
 from pathlib import Path
@@ -55,7 +53,11 @@ from pathlib import Path
 import pytest
 from packaging.specifiers import SpecifierSet
 
-from tools.generate_requirements import generate, read_declaration
+from cmn.dependency_declaration import (
+    generated_files,
+    read_declaration,
+    undeclared_imports,
+)
 
 from tests.cmn.metadata_support import requirement_name
 
@@ -86,7 +88,7 @@ class TestMQCDependencyDeclaration:
             None
         """
         root = Path(__file__).resolve().parents[2]
-        for path, expected in generate(root).items():
+        for path, expected in generated_files(root).items():
             assert path.is_file(), f"{path.name} has not been generated"
             assert path.read_text(encoding="utf-8") == expected, (
                 f"{path.name} disagrees with pyproject.toml; regenerate it with "
@@ -153,42 +155,25 @@ class TestMQCDependencyDeclaration:
             None
         """
         root = Path(__file__).resolve().parents[2]
-        runtime, development = read_declaration(root / "pyproject.toml")
-        declared = {
-            re.split(r"[<>=!\[]", entry)[0].strip().lower().replace("-", "_")
-            for entry in runtime + development
-        }
-        # The import name and the distribution name differ for these, which is
-        # exactly the kind of mapping a check has to state rather than infer.
-        aliases = {
-            "yaml": "pyyaml",
-            "google": "google_genai",
-            # `allure` is shipped by allure-python-commons, which
-            # allure-pytest depends on and does not provide.
-            "allure": "allure_python_commons",
-        }
-
-        # Parsed, not pattern-matched. A regex over source lines also matches
-        # prose: a docstring line beginning "from the artifact alone" reads as
-        # an import of a package named "the". The parser knows the difference.
-        imported = set()
-        for source in root.rglob("*.py"):
-            if any(part in {"venv", ".venv", "build", "dist"} for part in source.parts):
-                continue
-            for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
-                if isinstance(node, ast.Import):
-                    imported.update(alias.name.split(".")[0] for alias in node.names)
-                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                    imported.add(node.module.split(".")[0])
-
-        local = {"ingestion", "execution", "evaluation", "cmn", "tests", "conftest", "tools"}
-        third_party = {
-            aliases.get(name, name) for name in imported
-            if name not in sys.stdlib_module_names and name not in local
-        }
-        assert third_party <= declared, (
-            f"imported and undeclared: {sorted(third_party - declared)}"
+        undeclared = undeclared_imports(
+            root,
+            first_party=frozenset(
+                {"ingestion", "execution", "evaluation", "cmn", "tests", "conftest", "tools"}
+            ),
+            # The import name and the distribution name differ for these, which
+            # is exactly the kind of mapping a check has to state rather than
+            # infer. `google` is a namespace shared by google-genai,
+            # google-auth and protobuf, so resolving it by installed metadata
+            # would report two dependencies nothing imports.
+            aliases={
+                "yaml": "pyyaml",
+                "google": "google_genai",
+                # `allure` is shipped by allure-python-commons, which
+                # allure-pytest depends on and does not provide.
+                "allure": "allure_python_commons",
+            },
         )
+        assert not undeclared, f"imported and undeclared: {sorted(undeclared)}"
 
     def MQC_CMN_UNI_112224_random_test_ordering_is_declared(self) -> None:
         """The suite depends on shuffled order for a guarantee it would else lack.
