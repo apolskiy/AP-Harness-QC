@@ -3,20 +3,25 @@
 """Priority demotion, which cases give way first when a distribution ceiling binds.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-28
 
 This file contains ``DemotionCandidate``, one graded case with its assigned
 priority and the qualifying conditions it matched; ``demotion_order``, which
 ranks candidates weakest claim first and leaves security cases out;
 ``count_demoted``, which counts cases
-sitting below the level their conditions permit; and ``exceeds_ceiling``,
-which reports a case claiming a level no matched condition permits.
+sitting below the level their conditions permit; ``exceeds_ceiling``,
+which reports a case claiming a level no matched condition permits; and
+``exceeds_measurement_ceiling``, which reports a case claiming P0 or P1 whose
+outcome a rubric threshold can decide.
 
-These apply when the priority distribution check finds a ceiling breached. The
-order says which case would move down, and the demoted count is reported with
-the shares so a breach is not resolved silently.
+The first four apply when the priority distribution check finds a ceiling
+breached. The order says which case would move down, and the demoted count is
+reported with the shares so a breach is not resolved silently. The last applies
+whenever a priority is assigned at all, because it asks whether the level is
+admissible rather than whether a budget has room.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` sections 4.1.4 and 4.1.4.1.
+Specified by ``docs/design/harness_test_taxonomy.md`` sections 4.1.2.1, 4.1.4
+and 4.1.4.1.
 
 **Qualifying conditions set a ceiling, not an assignment.** A case may sit below
 the most severe condition it matches, and that is legitimate. What is not
@@ -43,6 +48,12 @@ from cmn.layers import layer_properties
 from cmn.registries import priority_condition_level
 
 logger = logging.getLogger(__name__)
+
+# THE LEVEL A JUDGE-DECIDABLE OUTCOME IS CEILINGED AT, which is P2 and the
+# level `P2_RUBRIC_THRESHOLD` registers. Written as the ceiling rather than as
+# the most severe refused level, so the comparison below reads as "more severe
+# than the ceiling" and cannot be read as an assignment.
+_MEASUREMENT_CEILING: int = 2
 
 
 @dataclass(frozen=True)
@@ -165,6 +176,34 @@ def count_demoted(candidates: list[DemotionCandidate]) -> int:
         int: The demoted count.
     """
     return len([candidate for candidate in candidates if candidate.demoted])
+
+
+def exceeds_measurement_ceiling(
+    candidate: DemotionCandidate, *, rubric_decides: bool
+) -> bool:
+    """Report whether a case claims P0 or P1 although a judge can decide it.
+
+    Args:
+        candidate (DemotionCandidate): The case to check.
+        rubric_decides (bool): Whether a rubric threshold can decide the
+            outcome. True where the case's rule set carries a ``rubric``, since
+            assertions and the rubric are conjunctive gates and either can fail
+            the case on its own.
+
+    Returns:
+        bool: True when a judge score can decide the outcome and the case is
+        assigned P0 or P1. **P0 and P1 block**, and blocking on a number a
+        judge produced rather than on a measurement that disagrees with nobody
+        inverts what the gate is for.
+
+    The ceiling is P2 under ``P2_RUBRIC_THRESHOLD``. **Security is not exempt
+    here**, unlike in :func:`demotion_order`: that exemption is from the
+    distribution ceilings, because security coverage does not compete for a
+    budget, and measurement reliability reaches every layer.
+
+    Design: ``docs/design/harness_test_taxonomy.md`` section 4.1.2.1.
+    """
+    return rubric_decides and candidate.assigned_priority < _MEASUREMENT_CEILING
 
 
 def exceeds_ceiling(candidate: DemotionCandidate) -> bool:

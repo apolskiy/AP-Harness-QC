@@ -18,6 +18,7 @@ Before generating proposals, architecture designs, or code, you MUST review and 
 1b. `.claude/logs/PROMPT_LOG.md` (**not tracked**): Verbatim prompts and working notes. Never put raw prompts in `CLAUDE_LOG.md`.
 2. `.claude/skills/skill-rules.md`: Workflow governance, the 4-phase execution pipeline (Phase 0 through Phase 3), Git safety, and logging rules.
 3. `.claude/rules/code-style.md`: Variable rules (>= 3 chars, zero single-letter variables), Google docstrings, Python typing, documentation prose rules, and 10.00/10 Pylint compliance.
+3b. `.claude/rules/claude_code_rules_because_of_findings.md`: The portable statement of the shell rules this project's own failures produced. `code-style.md` sections 8.1 and 8.1.1 stay normative and carry what was measured; this file is what travels to another project or another machine, where the `PreToolUse` hook does not exist.
 4. `.claude/rules/framework-rules.md`: Module separation across `ING`, `EXE`, `EVL` and `CMN`, the eight CI quality gates, test case types, and the four failure taxonomy families.
 5. `.claude/rules/testing-standards.md`: Test naming (`MQC_<MODULE>_<LAYER>_<6DIGIT_ID>_<behavior>`), the inventory principle, change-scoped selection, pytest discovery, Allure and JUnit artifacts, and the downstream artifact contract.
 6. `.claude/worktrees/worktree-rules.md`: Worktree isolation, branch boundaries, and environment safety.

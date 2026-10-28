@@ -72,6 +72,7 @@ Each of these is normative and each is loaded before work begins, per
 | Document | Holds |
 |---|---|
 | `CLAUDE.md` | The directive router: what to read, the core directives, the boundaries |
+| `.claude/rules/claude_code_rules_because_of_findings.md` | The portable statement of the shell rules this project's own failures produced: no here-document, no bare interpreter reading from standard input, and when a short program needs a file |
 | `.claude/rules/code-style.md` | Naming, annotations, docstrings, imports, layout, cross-platform rules, the pylint gate |
 | `.claude/rules/framework-rules.md` | Module separation, the CI quality gates, test case types, the failure taxonomy families |
 | `.claude/rules/testing-standards.md` | Test naming, the inventory principle, authoring order, change-scoped selection, the artifact contract |

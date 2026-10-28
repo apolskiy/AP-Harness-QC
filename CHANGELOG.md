@@ -29,6 +29,47 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A case a judge can decide no longer blocks a run, 2026-10-28
+
+**`harness_test_taxonomy.md` section 4.1.2 has said since the project began
+that a test whose result depends on a component that can disagree with a
+reasonable human reading cannot carry P0 or P1, and nothing read it.** The
+section anticipated parsers and tokenizers, which this project barely uses, and
+did not name the rubric threshold, which is the component that actually occurs:
+a judge's score compared against a number. A review of the case repository's
+corpus found 8 of 27 P0 rules and 13 of 19 P1 rules carrying one, so a judge
+score could block a run on 21 of the 46 cases above P2.
+
+Section 4.1.2.1 states the rule mechanically, read off the rule set rather than
+argued: a rule set carrying a rubric can fail on the score alone, because
+assertions and the rubric are conjunctive gates, so the case is ceilinged at P2
+under `P2_RUBRIC_THRESHOLD`. A demoted case keeps its severity condition and
+gains the P2 one, which makes the record read as the demotion it is and leaves
+the safety claim intact for a vendor ticket. Section 4.1.2.2 records why the
+ceiling follows the failure path rather than how composite the stimulus is: a
+rule keyed on the stimulus would demote a deterministic screen abort and a
+canary assertion, which are the measurements the scale exists to admit.
+
+**Security is not exempt from this one**, and that is not a reversal. Section
+4.1.5 exempts `MQC_SEC_` from the distribution ceilings and section 4.1.4 never
+demotes it under budget pressure, both because security coverage does not
+compete for a quota. Measurement reliability is a different question and
+reaches every layer.
+
+`cmn.demotion.exceeds_measurement_ceiling` is the predicate, called with
+synthetic candidates by `MQC_CMN_UNI_112430` and `112431` here and over the
+shipped corpus by `MQC_CAS_UNI_115784` there, because a harness check reading
+`data/rules/` would be the boundary violation `CLAUDE.md` names. New module
+`tests/cmn/mqc_uni_measurement_ceiling.py`, the subject being its own and
+`mqc_uni_verdict.py` sitting at 828 lines against the nine-hundred-line runway.
+
+Figures: the `cmn_verdict_and_cli.md` inventory 455 to 457 cases, the README 982
+to 984 and 376 to 377 requirements. The composite-dependency gap the axis-count
+proposal named is recorded in `harness_open_questions.md` section 2B. The
+governance list and the document register now name
+`.claude/rules/claude_code_rules_because_of_findings.md`, which was tracked and
+in neither.
+
 ### A job running graded cases stands behind the preconditions, 2026-10-25
 
 **Gate 2 is blocking in three documents and was implemented in one workflow of

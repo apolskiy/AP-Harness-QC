@@ -637,6 +637,93 @@ A test whose result depends on a parser, a tokenizer or any component that can d
 
 The assignment records reliability as its demotion reason, so a reader can tell a test demoted for measurement uncertainty from one demoted under budget pressure.
 
+##### 4.1.2.1 An outcome a rubric can decide is ceilinged at P2, and that is checked
+
+Added 2026-10-28 at the project owner's instruction, after a review of what
+decides each open finding found the section above enforced by nothing.
+
+**The judge is such a component, and it is the one that occurs in practice.**
+The table above anticipated parsers and tokenizers, which this project barely
+uses. What it did not name is the rubric threshold, where a model's score is
+compared against a number and a reasonable human reading can disagree with the
+result. Twenty one of the 46 graded rules at P0 and P1 carried one.
+
+**So the rule is read off the rule set rather than argued.** A rule set
+carrying a `rubric` can fail on the judge's score alone, because assertions and
+the rubric are conjunctive gates (`tier3_evaluation.md` section 4.1), and a
+case that can fail that way **cannot carry P0 or P1**. Its ceiling is P2 under
+`P2_RUBRIC_THRESHOLD`.
+
+| The rule set carries | Can fail on | Eligible for |
+|---|---|---|
+| Assertions or a tool expectation, no rubric | The screen, a string check, a tool trace | Any level |
+| A rubric, whatever else it carries | **A judge score at the threshold** | **P2 and below** |
+
+**The severity condition stays and the P2 condition joins it.** A demoted case
+carries both, assigned at P2, which satisfies section 4.1.2's last paragraph
+with nothing stored: the record reads `P0_SAFETY_CRITICAL_MODEL` beside a P2
+assignment, which is exactly the demotion signal section 4.1.4.1 derives, and
+the second condition names the reason. Dropping the severity condition instead
+would price the gate correctly and lose the only statement that the behaviour
+is safety-critical, which is the half a vendor report rests on.
+
+**A security case can therefore be P2, and that is not a contradiction.**
+Section 4.1.5 exempts `MQC_SEC_` from the distribution **ceilings**, not from
+the scale, and "security is never demoted" in section 4.1.4 is about **budget
+pressure**: security coverage does not compete for a quota, so it is never what
+gives way when one binds. Measurement reliability is a different question and
+it reaches every layer.
+
+**What this is not.** It is not a statement that the behaviour matters less,
+and P2 is not where a finding goes to be ignored: a P2 failure still counts
+against the 90% pass floor in section 4.2, still produces a finding, and still
+files. What the level decides is whether a run **blocks** on a number a judge
+produced.
+
+##### 4.1.2.2 Why the ceiling follows the failure path and not the axis count
+
+The project owner proposed a different rule, and it is recorded because it was
+the better instinct about a second problem: security tests single-axis at P0,
+at most two axes at P1, and every composite or dependent case at P2.
+
+**It misprices the corpus in both directions.** Axis count is a proxy for two
+things that merely correlate, how composite the stimulus is and whether the
+outcome can be measured exactly.
+
+| Case | Axes | By axis count | What decides it |
+|---|---|---|---|
+| `154513` detect, styled, told, no quote | 4 | P2 | A judge score. **P2 is right** |
+| `154511` relay, plain, told, no quote | 4 | P2 | **The screen, deterministically** |
+| `154200` to `154202` task substitution | dependent | P2 | **A canary assertion** |
+
+The second and third rows are the cost: a deterministic screen abort and a
+canary are exactly the measurements the scale should admit at P0, and a rule
+keyed on the stimulus demotes them for being elaborate.
+
+**The composite half of the instinct belongs in section 4.1.3 instead**, where
+`depends_on` already answers it by **skipping** a composite whose component
+failed. That relation is underused rather than wrong: every hidden-passage case
+depends only on the control `154500`, not on its single-axis siblings, so a
+four-axis case still reports a finding where the one-axis case beneath it
+already failed. Recorded as a gap in `harness_open_questions.md` section 2B.
+
+##### 4.1.2.3 Enforced in two places, because the harness owns no case data
+
+`cmn.demotion.exceeds_measurement_ceiling` is the one implementation. It takes
+a candidate and whether a rubric can decide its outcome, and it reports a case
+claiming P0 or P1 anyway.
+
+| Caller | Reads | Case |
+|---|---|---|
+| The harness | Synthetic candidates, both ways | `MQC_CMN_UNI_112430`, `112431` |
+| The case repository | **Its own shipped rule corpus** | `MQC_CAS_UNI_115784` |
+
+**The split is the boundary rather than a preference.** A harness check reading
+`data/rules/` would be the violation `CLAUDE.md` names, so the predicate lives
+here and the corpus is read where it lives. This is the
+one-implementation-two-callers arrangement the encoding, annotation, header and
+naming rules already use.
+
 #### 4.1.3 Case-level dependencies
 
 Section 4.1.1 covers **foundational** cases, whose failure blocks the whole graded run. A second, narrower relation is needed for cases that compose others.

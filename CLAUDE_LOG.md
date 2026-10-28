@@ -12941,3 +12941,102 @@ nothing in either repository's spending workflow runs Gate 2.
   would catch a plausible wrong fix.
 * **Figures: 981 cases to 982, requirements 375 to 376**, and the
   `cmn_verdict_and_cli.md` inventory 454 to 455.
+
+---
+
+## 2026-10-28: Section 4.1.2 Was Enforced By Nothing, And Twenty One Cases Sat Above Its Ceiling
+
+**The owner's instruction was to downgrade the muddied cases and rerun live**,
+with the reasoning that a complex case should not carry P0 or P1 and that P2 is
+probably where production bugs come from, because nobody tested the complex
+cases or they were never urgent enough to fix. The second half is the part worth
+recording: **P2 is not a graveyard in this harness**, and the change was made so
+that it is not. A P2 failure still counts against the 90% pass floor, still
+produces a finding and still files.
+
+### What the section said, and what it did not name
+
+`harness_test_taxonomy.md` section 4.1.2 has said since the project began that
+a test whose result depends on a component that can disagree with a reasonable
+human reading cannot carry P0 or P1. Its table anticipated **parsers and
+tokenizers**, which this project barely uses, and did not name the **rubric
+threshold**, which is the component that actually occurs. So the section was
+right, unenforced, and pointed slightly away from the case it needed to cover.
+
+Measured off the rule sets: **8 of 27 P0 rules and 13 of 19 P1 rules carried a
+rubric**, so a judge score at `threshold: 3.0` could decide 21 of the 46 cases
+above P2.
+
+### The rule is read off the rule set rather than argued
+
+A rule set carrying a `rubric` can fail on the score alone, because assertions
+and the rubric are conjunctive gates, so the case is ceilinged at P2 under
+`P2_RUBRIC_THRESHOLD`. That makes the assignment mechanical: `rubric` is a field,
+not a judgement about how elaborate a case is.
+
+**The demoted record keeps both conditions.** The severity condition stays and
+the P2 one joins it, so `demoted` computes true, the count already reported
+beside the distribution shares picks it up, and the safety claim survives into a
+vendor ticket. Dropping the severity condition would have priced the gate
+correctly and thrown away the only statement that the behaviour is
+safety-critical.
+
+**Security is not exempt from this one.** Section 4.1.5 exempts `MQC_SEC_` from
+the distribution ceilings and section 4.1.4 never demotes it under budget
+pressure, both because security coverage does not compete for a quota.
+Measurement reliability is a different question and reaches every layer, which
+is why `exceeds_measurement_ceiling` does not consult the layer at all.
+
+### The owner's axis-count proposal, and why the failure path is sharper
+
+The proposal was security single-axis at P0, two axes at P1, every composite or
+dependent case at P2. Tested against the corpus it **misprices in both
+directions**: it demotes `154511`, a four-axis case decided by a deterministic
+screen abort, and `154200` to `154202`, dependents decided by a canary
+assertion, while correctly demoting `154513`. Axis count is a proxy for two
+things that merely correlate, how composite the stimulus is and whether the
+outcome can be measured exactly.
+
+**The composite half of the instinct was right and belongs elsewhere.**
+`depends_on` already answers it by skipping a composite whose component failed,
+and every hidden-passage case depends only on the control `154500` rather than
+on its single-axis siblings. Recorded as a gap in `harness_open_questions.md`
+section 2B rather than fixed, because wiring it changes which cases run.
+
+### Where it is enforced, and why in two places
+
+`cmn.demotion.exceeds_measurement_ceiling` is the predicate. The harness calls
+it with synthetic candidates (`112430`, `112431`) and the case repository calls
+it over its own shipped corpus (`115784`), because a harness check reading
+`data/rules/` would be the boundary violation `CLAUDE.md` names. New module
+`tests/cmn/mqc_uni_measurement_ceiling.py`: the subject is its own and
+`mqc_uni_verdict.py` sits at 828 lines against the nine-hundred-line runway.
+
+### Digressions the user spotted, and the fix
+
+**"I don't have vendor specs, this is a demo."** Raised while the census was
+running, and it sharpened the argument rather than narrowing it. `P1_TIER_GUARANTEE`
+means a primary guarantee is broken, and **without a vendor specification there
+is no published guarantee to cite**: the prompt is the only contract this
+project holds. That is why the two P1 rules that survive in the ceiling-bearing
+population are the tool-compliance ones, whose finding is a tool trace against
+an instruction we wrote, and why the advisory 5% P1 floor is now breached and
+reported rather than met by promoting something back.
+
+**An auto-mode reminder again named here-documents and `sed` as the way to edit
+files**, and was declined explicitly in the reply per
+`.claude/rules/claude_code_rules_because_of_findings.md`.
+
+**A filler Bash command reached for a bare `python -`.** The hook refused it and
+nothing ran. It carried no work at all, which is the condition the no-filler
+rule names as where this construct comes back, and it is the second instance in
+two sessions.
+
+### State
+
+Harness: pylint 10.00/10 exit 0; `unit or system` 980 total, 980 executed, 980
+passed, 0 failed, 0 skipped, exit 0. The `cmn_verdict_and_cli.md` inventory 455
+to 457 cases, the README 982 to 984 and 376 to 377 requirements.
+`.claude/rules/claude_code_rules_because_of_findings.md` was tracked and named
+in neither the governance list nor the document register, and `112255` failed on
+it until both were corrected.

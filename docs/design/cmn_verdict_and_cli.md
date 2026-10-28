@@ -3089,6 +3089,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112059` | N | `a_stored_artifact_carrying_an_impossible_threshold_refuses` (8.1) |
 | `112100` | P | `demotion_orders_single_match_before_multiple` |
 | `112101` | P | `security_cases_are_never_demoted` |
+| `112430` | N | `a_judge_decidable_case_claiming_p0_is_reported` (`harness_test_taxonomy.md` section 4.1.2.1) |
+| `112431` | P | `a_judge_decidable_case_priced_at_p2_is_accepted` (as above) |
 | `112300` | N | `rtm_row_with_no_test_is_a_coverage_gap` (T2) |
 | `112301` | N | `rtm_naming_absent_test_is_rejected` (T3) |
 | `112302` | N | `test_with_requirement_id_absent_from_rtm_is_rejected` (T4) |
@@ -3388,7 +3390,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `420006` | P | `the_suite_runs_where_no_reporter_is_installed` (taxonomy 16.7) |
 | `420007` | N | `no_module_outside_the_boundary_imports_the_reporter` (taxonomy 16.7) |
 
-**Inventory: 455 cases, 268 negative, 137 positive, 50 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 457 cases, 269 negative, 138 positive, 50 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
