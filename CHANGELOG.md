@@ -29,6 +29,59 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A commit note's structure is written down, 2026-10-28
+
+**The tense rule was recorded in 2026-10-02 and the structure was not**, so
+notes went on being written as narrative paragraphs that mixed three changes
+and left the reason for each to be guessed from the diff. The reason is the one
+thing a reader arriving at a commit cannot reconstruct from it.
+
+`skill-rules.md` section 6.1 now states both: past tense, and one paragraph per
+item opening with `Fixed:`, `Added:`, `Changed:`, `Removed:` or `Verified:`,
+each carrying why it was needed. It is section 7.4.1 of `code-style.md` applied
+to a second artefact, with the same division of labour, since purpose comes
+before the change and authorship is already recorded by the commit.
+
+### The Ubuntu runner moves to 26.04, 2026-10-28
+
+**A pinned image stops receiving the newer operating system's coverage, and the
+pin is only worth its cost if it moves.** `DESIGN.md` section 5.0.2 recorded
+that cost in September and named the remedy, a deliberate bump with a run that
+proves it. `ubuntu-26.04` has been generally available since September 2026, so
+this is that bump: 21 workflow lines here and 15 in the case repository, with
+nothing in either repository still naming `ubuntu-latest`.
+
+**The month it happens in is the argument for pinning rather than an objection
+to it.** GitHub migrates `ubuntu-latest` gradually between 19 October and 19
+November 2026, so for that month two runs of one commit can land on different
+operating system majors and nothing attributes a difference between them. Here
+the major changes in a commit that says so, and the gate run on that commit is
+what turns Ubuntu 26 compatibility from unknown into measured.
+
+`DESIGN.md` sections 5.0 and 5.0.2, `harness_ci_pipeline.md` section 3.1.2 and
+the artifact example in `harness_running_jobs.md` follow the pin.
+
+### A publishing job decided what to publish from a run's conclusion, 2026-10-28
+
+**The case repository's readiness site reported a clean sweep on a day three of
+its four gates were red.** Its publisher refused to start unless the gate that
+triggered it had concluded `success` and filtered the artifacts it downloaded
+the same way, so the only engine to reach the site was the one carrying no
+filed finding. A `workflow_run` trigger fires once per completing workflow, so
+the job was discarding three engines' results on the strength of a fourth
+engine's outcome.
+
+Section 7.4 had already made the published report a readiness view, where an
+engine carrying findings is the one a reader needs rendered, and the new
+section 7.4.5 states what decides inclusion. No condition was needed for
+reachability either, since `workflow_run` with `branches: [main]` cannot be
+reached by a pull request at all.
+
+`cmn.workflow_standards.report_publication_gaps` now reports a publishing job
+that reads a conclusion, in its condition or in its scripts, so the shape
+cannot return unnoticed. `MQC_CMN_UNI_420005` plants one and
+`MQC_REQ_HAR_CMN_0219` widens to carry the property.
+
 ### Editing a file in place from the shell is banned, 2026-10-28
 
 **`sed -i` joins the three shapes already refused outright.** The rule had said

@@ -154,3 +154,45 @@ Coverage gaps are the real output. This is referential integrity check 3, *every
 
 ## 6. Version Control Safeguards
 * **NO DIRECT COMMITS**: Never execute `git commit`, `git push`, or alter branches directly.
+
+### 6.1 A commit note is written in past tense, labelled by kind, and every label carries its reason
+
+Added 2026-10-02 as the tense rule and extended 2026-10-28 at the project
+owner's instruction to the structure: "report what was changed fixed (why)
+added (why) and use past tense".
+
+**Past tense, not the imperative mood the git convention teaches.** The note
+records a change that has already been made and the reason it was made;
+"Implement `--out-dir`" reads as an instruction to somebody, which is not what
+a commit note is for here. The subject line and every body paragraph open with
+a past tense verb.
+
+**One paragraph per item, opening with its label**, then what it was, then why
+it was needed:
+
+```
+Reported a publisher that read conclusions, and moved the Ubuntu pin to 26.04
+
+Fixed: <what was wrong, and what it cost>
+Added: <what is new, and why the gap mattered>
+Changed: <what moved, and what decided it>
+```
+
+| Label | Holds |
+|---|---|
+| `Fixed:` | A defect, and the behaviour it produced |
+| `Added:` | Something new, and the gap it closes |
+| `Changed:` | Something that moved, and what decided the move |
+| `Removed:` | Something withdrawn, and why it was buying nothing |
+| `Verified:` | The injection or the run that proves the above, where it is not obvious |
+
+**The label is what makes the note readable to somebody bisecting.** A
+narrative paragraph mixing three changes hides which reason belongs to which,
+and the reason is the part a reader arriving at the commit cannot reconstruct
+from the diff.
+
+**This is `code-style.md` section 7.4.1 applied to a different artefact, and
+the division of labour is the same.** The changelog states the purpose and then
+the change and never who made it; the commit note does the same for one commit,
+and authorship is recorded by the commit itself. Who asked, in what words, goes
+to `CLAUDE_LOG.md` and `.claude/logs/PROMPT_LOG.md`.

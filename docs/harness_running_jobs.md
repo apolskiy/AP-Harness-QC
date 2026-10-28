@@ -253,7 +253,7 @@ npm install -g allure-commandline   # either, if you have node
 From an unpacked artifact:
 
 ```
-allure serve mqc-reports-unit-none-replay-ubuntu-24.04/allure-results
+allure serve mqc-reports-unit-none-replay-ubuntu-26.04/allure-results
 ```
 
 For a report you intend to keep:

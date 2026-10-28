@@ -55,7 +55,7 @@ jobs:
   # runs once rather than once per matrix leg.
   preconditions:
     name: preconditions, not a model finding
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -85,7 +85,7 @@ jobs:
     # platform here doubles quota consumption and learns nothing new about the
     # model, while gate-on-change.yml has already established that our code
     # behaves identically on both.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: live
     strategy:
       fail-fast: false
@@ -168,7 +168,7 @@ jobs:
   verdict:
     name: verdict
     needs: evaluate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

@@ -61,7 +61,7 @@ jobs:
     name: mutation audit
     # UBUNTU ONLY. Platform coverage is the gate's question; this one asks
     # whether a case would notice a change, which no platform alters.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v5

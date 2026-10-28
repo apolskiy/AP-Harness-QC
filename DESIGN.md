@@ -299,7 +299,7 @@ The harness is Python and adopters run it on machines this project did not choos
 
 | | Verified by CI | Claimed |
 |---|---|---|
-| Linux | `ubuntu-24.04`, pinned | Ubuntu 22.04 or later, and glibc distributions such as CentOS Stream |
+| Linux | `ubuntu-26.04`, pinned | Ubuntu 22.04 or later, and glibc distributions such as CentOS Stream |
 | Windows | `windows-latest`, the current Windows Server image | Windows 11 or later |
 | macOS | Not run | **Not claimed** |
 
@@ -373,9 +373,33 @@ attributing it.
 | Warning noise | On every run, until it is not a warning | None |
 
 **The cost is real and is accepted:** a pinned image stops receiving the newer
-OS's coverage, so Ubuntu 26 compatibility is unknown until the pin moves. That is
-the trade this project already makes everywhere else, preferring a failure that
-names its cause to a difference nobody attributed.
+OS's coverage, so the newer major's compatibility is unknown until the pin
+moves. That is the trade this project already makes everywhere else, preferring
+a failure that names its cause to a difference nobody attributed.
+
+##### The pin moved to Ubuntu 26 on 2026-10-28, which is the maintenance the table promises
+
+`ubuntu-26.04` has been generally available since September 2026, and both
+repositories moved to it in one change: 21 workflow lines here and 15 in the
+case repository. **Neither repository still names `ubuntu-latest` anywhere**, so
+this is one pin replaced by another rather than a label finally being pinned.
+
+**The month this happens in is the argument for the pin rather than an
+inconvenience to it.** GitHub migrates `ubuntu-latest` gradually between 19
+October and 19 November 2026, so for that month the label is not one image: two
+runs of the same commit can land on different OS majors, and a difference
+between them has nothing attributing it. A repository on the label is running an
+uncontrolled variable; this one changes major version in a commit that says so.
+
+| | On the moving label, this month | Here |
+|---|---|---|
+| Which image a run gets | Either major, by rollout percentage | `ubuntu-26.04`, every time |
+| What proves the new major works | Nothing. It is already running | **The gate run on this commit** |
+| A failure on the new major | Attaches to an unrelated change | Attaches to this one |
+
+**The cost line above is what this pays off.** Ubuntu 26 compatibility was
+unknown while the pin sat on 24.04, and the run on this commit is what turns it
+from unknown into measured. A red here is the pin working.
 
 **Windows stays on the moving label** because GitHub has announced no migration
 for it, and pinning a label this project has not verified would risk a red run to

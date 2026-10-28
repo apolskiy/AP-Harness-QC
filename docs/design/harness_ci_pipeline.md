@@ -208,7 +208,7 @@ Each declares `needs` on its predecessor, so a precondition failure leaves the n
 
 #### 3.1.2 Every job runs on both operating systems
 
-`ubuntu-24.04` and `windows-latest`, as **separate jobs with `fail-fast: false`**, for the reason B9 gives for engines: the default would let one platform's failure cancel the other, and a collapsed job lets a pass on one platform mask a failure on the other. **The Ubuntu image is pinned and the Windows label is not**, for the reasons in `DESIGN.md` section 5.0.2.
+`ubuntu-26.04` and `windows-latest`, as **separate jobs with `fail-fast: false`**, for the reason B9 gives for engines: the default would let one platform's failure cancel the other, and a collapsed job lets a pass on one platform mask a failure on the other. **The Ubuntu image is pinned and the Windows label is not**, for the reasons in `DESIGN.md` section 5.0.2.
 
 | Job | Platforms |
 |---|---|
@@ -1209,6 +1209,39 @@ section 5. A setting outside the tree is named in the documentation and not
 pretended to be code.
 
 `MQC_CMN_UNI_420005` and `MQC_REQ_HAR_CMN_0219`.
+
+#### 7.4.5 Inclusion is decided by the commit, never by a run's conclusion
+
+Added 2026-10-28, after the case repository's site reported a clean sweep on a
+day three of its four gates were red.
+
+**A red gate publishes, and that is what the site is for.** Section 7.4 makes
+the published report a readiness view, and an engine carrying findings is the
+one a reader needs rendered. That repository's publisher refused to start unless
+the triggering gate had concluded `success`, and filtered the artifacts it
+downloaded the same way, so the only engine to reach the site was the one with
+no finding against it.
+
+| Inclusion decided by | What a reader sees on a day three gates are red |
+|---|---|
+| The run's conclusion | One engine's report, and no sign the other three exist |
+| **The head commit** | Four reports, three of them carrying the findings |
+
+**The conclusion is the wrong question for a second reason.** A `workflow_run`
+trigger fires once per completing workflow, so the job read whichever gate
+happened to wake it and discarded three engines' results on the strength of a
+fourth engine's outcome.
+
+**No condition is needed for reachability either**, which is what the guard
+resembled. `workflow_run` with `branches: [main]` cannot be reached by a pull
+request at all, so section 7.4.3's concern about a proposal overwriting the
+branch picture is already answered by the trigger.
+
+`cmn.workflow_standards.report_publication_gaps` reports a publishing job that
+reads a conclusion, in its condition or in its scripts.
+`MQC_CMN_UNI_420005` plants one, and `MQC_CAS_UNI_430002` reads the shipped
+workflows and failed against them before the fix. The case repository's
+`consumer_ci.md` section 4.22.2.1 carries the decision from its own side.
 
 ---
 

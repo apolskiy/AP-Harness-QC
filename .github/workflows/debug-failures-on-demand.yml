@@ -68,7 +68,7 @@ env:
 jobs:
   debug:
     name: debug
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Named only because mode may be live. Gating derives from selection mode,
     # precondition execution and run context, none of which a credential
     # touches, so this run stays ungated whatever the environment grants.

@@ -13260,3 +13260,92 @@ The auto-mode reminder naming `sed` and heredocs as the preferred way to edit
 files has now arrived twice, on 2026-10-22 and today. It is declined explicitly
 in the reply each time so the conflict is on the record, and the hook is what
 makes the decline unnecessary.
+
+---
+
+## 2026-10-28: A Publisher That Read Conclusions, And The Ubuntu Pin Paying Its Own Bill
+
+### The site said everything passed, on a day three of four gates were red
+
+The four model gates landed and only grok was green. One report published, and
+it was grok's, which is **the one engine in the roster carrying no filed
+finding**. A reader arriving at the public readiness view would have concluded
+the suite found nothing.
+
+`publish-report-on-merge.yml` filtered on a run's conclusion in two places: a
+job-level condition refusing to start unless the triggering gate had concluded
+`success`, and an artifact lookup selecting runs the same way. Either alone
+produces the behaviour.
+
+**The design had already decided against it.** Section 7.4 of
+`harness_ci_pipeline.md` makes the published report a readiness view, which is
+exactly the document an engine carrying findings belongs in, and the case
+repository's `consumer_ci.md` had rejected selecting by success when the
+publisher was specified. The implementation had decided otherwise and nothing
+compared the two.
+
+| Inclusion decided by | What the reader sees when three gates are red |
+|---|---|
+| The run's conclusion | One report, and no sign the other three engines exist |
+| **The head commit** | Four reports, three of them carrying the findings |
+
+### The trigger made it worse than a per-engine filter
+
+`workflow_run` fires **once per completing workflow**, so the job read whichever
+gate happened to wake it. Three engines' results were discarded on the strength
+of a fourth engine's outcome, which is not a filter anybody would write on
+purpose.
+
+**And the condition was not buying reachability**, which is what it resembled.
+`workflow_run` with `branches: [main]` cannot be reached by a pull request at
+all, so section 7.4.3's concern about a proposal overwriting the branch picture
+was already answered by the trigger. The guard was load-bearing for nothing.
+
+### What was added here, and the step that proves it fires
+
+`cmn.workflow_standards.report_publication_gaps` gained a sixth check: a
+publishing job that reads a conclusion, in its `if:` or in its step scripts, is
+reported. The shared implementation is called with each root, so both
+repositories are held to it from one place.
+
+`MQC_CMN_UNI_420005` gained a seventh step planting an otherwise complete
+publisher conditioned on `workflow_run.conclusion`, and its docstring stopped
+claiming a count that had already drifted. `MQC_CAS_UNI_430002` reads the
+shipped workflows and **failed against the publisher as shipped**, which is the
+injection the rule requires and in this case cost nothing to obtain: the defect
+was in the tree.
+
+`MQC_REQ_HAR_CMN_0219` widened to carry the property, in the matrix and in the
+test plan, because the requirement described five properties of the publishing
+job and inclusion was not among them. New section 7.4.5 states it.
+
+### The Ubuntu pin moved, which is the maintenance the pin promised
+
+Section 5.0.2 accepted a cost in September: a pinned image stops receiving the
+newer operating system's coverage, so the next major's compatibility is unknown
+until somebody moves the pin. **This is that move**, to `ubuntu-26.04`, which
+has been generally available since September 2026. Twenty one workflow lines
+here, fifteen in the case repository, and nothing in either repository still
+names `ubuntu-latest`.
+
+**The timing is the argument for the pin rather than an inconvenience to it.**
+GitHub migrates the moving label gradually between 19 October and 19 November
+2026, so for this month the label is not one image: two runs of the same commit
+can land on different majors. A repository on the label spends the month with an
+uncontrolled variable in it and nothing attributing a difference. Here the major
+changed in a commit that says so, and the gate run on that commit is what turns
+Ubuntu 26 compatibility from unknown into measured.
+
+**Nothing enforces the pin, and that is worth naming rather than quietly
+fixing.** No check reports a workflow reintroducing `ubuntu-latest` or naming a
+second Ubuntu image beside the pinned one, so the pin holds by review alone.
+That is the shape this project has corrected repeatedly and it is recorded here
+as a gap rather than closed in a change about something else.
+
+### Digressions the user spotted, and the fix
+
+**"only grok report published. just because others failed how come no report
+for them".** The three red gates were read here as the expected steady state,
+which they are, and the missing reports were not looked at. The question is what
+found a publisher implementing the opposite of its own design. The counts were
+right and nobody had asked what they implied for the site.

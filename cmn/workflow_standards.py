@@ -3,7 +3,7 @@
 """Workflow standards checks, what the CI definitions must hold, checked before a push.
 
 Created: 2026-10-04
-Last updated: 2026-10-25
+Last updated: 2026-10-28
 
 This file contains ``uncapped_spending_steps``, which reports a workflow step
 that can spend on a provider and names no ``--max-spend`` ceiling;
@@ -111,6 +111,21 @@ _EVENT_GUARD: Final[str] = "github.event_name"
 # The destination rule is stated in `harness_ci_pipeline.md` section 7.4.2
 # and is not checked here.
 _HISTORY: Final[str] = "/history/"
+
+# A PUBLISHER DECIDING FROM A RUN'S CONCLUSION, in the job's condition or in
+# the step that selects which runs to download. `harness_ci_pipeline.md`
+# section 7.4 makes the report a readiness view, and a readiness view that
+# drops the engines carrying findings reads as though everything passed; the
+# case repository's `consumer_ci.md` section 4.22.2 decides inclusion by head
+# commit and says nothing about conclusion.
+#
+# **Both spellings, because the two surfaces differ.** A job condition reads
+# `github.event.workflow_run.conclusion`, and the artifact lookup filters a
+# `gh run list` with a `.conclusion` field. Matching only the first left the
+# second in place for a week.
+_CONCLUSION: Final[re.Pattern] = re.compile(
+    r"workflow_run\.conclusion|\.conclusion\s*==|--status[ =]+success"
+)
 
 # A run withholding the judge, written literally, and the input value a debug
 # workflow offers to ask for one (tier3_evaluation.md section 5A.5.3).
@@ -496,6 +511,13 @@ def _publisher_problems(
         problems.append(
             f"{where} generates no history, so each published report starts the "
             f"trend again"
+        )
+    conditioned = _CONCLUSION.search(str(job.get("if") or "")) or _CONCLUSION.search(scripts)
+    if conditioned:
+        problems.append(
+            f"{where} decides what to publish from a run's conclusion, so an "
+            f"engine carrying findings publishes nothing and the site reads as "
+            f"though everything passed. Inclusion is by head commit"
         )
     if shares and not job.get(_SOFT_FAILURE):
         problems.append(

@@ -43,7 +43,7 @@ jobs:
       # masks a failure on the other.
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest]
+        os: [ubuntu-26.04, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest]
+        os: [ubuntu-26.04, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -105,7 +105,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-latest]
+        os: [ubuntu-26.04, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -143,7 +143,7 @@ jobs:
     # that could would overwrite the default branch's picture with a
     # proposal's. MQC_CMN_UNI_420005 asserts this condition.
     if: github.event_name == 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # IT FAILS ON ITS OWN ROW AND THE RUN STAYS GREEN. A job failing inside
     # this workflow makes the **run** conclude failure, and the case
     # repository's pairing resolver reads that conclusion: without this, a
@@ -170,11 +170,11 @@ jobs:
       # the platform the live suite also runs on.
       - uses: actions/download-artifact@v6
         with:
-          name: mqc-reports-unit-none-replay-ubuntu-24.04
+          name: mqc-reports-unit-none-replay-ubuntu-26.04
           path: downloaded/unit
       - uses: actions/download-artifact@v6
         with:
-          name: mqc-reports-system-none-replay-ubuntu-24.04
+          name: mqc-reports-system-none-replay-ubuntu-26.04
           path: downloaded/system
       - name: Gather them into one results directory
         run: |

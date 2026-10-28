@@ -3,7 +3,7 @@
 """Unit tests for what a run publishes about each case and each priority band.
 
 Created: 2026-10-02
-Last updated: 2026-10-24
+Last updated: 2026-10-28
 
 Its cases check ``observation_parameters`` and ``vendor_report`` in
 ``cmn/reporting.py``, ``emit_result`` in ``cmn/metadata.py`` and the band summary
@@ -178,7 +178,7 @@ class TestMQCResultEmission:
         )
         run = RunContext(
             run_context="ci", selection_mode="full", preconditions_executed=True,
-            rule_set_hash="sha256:abc", platform="ubuntu-24.04",
+            rule_set_hash="sha256:abc", platform="ubuntu-26.04",
         )
 
         parameters = observation_parameters(observation, run)

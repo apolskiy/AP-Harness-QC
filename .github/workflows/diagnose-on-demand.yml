@@ -79,7 +79,7 @@ jobs:
     # May name a single platform. The both-platforms rule binds gate-on-change
     # and evaluate-live-weekly; it does not bind this workflow, which yields no
     # verdict either way.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # Named because section 6.4 specifies two diagnostic combinations that run
     # live. A1's boundary is TRIGGER TRUST, not workflow count: this workflow is
     # manual-dispatch only, which cannot be fired from a fork or by a pull
@@ -223,7 +223,7 @@ jobs:
     name: notify
     needs: diagnose
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Announce the transition
         shell: bash

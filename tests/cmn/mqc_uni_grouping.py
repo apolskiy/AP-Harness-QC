@@ -3,7 +3,7 @@
 """Unit preconditions for the grouping tree a readiness view is read from.
 
 Created: 2026-10-24
-Last updated: 2026-10-24
+Last updated: 2026-10-28
 
 The cases here check ``cmn/grouping.py`` and the hook that reads it. Three run
 against a planted repository and assert that a module declaring no capability,
@@ -324,9 +324,9 @@ class TestMQCGroupingPublication:
     ) -> None:
         """This repository publishes the report, and a job missing a property is named.
 
-        Five properties, each of which a reader would otherwise discover by
-        opening the site and finding it absent, stale, or showing a pull
-        request's results.
+        Each property is one a reader would otherwise discover by opening the
+        site and finding it absent, stale, showing a pull request's results, or
+        showing only the engines that happened to pass.
 
         Design: ``harness_ci_pipeline.md`` section 7.4.
 
@@ -352,7 +352,7 @@ class TestMQCGroupingPublication:
                 "  push:",
                 "jobs:",
                 "  publish:",
-                "    runs-on: ubuntu-24.04",
+                "    runs-on: ubuntu-26.04",
                 "    steps:",
                 "      - name: Generate the report",
                 "        run: allure generate reports/allure-results -o allure-report",
@@ -384,7 +384,7 @@ class TestMQCGroupingPublication:
                 "  pull_request:",
                 "jobs:",
                 "  publish:",
-                "    runs-on: ubuntu-24.04",
+                "    runs-on: ubuntu-26.04",
                 "    permissions:",
                 "      pages: write",
                 "      id-token: write",
@@ -415,12 +415,12 @@ class TestMQCGroupingPublication:
                 "  push:",
                 "jobs:",
                 "  unit:",
-                "    runs-on: ubuntu-24.04",
+                "    runs-on: ubuntu-26.04",
                 "    steps:",
                 "      - run: pytest -m unit",
                 "  publish:",
                 "    needs: unit",
-                "    runs-on: ubuntu-24.04",
+                "    runs-on: ubuntu-26.04",
                 "    permissions:",
                 "      pages: write",
                 "      id-token: write",
@@ -451,6 +451,42 @@ class TestMQCGroupingPublication:
         assert any(
             "allure generate" in gap for gap in report_publication_gaps(tmp_path / "bare")
         ), "a repository that renders no report at all was accepted"
+
+        step(7, "a publisher deciding what to publish from a conclusion is reported")
+        conditioned = tmp_path / "conclusion" / ".github" / "workflows"
+        conditioned.mkdir(parents=True)
+        (conditioned / "publish-report-on-merge.yml").write_text(
+            "\n".join([
+                "name: publish-report-on-merge",
+                "on:",
+                "  workflow_run:",
+                "    workflows: [gate-claude]",
+                "    types: [completed]",
+                "    branches: [main]",
+                "jobs:",
+                "  publish:",
+                "    if: github.event.workflow_run.conclusion == 'success'",
+                "    runs-on: ubuntu-26.04",
+                "    permissions:",
+                "      pages: write",
+                "      id-token: write",
+                "    steps:",
+                "      - name: Generate the report",
+                "        run: |",
+                "          mkdir -p reports/allure-results/history",
+                "          allure generate reports/allure-results -o allure-report",
+                "      - uses: actions/deploy-pages@v4",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        assert any(
+            "conclusion" in gap
+            for gap in report_publication_gaps(tmp_path / "conclusion")
+        ), (
+            "a publisher conditioned on a run's conclusion was accepted, so an "
+            "engine carrying findings would publish nothing and the site would "
+            "read as though everything passed"
+        )
 
 
 class TestMQCGroupingWithoutReporter:

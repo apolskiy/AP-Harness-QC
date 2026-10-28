@@ -45,7 +45,7 @@ jobs:
   # an entry in config/consumers.yaml rather than a change here.
   enumerate:
     name: read the consumer registry
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # A gate that did not conclude success says nothing was established about
     # this commit, so there is nothing to fan out from. The schedule and a
     # manual dispatch carry no workflow_run payload and are unaffected.
@@ -112,7 +112,7 @@ jobs:
     name: verify ${{ matrix.consumer.name }} (${{ matrix.consumer.ref }})
     needs: enumerate
     if: needs.enumerate.outputs.consumers != '[]'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       # One consumer failing says nothing about the others, and cancelling the
       # rest would discard the answer for every consumer that was fine.
@@ -248,7 +248,7 @@ jobs:
     name: report
     needs: [enumerate, verify]
     if: always()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Summarise
         shell: bash
