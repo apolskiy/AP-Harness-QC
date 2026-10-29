@@ -3,16 +3,19 @@
 """Unit preconditions for a graded invocation in CI, what it selects and what gates it.
 
 Created: 2026-10-21
-Last updated: 2026-10-25
+Last updated: 2026-10-28
 
-This file contains two cases over the graded invocations the CI definitions
-make. ``cmn.code_standards.partial_graded_selection_gaps``: one names every
-graded layer marker, because the harness records a marker expression as a full
-selection and a step naming one layer of three would carry a verdict over part
-of a run. ``cmn.workflow_standards.ungated_graded_jobs``: the job making it
-reaches a precondition invocation first, through a job it needs or an earlier
-step of its own, because a graded run on an unchecked instrument measures
-nothing and the ones that spend are reached the same way.
+This file contains three cases over what a CI invocation selects and what
+stands in front of it. ``cmn.code_standards.partial_graded_selection_gaps``:
+a graded step names every graded layer marker, because the harness records a
+marker expression as a full selection and a step naming one layer of three
+would carry a verdict over part of a run.
+``cmn.ci_gating.ungated_graded_jobs``: the job making it reaches a precondition
+invocation first, through a job it needs or an earlier step of its own, because
+a graded run on an unchecked instrument measures nothing and the ones that
+spend are reached the same way. ``cmn.ci_gating.unearned_run_conclusions``: a
+job calling ``always()`` behind a job gated on the triggering run's conclusion
+names that job's result, or a workflow that skipped its work concludes success.
 
 **A new module rather than another subject in ``mqc_uni_file_standards.py``**,
 which reached its nine-hundred-line runway as the first was added. The subject
@@ -22,9 +25,10 @@ graded invocation in CI selects and what stands in front of it.
 **A failure here is not a model finding.** The module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
 
-Specified by ``docs/design/harness_ci_pipeline.md`` section 8.6 and the case
-repository's ``docs/design/consumer_ci.md`` section 4.21, with the runtime half
-of the selection rule in ``docs/design/cmn_verdict_and_cli.md`` section 7.1.4.
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 3B.2.1, 8.6 and
+8.8 and the case repository's ``docs/design/consumer_ci.md`` section 4.21, with
+the runtime half of the selection rule in
+``docs/design/cmn_verdict_and_cli.md`` section 7.1.4.
 """
 
 # ------------------------------------------------------------- cases in here
@@ -34,6 +38,8 @@ of the selection rule in ``docs/design/cmn_verdict_and_cli.md`` section 7.1.4.
 #   112188  a_graded_invocation_leaving_out_a_layer_is_reported
 # TestMQCGradedGating
 #   112189  a_graded_job_not_gated_on_the_preconditions_is_reported
+# TestMQCRunConclusions
+#   112191  a_job_concluding_a_run_it_did_not_earn_is_reported
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -42,7 +48,8 @@ import pytest
 import yaml
 
 from cmn.code_standards import partial_graded_selection_gaps
-from cmn.ci_gating import ungated_graded_jobs
+from cmn.ci_gating import ungated_graded_jobs, unearned_run_conclusions
+from tests.cmn.workflow_plant_support import gated_workflow, plant_root
 
 pytestmark = pytest.mark.unit
 
@@ -187,4 +194,100 @@ class TestMQCGradedGating:
         assert not reported["fetched"], (
             "a graded step running in a checkout the job fetched was read as "
             f"this repository's to gate: {reported['fetched']}"
+        )
+
+
+class TestMQCRunConclusions:
+    """A workflow that skipped its work does not report success."""
+
+    def MQC_CMN_UNI_112191_a_job_concluding_a_run_it_did_not_earn_is_reported(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A job gated on a trigger's conclusion decides whether a run ran.
+
+        A job calling ``always()`` and depending on the gated job without
+        naming its result runs anyway, and a run whose only completed job
+        succeeded concludes success although nothing ran.
+
+        **``regress-consumers-on-merge.yml`` held the instance.** Its summary
+        job carried a bare ``always()``, so at 2026-10-29T01:55Z the run
+        concluded success against a commit whose gate had failed, with the
+        registry job and the fan-out both skipped. A run conclusion is read by
+        a status badge and by the case repository's pairing resolver, neither
+        of which can see the jobs.
+
+        **The comparison is not prescribed**, only that the condition mentions
+        the gated job's ``result``: a direct test and a membership test over
+        the outcomes both satisfy it, because the correct shapes are not
+        enumerable in advance.
+
+        Design: ``harness_ci_pipeline.md`` sections 3B.2.1 and 8.8.
+
+        Args:
+            tmp_path (Path): Where the constructed workflows are written.
+
+        Returns:
+            None
+        """
+        assert not unearned_run_conclusions(_ROOT), (
+            "job(s) would give a run a conclusion their workflow did not "
+            "earn, having run alone while the job gated on the triggering "
+            "run's conclusion was skipped: "
+            + "; ".join(unearned_run_conclusions(_ROOT))
+        )
+
+        conditions = {
+            "bare": "always()",
+            "named": "always() && needs.enumerate.result != 'skipped'",
+            "membership": (
+                "always() && contains(fromJSON('[\"success\",\"failure\"]'), "
+                "needs.enumerate.result)"
+            ),
+            "no_always": "success()",
+        }
+        for shape, condition in conditions.items():
+            plant_root(
+                tmp_path / shape,
+                gated_workflow(condition),
+                name="fan-out.yml",
+            )
+
+        plant_root(
+            tmp_path / "untriggered",
+            gated_workflow("always()").replace(
+                "  workflow_run:\n"
+                "    workflows: [gate-on-change]\n"
+                "    types: [completed]\n",
+                "  workflow_dispatch:\n",
+            ),
+            name="fan-out.yml",
+        )
+
+        reported = {
+            shape: unearned_run_conclusions(tmp_path / shape)
+            for shape in list(conditions) + ["untriggered"]
+        }
+
+        assert reported["bare"], (
+            "a summary job carrying a bare always() behind a job gated on the "
+            "triggering run's conclusion was not reported, so the check reads "
+            "no condition at all"
+        )
+        assert not reported["named"], (
+            "a summary job naming the gated job's result was reported, so the "
+            f"one correct shape fails the check: {reported['named']}"
+        )
+        assert not reported["membership"], (
+            "a membership test over the gated job's result was reported, so "
+            f"the check prescribes a spelling: {reported['membership']}"
+        )
+        assert not reported["no_always"], (
+            "a summary job taking needs without always() was reported, "
+            f"although needs already skips it: {reported['no_always']}"
+        )
+        assert not reported["untriggered"], (
+            "a workflow nothing triggers by workflow_run was reported, and "
+            f"such a workflow has no conclusion to gate on: "
+            f"{reported['untriggered']}"
         )

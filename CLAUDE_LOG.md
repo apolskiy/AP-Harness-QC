@@ -13349,3 +13349,194 @@ for them".** The three red gates were read here as the expected steady state,
 which they are, and the missing reports were not looked at. The question is what
 found a publisher implementing the opposite of its own design. The counts were
 right and nobody had asked what they implied for the site.
+
+---
+
+## 2026-10-28: A Pin Nothing Read, And A Run That Reported Success Having Done Nothing
+
+Two defects, both found by reading CI after a push rather than by the suite, and
+both of a kind the suite can now hold. The Ubuntu pin moved on 2026-10-28 and
+the gate went red; the consumer fan-out then reported success on the same red
+commit.
+
+### The lint job refused every workflow the pin had moved
+
+**What was wrong.** 19 findings here and 15 in the case repository, every one
+the same class: the pinned label reported as unknown. The jobs behind the lint
+job skipped, so two pushes measured nothing. Runs `40787661476` and
+`40803117807` carry it.
+
+**Why it happened.** `actionlint` validates `runs-on` against a label list
+compiled into its own binary, so an image newer than the binary is an error
+rather than a label it passes over. Release 1.7.12 is from March 2026 and
+Ubuntu 26.04 reached general availability in September. **The job itself was
+fine**: the runner provisioned Ubuntu 26.04.1 LTS and ran, so the label is
+valid at GitHub's end and invisible to the tool that lints the file naming it.
+
+| | |
+|---|---|
+| What ran | Ubuntu 26.04.1 LTS, provisioned from the label |
+| What refused it | `actionlint` 1.7.12, six months older than the image |
+| What it cost | Both repositories' lint jobs, and every job behind them |
+
+**The remedy is the one the tool's own error message names.** Both repositories
+carry a `.github/actionlint.yaml` declaring the pinned label under
+`self-hosted-runner.labels`. Reproduced locally first, exit 1 with 19 and 15
+findings, and exit 0 after.
+
+**One entry rather than a glob, and that was measured rather than argued.** A
+planted workflow naming `ubuntu-26.04`, `ubuntu-26.40` and `ubuntu-latest`,
+linted with the declaration in place: the pin accepted, the typo still reported,
+exit 1 on the typo alone. A glob over Ubuntu labels would have accepted the typo
+too.
+
+**`ubuntu-latest` also passed that probe**, which is the part worth recording:
+the declaration makes the pin lintable and holds nothing. Nothing in either
+repository enforced the pin at all.
+
+### The pin was a decision nothing read, through two sweeps
+
+`DESIGN.md` section 5.0 pinned the image in September and section 5.0.2
+accepted what pinning costs. The decision stayed in prose, so the September pin
+and this move were both sweeps of the files held together by review, and a
+sweep that misses a line leaves two majors running side by side.
+
+`cmn/runner_images.py` reports four things: a label carrying no version, a
+second version anywhere in the repository, a version the declaration omits, and
+a declaration no workflow names. **The last two are a pair and that is the
+design.** The declaration exists only to make the pin lintable, so the two are
+compared with each other rather than each with a constant; moving the pin is
+then one sweep and one line, and omitting either half fails locally.
+
+**The injection is the repository as it stood this morning.** The planted
+`undeclared` root is this tree before the configuration was added, and the case
+reports it. The other three classes and a matrix shape are planted beside it,
+because `runs-on` here is an expression and the labels live in the matrix: a
+check that read only `runs-on` would have been blind to every job in the
+repository.
+
+**Its own module**, because `workflow_standards.py` reached its nine-hundred-line
+runway at 907 as the check was written. That is the split `ci_gating.py` came
+from and the answer `code-style.md` section 5.1 prescribes; the subjects divide
+as what a step names against where a job runs.
+
+### Section 10.1 had already required the step that would have caught it
+
+`harness_ci_pipeline.md` section 10.1 says a workflow change is linted with
+`actionlint` from the repository root before the push, on the machine that made
+it, and it was added on 2026-10-24 after a `shellcheck` finding cost a full
+cycle. **The tool is installed on this machine.** The step was skipped.
+
+That is the argument for the check rather than for remembering harder, and it is
+the same argument the project has made about every rule it has moved from prose
+into code.
+
+### A run that fanned out to nothing reported success
+
+**What was wrong.** `regress-consumers-on-merge.yml` concluded success at
+2026-10-29T01:55Z against the commit whose gate had just failed. The registry
+job and the fan-out were both skipped and the summary job ran alone. Run
+`40803298798`.
+
+**Why it happened.** The guard on the registry job is right and stays: a gate
+that did not conclude success established nothing to fan out from. The summary
+job carried a bare `always()`, which is what lets it report a fan-out that
+*failed*, so it ran anyway, and a run whose only completed job succeeded
+concludes success.
+
+| Job | On that run |
+|---|---|
+| `read the consumer registry` | Skipped, the gate having failed |
+| `verify <consumer>` | Skipped, behind it |
+| `report` | Succeeded, carrying `if: always()` |
+| The run | **`success`** |
+
+**A conclusion is read by things that cannot see the jobs.** A run list shows
+one mark, a badge shows the latest, and section 7.4.3 has the case repository's
+pairing resolver reading the conclusion of a workflow run rather than of a job.
+Each was told the consumers regress clean against a commit nothing had been run
+against.
+
+**The fix is one clause, and `always()` is not the defect.** The summary job
+now also requires that the registry job was not skipped. A red gate leaves
+every job skipped and GitHub concludes such a run `skipped`.
+
+**That conclusion was measured, not assumed.** The case repository's publisher
+carried a job-level conclusion guard until 2026-10-28, so it had already
+produced runs whose only job was skipped, and six of them on `8e9ca9e`
+concluded `skipped`. Checking that cost one query and removed a claim this
+entry would otherwise have made on reasoning alone.
+
+**The check does not prescribe a spelling.** It requires that the condition
+mention the gated job's `result`, because a direct comparison and a membership
+test over the outcomes are both correct and the correct shapes are not
+enumerable in advance. Both are planted, along with a job taking `needs:`
+without `always()`, which `needs` already skips, and a workflow nothing
+triggers by `workflow_run`, which has no conclusion to gate on.
+
+**It is the publishing defect one workflow along.** There a publisher decided
+what to publish from a run's conclusion and dropped the engines carrying
+findings; here a run reported a conclusion its jobs had not earned. Both were
+written as a guard correct about the work and silent about what the absence of
+work would be reported as.
+
+### What was verified
+
+| Layer | Result |
+|---|---|
+| Harness, Gate 1 pylint | 10.00/10, **exit 0** |
+| Harness, preconditions | 958 total, 958 executed, 958 passed, 0 failed, 0 skipped, **exit 0** |
+| Harness, `actionlint` | **exit 0**, from 19 findings |
+| Model, preconditions | 173 total, 173 executed, 172 passed, 1 failed, 0 skipped, exit 1 |
+| Model, `actionlint` | **exit 0**, from 15 findings |
+| Graded layers | Not run. No prompt, rule or rubric changed |
+
+**The model repository's one failure is not this change's.** `MQC_CAS_UNI_115317`
+reports the README's fixture figures as stale, 1240 candidate recordings against
+1244 and 773 judgements against 786, because the live sweep left 15 untracked
+recordings in the tree. It was failing before this work began and the figures
+are left alone deliberately: whether those recordings stay is the same open
+decision as grok's partial re-recording.
+
+### A sequencing constraint this creates
+
+`config/harness_pin.yaml` resolves `main` with `require_green: true`, so the
+case repository installs the latest green harness commit on `main`. Its two new
+cases import `cmn.runner_images`, which no green commit carries yet. **The
+harness lands first and goes green, then the case repository.** Pushed the other
+way round, the resolver either finds no green harness or installs one without
+the module, and both new cases fail on the import.
+
+### Digressions the user spotted, and the fix
+
+**The requirement text was not English.** Quoting `MQC_REQ_HAR_CMN_0229` back:
+"this is not english Workflow does not report success, when triggered by
+workflow_run, whose work is gated on trigerring run's conclusion, which does not
+report success when that gate skipped it, or something to that effect. Apply
+logical flow to problem description. A) describe what is wrong B) describe why
+it happens".
+
+The sentence stacked three subordinate clauses on one subject, so a reader had
+to hold all of them to reach the predicate. Both new requirements are restated
+to lead with what must hold and then enumerate, and both notes now say what is
+wrong before why it happens, as do the two in the case repository and the rows
+in both test plans.
+
+**An auto-mode instruction to edit files with `sed` and here-documents arrived
+again and was declined in the reply**, as `claude_code_rules_because_of_findings.md`
+requires. A `python -c` was attempted once in this session and the `PreToolUse`
+hook refused it, which is the enforcement that rule was written for working as
+intended.
+
+### An incongruity worth a ruling
+
+**`cmn.file_dates` uses the local clock and `CHANGELOG.md` declares its dates
+UTC.** This work was done at 2026-10-28 19:00 local, which is 2026-10-29 02:00
+UTC, so the two disagree for seven hours of every day. `refresh_file_dates.py`
+stamped 2026-10-28 and `file_date_problems` reports 2026-10-29 as "later than
+today", so a module edited today cannot carry today's UTC date.
+
+Everything in this change is dated 2026-10-28 for internal consistency, and the
+two CI runs are given as UTC timestamps because that is what GitHub recorded.
+Which clock the project means is the owner's to settle; both are defensible and
+the current state is that one document claims a rule the tooling does not keep.

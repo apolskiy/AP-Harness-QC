@@ -29,6 +29,72 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The lint job refused every workflow the Ubuntu pin had moved, 2026-10-28
+
+**What was wrong.** The pin to `ubuntu-26.04` was swept through 21 workflow
+lines here and 15 in the case repository, and both repositories' lint jobs went
+red on the push: 19 findings here, 15 there, every one of them the same class.
+Each named the pinned label as unknown. The jobs behind the lint job skipped, so
+two pushes measured nothing.
+
+**Why it happened.** `actionlint` validates `runs-on` against a label list
+compiled into its own binary, so an image newer than the binary is an error
+rather than a label it passes over. Release 1.7.12 predates Ubuntu 26.04's
+general availability by six months. The job itself was fine: the runner
+provisioned Ubuntu 26.04.1 LTS and ran.
+
+Both repositories now carry a `.github/actionlint.yaml` declaring the pinned
+label, which is the escape hatch the tool's own error message names. One entry
+rather than a pattern, measured against a planted workflow: with the pin
+declared, `ubuntu-26.04` is accepted and `ubuntu-26.40` is still reported.
+
+**And nothing had been reading the pin.** `DESIGN.md` section 5.0 pinned the
+image in September and the decision stayed in prose, so that pin and this move
+were both sweeps held together by review. `cmn/runner_images.py` now reports a
+label carrying no version, a second version anywhere in the repository, a
+version the declaration omits, and a declaration no workflow names. The last
+two are a pair, so the pin and the declaration are compared with each other
+rather than each with a constant, and moving the pin means moving both.
+`harness_ci_pipeline.md` sections 3.1.2.2 and 8.7 carry it, with
+`MQC_REQ_HAR_CMN_0228`.
+
+**`harness_ci_pipeline.md` section 10.1 had already required this.** It says a
+workflow change is linted with `actionlint` from the repository root before the
+push, on the machine that made it, and the tool was installed on that machine.
+The step was skipped, which is the argument for the check rather than for
+remembering harder.
+
+### A consumer run reported success having verified nothing, 2026-10-28
+
+**What was wrong.** `regress-consumers-on-merge.yml` concluded success against
+a commit whose gate had failed and whose consumers were never verified. The
+registry job and the fan-out were both skipped and the summary job ran alone.
+
+**Why it happened.** The guard on the registry job is correct: a gate that did
+not conclude success established nothing to fan out from. The summary job
+carried a bare `always()`, which is what lets it report a fan-out that *failed*,
+and so it ran anyway, and a run whose only completed job succeeded concludes
+success. A conclusion is read by a status badge and by the case repository's
+pairing resolver, neither of which can see the jobs.
+
+The summary job now also requires that the registry job was not skipped, so a
+red gate leaves every job skipped and the run concludes `skipped`. That is
+measured rather than assumed: the case repository's publisher produced runs of
+exactly that shape until 2026-10-28, and six of them concluded `skipped`.
+`cmn/ci_gating.py` reports the general case, and `harness_ci_pipeline.md`
+sections 3B.2.1 and 8.8 carry it, with `MQC_REQ_HAR_CMN_0229`.
+
+**It is the publishing defect one workflow along.** There a publisher decided
+what to publish from a run's conclusion and dropped the engines carrying
+findings; here a run reported a conclusion its jobs had not earned. Both are a
+readiness signal wrong in the reassuring direction.
+
+**Figures that moved.** The preconditions go from 956 to 958 and the
+requirements from 377 to 379, so the README and `DESIGN.md` follow.
+`cmn/workflow_standards.py` reached its nine-hundred-line runway as the first
+check was written, which is why the runner-image subject is its own module, the
+same split `ci_gating.py` came from.
+
 ### A commit note's structure is written down, 2026-10-28
 
 **The tense rule was recorded in 2026-10-02 and the structure was not**, so

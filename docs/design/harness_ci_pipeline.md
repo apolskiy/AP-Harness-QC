@@ -243,6 +243,43 @@ A conditional inside a step is the warning sign. One is a compromise worth recor
 
 This binds `gate-on-change.yml` and `evaluate-live-weekly.yml`. It does not bind `diagnose-on-demand.yml`, which may name a single platform and yields no verdict either way.
 
+##### 3.1.2.2 The pinned label is declared to `actionlint`, which knows only the labels of its own release
+
+Added 2026-10-28, after the move to `ubuntu-26.04` turned the lint job red on
+every workflow that named it.
+
+**`actionlint` validates `runs-on` against a label list compiled into the
+binary**, so an image newer than the release is an unknown label rather than an
+unrecognized one. The project's own pin is therefore invisible to the tool that
+checks the file it is written in.
+
+| | |
+|---|---|
+| What ran | `ubuntu-26.04`, provisioned as Ubuntu 26.04.1 LTS. The label is valid at GitHub's end |
+| What failed | `actionlint` 1.7.12, released 2026-03-30, against an image generally available since September 2026 |
+| What it reported | 19 errors here and 15 in the case repository, all of one class, naming the label as unknown |
+| What it cost | Both repositories' lint jobs, and every job behind them, so two pushes measured nothing |
+
+**So the label is declared in `.github/actionlint.yaml`**, under
+`self-hosted-runner.labels`, which is the escape hatch the tool's own error
+message names. Both repositories carry the file and both carry one entry.
+
+**One entry rather than a pattern, because the declaration has to stay narrow.**
+`actionlint` accepts a glob there, and a glob over Ubuntu labels would accept a
+typo as readily as the pin. Measured on 2026-10-28 against a planted workflow:
+with the pin declared, `ubuntu-26.04` is accepted, `ubuntu-26.40` is still
+reported, and the run exits 1 on the typo alone.
+
+**What the declaration does not do is hold the pin.** `ubuntu-latest` is a label
+`actionlint` has always known, so a workflow reintroducing it lints clean; the
+same planted workflow confirmed that. The pin is held by section 8.7 instead,
+which is a check in this repository rather than a property of the linter.
+
+**The declaration is a standing cost of pinning, not a one-off.** It moves with
+the pin, and a release of `actionlint` that learns the label makes the entry
+redundant rather than wrong. Removing it then is optional and removing it early
+restores the red.
+
 #### 3.1.3 Replay covers every engine, because it is free
 
 The `graded` job runs as a matrix over all three engines. Replay consumes no quota and no wall-clock beyond CPU, so restricting it to one engine would discard coverage for nothing.
@@ -366,6 +403,56 @@ had otherwise.
 Treating it as a merge blocker would also invert the dependency: a case
 repository could hold the harness hostage by carrying a failing case, and the
 harness would be unable to release a fix for it.
+
+#### 3B.2.1 A run that fanned out to nothing does not conclude success
+
+Added 2026-10-28, after this workflow reported success on a commit whose gate
+had failed and whose fan-out therefore never ran.
+
+**The guard on `enumerate` is right and stays.** A gate that did not conclude
+success established nothing about the commit, so there is nothing to fan out
+from, and skipping is the correct response. What was wrong is what the run then
+reported.
+
+| Job | On that run |
+|---|---|
+| `read the consumer registry` | Skipped, the gate having failed |
+| `verify <consumer>` | Skipped, behind it |
+| `report` | **Succeeded**, carrying `if: always()` |
+| The run | **`success`** |
+
+**A conclusion is read by things that cannot see the jobs.** The run list shows
+one mark per run, a status badge shows the latest, and section 7.4.3 has a
+consumer's pairing resolver reading the conclusion of a workflow run rather than
+of a job. Each of those was told that the consumers regress clean against a
+commit nothing had been run against.
+
+**So the summary job runs when there was something to summarise.** `report`
+keeps `if: always()`, which is what lets it report a *failed* fan-out, and adds
+that `enumerate` was not skipped. A red gate now leaves every job skipped, and
+GitHub concludes such a run `skipped`, which is neither success nor failure and
+is the honest answer: this workflow did not run, because the thing it regresses
+against was not established.
+
+**That conclusion is measured rather than assumed.** The case repository's
+publishing workflow carried a job-level conclusion guard until 2026-10-28, so
+it already produced runs whose only job was skipped, and six of them on
+`8e9ca9e` concluded `skipped`. A conclusion of `skipped` is what this workflow
+will now report in the same situation.
+
+**An empty registry stays a success, and is now distinguishable from this.**
+A harness with no registered consumers has nothing to fan out to, which
+`cmn_verdict_and_cli.md` section 10.9 treats as ordinary, so `enumerate`
+succeeds, `verify` skips and the run concludes success. The two cases read
+identically in the job list and differently in the conclusion, which is the
+distinction that was missing.
+
+**It is the same defect as section 7.4.5 one workflow along.** There a
+publisher decided what to publish from a run's conclusion and dropped the
+engines carrying findings; here a run reported a conclusion its jobs had not
+earned. Both are a readiness signal that is wrong in the reassuring direction,
+and both were written as a guard that was correct about the work and silent
+about what the absence of work would be reported as.
 
 ---
 
@@ -1596,6 +1683,108 @@ use. `MQC_REQ_HAR_CMN_0226`, and `MQC_REQ_CAS_PRE_0015` on the other side.
 **It is not `actionlint`'s subject and not a schema question.** The definition
 is valid YAML and a valid workflow either way; what is wrong is the shape of
 the dependency, which only a reader that knows what the layers mean can see.
+
+---
+
+### 8.7 The Ubuntu image every workflow names is one image, and the linter is told which
+
+Added 2026-10-28, after the pin moved to `ubuntu-26.04` and **nothing in either
+repository held it or knew it had moved**.
+
+**The pin was a decision no code read.** `DESIGN.md` section 5.0 pins the Ubuntu
+image and section 5.0.2 accepts what pinning costs, and the only thing standing
+between that decision and a workflow naming `ubuntu-latest` was review. The
+September pin and the October move were both done by sweeping the files, and a
+sweep that misses a line leaves two majors running side by side.
+
+#### 8.7.1 The rule
+
+Four things are reported, all of them about the one label:
+
+| Reported | Because |
+|---|---|
+| An Ubuntu label carrying no version | `ubuntu-latest` and `ubuntu-slim` move under the project, which is what section 5.0.2 refuses |
+| A second Ubuntu version anywhere in the repository | Two majors in one gate compares platforms rather than code, and one engine comparison split across majors is not a comparison |
+| A version no `.github/actionlint.yaml` declares | Section 3.1.2.2. The lint job refuses the file, so the push measures nothing |
+| A declaration no workflow names | A pin that moved and left its old declaration behind, which accepts a label nothing uses |
+
+**The last two are a pair and that is the point.** The declaration exists only
+to make the pin lintable, so the pin and the declaration are checked against
+each other rather than each against a constant. Moving the pin is then one
+sweep plus one line, and omitting either half fails here instead of in CI.
+
+**The Windows label is deliberately not the subject.** Section 3.1.2 pins
+Ubuntu and leaves Windows moving, so a check that demanded a version of both
+would report the shipped definitions as defective.
+
+#### 8.7.2 What it reads
+
+The labels come from the parsed definition rather than from the file's text: a
+job's `runs-on`, as a scalar or as a list, and the `os` values of a matrix,
+including those an `include:` entry carries. A `runs-on` naming an expression is
+followed to the matrix the expression reads, which is the shape every job in
+this repository uses.
+
+**Parsed, not matched**, for the reason section 8.3.2 gives: a regular
+expression over the file cannot tell a label from the same characters in a
+comment, and this document now contains several.
+
+#### 8.7.3 Enforced, from one implementation
+
+`cmn.runner_images.unpinned_runner_images` reports each of the four,
+naming the file, the job and the label. It is **its own module**, because
+`workflow_standards.py` reached its nine-hundred-line runway as this was
+written, which is the same split `ci_gating.py` came from and the answer
+`code-style.md` section 5.1 prescribes. `MQC_CMN_UNI_112190` and
+`MQC_CAS_UNI_115787` call it with each root, the one-implementation-two-callers
+arrangement sections 8.3, 8.5, 8.5.4 and 8.6.5 already use.
+`MQC_REQ_HAR_CMN_0228`, and `MQC_REQ_CAS_PRE_0016` on the other side.
+
+---
+
+### 8.8 A workflow that skipped its work does not report success
+
+Added 2026-10-28, after `regress-consumers-on-merge.yml` concluded success on a
+commit whose gate had failed, with every job but its summary skipped
+(section 3B.2.1).
+
+#### 8.8.1 The rule
+
+**In a workflow triggered by `workflow_run`, a job gated on the triggering
+run's conclusion decides whether the workflow has any work to do.** A job that
+runs regardless of that decision, and whose own run is what gives the workflow
+its conclusion, has to exclude the case where the decision was no.
+
+So a job is reported when all four hold: the workflow is triggered by
+`workflow_run`, another job's condition reads
+`github.event.workflow_run.conclusion`, this job's condition calls `always()`,
+and this job depends on the gated one without naming its result.
+
+**Naming the result rather than a spelling.** The condition has to mention the
+gated job's `result`, and the check does not say what comparison it makes:
+`needs.enumerate.result != 'skipped'` and a membership test over the outcomes
+both satisfy it. A check demanding one spelling would be a style rule wearing a
+correctness rule's clothes, and the shapes that are correct here are not
+enumerable in advance.
+
+#### 8.8.2 Why `always()` is not itself the defect
+
+**`always()` is what lets a summary job report a failure**, which is most of
+why such a job exists. Removing it would mean a failed fan-out produced no
+summary, which is worse than the defect being fixed. The rule is therefore
+about what `always()` is paired with, not about its presence, and a job that
+takes `needs:` without `always()` satisfies it already because `needs` skips it.
+
+#### 8.8.3 Enforced, from one implementation
+
+`cmn.ci_gating.unearned_run_conclusions` reports each such job, naming the
+workflow, the job, the gated job it depends on and its condition.
+`MQC_CMN_UNI_112191` and `MQC_CAS_UNI_115788` call it with each root.
+`MQC_REQ_HAR_CMN_0229`, and `MQC_REQ_CAS_PRE_0017` on the other side.
+
+**It sits beside `ungated_graded_jobs` rather than in
+`cmn/workflow_standards.py`**, because both read what stands in front of a job:
+a condition and a `needs:` chain, rather than what a step names.
 
 ---
 

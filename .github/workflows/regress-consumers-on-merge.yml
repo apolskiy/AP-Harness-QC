@@ -247,7 +247,14 @@ jobs:
   report:
     name: report
     needs: [enumerate, verify]
-    if: always()
+    # `always()` is what lets this report a fan-out that failed rather than one
+    # that passed. The second clause is what stops it reporting a fan-out that
+    # never happened: with the registry job skipped behind a red gate, every
+    # job here is skipped and the run concludes skipped, which is neither
+    # success nor failure. Without it this job succeeded alone and the run
+    # concluded success on a commit nothing had been run against
+    # (section 3B.2.1).
+    if: always() && needs.enumerate.result != 'skipped'
     runs-on: ubuntu-26.04
     steps:
       - name: Summarise

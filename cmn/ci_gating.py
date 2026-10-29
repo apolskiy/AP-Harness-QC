@@ -3,13 +3,16 @@
 """Whether a CI definition gates what it runs, read before a push.
 
 Created: 2026-10-25
-Last updated: 2026-10-25
+Last updated: 2026-10-28
 
 This file contains ``ungated_graded_jobs``, which reports a job that runs
 graded cases out of this repository's checkout and reaches no precondition
 invocation, and the readers it needs: ``_job_scripts``, which follows a local
 ``uses:`` into a composite action, ``_selected_layers``, which reads a marker
 expression, and ``_reaches_a_precondition``, which walks a job's ``needs:``.
+It also contains ``unearned_run_conclusions``, which reports a job that would
+give a run a conclusion its workflow did not earn, having run alone while the
+job gated on the triggering run's conclusion was skipped.
 
 A precondition case in each repository calls it with that repository's root, so
 a workflow that would measure a model with an unchecked instrument fails the
@@ -51,6 +54,112 @@ _LAYER_EXPRESSION: Final[re.Pattern] = re.compile(
 # A REFERENCE THIS REPOSITORY OWNS, which section 8.4 requires following.
 _LOCAL_REFERENCE: Final[str] = "./"
 _ACTION_DEFINITION: Final[str] = "action.yml"
+
+# THE TRIGGER THAT CARRIES ANOTHER RUN'S OUTCOME, and the expression a job
+# reads it with. A workflow fired any other way has no conclusion to gate on,
+# so section 8.8 has nothing to say about it.
+_TRIGGER: Final[str] = "workflow_run"
+_TRIGGER_CONCLUSION: Final[re.Pattern] = re.compile(
+    r"github\.event\.workflow_run\.conclusion"
+)
+
+# THE CONDITION THAT SURVIVES A SKIPPED PREREQUISITE, which is what a summary
+# job wants and what makes it report a run nothing earned (section 8.8.2).
+_ALWAYS: Final[str] = "always()"
+
+
+def unearned_run_conclusions(root: Path) -> list[str]:
+    """Report every job that would conclude a run its workflow did not earn.
+
+    A workflow triggered by ``workflow_run`` whose work is gated on the
+    triggering run's conclusion has a job deciding whether there is anything to
+    do. A job that calls ``always()``, depends on that gated job and names
+    nothing about its result runs anyway, and a run whose only completed job
+    succeeded concludes success although nothing ran.
+
+    **``always()`` is not itself the defect**, being what lets a summary job
+    report a fan-out that failed. What is reported is ``always()`` paired with
+    no mention of the gated job's ``result``; a job taking ``needs:`` without
+    ``always()`` is skipped by ``needs`` and satisfies this already.
+
+    **The comparison is not prescribed.** The condition has to mention the
+    gated job's ``result`` and may test it however it likes, because the shapes
+    that are correct here are not enumerable in advance.
+
+    Design: ``harness_ci_pipeline.md`` section 8.8.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per job, naming the workflow, the job, the gated
+        job it depends on and its condition.
+    """
+    gaps: list[str] = []
+    for path in sorted((root / ".github" / "workflows").glob("*.yml")):
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        triggers = parsed.get("on", parsed.get(True)) or {}
+        if not isinstance(triggers, dict) or _TRIGGER not in triggers:
+            continue
+        jobs: dict[str, Any] = parsed.get("jobs") or {}
+        gated = [
+            name
+            for name, body in jobs.items()
+            if _TRIGGER_CONCLUSION.search(_condition(body))
+        ]
+        for name, body in jobs.items():
+            condition = _condition(body)
+            if name in gated or _ALWAYS not in condition:
+                continue
+            for decider in gated:
+                if decider not in _reached(name, jobs):
+                    continue
+                if f"needs.{decider}.result" in condition:
+                    continue
+                gaps.append(
+                    f"{path.name} job {name!r} runs on {_ALWAYS} and depends "
+                    f"on {decider!r}, which is gated on the triggering run's "
+                    f"conclusion, without naming its result: a gate that did "
+                    f"not conclude success skips {decider!r} and this job "
+                    f"runs alone, so the run concludes success having "
+                    f"established nothing"
+                )
+    return gaps
+
+
+def _condition(job: Any) -> str:
+    """Return a job's condition as text.
+
+    Args:
+        job (Any): One job of a parsed workflow definition.
+
+    Returns:
+        str: The ``if`` value, or empty where the job declares none.
+    """
+    if not isinstance(job, dict):
+        return ""
+    return str(job.get("if") or "")
+
+
+def _reached(name: str, jobs: dict[str, Any]) -> set[str]:
+    """Return every job a job depends on, directly or through another.
+
+    Args:
+        name (str): The job to walk from.
+        jobs (dict[str, Any]): Every job in the workflow.
+
+    Returns:
+        set[str]: The jobs reached, not including the one walked from.
+    """
+    seen: set[str] = set()
+    pending = _needed(jobs.get(name) or {})
+    while pending:
+        reached = pending.pop()
+        if reached in seen or reached not in jobs:
+            continue
+        seen.add(reached)
+        pending += _needed(jobs[reached] or {})
+    return seen
 
 
 def ungated_graded_jobs(root: Path) -> list[str]:

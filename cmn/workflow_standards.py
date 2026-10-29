@@ -17,10 +17,12 @@ or renders one from a job that could publish a proposal's results.
 Precondition cases in both repositories call these with their own root, so a
 workflow defect fails the unit layer locally instead of surfacing in CI.
 
-**``ungated_graded_jobs`` is next door in ``ci_gating.py``** rather than here,
-because this module reached its nine-hundred-line runway as it was written
-(``code-style.md`` section 5.1). The subjects divide cleanly: these read what a
-definition says, and that one reads what stands in front of a job.
+**Two subjects are next door rather than here**, both because this module
+reached its nine-hundred-line runway as each was written (``code-style.md``
+section 5.1). ``ungated_graded_jobs`` and ``unearned_run_conclusions`` are in
+``ci_gating.py``, which reads what stands in front of a job, and
+``unpinned_runner_images`` is in ``runner_images.py``, which reads where a job
+runs. These read what a definition says.
 
 Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.2, 8.3, 8.5 and
 8.5.4.
@@ -134,7 +136,6 @@ _UNJUDGED_CHOICE: Final[str] = "unjudged"
 
 # AND THE ONE THAT BOUNDS IT. `--max-spend` aborts before a request would take
 # the run past a figure, and fails closed on an unpriced model.
-
 
 def uncapped_spending_steps(root: Path) -> list[str]:
     """Report every workflow step that can spend and names no ceiling.

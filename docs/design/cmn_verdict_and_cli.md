@@ -3165,6 +3165,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112187` | B | `a_selection_no_pytest_selector_narrowed_keeps_its_mode` |
 | `112188` | N | `a_graded_invocation_leaving_out_a_layer_is_reported` |
 | `112189` | N | `a_graded_job_not_gated_on_the_preconditions_is_reported` (`harness_ci_pipeline.md` 8.6) |
+| `112190` | N | `a_runner_label_disagreeing_with_the_pin_is_reported` (`harness_ci_pipeline.md` 8.7) |
+| `112191` | N | `a_job_concluding_a_run_it_did_not_earn_is_reported` (`harness_ci_pipeline.md` 8.8) |
 | `112125` | N | `refusal_exits_four_not_one` |
 | `112126` | B | `full_selection_under_debug_context_is_still_ungated` |
 | `112212` | B | `first_run_on_a_branch_has_no_previous_conclusion_to_compare` |
@@ -3390,7 +3392,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `420006` | P | `the_suite_runs_where_no_reporter_is_installed` (taxonomy 16.7) |
 | `420007` | N | `no_module_outside_the_boundary_imports_the_reporter` (taxonomy 16.7) |
 
-**Inventory: 457 cases, 269 negative, 138 positive, 50 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 459 cases, 271 negative, 138 positive, 50 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

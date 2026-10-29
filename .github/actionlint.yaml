@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
+# SPDX-License-Identifier: Apache-2.0
+#
+# actionlint validates `runs-on` against a label list fixed at its own release,
+# so an image newer than the binary is reported as an unknown label. 1.7.12 was
+# released on 2026-03-30 and Ubuntu 26.04 reached general availability in
+# September, which is why declaring the pin here is what lets the lint gate see
+# the workflows at all.
+#
+# One entry, and it is the pinned image rather than a wildcard. A typo in a job
+# naming a different Ubuntu version is still reported, which is the whole value
+# of the check being on.
+#
+# Design: `docs/design/harness_ci_pipeline.md` section 3.1.2.2.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
