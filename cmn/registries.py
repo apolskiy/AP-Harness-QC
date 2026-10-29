@@ -3,7 +3,7 @@
 """Shared registries, the codes, conditions and families the harness looks up.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-28
 
 This file contains the priority conditions (``priority_condition_level``,
 ``registered_priority_conditions``); the failure taxonomy codes by family
@@ -525,6 +525,23 @@ def registered_codes() -> frozenset[str]:
         frozenset[str]: Every registered code.
     """
     return frozenset(_LLM_CODES | _SEC_CODES | _HARNESS_CODES | frozenset(_DATA_CODES))
+
+
+def family_prefixes() -> tuple[str, ...]:
+    """Return the prefix the codes of each registered family carry.
+
+    **Derived from the codes rather than listed beside them**, so a family
+    added to the registry needs nothing restated and a prefix cannot disagree
+    with the set it names. A report's Categories tab matches on these, Allure
+    reading a result's message and not its labels
+    (``harness_test_taxonomy.md`` section 16.9.1).
+
+    Returns:
+        tuple[str, ...]: The prefixes, sorted, each ending in an underscore.
+    """
+    return tuple(sorted({
+        "_".join(code.split("_")[:2]) + "_" for code in registered_codes()
+    }))
 
 
 @dataclass(frozen=True)

@@ -3,7 +3,7 @@
 """The grouping tree a readiness view is read from: epic, feature and story.
 
 Created: 2026-10-24
-Last updated: 2026-10-24
+Last updated: 2026-10-28
 
 This file contains ``Grouping``, the declaration a repository publishes under;
 ``load_grouping``, which reads it from ``config/allure_features.yaml``;
@@ -32,7 +32,7 @@ import ast
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final
+from typing import Any, Final, Optional
 
 import pytest
 import yaml
@@ -126,6 +126,47 @@ def story_for(class_name: str) -> str:
         word if word.isupper() and len(word) > 1 else word.lower() for word in words[1:]
     ]
     return " ".join(spoken)
+
+
+def label_values(result: dict[str, Any], name: str) -> list[str]:
+    """Return every value a published result carries for one label type.
+
+    **A list rather than a value**, because the defect this exists to read is a
+    second label of the same type: Allure unions the repeatable ones and the
+    report grows a branch for each (section 16.2.1).
+
+    **Here rather than in either repository's test tree.** Both assert what a
+    real reporter wrote and the installed wheel ships no tests, so a reader in
+    one tree would have to be copied into the other
+    (``framework-rules.md`` section 4.1).
+
+    Args:
+        result (dict): A parsed Allure result.
+        name (str): The label type, such as ``feature`` or ``parentSuite``.
+
+    Returns:
+        list[str]: The values, empty where the result carries none.
+    """
+    return [
+        str(label.get("value") or "")
+        for label in result.get("labels") or []
+        if label.get("name") == name
+    ]
+
+
+def sole_label(result: dict[str, Any], name: str) -> Optional[str]:
+    """Return the one value a published result carries for a label type.
+
+    Args:
+        result (dict): A parsed Allure result.
+        name (str): The label type.
+
+    Returns:
+        Optional[str]: The value, or ``None`` where the result carries no
+        label of that type or carries more than one.
+    """
+    values = label_values(result, name)
+    return values[0] if len(values) == 1 else None
 
 
 def collected_modules(root: Path) -> list[str]:

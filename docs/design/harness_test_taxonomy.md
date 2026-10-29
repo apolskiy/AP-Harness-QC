@@ -4387,3 +4387,180 @@ Allure and say nothing about whether a hook refuses a marker at collection,
 which is how the regression above arrived.
 
 `MQC_REQ_HAR_CMN_0220` and `0221`.
+
+### 16.8 The Suites tab groups by band, which is what a gate decides on
+
+Added 2026-10-28 at the project owner's instruction, after the published
+reports were read: "allure reports for models do not include categories or
+suites. Ideally there would be sepearation/filtration of results by suite
+P0,P1,P2,P3,P4".
+
+**What was wrong.** Every graded result in a published report sat under one
+Suites root, so a reader wanting the P0 band had nothing to select. Measured on
+a generated report rather than read off the site: a report built from this
+corpus holds a single item in `widgets/suites.json`, named `tests.cases`.
+
+**Why it happened.** Section 16 specified the capability tree and said nothing
+about the other two trees a report offers, so the three suite labels arrived
+from `allure-pytest` as the package, the module and the class. Those name where
+a case's file sits, and every graded case in the case repository sits in one
+directory. The band reached the report only as a severity, which is a
+five-level scale whose names are not the ones the gate uses.
+
+| Tree | Was built from | Is built from |
+|---|---|---|
+| Behaviors | Capability, then scenario, declared | Unchanged |
+| Suites | The package, the module and the class, all from the path | **The band, then the module, then the class** |
+| Categories | Allure's own two defaults | The failure taxonomy, section 16.9 |
+
+**The band is the grouping a reader acts on.** P0 and P1 are release blocking
+and P2 to P4 are a pass floor (`framework-rules.md` section 1), so which band
+failed decides whether a red stops a release, and it was the one question the
+report could not be asked.
+
+#### 16.8.1 A declared suite label replaces the derived one, measured
+
+**Section 16.2.1 recorded the mechanism and nothing used it.** The three suite
+labels are in `allure-pytest`'s `ALLURE_UNIQUE_LABELS`, so unlike a capability
+they do not union: a declared one replaces what the plugin would otherwise
+derive, and no branch is duplicated.
+
+Measured 2026-10-28 by running three planted cases and reading the raw results:
+
+| The case declared | `parentSuite` | `suite` | `subSuite` |
+|---|---|---|---|
+| A `parentSuite` alone | **The declared value** | The module | The class |
+| All three | The declared value | The declared value | The declared value |
+| None | The package | The module | The class |
+
+**So the band is declared and the other two are left alone**, giving band, then
+module, then class. The lower two levels are already the grouping a reader
+wants inside a band and they cost no code to keep.
+
+**The band is published as a tag as well.** The Suites tab navigates and a tag
+filters, and a reader comparing one band across the Behaviors tree needs the
+second. This is what the project owner's `AP_IMAP_EmailClient` already
+publishes, and its report is the precedent this follows rather than a new
+arrangement.
+
+#### 16.8.2 Preconditions take a root of their own, never a band
+
+A precondition carries no priority, sitting above the scale rather than inside
+it (`framework-rules.md` section 3.3), so it cannot take a band as its root.
+Leaving it with the package would return part of the one tree a reader
+navigates to a path.
+
+**Its root is `Preconditions`.** That names what the case is rather than
+inventing a level nobody assigned, and it keeps the roots a partition: every
+result has exactly one, and no result has two.
+
+#### 16.8.3 What is checked
+
+| Checked | By |
+|---|---|
+| A graded item carries its band as its suite root and as a tag | `MQC_CMN_UNI_420008` |
+| A precondition carries the preconditions root and no band tag | As above |
+| Every collected item ends with exactly one suite root | As above |
+| The same roots reach the case repository's own results | `MQC_CAS_UNI_430003` |
+
+`MQC_REQ_HAR_CMN_0230`.
+
+### 16.9 The Categories tab is the failure taxonomy, written beside the results
+
+**What was wrong.** A report's Categories tab classified failures by status
+rather than by cause, so a model finding and an instrument defect arrived under
+one heading. Measured on the same generated report: `widgets/categories.json`
+holds one item, `Product defects`, for a failure whose own message names
+`QC_LLM_INCONSISTENT` and whose labels carry `taxonomy_code`.
+
+**Why it happened.** Allure builds that tab from a `categories.json` placed in
+the results directory, and neither repository writes one, so the tab falls back
+to its built-in classification. Every failure here already carries its taxonomy
+code, in the assertion message and in a label, and nothing turned either into a
+grouping.
+
+#### 16.9.1 Allure matches a message, never a label
+
+**A category is a set of statuses and a regular expression over the result's
+message.** It cannot read a label, so the `taxonomy_code` label is not what a
+category can be built from and the assertion message is.
+
+**The code is inside the message rather than at its start**, because Allure
+records the exception class ahead of it: a verdict assertion reads
+`QC_LLM_INCONSISTENT` followed by its counts, and what Allure stores opens with
+`AssertionError`. Allure also applies Java's whole-string match rather than a
+search, so every pattern spans the message from end to end and every pattern
+sets the flag making the dot match a newline, an assertion message here running
+to several lines.
+
+#### 16.9.2 One category per family, and three skips named apart
+
+The four families split by what a code asserts about (section 6), which is the
+division a reader needs first, because a red that is a model finding and a red
+that is an instrument defect take different remedies.
+
+| Category | Matches | Statuses |
+|---|---|---|
+| Model quality finding | `QC_LLM_` | failed |
+| Model security finding | `QC_SEC_` | failed |
+| Corpus or configuration diagnostic | `QC_DATA_` | failed, broken |
+| Instrument defect | Any other `QC_HARNESS_` code | failed, broken, skipped |
+| Skipped behind a foundation that did not hold | `QC_HARNESS_DEPENDENCY_UNMET` | skipped |
+| Skipped for a missing recording | `QC_HARNESS_FIXTURE_MISSING` | skipped |
+| Skipped as a known failure in quarantine | `QC_HARNESS_QUARANTINED` | skipped |
+| Carrying no registered code | A non-passing result naming none | failed, broken, skipped |
+
+**Three harness codes are named apart because their remedies differ**, which is
+why a skip states its kind rather than only being counted (`code-style.md`
+section 7.1). A foundation that did not hold is another case's failure, a
+missing recording is a sweep that did not finish, and a quarantine is a
+decision already taken.
+
+**The last row is the one that earns its place.** A non-passing result whose
+message names no registered code was classified by nothing, and without that
+category it would be absent from this tab rather than conspicuous in it.
+
+**It found something on its first run.** A merged report of the case
+repository's preconditions and its P0 and P1 bands filed that run's one
+precondition failure under this heading, the case's assertion message naming no
+code at all. A precondition failure is already defined as an instrument defect
+(`framework-rules.md` section 3.1), so a code for it exists and the assertion
+messages do not carry it. Whether they should is a decision about section 6
+rather than about this one, since those codes are registered for a defect the
+harness detects rather than for one of its own cases failing, so it is recorded
+in `harness_open_questions.md` section 2B rather than answered here.
+
+**The patterns come from the registry rather than beside it.**
+`cmn/registries.py` holds the codes and `framework-rules.md` section 4.1 admits
+one registry, so the family prefixes are read from it and the three named codes
+are a selection out of it that a check re-resolves.
+
+#### 16.9.3 What is checked
+
+| Checked | By |
+|---|---|
+| Every registered code is matched by exactly one category | `MQC_CMN_UNI_420009` |
+| Every separately named code is registered and every pattern compiles | As above |
+| The file is written into the directory the results go to | As above, written to a temporary root and read back |
+| The same categories reach the case repository's results | `MQC_CAS_UNI_430004` |
+
+**Exactly one, rather than at least one.** A code matching two categories files
+one failure under two headings and the totals stop adding up, which is what the
+negative lookahead in the instrument pattern exists to prevent and therefore
+the property worth asserting.
+
+**The patterns are checked on Python's engine and run on Java's**, so the
+constructs used are the ones both spell identically: the dot-all flag, a
+non-capturing group and a negative lookahead. A richer pattern would need a
+check that generated a report to verify it, which is why nothing richer is
+written.
+
+**What is deliberately not checked is whether a category is the right name for
+a family.** That is a judgement, recorded in one file, as section 16.6 says of
+a capability. **Nor is a message naming codes from two families**, which files
+that one result under both. It is inherent to matching a message rather than a
+label, the alternative being a classification Allure cannot build, and a
+verdict assertion naming two codes names the most critical one first
+(section 6.5).
+
+`MQC_REQ_HAR_CMN_0231`.

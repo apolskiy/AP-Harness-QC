@@ -3,7 +3,7 @@
 """Shared pytest hook bodies, which each repository's ``conftest.py`` delegates to.
 
 Created: 2026-09-23
-Last updated: 2026-10-24
+Last updated: 2026-10-28
 
 This file contains ``add_mqc_options``, which registers the execution flags
 from the shared option registry; ``configure_invocation``, which records what
@@ -70,8 +70,10 @@ from typing import Any, Final, Optional
 import pytest
 
 from cmn.config import load_engines, packaged_roster_path
+from cmn.environments import is_precondition
 from cmn.grouping import load_grouping, story_for
 from cmn.options import Option, build_invocation, registered_options
+from cmn.report_categories import write_categories
 
 logger = logging.getLogger(__name__)
 
@@ -207,9 +209,13 @@ def corpus_selection() -> tuple[Optional[Path], Optional[str]]:
 # WHAT EACH MANDATED ARTIFACT IS CALLED UNDER `--out-dir`, and the pytest option
 # each destination lives in. `testing-standards.md` section 5 mandates both, so
 # this is a pair and not a list to choose from. Design section 7.1.0.2.
+# THE OPTION HOLDING THE RAW RESULTS DIRECTORY, named once because the
+# destination table sets it and the category file is written into it.
+_ALLURE_DESTINATION: Final[str] = "allure_report_dir"
+
 _ARTIFACT_DESTINATIONS: Final[tuple[tuple[str, str], ...]] = (
     ("xmlpath", "junit.xml"),
-    ("allure_report_dir", "allure-results"),
+    (_ALLURE_DESTINATION, "allure-results"),
 )
 
 
@@ -252,6 +258,41 @@ def adopt_artifact_destinations(config: Any) -> list[str]:
     return adopted
 
 
+def adopt_report_categories(config: Any) -> Optional[Path]:
+    """Write the failure-cause classification beside the run's raw results.
+
+    A report's Categories tab is built from a file in the results directory,
+    so it is written at configuration rather than at the end: a run that
+    crashes still leaves a classifiable result set behind.
+
+    **Does nothing where the run writes no Allure results**, which covers a run
+    invoked without the directory and a machine without the reporting extra,
+    whose option does not exist at all (``harness_test_taxonomy.md`` section
+    16.7). **A failed write is logged and never raises**, a classification
+    being a reporting convenience that must not cost a measurement.
+
+    Design: ``harness_test_taxonomy.md`` section 16.9.
+
+    Args:
+        config (Any): pytest's configuration.
+
+    Returns:
+        Optional[Path]: The file written, or ``None`` where none was.
+    """
+    if not hasattr(config.option, _ALLURE_DESTINATION):
+        return None
+    named = getattr(config.option, _ALLURE_DESTINATION) or ""
+    if not named:
+        return None
+    try:
+        return write_categories(Path(str(named)))
+    except OSError as error:
+        logger.warning(
+            "Report categories were not written to %s: %s", named, error
+        )
+        return None
+
+
 def configure_invocation(config: Any) -> None:
     """Record what the run was invoked with, and warn on a defaulted engine.
 
@@ -276,6 +317,10 @@ def configure_invocation(config: Any) -> None:
     config.mqc_invocation = invocation
     adopt_corpus_selection(config)
     adopt_artifact_destinations(config)
+    # AFTER THE DESTINATION IS FINAL, so the classification lands where the
+    # results do whether the directory was named or derived from --out-dir
+    # (`harness_test_taxonomy.md` section 16.9).
+    adopt_report_categories(config)
     # THE ROSTER GATES THE RUN, not the adapter registry and not a list in the
     # option registry. An engine with an adapter and no roster entry dispatched
     # against the adapter's default model, which for grok was one the provider
@@ -446,6 +491,58 @@ def label_grouping(items: list[pytest.Item], root: Path) -> None:
         for label_type, value in wanted:
             if value and label_type not in declared:
                 item.add_marker(pytest.mark.allure_label(value, label_type=label_type))
+
+
+# THE SUITES ROOT A PRECONDITION TAKES. It cannot be a band: a precondition
+# carries no priority, sitting above the scale rather than inside it
+# (`framework-rules.md` section 3.3). Design section 16.8.2.
+PRECONDITION_SUITE: Final[str] = "Preconditions"
+
+# THE LABEL NAMING THAT ROOT, which is in Allure's unique set, so a declared
+# one replaces the module path the plugin would otherwise derive rather than
+# publishing a second branch beside it (section 16.8.1).
+_SUITE_ROOT: Final[str] = "parentSuite"
+_TAG: Final[str] = "tag"
+
+
+def label_band_suite(items: list[pytest.Item]) -> None:
+    """Give each collected item the Suites root and the tag a reader filters by.
+
+    A graded item's root is its band, ``P0`` through ``P4``, and a
+    precondition's is :data:`PRECONDITION_SUITE`. The same value is published
+    as a tag, because the Suites tab navigates and a tag filters, and a reader
+    comparing one band inside the capability tree needs the second.
+
+    **The module and the class are left to the plugin**, giving band, then
+    module, then class. Those two levels are already the grouping wanted inside
+    a band and they cost no code.
+
+    **An item declaring its own root keeps it**, which is the override
+    discipline section 16.2.1 states for a capability, applied to a label that
+    replaces rather than unions.
+
+    Design: ``harness_test_taxonomy.md`` section 16.8.
+
+    Args:
+        items (list): The collected test items.
+
+    Returns:
+        None
+    """
+    for item in items:
+        marker = item.get_closest_marker("priority")
+        if marker is not None:
+            level = int(marker.args[0])
+            if level not in _SEVERITY_BY_PRIORITY:
+                continue
+            root = f"P{level}"
+        elif is_precondition(item.nodeid):
+            root = PRECONDITION_SUITE
+        else:
+            continue
+        if _SUITE_ROOT not in _declared_label_types(item):
+            item.add_marker(pytest.mark.allure_label(root, label_type=_SUITE_ROOT))
+        item.add_marker(pytest.mark.allure_label(root, label_type=_TAG))
 
 
 # Identifiers look like MQC_<MODULE>_<LAYER>_<5 digits>_<behaviour>.

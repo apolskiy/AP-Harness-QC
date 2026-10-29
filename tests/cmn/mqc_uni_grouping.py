@@ -5,14 +5,18 @@
 Created: 2026-10-24
 Last updated: 2026-10-28
 
-The cases here check ``cmn/grouping.py`` and the hook that reads it. Three run
-against a planted repository and assert that a module declaring no capability,
-a capability outside the vocabulary, an entry naming no module and an epic that
-is not the distribution's name are each reported. Two run one of this
-repository's own modules under a real Allure reporter and assert that every
-result carries exactly one epic, one capability and one scenario, a declared
-story standing in place of the derived one. One reads the workflows and asserts
-the report is generated and published from a job of its own.
+The cases here check ``cmn/grouping.py``, the hooks that read it and the two
+other trees a report groups by. Three run against a planted repository and
+assert that a module declaring no capability, a capability outside the
+vocabulary, an entry naming no module and an epic that is not the
+distribution's name are each reported. Two run one of this repository's own
+modules under a real Allure reporter and assert that every result carries
+exactly one epic, one capability and one scenario, a declared story standing in
+place of the derived one. One reads the workflows and asserts the report is
+generated and published from a job of its own. One asserts that a suite root is
+the band a graded case carries and the preconditions root otherwise, and one
+that every registered failure code reaches exactly one category and that the
+classification is written where a report reads it.
 
 **The labels were the thing nobody checked.** ``testing-standards.md`` section
 4 required three on every test class from the day it was written, and on
@@ -40,8 +44,12 @@ Specified by ``docs/design/harness_test_taxonomy.md`` section 16 and
 # TestMQCGroupingWithoutReporter
 #   420006  the_suite_runs_where_no_reporter_is_installed
 #   420007  no_module_outside_the_boundary_imports_the_reporter
+# TestMQCGroupingBandsAndCategories
+#   420008  the_suite_root_is_the_band_or_the_precondition_root
+#   420009  every_registered_code_reaches_exactly_one_category
 # ------------------------------------------------------------ end of cases
 
+import json
 from pathlib import Path
 from typing import Final
 
@@ -52,18 +60,31 @@ from cmn.grouping import (
     DECLARATION,
     REPORTER_BOUNDARY,
     grouping_problems,
+    label_values,
     load_grouping,
     reporter_import_problems,
+    sole_label,
     story_for,
+)
+from cmn.pytest_support import (
+    PRECONDITION_SUITE,
+    label_band_suite,
+    registered_priority_levels,
+)
+from cmn.registries import family_prefixes
+from cmn.report_categories import (
+    CATEGORIES_FILE,
+    category_problems,
+    report_categories,
+    write_categories,
 )
 from cmn.workflow_standards import report_publication_gaps
 
 from tests.cmn.grouping_support import (
-    label_values,
+    BandItem,
     plant_root,
     published_results,
     run_without_reporter,
-    sole_label,
 )
 
 pytestmark = pytest.mark.unit
@@ -603,3 +624,129 @@ class TestMQCGroupingWithoutReporter:
         assert not any(
             REPORTER_BOUNDARY in problem for problem in reporter_import_problems(tmp_path)
         ), "the one module allowed to import the reporter was reported for doing so"
+
+
+class TestMQCGroupingBandsAndCategories:
+    """The other two trees a report groups by: the suite root, and the cause."""
+
+    def MQC_CMN_UNI_420008_the_suite_root_is_the_band_or_the_precondition_root(
+        self, tmp_path: Path
+    ) -> None:
+        """A graded item's suite root is its band, a precondition's is its own.
+
+        The Suites tab was built from the package, the module and the class,
+        so every case in a repository sat under one root and the band a gate
+        decides on could not be selected at all.
+
+        **The precondition half runs under a real reporter and the graded half
+        does not**, because this repository owns no corpus and therefore no
+        graded case. The case repository asserts the graded root against a
+        reporter of its own.
+
+        Design: ``harness_test_taxonomy.md`` sections 16.8 and 16.8.2.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        step(1, "run a precondition module under a real reporter")
+        results = published_results(_ROOT, _PROBE, tmp_path / "allure")
+        assert results, "the probe run published no result at all"
+
+        step(2, "every result carries the preconditions root, and only it")
+        roots = {sole_label(result, "parentSuite") for result in results}
+        assert roots == {PRECONDITION_SUITE}, (
+            f"the published suite roots were {roots} against "
+            f"{PRECONDITION_SUITE!r}, so a precondition carries none, two, or "
+            f"the module path the plugin derives"
+        )
+
+        step(3, "and publishes it as a tag as well, so a reader can filter")
+        tagged = [
+            result["name"] for result in results
+            if PRECONDITION_SUITE not in label_values(result, "tag")
+        ]
+        assert not tagged, (
+            f"{len(tagged)} result(s) carry the suite root and not the tag, so the "
+            f"root navigates and nothing filters by it: {tagged[:3]}"
+        )
+
+        step(4, "every assignable level becomes the band of that name")
+        graded = [
+            BandItem(f"tests/cases/mqc_eval_probe.py::P{level}", level)
+            for level in sorted(registered_priority_levels())
+        ]
+        label_band_suite(graded)
+        assert [item.labels("parentSuite") for item in graded] == [
+            [f"P{level}"] for level in sorted(registered_priority_levels())
+        ], (
+            "a graded item's suite root is not its band: "
+            f"{[item.labels('parentSuite') for item in graded]}"
+        )
+
+        step(5, "an item declaring its own root keeps it, gaining no second")
+        declaring = BandItem("tests/cases/mqc_eval_probe.py::named", 0)
+        declaring.add_marker(
+            pytest.mark.allure_label("Settlement", label_type="parentSuite")
+        )
+        label_band_suite([declaring])
+        assert declaring.labels("parentSuite") == ["Settlement"], (
+            f"the derived root competed with the declared one rather than standing "
+            f"aside: {declaring.labels('parentSuite')}"
+        )
+
+        step(6, "and an item that is neither graded nor a precondition gets none")
+        neither = BandItem("tools/probe.py::helper")
+        label_band_suite([neither])
+        assert not neither.labels("parentSuite"), (
+            f"an item carrying no priority and naming no precondition layer was "
+            f"given a root anyway: {neither.labels('parentSuite')}"
+        )
+
+    def MQC_CMN_UNI_420009_every_registered_code_reaches_exactly_one_category(
+        self, tmp_path: Path
+    ) -> None:
+        """The categories classify each registered code once, and are written out.
+
+        A report's Categories tab classified failures by status rather than by
+        cause, because nothing wrote the file it is built from, so a model
+        finding and an instrument defect arrived under one heading.
+
+        **Exactly one, rather than at least one.** A code matching two
+        categories files one failure under each and the totals stop adding up.
+
+        Design: ``harness_test_taxonomy.md`` section 16.9.3.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        step(1, "the categories agree with the code registry")
+        assert not category_problems(), (
+            "the report categories disagree with the code registry: "
+            + "; ".join(category_problems())
+        )
+
+        step(2, "every registered family is named by a category")
+        patterns = " ".join(
+            str(category["messageRegex"]) for category in report_categories()
+        )
+        unnamed = [prefix for prefix in family_prefixes() if prefix not in patterns]
+        assert not unnamed, (
+            f"{len(unnamed)} registered family prefix(es) appear in no category "
+            f"pattern, so their codes reach no heading: {unnamed}"
+        )
+
+        step(3, "and the file lands where the raw results are written")
+        written = write_categories(tmp_path / "allure-results")
+        assert written.name == CATEGORIES_FILE, (
+            f"the classification was written to {written.name!r} rather than "
+            f"{CATEGORIES_FILE!r}, which is the only name a report reads"
+        )
+        assert json.loads(written.read_text(encoding="utf-8")) == report_categories(), (
+            "what was written back is not the classification that was built"
+        )

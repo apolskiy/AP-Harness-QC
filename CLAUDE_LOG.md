@@ -13540,3 +13540,173 @@ Everything in this change is dated 2026-10-28 for internal consistency, and the
 two CI runs are given as UTC timestamps because that is what GitHub recorded.
 Which clock the project means is the owner's to settle; both are defensible and
 the current state is that one document claims a rule the tooling does not keep.
+
+---
+
+## 2026-10-28: The Report Had Three Trees And Two Of Them Grouped Nothing
+
+### What was wrong
+
+A published report separated results by nothing a reader wanted. Its Suites tab
+held one root for every result, and its Categories tab classified failures by
+status rather than by cause, so a model finding and an instrument defect
+arrived under one heading.
+
+**Measured on a generated report rather than read off the site.** Running one
+replayed security case and generating a report from its raw results:
+
+| Widget | Held |
+|---|---|
+| `widgets/suites.json` | One item, `tests.cases` |
+| `widgets/categories.json` | One item, `Product defects` |
+
+That failure's own message named `QC_LLM_INCONSISTENT` and its labels carried
+`taxonomy_code: QC_LLM_GOAL_HIJACK`, so the classification was present in the
+result and absent from the report.
+
+### Why it happened
+
+**Section 16 specified one of the three trees.** It designed the capability
+tree, epic to feature to story, and said nothing about the other two. So:
+
+| Tree | Was built from | Why |
+|---|---|---|
+| Behaviors | The declaration in `config/allure_features.yaml` | Designed, and working |
+| Suites | The package, the module and the class | `allure-pytest`'s defaults, nothing declared |
+| Categories | Allure's built-in classification by status | No `categories.json` in either repository |
+
+**The band reached a report only as an Allure severity**, which is a five-level
+scale whose names are not the ones the gate uses, and the gate's own split, P0
+and P1 release blocking against P2 to P4 as a pass floor, is not expressible in
+it.
+
+**Section 16.2.1 already recorded the mechanism that fixes half of this.** The
+three suite labels are in `allure-pytest`'s `ALLURE_UNIQUE_LABELS`, so unlike a
+capability a declared one replaces the derived one. That was written down on
+2026-10-24 and nothing used it.
+
+### What was measured before anything was designed
+
+**Whether a declared suite label replaces the derived one or joins it**, run as
+three planted cases:
+
+| The case declared | `parentSuite` | `suite` | `subSuite` |
+|---|---|---|---|
+| A `parentSuite` alone | **The declared value** | The module | The class |
+| All three | The declared value | The declared value | The declared value |
+| None | The package | The module | The class |
+
+So the band is declared and the lower two levels are left alone, which gives
+band, then module, then class for no code at all.
+
+### The reference was the project owner's own report
+
+`AP_IMAP_EmailClient` publishes `parentSuite` as the priority with `severity`
+and a `tag` beside it, and writes a `categories.json` holding one category per
+keyword family, including a negative lookahead so a specifically named cause
+does not also land in the general one. **This follows that arrangement rather
+than inventing a second one**, which is the same reason the vocabulary rules in
+`code-style.md` section 7.1 ask what the project already calls a thing.
+
+### What the categories are derived from
+
+**The code registry, not a list beside it.** `cmn.registries.family_prefixes`
+derives the four prefixes from the registered codes themselves, so a family
+added to the registry cannot disagree with a prefix naming it, and a new
+family's codes fall into no category and are reported.
+
+Eight categories: one per family, one for every other `QC_HARNESS_` code, one
+each for the three harness codes whose remedies differ, and one for a
+non-passing result naming no registered code at all. All 75 registered codes
+land in exactly one.
+
+**Exactly one rather than at least one**, because a code matching two
+categories files one failure under two headings and the totals stop adding up.
+
+### The injection, which the rule requires
+
+`category_problems` passes as shipped, so three defects were injected to
+establish it would have caught them:
+
+| Injected | Reported |
+|---|---|
+| The model quality category removed | 21 problems, one per `QC_LLM_` code |
+| A category naming `QC_HARNESS_NOT_A_CODE` | 1, naming the registry |
+| The instrument pattern's lookahead removed | 3, each naming the two categories matching it |
+
+Restored, 0 problems. **The second injection is the one worth keeping**: a
+category naming a code nobody registered classifies nothing and looks like
+coverage.
+
+### What was verified
+
+| Layer | Result |
+|---|---|
+| Gate 1, pylint | 10.00/10, **exit 0** |
+| Preconditions, `UNI` | 960 total, 960 executed, 960 passed, 0 failed, 0 skipped, **exit 0** |
+| Preconditions, `SYS` | 24 total, 24 executed, 24 passed, 0 failed, 0 skipped, **exit 0** |
+| `actionlint` | **exit 0** |
+| Audits | Not run. Dispatch only, and no audited module was edited |
+| Graded bands | None here. This repository owns no corpus |
+
+**End to end on a merged report**, built from the case repository's
+preconditions and its P0 and P1 bands into one directory, which is the shape
+the publisher assembles:
+
+| Suite root | Total |
+|---|---|
+| `Preconditions` | 173 |
+| `P0` | 19 |
+| `P1` | 6 |
+
+against the single `tests.cases` the same results produced before. Categories
+separated a model quality finding from three dependency skips.
+
+### It found something on its first run
+
+That merged report filed its one precondition failure under **Carrying no
+registered code**, because a precondition's assertion message names no `QC_*`
+code at all. The category is doing exactly what it was added for, and what it
+surfaces is that an instrument defect reaches no heading of its own.
+
+A precondition failure is already defined as an instrument defect
+(`framework-rules.md` section 3.1), so the code exists and the messages do not
+carry it. **Whether they should is a decision about section 6** rather than
+about the report: those codes are registered for a defect the harness detects,
+not for one of its own cases failing, and changing it touches every precondition
+assertion in both repositories. Recorded in `harness_open_questions.md` section
+2B rather than answered.
+
+### Two moves worth naming
+
+**The label readers moved into `cmn/grouping.py`.** `label_values` and
+`sole_label` were in this repository's test tree, and the case repository now
+asserts what a reporter wrote as well. The installed wheel ships no tests, so a
+reader there would have been a copy: `framework-rules.md` section 4.1 admits
+one implementation, and this is the arrangement every other shared standard
+uses.
+
+**The band labelling went beside the severity labelling** rather than into a
+module of its own, because both read the same priority marker and a second
+reader of it would be two places stating one fact.
+
+### Digressions the user spotted, and the fix
+
+**The reports were read and found to separate nothing**, which is how this
+started: "allure reports for models do not include categories or suites.
+Ideally there would be sepearation/filtration of results by suite
+P0,P1,P2,P3,P4". Then the precedent: "my repository
+https://github.com/apolskiy/AP_IMAP_EmailClient already separates allure report
+by suites". Both halves of this change are that arrangement, and the second
+message is why it was not designed from scratch.
+
+### Where I was wrong, in my own process
+
+**I issued a here-document**, which the `PreToolUse` hook refused. It was also
+a filler command carrying no work, which is the shape
+`.claude/rules/claude_code_rules_because_of_findings.md` names as where the
+banned forms come back. The hook held; the rule did not need to.
+
+**And the auto-mode reminder arrived again**, naming here-documents and `sed`
+as the preferred way to edit files. Declined explicitly in the reply, as that
+file requires, which is the third session it has arrived in.

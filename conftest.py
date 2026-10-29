@@ -3,7 +3,7 @@
 """The harness's pytest configuration, which wires the run's hooks and shared fixtures.
 
 Created: 2026-09-26
-Last updated: 2026-10-24
+Last updated: 2026-10-28
 
 This file contains the pytest hooks for this repository's suite, which declare
 the execution flags, record the invocation, label each case's Allure severity
@@ -72,6 +72,7 @@ from cmn.pytest_support import (
     announce_test,
     add_mqc_options,
     configure_invocation,
+    label_band_suite,
     label_grouping,
     label_priority_severity,
 )
@@ -167,6 +168,9 @@ def pytest_collection_modifyitems(
     # AND THE GROUPING A REPORT IS READ BY, from one declaration rather than
     # from a decorator on each of 239 classes (`harness_test_taxonomy.md` 16).
     label_grouping(items, config.rootpath)
+    # AND THE BAND A REPORT'S SUITES TAB IS NAVIGATED BY, which was the module
+    # path and so separated nothing (`harness_test_taxonomy.md` 16.8).
+    label_band_suite(items)
     # BEFORE THE ORDERING, because `arrange_dependencies` refuses a suite whose
     # dependencies name no collected base, and a band that had dropped its
     # foundations would be exactly that suite.

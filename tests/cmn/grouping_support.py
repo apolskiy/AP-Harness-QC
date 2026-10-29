@@ -3,14 +3,18 @@
 """Test helpers for the grouping tree: a planted repository, and a real reporter's labels.
 
 Created: 2026-10-24
-Last updated: 2026-10-24
+Last updated: 2026-10-28
 
 This file provides ``plant_root``, which writes a repository whose declaration
 and test tree are exactly what a case asks for; ``published_results``, which
 runs one of this repository's modules under a real Allure reporter and returns
-what it wrote; ``label_values`` and ``sole_label``, which read one label type
-out of a published result; and ``run_without_reporter``, which runs a module in
-a process where every Allure import is refused.
+what it wrote; ``run_without_reporter``, which runs a module in a process where
+every Allure import is refused; and ``BandItem``, a collected item carrying
+only a node identifier and a priority, for the suite root a graded case takes.
+
+**The label readers are in ``cmn.grouping`` rather than here**, because the
+case repository asserts what a reporter wrote as well and the installed wheel
+ships no tests, so a reader here would have to be copied there.
 
 It serves the cases in ``mqc_uni_grouping.py``. They are here rather than in
 that module because a collected module holds cases and nothing else
@@ -35,6 +39,7 @@ import sys
 from pathlib import Path
 from typing import Any, Final, Optional
 
+import pytest
 import yaml
 
 from cmn.mutation_guard import AUDIT_ENV
@@ -133,42 +138,6 @@ def published_results(root: Path, module: str, results: Path) -> list[dict[str, 
     ]
 
 
-def label_values(result: dict[str, Any], name: str) -> list[str]:
-    """Return every value a result carries for one label type.
-
-    **A list rather than a value**, because the defect this exists to catch is
-    a second label of the same type: Allure unions them and the report grows a
-    branch for each (``harness_test_taxonomy.md`` section 16.2.1).
-
-    Args:
-        result (dict): A parsed Allure result.
-        name (str): The label type, such as ``feature``.
-
-    Returns:
-        list[str]: The values, empty where the result carries none.
-    """
-    return [
-        str(label.get("value") or "")
-        for label in result.get("labels") or []
-        if label.get("name") == name
-    ]
-
-
-def sole_label(result: dict[str, Any], name: str) -> Optional[str]:
-    """Return the one value a result carries for a label type.
-
-    Args:
-        result (dict): A parsed Allure result.
-        name (str): The label type.
-
-    Returns:
-        Optional[str]: The value, or ``None`` where the result carries no
-        label of that type or carries more than one.
-    """
-    values = label_values(result, name)
-    return values[0] if len(values) == 1 else None
-
-
 # A PROCESS THAT REFUSES EVERY ALLURE IMPORT, which is what a machine without
 # the reporting extra is. Written as a ``sitecustomize`` module, which Python
 # imports before anything else on the path, so the refusal is in place before
@@ -246,3 +215,85 @@ def run_without_reporter(
             **({AUDIT_ENV: os.environ[AUDIT_ENV]} if AUDIT_ENV in os.environ else {}),
         },
     )
+
+
+class BandItem:
+    """A collected item as the band hook reads one, carrying what it reads.
+
+    **A stub rather than a real reporter, for the graded path only.** The suite
+    root a precondition takes is asserted against a real reporter, this
+    repository having preconditions; the root a graded case takes cannot be,
+    because the harness owns no corpus and therefore no graded case. The case
+    repository asserts the graded root against a reporter of its own.
+
+    Attributes:
+        nodeid (str): The node identifier, which decides whether an item
+            carrying no priority is a precondition.
+        added (list): Every marker the hook added, in the order it added them.
+    """
+
+    def __init__(self, nodeid: str, priority: Optional[int] = None) -> None:
+        """Store the identifier and the priority the item carries.
+
+        Args:
+            nodeid (str): The node identifier.
+            priority (Optional[int]): The level, or ``None`` for an item
+                carrying no priority marker at all.
+
+        Returns:
+            None
+        """
+        self.nodeid = nodeid
+        self.added: list[Any] = []
+        self._priority = priority
+
+    def get_closest_marker(self, name: str) -> Optional[Any]:
+        """Return the priority marker where one was declared.
+
+        Args:
+            name (str): The marker name the hook asks for.
+
+        Returns:
+            Optional[Any]: The mark, or ``None``.
+        """
+        if name == "priority" and self._priority is not None:
+            return pytest.mark.priority(self._priority).mark
+        return None
+
+    def iter_markers(self, name: str = "") -> list[Any]:
+        """Return the marks already on the item, filtered by name.
+
+        Args:
+            name (str): The marker name, empty for all of them.
+
+        Returns:
+            list[Any]: The matching marks.
+        """
+        marks = [decorator.mark for decorator in self.added]
+        return [mark for mark in marks if not name or mark.name == name]
+
+    def add_marker(self, marker: Any) -> None:
+        """Record a marker the hook added.
+
+        Args:
+            marker (Any): The marker decorator.
+
+        Returns:
+            None
+        """
+        self.added.append(marker)
+
+    def labels(self, label_type: str) -> list[str]:
+        """Return every value the item was labelled with, for one label type.
+
+        Args:
+            label_type (str): The Allure label type, such as ``parentSuite``.
+
+        Returns:
+            list[str]: The values, in the order they were added.
+        """
+        return [
+            str(mark.args[0])
+            for mark in self.iter_markers(name="allure_label")
+            if mark.kwargs.get("label_type") == label_type
+        ]

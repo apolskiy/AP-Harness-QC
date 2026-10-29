@@ -29,6 +29,45 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A published report separated results by nothing a reader wanted, 2026-10-28
+
+**What was wrong.** A generated report's Suites tab held one root for every
+result and its Categories tab classified failures by status. Measured rather
+than read off a site: the suites widget held a single item named `tests.cases`,
+and the categories widget a single item named `Product defects`, for a failure
+whose own message named `QC_LLM_INCONSISTENT`. The band a gate decides on could
+not be selected, and a model finding and an instrument defect arrived under one
+heading.
+
+**Why it happened.** `harness_test_taxonomy.md` section 16 specified the
+capability tree and said nothing about the other two trees a report offers. So
+the three suite labels arrived from `allure-pytest` as the package, the module
+and the class, which name where a case's file sits rather than what the run
+established, and nothing wrote the `categories.json` a Categories tab is built
+from. The band reached a report only as an Allure severity, whose five level
+names are not the ones the gate uses, and the taxonomy code reached it as a
+label no tab can read.
+
+A suite root is now the band for a graded case and `Preconditions` otherwise,
+published as a tag as well so a reader can filter by it, and the module and the
+class are left to the plugin underneath it. The classification is derived from
+the code registry rather than restated beside it: one category per family, one
+each for the three harness codes whose remedies differ, and one for a
+non-passing result naming no registered code at all.
+
+Sections 16.8 and 16.9 carry it, with `MQC_REQ_HAR_CMN_0230` and `0231` in the
+matrix and the test plan, and `MQC_CMN_UNI_420008` and `420009` asserting it.
+Measured end to end on a merged report of the case repository's preconditions
+and its first two bands: three suite roots where there had been one, and a
+model finding separated from a dependency skip. Figures moved: 986 cases to
+988, 379 requirements to 381.
+
+**It found something on its first run.** That report filed its one precondition
+failure under `Carrying no registered code`, the case's assertion message
+naming none, so an instrument defect reaches no heading of its own. Recorded in
+`harness_open_questions.md` section 2B rather than answered, the remedy being a
+decision about which codes a precondition carries.
+
 ### The lint job refused every workflow the Ubuntu pin had moved, 2026-10-28
 
 **What was wrong.** The pin to `ubuntu-26.04` was swept through 21 workflow
