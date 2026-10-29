@@ -42,6 +42,12 @@ each carrying why it was needed. It is section 7.4.1 of `code-style.md` applied
 to a second artefact, with the same division of labour, since purpose comes
 before the change and authorship is already recorded by the commit.
 
+**The first version left the subject line implicit and both notes written that
+day were committed without one**, so git took the opening `Fixed:` paragraph as
+a five-hundred-character subject that a one-line git history cannot show. The
+section now requires a short subject on a line of its own and forbids a label
+opening it.
+
 ### The Ubuntu runner moves to 26.04, 2026-10-28
 
 **A pinned image stops receiving the newer operating system's coverage, and the

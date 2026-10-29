@@ -167,8 +167,17 @@ records a change that has already been made and the reason it was made;
 a commit note is for here. The subject line and every body paragraph open with
 a past tense verb.
 
-**One paragraph per item, opening with its label**, then what it was, then why
-it was needed:
+**The subject line is its own line, and it is short.** One line of about
+seventy characters saying what the commit did, then a blank line, then the
+body. **A label never opens the subject**, because git reads the first
+paragraph as the subject when no blank line separates it: both notes written on
+2026-10-28 were committed with a five-hundred-character `Fixed:` paragraph as
+their subject, which a one-line git history cannot show and most tooling
+truncates. The example below is the whole shape, not an illustration of the
+body alone.
+
+**Then one paragraph per item, opening with its label**, then what it was, then
+why it was needed:
 
 ```
 Reported a publisher that read conclusions, and moved the Ubuntu pin to 26.04
