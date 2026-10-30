@@ -3,14 +3,15 @@
 """The shared contract checks that every provider adapter must pass.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 This file contains :class:`ConformanceChecks`, whose methods each take an engine
 name and check one part of the adapter contract against that engine's provider
 double. They cover composing a request, normalizing a response, capturing tool
-calls without executing them, reading the model version, mapping each error
-and status to its harness code, and round-tripping a judgement. ``CHECKS`` names
-every check, and :func:`adapter_named` returns an engine's registered adapter.
+calls without executing them, reading the model version, reading what the
+provider declares it serves, mapping each error and status to its harness code,
+and round-tripping a judgement. ``CHECKS`` names every check, and
+:func:`adapter_named` returns an engine's registered adapter.
 
 Each ``mqc_uni_conformance_<engine>.py`` holds one case per check, and a
 completeness case in ``mqc_uni_conformance.py`` reads ``CHECKS`` to require
@@ -43,6 +44,7 @@ from tests.execution.provider_doubles import (
     ERROR_CLASS_CODES,
     UNRECOGNISED_ERROR,
 )
+from tests.execution.provider_metadata_doubles import install_metadata_double
 from ingestion.schemas import EvaluationCase
 
 _ADAPTERS = {adapter_class().engine_name: adapter_class
@@ -55,6 +57,7 @@ CHECKS: Final[tuple[str, ...]] = (
     "_returns_tool_arguments_as_a_mapping",
     "_captures_a_tool_call_without_executing_it",
     "_reads_the_version_from_the_response",
+    "_reports_what_its_provider_serves",
     "_maps_a_rate_limit_error_to_its_harness_code",
     "_maps_a_timeout_error_to_its_harness_code",
     "_maps_an_auth_error_to_its_harness_code",
@@ -235,6 +238,42 @@ class ConformanceChecks:
         assert normalized.resolved_model == "served-build-002"
         assert normalized.requested_model == adapter.requested_model
         assert normalized.model_alias_floated is True
+
+    def _reports_what_its_provider_serves(
+        self,
+        engine: str,
+        monkeypatch: Any,
+    ) -> None:
+        """What the provider declares now, read without sending a prompt.
+
+        The counterpart to the check above and not a substitute for it: that
+        one reads an identity out of a response the run already paid for, and
+        this reads what the provider serves today. A pinned identifier cannot
+        move, so the declared properties beside it are what a change detector
+        has to compare (``tier2_execution.md`` section 5.2).
+
+        Args:
+            engine (str): The registered engine whose adapter is checked.
+            monkeypatch (Any): pytest's patcher, which puts the metadata
+                double in place of the provider's client factory.
+
+        Returns:
+            None
+        """
+        adapter = adapter_named(engine)
+        double = install_metadata_double(monkeypatch, engine)
+        declared = adapter.served_metadata()
+        assert declared
+        # ASKED ABOUT THE MODEL IT REQUESTED, once. An adapter reading
+        # whichever model the endpoint listed first would report a version
+        # that belongs to something this run never dispatched against.
+        assert double.asked == [adapter.requested_model]
+        assert list(declared) == sorted(declared)
+        assert [name for name in declared if name.startswith("_")] == []
+        assert [name for name, value in declared.items() if value is None] == []
+        # A VALUE THE PROVIDER DECLARED SURVIVES, so the reduction is not
+        # passing by returning the empty mapping it is permitted to return.
+        assert declared.keys() & {"version", "id", "name", "capabilities"}
 
     def _maps_a_rate_limit_error_to_its_harness_code(
         self,

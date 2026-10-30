@@ -82,31 +82,18 @@ jobs:
           HARNESS_BRANCH: >-
             ${{ github.event.workflow_run.head_branch || github.ref_name }}
           HARNESS_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-        run: |
-          python - <<'PYTHON' >> "$GITHUB_OUTPUT"
-          import json
-          import os
-          import pathlib
-          import yaml
-
-          branch = os.environ["HARNESS_BRANCH"]
-          registry = yaml.safe_load(
-              pathlib.Path("config/consumers.yaml").read_text(encoding="utf-8")
-          )
-
-          # The pairing is resolved HERE rather than in the matrix expression,
-          # because a harness branch with no entry falls back to default_ref and
-          # a workflow expression cannot express that without naming branches.
-          entries = []
-          for entry in registry.get("consumers") or []:
-              mapping = entry.get("refs") or {}
-              entry["ref"] = mapping.get(branch, entry.get("default_ref", "main"))
-              entries.append(entry)
-
-          print(f"consumers={json.dumps(entries)}")
-          print(f"harness_branch={branch}")
-          print(f"harness_sha={os.environ['HARNESS_SHA']}")
-          PYTHON
+        # A PROGRAM IN A FILE, run by path. This step held 20 lines of Python
+        # piped to an interpreter reading standard input through a
+        # here-document, which is two of the four shapes `code-style.md`
+        # section 8.1 bans and which pylint never saw, although it decides
+        # which consumer refs this candidate is verified against. The pairing
+        # fallback to `default_ref` is why it is a program at all and not a
+        # matrix expression. Design section 8.10.
+        run: >-
+          python -m tools.enumerate_consumers
+          --branch "$HARNESS_BRANCH"
+          --sha "$HARNESS_SHA"
+          --output "$GITHUB_OUTPUT"
 
   verify:
     name: verify ${{ matrix.consumer.name }} (${{ matrix.consumer.ref }})

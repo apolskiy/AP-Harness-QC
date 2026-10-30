@@ -3,7 +3,7 @@
 """Unit cases for resolving model versions and probing whether a model changed.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 Its cases check :mod:`execution.preflight`. :func:`require_resolved_version`
 fails when a provider reports no version, an empty one or a blank one. The probe
@@ -42,11 +42,15 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113507  a_failed_probe_leaves_its_baseline_untouched
 #   113508  an_unreadable_baseline_is_reported_not_ignored
 #   113509  probe_outcomes_are_returned_in_a_reproducible_order
+# TestMQCProbeEntryPoint
+#   113513  preflight_declares_a_command_line_entry_point
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
 from typing import Optional
 import json
+import subprocess
+import sys
 
 import pytest
 
@@ -137,7 +141,7 @@ class TestMQCVersionProbe:
         baseline = tmp_path / "versions.json"
         outcomes = probe_all({"gemini": "flash-002", "openai": "gpt-x-1"}, baseline)
         assert engines_to_dispatch(outcomes) == []
-        assert all(outcome.previous_model is None for outcome in outcomes)
+        assert all(outcome.previous is None for outcome in outcomes)
         assert json.loads(baseline.read_text(encoding="utf-8")) == {
             "gemini": "flash-002", "openai": "gpt-x-1"
         }
@@ -266,3 +270,49 @@ class TestMQCVersionProbe:
         assert outcome.changed is False
         assert outcome.failed is False
         assert outcome.should_dispatch is False
+
+
+class TestMQCProbeEntryPoint:
+    """Whether the module a workflow invoked as a program is one."""
+
+    def MQC_EXE_UNI_113513_preflight_declares_a_command_line_entry_point(self) -> None:
+        """Run as a module with no arguments, it refuses rather than doing nothing.
+
+        **This is the case the shipped workflow needed and did not have.**
+        `probe-model-version-nightly.yml` ran ``python -m execution.preflight``
+        for thirty six days against a module with no argument parser and no
+        ``__main__`` block: the interpreter imported it, ran nothing, and
+        **exited 0**, so every step guarded on the probe's output was skipped
+        by its own condition and the workflow reported green
+        (``harness_ci_pipeline.md`` section 4.3).
+
+        A missing required argument is exit 2 and a complaint naming it, which
+        is the `cmn_verdict_and_cli.md` section 7.3 code for a usage error. The
+        assertion is on **2 rather than on anything non-zero**, because the
+        defect's signature was the success code and 0 is also what an import
+        that ran nothing returns.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        completed = subprocess.run(
+            [sys.executable, "-m", "execution.preflight"],
+            # NOTHING ON STANDARD INPUT. Under pytest's capture the inherited
+            # handle is closed, and Windows raises `WinError 6` on a child
+            # that inherits it rather than ignoring it as Linux does.
+            stdin=subprocess.DEVNULL,
+            # BOUNDED, so a child that stalls fails this case rather than
+            # blocking until a runner cancels the job (`MQC_CMN_UNI_112329`).
+            # Argparse refuses before any provider is reached, so the real
+            # cost is one interpreter start.
+            timeout=60,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            cwd=root,
+            shell=False,
+            check=False,
+        )
+        assert completed.returncode == 2
+        assert "baseline" in completed.stderr

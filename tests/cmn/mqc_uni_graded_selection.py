@@ -3,7 +3,7 @@
 """Unit preconditions for a graded invocation in CI, what it selects and what gates it.
 
 Created: 2026-10-21
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 This file contains three cases over what a CI invocation selects and what
 stands in front of it. ``cmn.code_standards.partial_graded_selection_gaps``:
@@ -40,6 +40,8 @@ the runtime half of the selection rule in
 #   112189  a_graded_job_not_gated_on_the_preconditions_is_reported
 # TestMQCRunConclusions
 #   112191  a_job_concluding_a_run_it_did_not_earn_is_reported
+# TestMQCDispatchGating
+#   112192  a_dispatching_job_reading_no_green_pairing_is_reported
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -48,8 +50,16 @@ import pytest
 import yaml
 
 from cmn.code_standards import partial_graded_selection_gaps
-from cmn.ci_gating import ungated_graded_jobs, unearned_run_conclusions
-from tests.cmn.workflow_plant_support import gated_workflow, plant_root
+from cmn.ci_gating import (
+    unearned_run_conclusions,
+    ungated_dispatches,
+    ungated_graded_jobs,
+)
+from tests.cmn.workflow_plant_support import (
+    dispatching_workflow,
+    gated_workflow,
+    plant_root,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -290,4 +300,116 @@ class TestMQCRunConclusions:
             "a workflow nothing triggers by workflow_run was reported, and "
             f"such a workflow has no conclusion to gate on: "
             f"{reported['untriggered']}"
+        )
+
+
+class TestMQCDispatchGating:
+    """A job that makes another workflow spend reaches a verified harness."""
+
+    def MQC_CMN_UNI_112192_a_dispatching_job_reading_no_green_pairing_is_reported(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """A job that causes graded cases to run elsewhere decides to spend.
+
+        ``MQC_CMN_UNI_112189`` gates a job that **runs** graded cases on the
+        preconditions. This gates a job that **starts a workflow** which does,
+        and neither covers the other: a job of this kind runs no case, so the
+        layer-expression reader passes it in silence.
+
+        **The retired probe held the instance.**
+        ``probe-model-version-nightly.yml``'s dispatch job needed ``probe``
+        alone and read ``changed_engines``, so it would have dispatched a live
+        ladder on the strength of a version comparison and nothing else. The
+        third shape below is that arrangement.
+
+        **Nothing is reported against this root, and that is expected.** The
+        harness holds no pin of its own, so it has no pairing to read and no
+        job here dispatches one; the checker is shared and
+        ``MQC_CAS_UNI_115790`` calls it with the root that does.
+
+        Design: ``harness_ci_pipeline.md`` section 8.9.
+
+        Args:
+            tmp_path (Path): Where the constructed workflows are written.
+
+        Returns:
+            None
+        """
+        assert not ungated_dispatches(_ROOT), (
+            "job(s) would dispatch a spending workflow without reading a "
+            "green pairing: " + "; ".join(ungated_dispatches(_ROOT))
+        )
+
+        shapes = {
+            "gated": (
+                "needs.resolve.outputs.green == 'true'",
+                "gh workflow run evaluate-gemini-weekly.yml",
+            ),
+            "spaced": (
+                "needs.resolve.outputs.green=='true'",
+                "gh workflow run evaluate-gemini-weekly.yml",
+            ),
+            "ungated": (
+                "needs.probe.outputs.changed_engines != ''",
+                "gh workflow run evaluate-gemini-weekly.yml",
+            ),
+            "by_api": (
+                "needs.probe.outputs.changed_engines != ''",
+                "gh api /repos/owner/name/actions/workflows/weekly.yml/dispatches",
+            ),
+            "own_repository": (
+                "needs.probe.outputs.changed_engines != ''",
+                'gh workflow run weekly.yml --repo "${{ github.repository }}"',
+            ),
+            "another_repository": (
+                "needs.probe.outputs.changed_engines != ''",
+                "gh workflow run weekly.yml --repo owner/elsewhere",
+            ),
+            "no_dispatch": (
+                "needs.probe.outputs.changed_engines != ''",
+                "echo nothing dispatched",
+            ),
+        }
+        for shape, (condition, command) in shapes.items():
+            plant_root(
+                tmp_path / shape,
+                dispatching_workflow(condition, command),
+                name="probe-model-version.yml",
+            )
+
+        reported = {
+            shape: ungated_dispatches(tmp_path / shape) for shape in shapes
+        }
+
+        assert not reported["gated"], (
+            "a dispatch job reading its resolver's green output was reported, "
+            f"so the one correct shape fails the check: {reported['gated']}"
+        )
+        assert not reported["spaced"], (
+            "the same condition without spaces around the comparison was "
+            f"reported, so the check reads a spelling: {reported['spaced']}"
+        )
+        assert reported["ungated"], (
+            "a dispatch job reading only the probe's own output was not "
+            "reported, which is the retired probe's arrangement and the one "
+            "this check exists for"
+        )
+        assert reported["by_api"], (
+            "a dispatch through the Actions API was not reported, so a job "
+            "using it instead of the command line would pass unseen"
+        )
+        assert reported["own_repository"], (
+            "a dispatch naming this repository explicitly was not reported, "
+            "although it spends this repository's quota; the retired probe "
+            "named it exactly that way"
+        )
+        assert not reported["another_repository"], (
+            "a dispatch into another repository was reported, and only the "
+            "repository holding the pin can say whether a harness is green: "
+            f"{reported['another_repository']}"
+        )
+        assert not reported["no_dispatch"], (
+            "a job dispatching nothing was reported: "
+            f"{reported['no_dispatch']}"
         )

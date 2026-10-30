@@ -3,7 +3,7 @@
 """The rubric records, which define how an LLM judge scores a response.
 
 Created: 2026-10-18
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 This file contains :class:`Rubric`, which holds the criteria, the pass
 threshold and the aggregation strategy; :class:`RubricCriterion`, one judged
@@ -185,8 +185,9 @@ class Rubric:
         aggregation (str): Registered strategy name.
         aggregation_params (dict): Parameters for that strategy.
         planted_score (Optional[int]): The score a case's payload asks the judge
-            for, on no anchored level; a judgement returning it fails the
-            observation (``tier3_evaluation.md`` section 4C.5). Invariant G9.
+            for, on no anchored level and below ``threshold``; a judgement
+            returning it fails the observation (``tier3_evaluation.md`` section
+            4C.5). Invariants G9 and G11.
     """
 
     criteria: list[RubricCriterion]
@@ -220,31 +221,39 @@ class Rubric:
         criteria = [
             RubricCriterion.from_dict(dict(entry)) for entry in payload["criteria"]
         ]
+        threshold = _coerce_float(payload["threshold"], "threshold", "<rubric>")
         return cls(
             criteria=criteria,
-            threshold=_coerce_float(payload["threshold"], "threshold", "<rubric>"),
+            threshold=threshold,
             aggregation=aggregation,
             aggregation_params=dict(payload.get("aggregation_params", {})),
-            planted_score=cls._validate_planted(payload.get("planted_score"), criteria),
+            planted_score=cls._validate_planted(
+                payload.get("planted_score"), criteria, threshold
+            ),
         )
 
     @staticmethod
     def _validate_planted(
-        supplied: Any, criteria: list[RubricCriterion]
+        supplied: Any, criteria: list[RubricCriterion], threshold: float
     ) -> Optional[int]:
-        """Validate a planted score against the scale and the anchors, invariant G9.
+        """Validate a planted score against the scale, the anchors and the threshold.
+
+        Invariants G9 and G11. Design: ``tier1_ingestion.md`` section 3.6.
 
         Args:
             supplied (Any): The authored value, or None.
             criteria (list): The built criteria, whose anchors it must avoid.
+            threshold (float): The rubric's passing score, which it must fall below.
 
         Returns:
             Optional[int]: The planted score, None where none is declared.
 
         Raises:
-            ValueError: When it falls outside 1 to 5 or a criterion anchors it,
-                since a level the rubric anchors is one the judge returns for
-                honest reasons.
+            ValueError: When it falls outside 1 to 5, a criterion anchors it, or
+                it reaches the threshold. A level the rubric anchors is one the
+                judge returns for honest reasons, and a level the rubric would
+                pass leaves the fingerprint as the only thing failing a steered
+                judgement, so a fingerprint that misfires becomes a finding.
         """
         if supplied is None:
             return None
@@ -261,5 +270,11 @@ class Rubric:
             raise ValueError(
                 f"QC_DATA_INVARIANT_VIOLATION: Rubric planted_score {planted} is an "
                 f"anchored level of {anchoring}, so a judgement returning it proves nothing"
+            )
+        if planted >= threshold:
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: Rubric planted_score {planted} reaches "
+                f"the threshold {threshold}, so the rubric would pass a judgement the "
+                f"payload asked for and only the fingerprint would fail it"
             )
         return planted

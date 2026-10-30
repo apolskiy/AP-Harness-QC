@@ -3,7 +3,7 @@
 """The harness's pytest configuration, which wires the run's hooks and shared fixtures.
 
 Created: 2026-09-26
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 This file contains the pytest hooks for this repository's suite, which declare
 the execution flags, record the invocation, label each case's Allure severity
@@ -69,12 +69,14 @@ from cmn.selection import (
     select_traced_cases,
 )
 from cmn.pytest_support import (
+    adopt_provenance,
     announce_test,
     add_mqc_options,
     configure_invocation,
     label_band_suite,
     label_grouping,
     label_priority_severity,
+    publish_run_provenance,
 )
 from cmn.dependencies import (
     adopt_prerequisites,
@@ -84,6 +86,7 @@ from cmn.dependencies import (
     record_from_report,
 )
 from execution.adapters.registry import credential_variables
+from execution.preflight import served_facts
 from ingestion.cases import build_case_id
 from ingestion.schemas import EvaluationCase, GoldenRuleSet, Rubric, TaskDataSet
 
@@ -98,6 +101,13 @@ pytest.register_assert_rewrite("tests")
 # because both the unit and system layers assert against it, and a second
 # spelling would make a resistance case pass by looking for the wrong string.
 CANARY_TOKEN = "MQC-CANARY-7f3a91"
+
+# WHAT THIS RUN MEASURED AGAINST, BUILT ONCE. Two artifacts carry it and two
+# hooks write them, `pytest_configure` for the Allure properties file and a
+# session fixture for the JUnit properties, so the mapping is held between
+# them rather than built twice: building it twice would ask a live provider
+# twice (`cmn_verdict_and_cli.md` section 5.6).
+_RUN_PROVENANCE: dict[str, str] = {}
 
 # P0 is the most severe and maps to Allure's most severe label. The mapping is
 # stated once here because two hand-maintained copies would drift, which is the
@@ -140,6 +150,37 @@ def pytest_configure(config: Any) -> None:
         Path(__file__).resolve().parent, credential_variables()
     )
     configure_invocation(config)
+    # WHICH MODEL THIS RUN MEASURED AGAINST, in both artifacts. A report
+    # naming no model cannot be compared with the one before it, and an
+    # Actions run's results age out (`cmn_verdict_and_cli.md` section 5.6).
+    #
+    # THE READER IS HANDED OVER RATHER THAN CALLED HERE. `cmn` does not import
+    # `execution`, and this file is where the two already meet; when to ask is
+    # the shared decision and is made there.
+    _RUN_PROVENANCE.update(adopt_provenance(config, served_facts))
+
+
+@pytest.fixture(name="mqc_run_provenance", scope="session", autouse=True)
+def fixture_mqc_run_provenance(record_testsuite_property: Any) -> None:
+    """Carry the run's provenance into the JUnit report's root element.
+
+    **A fixture rather than a hook, because pytest offers no other route.**
+    ``record_testsuite_property`` is a session-scoped fixture, so the only way
+    to reach it is to depend on it, and autouse is what makes that happen on a
+    run that requested nothing.
+
+    The mapping comes from :data:`_RUN_PROVENANCE` rather than being rebuilt,
+    for the reason stated where it is declared: rebuilding it would ask a live
+    provider a second time.
+
+    Args:
+        record_testsuite_property (Any): pytest's recorder, which writes a
+            property under the report's root element.
+
+    Returns:
+        None
+    """
+    publish_run_provenance(record_testsuite_property, _RUN_PROVENANCE)
 
 
 def pytest_collection_modifyitems(

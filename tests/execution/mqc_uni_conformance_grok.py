@@ -3,7 +3,7 @@
 """Unit cases checking the ``grok`` adapter against the shared adapter contract.
 
 Created: 2026-10-16
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 Its cases check ``GrokAdapter`` in :mod:`execution.adapters.grok`, one case per
 check in ``conformance_checks.py``. They cover composing a request, normalizing
@@ -27,6 +27,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113843  grok_returns_tool_arguments_as_a_mapping
 #   113844  grok_captures_a_tool_call_without_executing_it
 #   113845  grok_reads_the_version_from_the_response
+#   440002  grok_reports_what_its_provider_serves
 #   113846  grok_maps_a_rate_limit_error_to_its_harness_code
 #   113847  grok_maps_a_timeout_error_to_its_harness_code
 #   113848  grok_maps_an_auth_error_to_its_harness_code
@@ -113,6 +114,19 @@ class TestMQCGrokAdapterConformance(ConformanceChecks):
             None
         """
         self._reads_the_version_from_the_response("grok")
+
+    def MQC_EXE_UNI_440002_grok_reports_what_its_provider_serves(
+        self, monkeypatch: Any
+    ) -> None:
+        """For ``grok``: What the provider declares now, with no prompt sent.
+
+        Args:
+            monkeypatch (Any): pytest's patcher.
+
+        Returns:
+            None
+        """
+        self._reports_what_its_provider_serves("grok", monkeypatch)
 
     def MQC_EXE_UNI_113846_grok_maps_a_rate_limit_error_to_its_harness_code(self) -> None:
         """For ``grok``: A rate limit is one code whichever provider raised it.

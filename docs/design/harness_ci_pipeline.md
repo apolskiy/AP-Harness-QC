@@ -26,16 +26,31 @@ diagnosis. Three more cover regression and failure triage, which the split and
 the change-scoping rule between them made necessary. The eighth, added
 2026-10-15, runs Gate 8, the mutation audit (section 5A).
 
+**Six remain, as of 2026-10-29.** The probe moved to the case repository and
+the live run was retired with it, for the reasons in sections 4 and 5: neither
+could work here, because this repository owns no corpus and so has no graded
+case for a version change to send anything at.
+
+**No credential reaches this repository's CI any more**, which is a stronger
+form of the A1 boundary than section 8 argued for. The two workflows that named
+a secret are the two that left.
+
 | File | Starts on | Credentials | Emits durable record |
 |---|---|---|---|
 | `gate-on-change.yml` | Push, pull request, manual dispatch | None | Yes |
 | `regress-harness-on-branch.yml` | Manual dispatch | None | Yes |
 | `regress-consumers-on-merge.yml` | A green gate on `main` or `stabilization`, or manual dispatch | None | Yes |
-| `probe-model-version-nightly.yml` | Manual dispatch. **Schedule withdrawn**, see 2.0.1 | Read-only model metadata | No |
-| `evaluate-live-weekly.yml` | Manual dispatch. **Schedule withdrawn**, see 2.0.1 | Provider API keys | Yes |
 | `diagnose-on-demand.yml` | Manual dispatch only | Optional | **No** |
-| `audit-mutation-on-change.yml` | A push to `main` changing the harness or its suite, or manual dispatch | None | No |
+| `audit-mutation-on-dispatch.yml` | Manual dispatch only, at the project owner's ruling of 2026-10-24 | None | No |
 | `debug-failures-on-demand.yml` | Manual dispatch only | Optional | **No** |
+
+**The mutation row named `audit-mutation-on-change.yml` until 2026-10-29**, a
+file this repository has never held. The workflow is
+`audit-mutation-on-dispatch.yml`, and `framework-rules.md` section 1 has said
+dispatch only since the ruling of 2026-10-24, so the row described a trigger
+that had been withdrawn five days earlier under a name that never existed.
+Section 2.2 makes a filename a cross-workflow reference, which is what a row
+naming the wrong one costs.
 
 ### 2.0 Why the gate is not already all of this
 
@@ -84,12 +99,17 @@ still runs on push and pull request, and `regress-consumers-on-merge.yml` still
 runs on a green gate on the default branch, which is the trigger that makes it a
 merge guard rather than a report.
 
-**Two filenames now name a cadence they do not have.** `probe-model-version-nightly.yml`
-and `evaluate-live-weekly.yml` are dispatch-only while their schedules are
-withdrawn. They keep their names rather than being renamed twice: section 2.2
-makes a filename a cross-workflow reference, and renaming now and back is churn
-that `actionlint` would have to catch in between. The withdrawal is stated in each
-file at the trigger it replaced.
+**Two filenames named a cadence they did not have**, and on 2026-10-29 both
+files left rather than being renamed. `probe-model-version-nightly.yml` moved to
+the case repository as `probe-model-version.yml`, carrying no cadence in its
+name, and `evaluate-live-weekly.yml` was retired. The argument for keeping the
+old names, that renaming now and back is churn section 2.2 would have to catch
+in between, is answered by the files not coming back.
+
+**One of the three crons this section withdrew therefore has no file to return
+to.** The consumer regression keeps its withheld schedule here; the other two
+are the case repository's question now, and `consumer_ci.md` section 4.18.3
+already states what gates their return.
 
 ### 2.0.2 When the live run fires, once the jobs are stable
 
@@ -120,11 +140,20 @@ fire when   (7 or more days since the last live run)
 | The conditions are **or** | A new model version does not wait for Sunday |
 | Version compared against | The last version a live run recorded, not the last probe |
 
-**The probe is what makes the second condition cheap.**
-`probe-model-version-nightly.yml` already resolves the served version nightly for
-one request, so a version change is known without a graded run. Comparing against
-the last **live run's** recorded version rather than the last probe's is what
-keeps a single upgrade from firing twice.
+**The probe is what makes the second condition cheap.** It reads each
+provider's declared metadata and sends no prompt, so a change is known without
+a graded run. Comparing against the last **live run's** recorded state rather
+than the last probe's is what keeps a single upgrade from firing twice.
+
+**This paragraph said "for one request" and that was the honest reading of the
+interface at the time**, which is the contradiction section 4.3 records: this
+section priced the probe at a request while section 4 priced it at a metadata
+call, and neither had been built. `served_metadata` makes the cheaper of the
+two true (`tier2_execution.md` section 5.2).
+
+**The condition is not a version string any more.** A pinned identifier does
+not move, measured in `tier2_execution.md` section 5.1, so what changed is
+compared as a digest of everything the provider declares about the model.
 
 **Why a floor and not a cap on cost.** A provider can serve a new version twice
 in a week, and the cost of a live ladder is the corpus times the observation
@@ -900,42 +929,127 @@ until then.
 `cmn.workflow_standards.unaccepted_branch_names` reports each name that is none
 of the three, and `MQC_CMN_UNI_112421` calls it with this root.
 
-## 4. `probe-model-version-nightly.yml`: A Change Detector, Not A Test Run
+## 4. The Model Version Probe Belongs To The Case Repository
 
-### 4.1 What it does
+**Moved 2026-10-29 at the project owner's ruling**, which reverses what section
+11 recorded as a decision that survived the split: "Probe needs to live with the
+model and use green harness, but it belongs in model repository not harness
+repository. Harness does not know the probe consumer, this word combination does
+not make sense. Probe just utilizes harness to get model version."
 
-For each registered engine, resolve the model version the adapter would use and compare it against the recorded baseline. Nothing is evaluated and no case executes.
+**This section keeps its number** because nine documents and two modules cite
+it, and `code-style.md` section 7.3 makes a citation resolve or stop being one.
+What it specifies is now the harness half plus the reasoning; the workflow is
+specified in the case repository's `consumer_ci.md` section 4.23.
 
-The probe reuses `execution/preflight.py`, which exists regardless: `MQC_REQ_HAR_EXE_0005` requires the resolved version to be recorded and makes its absence a preflight failure. **The probe is that code called on a schedule.**
+### 4.1 What stays here, and what left
 
-### 4.2 What a change does
-
-A changed version writes the new baseline and dispatches `evaluate-live-weekly.yml` for **that engine only**. An unchanged version ends the run.
-
-| Probe result | Action | Record |
+| Piece | Lives in | Why |
 |---|---|---|
-| Version unchanged | Nothing | Baseline timestamp updated |
-| Version changed | Dispatch `evaluate-live-weekly.yml`, that engine | New version recorded with the previous one |
-| Probe fails | Alert, no dispatch | Recorded as a harness event, never a model finding |
+| `served_metadata` on each adapter, `execution/preflight.py`, and the roster in `config/engines.yaml` | **The harness** | Reading what a provider serves is adapter behaviour, specified in `tier2_execution.md` sections 5 and 5.2 |
+| The baseline, the comparison, and the dispatch it decides on | **The case repository** | What a model change invalidates is a measurement of a corpus, and the corpus is there |
 
-**A probe failure is not a test failure.** It means the detector is broken, which is an instrument defect, and the weekly run still covers the period regardless. Treating it as a red suite would be the same category error the `QC_HARNESS_*` family exists to prevent.
+**The dependency runs one way and always did.** The probe calls harness code to
+read a version, the way any consumer calls harness code. There is no probe for
+the harness to know about, which is what makes this a correction rather than a
+boundary question. Section 11 reached for the directive about naming no
+consumer, and **that directive is a consequence of the dependency direction
+rather than a reason for it**.
 
-### 4.3 Why it is worth having
+**The probe reads a green harness**, by the resolver every other workflow in
+that repository already uses: `config/harness_pin.yaml` names
+`gate-on-change.yml` as the one workflow whose conclusion defines green, and
+`main` sets `require_green: true`. A detector running against an unverified
+instrument would dispatch spend on that basis.
 
-Detecting a provider's model change on the morning it happens costs a metadata call. The alternative, a nightly full live run, mostly re-measures an unchanged model at full price.
+### 4.2 What section 11 got wrong
 
-It also improves attribution, which matters more than the saving. A regression surfacing the morning after a recorded version change is attributable to that change. The same regression in a weekly run covers seven days of candidate causes. That attribution problem is exactly what A2 and A8 exist to address.
+**It conflated two operations.** Resolving a model version is adapter
+behaviour; deciding that a corpus needs re-measuring is a statement about that
+corpus. The sentence established the first and concluded about the second.
+
+| | Resolving the version | Deciding to re-measure |
+|---|---|---|
+| Subject | A provider | A corpus |
+| Owned by | The harness | Whoever owns the cases |
+| Section 11 concluded | The harness | The harness |
+
+**And the arrangement it left could not have worked.** The dispatch job ran
+`gh workflow run evaluate-live-weekly.yml` against `${{ github.repository }}`,
+naming this repository, whose graded markers collect nothing because it owns no
+corpus. A detected change fired a sweep over zero cases, once per engine.
+Section 2.0.1 recorded that workflow failing weekly for the same structural
+reason and did not connect it to the probe that dispatches it.
+
+**It also could not see `grok`.** The engine was rostered 2026-10-04 and the
+case repository has carried its callers since; the dispatch here enumerated
+three engines. A probe blind to a quarter of the roster is the kind of gap that
+follows from a file sitting beside the wrong corpus.
+
+### 4.3 It had never run, and could not have worked if it had
+
+**Three defects, and no green run would have shown any of them.**
+
+| What was wrong | Why nothing reported it |
+|---|---|
+| `python -m execution.preflight` ran no program | The module declares no command line entry point, so the call imported it, ignored its arguments and exited 0 |
+| Nothing reached the step output | `changed_engines` stayed empty, so the baseline commit and the dispatch job were both skipped by their own conditions |
+| The identifier it compares cannot move | Measured, `tier2_execution.md` section 5.1 |
+
+**A probe that detects nothing and a probe finding no change are the same green
+run.** That is why this stood from 2026-09-26, and two facts corroborate it:
+`config/model_baseline.json` was never written and does not exist, and the
+workflow has no run history at all.
+
+**The cost claim was wrong in both directions at once.** This section said the
+probe costs a metadata call, which no implementation made, while section 2.0.2
+said it resolves the version for one request, which the interface would in fact
+have required. The first statement is true now, because `served_metadata` is a
+metadata call and sends no prompt.
+
+### 4.4 Why a change detector is still worth having
+
+Detecting a provider's model change on the morning it happens costs one
+metadata call per engine. The alternative, a nightly full live run, mostly
+re-measures an unchanged model at full price.
+
+It also improves attribution, which matters more than the saving. A regression
+surfacing the morning after a recorded change is attributable to that change;
+the same regression in a weekly run covers seven days of candidate causes. That
+is what A2 and A8 exist to address.
+
+**A probe failure is not a test failure.** It means the detector is broken,
+which is an instrument defect, and the unconditional weekly run covers the
+period regardless. Treating it as a red suite would be the same category error
+the `QC_HARNESS_*` family exists to prevent.
 
 ---
 
-## 5. `evaluate-live-weekly.yml`: The Only Workflow That Spends
+## 5. `evaluate-live-weekly.yml`: Retired, And What It Established
 
-### 5.1 Triggers
+**Retired 2026-10-29, with the probe move.** The workflow ran
+`pytest -m "evaluator or tool or sec"` in a repository that owns no corpus, so
+it collected no case and failed for a structural reason every time it fired
+(section 2.0.1, and `harness_open_questions.md` section 2B recorded it as a
+gap). Section 8.6.4 fixed its job graph on 2026-10-28 on the stated ground that
+a scheduled retirement is not a reason to leave a defect in place; this is that
+retirement arriving.
+
+**The spending workflow is the case repository's**, one per engine, calling the
+three-rung ladder in `evaluate-engine.yml`. Its design is `consumer_ci.md`
+sections 4.18 and 7.
+
+**The subsections below keep their numbers and remain the record of what they
+decided**, because A3, A4, A6 and A7 are traced to them from section 12 and
+from `harness_phase0_project_ambiguities.md`. Each decision still holds; the
+workflow that applies it is now on the other side of the split.
+
+### 5.1 Triggers, as the retired workflow had them
 
 | Trigger | Scope |
 |---|---|
 | Weekly schedule | All engines, full |
-| Dispatch from `probe-model-version-nightly.yml` | The one engine whose version changed |
+| Dispatch from the probe | The one engine whose version changed |
 
 **The weekly run is unconditional because a version string is not a guarantee.** Providers revise a model behind a stable identifier, so a probe reporting no change is evidence rather than proof. This is the same structure as change-scoped pull request runs backstopped by a full run on merge: a cheap detector is only safe when something unconditional stands behind it.
 
@@ -1788,6 +1902,117 @@ a condition and a `needs:` chain, rather than what a step names.
 
 ---
 
+### 8.9 A job that dispatches a spending workflow reaches a green pairing
+
+Added 2026-10-29 with the probe move, because the project owner's ruling has
+two halves and only one of them is a location: "Probe needs to live with the
+model **and use green harness**".
+
+**A detector that dispatches a live ladder decides to spend.** Section 8.6
+gates a job that *runs* graded cases on the preconditions; this gates a job
+that *causes* graded cases to run elsewhere on the instrument being verified.
+Neither covers the other, and the probe is the first job of the second kind.
+
+| | Runs graded cases | Dispatches a workflow that does |
+|---|---|---|
+| Gated by | A precondition invocation it reaches, section 8.6 | A resolve job whose green output its condition reads |
+| Red means | Nothing was measured | Nothing was dispatched, and nothing was spent |
+| Checked by | `cmn.ci_gating.ungated_graded_jobs` | `cmn.ci_gating.ungated_dispatches` |
+
+**What is read.** A job carrying a step that dispatches a workflow, by
+`gh workflow run` or by the Actions API, and whose own condition does not read
+a green pairing from a job it needs. The pairing is the consumer's resolver,
+`tools.harness_pin`, whose `green` output every ladder job here already gates
+on; the harness has no pin of its own, so this check reports nothing against
+this root and is written here because the implementation is shared.
+
+**It would have reported the arrangement that prompted it**, which is the
+non-vacuity this rule needs. The retired probe's `dispatch` job needed
+`probe` alone and read `changed_engines`, so it dispatched a spending workflow
+on the strength of a version comparison and nothing else. That it dispatched
+into a repository with no cases is section 4.2's finding; that it dispatched
+without a verified instrument is this one, and the two are independent.
+
+**A dispatch into another repository is out of scope here and belongs to the
+repository that owns the pairing.** This is the boundary section 8.6.3 draws in
+its third row: a job that reaches another repository is measuring that
+repository's subject, and the repository that owns the pin is the one that can
+say whether a harness is green.
+
+`cmn.ci_gating.ungated_dispatches` reports every such job, naming the file, the
+job and what it needs. `MQC_CMN_UNI_112192` and `MQC_CAS_UNI_115790` call it
+with each root, the one-implementation-two-callers arrangement sections 8.3,
+8.5, 8.6 and 8.8 already use. `MQC_REQ_HAR_CMN_0232`, and
+`MQC_REQ_CAS_PRE_0018` on the other side.
+
+**The probe's own shape is asserted separately**, by
+`MQC_CAS_UNI_115789` against `MQC_REQ_CAS_CI_0064`. This check asks whether any
+dispatching job is gated; that case asks whether the one this project has
+dispatches the right engine's caller. A checker reporting nothing against a
+correct file says nothing about whether the file is the one that was wanted.
+
+### 8.10 A workflow step's program lives in a file, and the file is covered
+
+Added 2026-10-29 at the project owner's instruction.
+
+**Two workflow steps held a Python program inline in the YAML**, 29 lines in
+`debug-failures-on-demand.yml` validating the identifiers a debug run was asked
+for, and 20 in `regress-consumers-on-merge.yml` resolving the consumer pairing.
+Both ran correctly. **Neither was reachable by anything this project uses to
+establish that code is correct.**
+
+| | Inline in the step | A file run by path |
+|---|---|---|
+| Linted at 10.00/10 | **No. Pylint reads `.py` files** | Yes, in Gate 1 |
+| Runnable outside a workflow | No | Yes, by path |
+| Coverable by a case | No | Yes |
+| Diffable as code | As a YAML string | Yes |
+
+**A step whose logic cannot be run locally is a step debugged by pushing
+commits**, and that is the cheap half of the argument. The expensive half is
+what each of these two decides, which the second half of this section covers.
+
+#### The two programs, as files
+
+| Script | Replaces | Writes |
+|---|---|---|
+| `tools/resolve_requested_tests.py` | The `resolve` step of `debug-failures-on-demand.yml` | `expression` and `count` |
+| `tools/enumerate_consumers.py` | The `read` step of `regress-consumers-on-merge.yml` | `consumers`, `harness_branch` and `harness_sha` |
+
+**Each writes to the file named by `--output`**, which the step sets to
+`$GITHUB_OUTPUT`, rather than to standard output redirected by the shell. A
+step that redirects is a step where the program's own failure can be lost to
+the redirection, and naming the destination makes the program testable against
+a temporary file.
+
+**Neither reads a secret and neither dispatches anything**, so moving them
+changes no credential boundary. Section 8.1 is unaffected.
+
+#### Moving a program into a file is half the work; covering it is the rest
+
+**A program that is merely linted is not a program that is tested**, and both
+of these decide whether a run means anything.
+
+| Program | Decides | What a defect would look like |
+|---|---|---|
+| `tools/resolve_requested_tests.py` | Whether a debug run selects anything | A mistyped identifier passing validation, so pytest runs zero tests and the job reads green |
+| `tools/enumerate_consumers.py` | Which consumer refs a candidate is verified against | A harness branch with no entry silently verifying against the wrong ref, or an empty fan-out reporting success |
+
+**Both failures are green runs having measured or verified nothing**, which is
+the class of defect this project has corrected most often. So each takes a case
+rather than a declared gap: `MQC_CMN_UNI_112435` asserts the resolver accepts a
+collected identifier, refuses an unknown one and refuses an empty request, and
+that the enumerator resolves a mapped branch to its mapped ref, an unmapped
+branch to `default_ref`, and a missing registry to a refusal rather than an
+empty list. `MQC_REQ_HAR_CMN_0236`.
+
+**Writing them was the step that would otherwise have been skipped.** The gap
+row in `harness_open_questions.md` was drafted and withdrawn on the same day:
+an implementation left uncovered is an implementation that did not finish, and
+recording it as open would have been recording a decision nobody made.
+
+---
+
 ## 9. Exit Codes To Job Status
 
 **The codes and their meanings are normative in `cmn_verdict_and_cli.md` section 7.3 and are not restated here.** This section owns only the mapping from a code to a job outcome, which is the part that belongs to the pipeline.
@@ -1866,7 +2091,18 @@ Recorded 2026-09-23. `DESIGN.md` section 5.1 carries the boundary; this section 
 
 **The fan-out is built rather than described.** An earlier version of this section named it as the capability a split would provide and did not exist here. `regress-consumers-on-merge.yml` is that capability, and section 3B carries it.
 
-Two things stayed as designed. `probe-model-version-nightly.yml` belongs to the harness, since resolving a model version is adapter behaviour rather than a property of any case set. The two-ref diagnostic keeps `fixture_ref` and gains `harness_ref` and `cases_ref` on the case side, which is the arrangement section 6.4 approximated within one tree.
+One thing stayed as designed. The two-ref diagnostic keeps `fixture_ref` and gains `harness_ref` and `cases_ref` on the case side, which is the arrangement section 6.4 approximated within one tree.
+
+**The other did not, and it took thirty six days to see.** This section recorded that `probe-model-version-nightly.yml` belongs to the harness, "since resolving a model version is adapter behaviour rather than a property of any case set". **Reversed 2026-10-29 at the project owner's ruling**, and section 4.2 carries why: the sentence is true about resolving a version and the conclusion is about something else, which is deciding that a corpus needs re-measuring.
+
+| | What the sentence established | What it concluded about |
+|---|---|---|
+| Subject | Resolving a version, which is adapter behaviour | Where the watching and the dispatch live |
+| True | Yes, and `served_metadata` is still harness code | No. It is a statement about a corpus |
+
+**The split is where this should have been settled**, and the owner said so: "this is a point that should have been clarified when the split happened. It was not." The corpus moved out on 2026-09-23 and the thing that watches for a reason to re-measure it stayed behind, dispatching a workflow in a repository with nothing to run.
+
+**A decision recorded as having survived a change is the kind least likely to be re-examined.** Both of the row's halves read as settled, and one of them had been quietly broken by the same change it claimed to have survived.
 
 **The artifact contract needed no change at all.** Names already carry layer, engine and mode rather than anything repository-shaped, and a collector reading standard formats does not care how many repositories produced them. That is a consequence of naming the contract as formats rather than as an interface, and it is the one prediction here that survived contact unchanged.
 

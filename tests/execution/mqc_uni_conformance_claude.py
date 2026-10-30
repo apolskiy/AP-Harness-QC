@@ -3,7 +3,7 @@
 """Unit cases checking the ``claude`` adapter against the shared adapter contract.
 
 Created: 2026-10-16
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 Its cases check ``ClaudeAdapter`` in :mod:`execution.adapters.claude`, one case
 per check in ``conformance_checks.py``. They cover composing a request,
@@ -27,6 +27,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113803  claude_returns_tool_arguments_as_a_mapping
 #   113804  claude_captures_a_tool_call_without_executing_it
 #   113805  claude_reads_the_version_from_the_response
+#   440000  claude_reports_what_its_provider_serves
 #   113806  claude_maps_a_rate_limit_error_to_its_harness_code
 #   113807  claude_maps_a_timeout_error_to_its_harness_code
 #   113808  claude_maps_an_auth_error_to_its_harness_code
@@ -113,6 +114,19 @@ class TestMQCClaudeAdapterConformance(ConformanceChecks):
             None
         """
         self._reads_the_version_from_the_response("claude")
+
+    def MQC_EXE_UNI_440000_claude_reports_what_its_provider_serves(
+        self, monkeypatch: Any
+    ) -> None:
+        """For ``claude``: What the provider declares now, with no prompt sent.
+
+        Args:
+            monkeypatch (Any): pytest's patcher.
+
+        Returns:
+            None
+        """
+        self._reports_what_its_provider_serves("claude", monkeypatch)
 
     def MQC_EXE_UNI_113806_claude_maps_a_rate_limit_error_to_its_harness_code(self) -> None:
         """For ``claude``: A rate limit is one code whichever provider raised it.

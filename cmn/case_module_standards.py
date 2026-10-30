@@ -3,7 +3,7 @@
 """Test module layout checks, where support code may live and how subprocesses wait.
 
 Created: 2026-10-05
-Last updated: 2026-10-25
+Last updated: 2026-10-29
 
 This file contains ``inline_support``, which lists the module-level support
 definitions a collected test module carries; ``extraction_problems``, which
@@ -295,3 +295,99 @@ def _module_markers(tree: ast.Module) -> set[str]:
             if isinstance(part, ast.Attribute):
                 found.add(part.attr)
     return found
+
+
+# THE MARKERS A GATE SELECTS ON. Every gate runs `-m <one of these>`, so a
+# collected module naming none of them is reached by no gate. The rest of the
+# registry describes a case a gate already reaches: `base`, `depends_on`,
+# `priority`, `environment`, `inquest` and `allure_label` select nothing
+# (``harness_test_taxonomy.md`` section 13.6).
+_GATE_MARKERS: Final[frozenset[str]] = frozenset({
+    "unit", "system", "evaluator", "tool", "sec", "mutation",
+})
+
+
+def _case_markers(tree: ast.Module) -> list[set[str]]:
+    """Return the marker names each case in a module carries, one set per case.
+
+    A case decorated through its class inherits that class's markers, so a
+    method's set is its own decorators joined with its class's.
+
+    Args:
+        tree (ast.Module): The parsed module.
+
+    Returns:
+        list[set[str]]: One entry per ``MQC_`` callable the module defines, at
+        module level and inside classes. Empty where the module defines none.
+    """
+    def marker_names(node: ast.AST) -> set[str]:
+        names: set[str] = set()
+        for decorator in getattr(node, "decorator_list", []):
+            call = decorator.func if isinstance(decorator, ast.Call) else decorator
+            if isinstance(call, ast.Attribute):
+                names.add(call.attr)
+        return names
+
+    per_case: list[set[str]] = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("MQC_"):
+            per_case.append(marker_names(node))
+            continue
+        if not isinstance(node, ast.ClassDef):
+            continue
+        inherited = marker_names(node)
+        for member in node.body:
+            if isinstance(member, ast.FunctionDef) and member.name.startswith("MQC_"):
+                per_case.append(marker_names(member) | inherited)
+    return per_case
+
+
+def ungated_modules(root: Path) -> list[str]:
+    """Report every collected test module no gate would select.
+
+    A module assigns ``pytestmark`` naming at least one gate marker, or every
+    case it holds carries one of its own. A module holding no case at all is
+    not reported: it contributes nothing for a gate to miss.
+
+    **Parsed, not matched**, like every reader here: a marker named in a
+    docstring is prose, and a module that will not parse is skipped rather than
+    reported, as the import error is its own failure.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per ungated module, naming it, its case count and
+        the markers it does carry. Empty where every collected module names a
+        gate.
+
+    Design: ``harness_test_taxonomy.md`` section 13.6.
+    """
+    problems: list[str] = []
+    tests = root / "tests"
+    if not tests.is_dir():
+        return problems
+    for module in sorted(tests.rglob(COLLECTED_GLOB)):
+        if _SKIPPED & set(module.parts):
+            continue
+        try:
+            tree = ast.parse(module.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError):
+            continue
+        per_case = _case_markers(tree)
+        if not per_case:
+            continue
+        declared = _module_markers(tree)
+        if declared & _GATE_MARKERS:
+            continue
+        if all(case & _GATE_MARKERS for case in per_case):
+            continue
+        carried = sorted(declared | set().union(*per_case)) or ["none"]
+        problems.append(
+            f"{module.relative_to(root).as_posix()} is collected and holds "
+            f"{len(per_case)} case(s), and no gate selects it: it carries "
+            f"{', '.join(carried)} and none of "
+            f"{', '.join(sorted(_GATE_MARKERS))}. Every gate runs -m <marker>, "
+            f"so these cases are collected, deselected and counted as nothing"
+        )
+    return problems

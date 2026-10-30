@@ -3,7 +3,7 @@
 """Test helpers for planted CI definitions: a workflow body, and a root to put it in.
 
 Created: 2026-10-28
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 This file provides ``pinned_workflow``, which returns a one-job workflow naming
 a given runner; ``gated_workflow``, which returns a fan-out workflow whose
@@ -113,6 +113,47 @@ def gated_workflow(condition: str) -> str:
         "    runs-on: ubuntu-26.04",
         "    steps:",
         "      - run: echo reported",
+    ]) + "\n"
+
+
+def dispatching_workflow(condition: str, command: str) -> str:
+    """Return a probe workflow whose dispatch job carries a condition and command.
+
+    The ``resolve`` job publishes a ``green`` output, which is the pairing
+    section 8.9 reads: the dispatch job's condition is what decides whether a
+    spending workflow starts against a harness nothing verified.
+
+    Args:
+        condition (str): The ``if`` value written on the dispatch job.
+        command (str): The command the dispatch job runs.
+
+    Returns:
+        str: A complete workflow definition.
+    """
+    return "\n".join([
+        "name: probe",
+        "on:",
+        "  schedule:",
+        "    - cron: \"0 3 * * *\"",
+        "jobs:",
+        "  resolve:",
+        "    runs-on: ubuntu-26.04",
+        "    outputs:",
+        "      green: ${{ steps.pin.outputs.green }}",
+        "    steps:",
+        "      - id: pin",
+        "        run: python -m tools.harness_pin",
+        "  probe:",
+        "    needs: resolve",
+        "    runs-on: ubuntu-26.04",
+        "    steps:",
+        "      - run: python -m execution.preflight --baseline versions.json",
+        "  dispatch:",
+        "    needs: [resolve, probe]",
+        f"    if: {condition}",
+        "    runs-on: ubuntu-26.04",
+        "    steps:",
+        f"      - run: {command}",
     ]) + "\n"
 
 

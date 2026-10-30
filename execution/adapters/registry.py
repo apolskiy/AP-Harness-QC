@@ -3,16 +3,16 @@
 """The registry that finds the adapter class for an engine name such as ``gemini``.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 This file contains ``register_adapter``, which enrols an adapter class under
 the engine name it declares, and enrols the four shipped adapters;
 ``adapter_for``, which returns the class serving one engine;
 ``registered_engines``, ``registered_adapters`` and ``engines_for_role``,
 which list what is enrolled; ``credential_variables``, the environment
-variables those engines read; and ``reproduction_snippet`` and
+variables those engines read; ``reproduction_snippet`` and
 ``reproduction_curl``, which turn a recorded request into code that re-issues
-it.
+it; and ``main``, a command line that prints the engines filling one role.
 
 **Every lookup of an engine goes through here.** Dispatch and the judge
 channel build their adapter from ``adapter_for``, the conformance battery
@@ -34,10 +34,11 @@ B8, so an instance would have to be built with one before the run knew which one
 it wanted.
 """
 
+import argparse
 import logging
 import json
 import pprint
-from typing import Any, Final, Iterator, Type
+from typing import Any, Final, Iterator, Optional, Type
 
 from execution.adapters.base import ProviderAdapter
 from execution.adapters.claude import ClaudeAdapter
@@ -48,6 +49,12 @@ from execution.adapters.openai import OpenAIAdapter
 logger = logging.getLogger(__name__)
 
 _ADAPTERS: Final[dict[str, Type[ProviderAdapter]]] = {}
+
+# `cmn_verdict_and_cli.md` section 7.3 keeps the verdict codes clear of
+# argparse, which exits 2. An unregistered role is a refusal for the reason
+# `engines_for_role` gives: an empty list would read as "no engine can do this".
+_EXIT_LISTED: Final[int] = 0
+_EXIT_REFUSED: Final[int] = 4
 
 
 def register_adapter(adapter_class: Type[ProviderAdapter]) -> Type[ProviderAdapter]:
@@ -276,3 +283,42 @@ def reproduction_curl(engine: str, request: dict[str, Any]) -> str:
         body,
         "JSON",
     ])
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    """Print the engines filling one role, one per line.
+
+    **This is the queryable form of the sentence `engines_for_role` carries.**
+    Both runbooks asked which engines can judge, and both answered it by
+    passing a program to the interpreter's command flag, which
+    ``code-style.md`` section 8.1.2 retired.
+
+    Args:
+        argv (Optional[list]): Arguments, for calling in-process from a case.
+
+    Returns:
+        int: ``0`` once the role was listed, ``4`` for an unregistered role.
+    """
+    parser = argparse.ArgumentParser(
+        prog="adapter-registry",
+        description="Print the registered engines that can fill one role",
+    )
+    parser.add_argument(
+        "--role",
+        default=CANDIDATE_ROLE,
+        help=f"Which role to list, {CANDIDATE_ROLE} or {JUDGE_ROLE}",
+    )
+    parsed = parser.parse_args(argv)
+    try:
+        serving = engines_for_role(str(parsed.role))
+    except ValueError as error:
+        logger.error("%s", error)
+        return _EXIT_REFUSED
+    for engine in serving:
+        logger.info("%s", engine)
+    return _EXIT_LISTED
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    raise SystemExit(main())

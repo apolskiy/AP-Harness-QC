@@ -3,7 +3,7 @@
 """Unit cases checking the ``gemini`` adapter against the shared adapter contract.
 
 Created: 2026-10-16
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 Its cases check ``GeminiAdapter`` in :mod:`execution.adapters.gemini`, one case
 per check in ``conformance_checks.py``. They cover composing a request,
@@ -27,6 +27,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113823  gemini_returns_tool_arguments_as_a_mapping
 #   113824  gemini_captures_a_tool_call_without_executing_it
 #   113825  gemini_reads_the_version_from_the_response
+#   440001  gemini_reports_what_its_provider_serves
 #   113826  gemini_maps_a_rate_limit_error_to_its_harness_code
 #   113827  gemini_maps_a_timeout_error_to_its_harness_code
 #   113828  gemini_maps_an_auth_error_to_its_harness_code
@@ -113,6 +114,19 @@ class TestMQCGeminiAdapterConformance(ConformanceChecks):
             None
         """
         self._reads_the_version_from_the_response("gemini")
+
+    def MQC_EXE_UNI_440001_gemini_reports_what_its_provider_serves(
+        self, monkeypatch: Any
+    ) -> None:
+        """For ``gemini``: What the provider declares now, with no prompt sent.
+
+        Args:
+            monkeypatch (Any): pytest's patcher.
+
+        Returns:
+            None
+        """
+        self._reports_what_its_provider_serves("gemini", monkeypatch)
 
     def MQC_EXE_UNI_113826_gemini_maps_a_rate_limit_error_to_its_harness_code(self) -> None:
         """For ``gemini``: A rate limit is one code whichever provider raised it.

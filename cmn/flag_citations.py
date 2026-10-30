@@ -3,7 +3,7 @@
 """Flag checks: whether a flag a document tells a reader to type is declared.
 
 Created: 2026-10-22
-Last updated: 2026-10-22
+Last updated: 2026-10-29
 
 This file contains ``declared_flags``, every flag a repository's own scripts
 declare to argparse or to pytest, read from their syntax trees;
@@ -86,6 +86,11 @@ FOREIGN_FLAGS: Final[dict[str, str]] = {
     "--case-branch": "AP-Model-QC, tools/harness_pin.py",
     "--hold-unreproduced": "AP-Model-QC, tools/findings.py",
     "--root": "AP-Harness-QC, tools/refresh_file_dates.py",
+    # SHIPPED IN THE WHEEL AND STILL FOREIGN FROM THE OTHER ROOT.
+    # `declared_flags` reads a repository's own sources, not its installed
+    # packages, so a flag on a harness module a consumer's runbook documents
+    # resolves here and nowhere else without this entry.
+    "--role": "AP-Harness-QC, execution/adapters/registry.py",
 }
 
 # FLAGS OF OURS THAT WERE RETIRED. A retired flag stays resolvable rather than

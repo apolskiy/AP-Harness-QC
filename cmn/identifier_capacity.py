@@ -3,7 +3,7 @@
 """The identifier space: what a six-digit number means, and how much is spent.
 
 Created: 2026-10-18
-Last updated: 2026-10-24
+Last updated: 2026-10-29
 
 This file contains ``PARTITIONS`` and ``partition_of``, the ranges declared
 with a start and an end rather than derived from digit positions;
@@ -136,6 +136,28 @@ PARTITIONS: Final[tuple[Partition, ...]] = (
         subject="the grouping tree in the case repository",
         continues="nothing, a subject beginning now takes a partition",
         allocated="2026-10-24",
+    ),
+    # A CASE PER ENGINE AND PER CHECK, so the subject grows in two dimensions
+    # and a hundred slots bound their product. Twenty checks across five
+    # engines is exactly a hundred, and the twenty-first made that legible
+    # (section 3.2.1.5).
+    Partition(
+        start=440000,
+        end=449999,
+        layer="UNI",
+        module="EXE",
+        subject="adapter conformance across the registered engines",
+        continues="1138xx, which cannot hold the subject in both its dimensions",
+        allocated="2026-10-29",
+    ),
+    Partition(
+        start=450000,
+        end=459999,
+        layer="UNI",
+        module="CMN",
+        subject="what a run records about the model it measured against",
+        continues="nothing, a subject beginning now takes a partition",
+        allocated="2026-10-29",
     ),
 )
 

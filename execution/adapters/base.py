@@ -3,7 +3,7 @@
 """The interface every model provider adapter implements, and the code they share.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 This file contains :class:`ProviderAdapter`, the abstract interface an adapter
 fills in, composing a request from a case, dispatching it once, normalizing
@@ -158,6 +158,26 @@ class ProviderAdapter(ABC):
                 provider returned nothing usable. Preflight fails and the run
                 aborts, because a run whose model identity is unknown produces
                 scores nobody can interpret later.
+        """
+
+    @abstractmethod
+    def served_metadata(self) -> dict[str, Any]:
+        """Return what the provider declares about the requested model now.
+
+        **A metadata call, sending no prompt.** It asks the provider's own
+        models endpoint about ``requested_model`` and returns every property it
+        declares, so a caller compares declared properties rather than an
+        identifier a pinned roster holds fixed.
+
+        Design: ``tier2_execution.md`` sections 5.2 and 5.2.1.
+
+        Returns:
+            dict[str, Any]: The declared properties, keys sorted, values
+            rendered through :func:`declared_properties`. **An empty mapping
+            where the provider declared nothing usable**, rather than a raise:
+            a caller recording provenance should report what it could not read
+            and carry on, and a caller detecting a change treats an unreadable
+            provider as a failed probe that dispatches nothing.
         """
 
     @abstractmethod
@@ -691,3 +711,41 @@ def require_json_object(payload: str, engine: str) -> dict[str, Any]:
             f"object, so it cannot carry the required scores"
         )
     return parsed
+
+
+def declared_properties(payload: Any) -> dict[str, Any]:
+    """Return a provider's model metadata object as a plain sorted mapping.
+
+    **One renderer for every provider**, so a digest over the result does not
+    depend on which SDK produced it. Each vendor returns its own object and all
+    four are pydantic models today; the fallbacks exist so a vendor changing
+    that does not make this raise.
+
+    Keys are sorted and ``None`` values dropped, because a digest over this
+    mapping has to be stable across runs and an SDK that starts returning a
+    field as an explicit null would otherwise read as a change.
+
+    Design: ``tier2_execution.md`` section 5.2.
+
+    Args:
+        payload (Any): Whatever the provider's models endpoint returned.
+
+    Returns:
+        dict[str, Any]: The declared properties. **Empty where the payload
+        carries none**, which the caller reports rather than raising on.
+    """
+    if payload is None:
+        return {}
+    if hasattr(payload, "model_dump"):
+        fields = payload.model_dump()
+    elif isinstance(payload, dict):
+        fields = dict(payload)
+    elif hasattr(payload, "__dict__"):
+        fields = dict(vars(payload))
+    else:
+        return {}
+    return {
+        str(name): value
+        for name, value in sorted(fields.items())
+        if value is not None and not str(name).startswith("_")
+    }

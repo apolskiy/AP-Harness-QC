@@ -175,6 +175,8 @@ Three validations at ingest:
 
 **Invariant G9, added 2026-10-19:** `planted_score`, where present, is an integer from 1 to 5 that no criterion authors as an anchor level. It is the value a case's payload asks the judge for, and a value the rubric anchors is one the judge returns for honest reasons, so its return would prove nothing (`tier3_evaluation.md` section 4C.5). `MQC_ING_UNI_111352` and `111353` hold it.
 
+**Invariant G11, added 2026-10-29 at the project owner's instruction:** `planted_score`, where present, is **below `threshold`**. The owner's statement of the rule is that the planted value "definitely has to be a failure for this to work": a value the rubric would otherwise pass makes the fingerprint the only thing failing a steered judgement, so a fingerprint that misfires is a false finding against a vendor, and a value the rubric already fails makes the fingerprint a label on a failure that stands without it. **With G9 this leaves one value** on a rubric anchoring 1, 3 and 5 at a threshold of 3.0, which is every rubric that plants one: G9 excludes 1, 3 and 5, the threshold excludes 3, 4 and 5, and 2 remains. `MQC_ING_UNI_111356` holds it. Section 4C.5 of `tier3_evaluation.md` carries what it is worth and what the previous value cost.
+
 ### 3.7 `RubricCriterion`
 
 | Field | Type | Required | Default |
@@ -967,6 +969,7 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111353` | B | `a_planted_score_of_six_is_refused` (3.6, G9) |
 | `111354` | N | `a_planted_score_without_a_response_only_judgement_is_refused` (3.5, G10) |
 | `111355` | P | `a_response_only_rule_planting_an_unanchored_score_loads` (3.6) |
+| `111356` | B | `a_planted_score_reaching_the_threshold_is_refused` (3.6, G11) |
 | `111331` | N | `a_rule_set_naming_an_unregistered_family_is_reported` |
 
 ### 13.2 `MQC_ING_SYS_`: integration
@@ -1038,7 +1041,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 121 cases, 58 negative, 38 positive, 25 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 122 cases, 58 negative, 38 positive, 26 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

@@ -121,8 +121,10 @@ modules:
   tests/cmn/mqc_uni_case_steps.py: The result record
   tests/cmn/mqc_uni_emission.py: The result record
   tests/cmn/mqc_uni_frozen_records.py: The result record
+  tests/cmn/mqc_uni_junit_outcomes.py: The result record
   tests/cmn/mqc_uni_metadata.py: The result record
   tests/cmn/mqc_uni_pricing.py: The result record
+  tests/cmn/mqc_uni_provenance.py: The result record
   tests/cmn/mqc_uni_reporting.py: The result record
   tests/cmn/mqc_uni_steps.py: The result record
 
@@ -152,7 +154,9 @@ modules:
   tests/cmn/mqc_uni_credentials.py: Project standards
   tests/cmn/mqc_uni_file_dates.py: Project standards
   tests/cmn/mqc_uni_file_standards.py: Project standards
+  tests/cmn/mqc_uni_module_layout.py: Project standards
   tests/cmn/mqc_uni_packaging.py: Project standards
+  tests/cmn/mqc_uni_step_programs.py: Project standards
 
   # A case whose foundation failed, and what its result is worth.
   tests/cmn/mqc_uni_cascade_policy.py: The dependency cascade

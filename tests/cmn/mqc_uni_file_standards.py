@@ -3,16 +3,19 @@
 """Unit preconditions for what every file in the repository must look like.
 
 Created: 2026-09-24
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 The cases here check the file rules no linter enforces, mostly through
 ``cmn.code_standards``: annotations on every callable and no PEP 563 import,
-SPDX headers on Python, markup and data files, a declared encoding on every
-file open, and a timeout on every subprocess. They also check what case modules
-may define and the module runway in ``cmn.module_size``, the document register
-and runbook in ``cmn.document_standards``, the artifact contract, pylint
-parity and duplicated YAML keys in ``cmn.workflow_standards``, flag coverage,
-and that a consumer run fails its job only on the harness's own codes.
+SPDX headers on Python, markup and data files, and a declared encoding on every
+file open. They also check the document register and runbook in
+``cmn.document_standards``, the artifact contract, pylint parity and duplicated
+YAML keys in ``cmn.workflow_standards``, flag coverage, and that a consumer run
+fails its job only on the harness's own codes.
+
+**What a test module must be is ``mqc_uni_module_layout.py``**, which took the
+support-code, runway and subprocess-timeout cases on 2026-10-29: this module is
+about every file, and those are about the test module as a unit of collection.
 
 They run with every unit precondition run, so a file breaking one of these
 rules fails the build, naming the file, rather than waiting for a reviewer.
@@ -51,12 +54,6 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCRunbook
 #   112524  a_workflow_step_running_an_absent_script_is_reported
 #   112504  a_runbook_command_naming_an_undeclared_input_is_reported
-# TestMQCCaseModuleContents
-#   112328  a_case_module_holding_support_code_is_reported
-# TestMQCModuleRunway
-#   112331  a_module_at_the_runway_ceiling_is_reported
-# TestMQCBoundedSubprocesses
-#   112329  a_subprocess_without_a_timeout_is_reported
 # TestMQCDocumentRegister
 #   112255  a_document_outside_the_register_is_reported
 # TestMQCEncodingDeclared
@@ -80,11 +77,6 @@ from cmn.workflow_standards import (
     disagreeing_pylint_invocations,
     duplicate_yaml_keys,
     pylint_invocations,
-)
-from cmn.module_size import runway_problems
-from cmn.case_module_standards import (
-    extraction_problems,
-    unbounded_subprocess_calls,
 )
 from cmn.code_standards import (
     annotation_gaps,
@@ -413,126 +405,6 @@ class TestMQCRunbook:
         assert not problems, (
             "the runbook documents a dispatch that would be rejected, so the "
             "procedure fails for whoever follows it: " + "; ".join(problems)
-        )
-
-
-
-class TestMQCCaseModuleContents:
-    """What a collected test module is allowed to define."""
-
-    def MQC_CMN_UNI_112328_a_case_module_holding_support_code_is_reported(
-        self,
-    ) -> None:
-        """A collected test module holds cases, not the library supporting them.
-
-        **The convention existed and was unwritten**, which is what it cost:
-        ``repository_root`` stood four times, byte-identical, once public in
-        ``graded_support`` and once privately in each of three case modules. A
-        helper nobody owned was cheaper to rewrite than to find.
-
-        **``pytest.ini`` already draws the boundary** with
-        ``python_files = mqc_*.py``, so a module outside that glob is support by
-        construction. This asserts the other half: that a module inside it holds
-        no support.
-
-        **Fixtures are not support.** A ``@pytest.fixture`` is wiring for one
-        module's cases, bound to them by name, and moving it would make the
-        cases harder to read for a tidier line count.
-
-        **The backlog is declared, not exempted.** Modules predating the rule
-        are named in ``config/support_extraction.yaml`` with a reason and an
-        expiry, and an expired entry fails this. The list shrinks and never
-        grows, because anything undeclared fails here on the day it is written.
-
-        Design: ``harness_test_taxonomy.md`` section 13.
-
-        Returns:
-            None
-        """
-        root = Path(__file__).resolve().parents[2]
-        problems = extraction_problems(
-            root / "tests", root, root / "config" / "support_extraction.yaml",
-            date.today(),
-        )
-        assert not problems, (
-            f"{len(problems)} case module(s) hold support code that belongs in "
-            f"a sibling module, or carry a lapsed declaration: "
-            + "; ".join(problems)
-        )
-
-
-class TestMQCModuleRunway:
-    """How close a module may get to the ceiling before it splits."""
-
-    def MQC_CMN_UNI_112331_a_module_at_the_runway_ceiling_is_reported(
-        self,
-    ) -> None:
-        """No module sits at the runway ceiling without a declared reason.
-
-        **The hard ceiling fires at the worst moment and this one does not.**
-        A module at 998 lines fails the build on a prose edit; a module at nine
-        hundred is reported here, where the next author sees it before adding
-        anything.
-
-        **The margin is for prose, not for more cases.** A case that pushes a
-        module past the ceiling moves out with its subject, which is cheap now
-        that a case module holds only cases.
-
-        Design: ``code-style.md`` section 5.1.
-
-        Returns:
-            None
-        """
-        root = Path(__file__).resolve().parents[2]
-        problems = runway_problems(
-            root, root / "config" / "module_runway.yaml", date.today()
-        )
-        assert not problems, (
-            f"{len(problems)} module(s) are at the runway ceiling without a "
-            f"declared reason, or carry a lapsed declaration: "
-            + "; ".join(problems)
-        )
-
-
-class TestMQCBoundedSubprocesses:
-    """What a case is allowed to wait for, and for how long."""
-
-    def MQC_CMN_UNI_112329_a_subprocess_without_a_timeout_is_reported(
-        self,
-    ) -> None:
-        """No subprocess invocation here waits without a bound.
-
-        **A hang is the worst failure shape available.** A crash names itself;
-        a hang names nothing, arrives after the longest possible delay, and
-        presents as an environmental fault on whichever platform stalled. One
-        cancelled a Windows job 22 minutes into a run that reported `failure`
-        with no failing job and no log, while Ubuntu passed.
-
-        **Six calls existed and none carried a timeout.** Five spawned a nested
-        pytest; the sixth asked git. The case repository had a seventh, and it
-        was the one that mattered most: `git ls-remote` over HTTPS, in the
-        resolve job of every gate there.
-
-        **No local run could have found this.** Those cases take 0.6s to 3.4s
-        here. The defect was never that something hung; it was that nothing
-        bounded how long it could.
-
-        **The keyword is checked, not the value.** Whether 300s is right is a
-        judgement; whether a bound exists is not, and only the second is
-        mechanical.
-
-        Design: ``harness_test_taxonomy.md`` section 14.
-
-        Returns:
-            None
-        """
-        problems = unbounded_subprocess_calls(
-            Path(__file__).resolve().parents[2]
-        )
-        assert not problems, (
-            f"{len(problems)} subprocess invocation(s) carry no timeout, so a "
-            f"child that stalls blocks until a runner cancels the job: "
-            + "; ".join(problems)
         )
 
 

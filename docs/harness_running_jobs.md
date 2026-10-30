@@ -292,8 +292,25 @@ including the reproduction attachment a provider ticket is written from.
 Skip Allure. The JUnit XML answers that, and every CI tool and IDE reads it:
 
 ```
-python -c "import xml.etree.ElementTree as ET; [print(c.get('classname'), c.get('name')) for c in ET.parse('reports/junit_mqc_unit.xml').getroot().iter('testcase') if c.find('failure') is not None]"
+python -m cmn.junit_outcomes reports/junit_mqc_unit.xml
 ```
+
+It takes several reports, so a whole gate sequence reads in one command:
+
+```
+python -m cmn.junit_outcomes reports/junit_mqc_unit.xml reports/junit_mqc_system.xml
+```
+
+**A failure and an error are listed apart**, because they implicate different
+code: a failing graded case is a finding about the model, and a case that
+errored measured nothing and implicates the harness or the corpus. That is the
+division section 7.3 of `cmn_verdict_and_cli.md` rests the exit codes on. An
+absent report refuses with exit 4 rather than printing no failures, since a leg
+that wrote nothing is not a clean leg.
+
+**The lister used to be an inline program in this section**, which nothing
+linted and no case could reach, and it read only `failure` elements, so a gate
+whose cases broke printed nothing and read as clean.
 
 **Use Allure when the question is why**, and JUnit when the question is which.
 
@@ -616,11 +633,13 @@ the way `openai_protocol.py` was lifted, rather than copying the module.
 ### 9.3 Which engines can judge
 
 ```
-python -c "from execution.adapters.registry import engines_for_role, JUDGE_ROLE; print(engines_for_role(JUDGE_ROLE))"
+python -m execution.adapters.registry --role judge
 ```
 
 Derived from the registry and the declared capability, never from a list. An
-engine you add arrives in both roles or in neither.
+engine you add arrives in both roles or in neither. Without `--role` it lists
+the candidates, and an unregistered role refuses with exit 4 rather than
+printing an empty list, which would read as no engine being able to judge.
 
 ### 9.4 There is one judge
 

@@ -3,7 +3,7 @@
 """The adapter that sends cases to Anthropic's Claude models and reads their replies.
 
 Created: 2026-09-24
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 This file contains :class:`ClaudeAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Anthropic Messages API. It composes
@@ -34,7 +34,12 @@ from typing import Any, Final
 import anthropic
 
 from cmn.tokens import TokenUsage
-from execution.adapters.base import Capabilities, ConfiguredAdapter, ProviderFacts
+from execution.adapters.base import (
+    Capabilities,
+    ConfiguredAdapter,
+    ProviderFacts,
+    declared_properties,
+)
 from execution.normalize import NormalizedResponse, ToolCall
 
 logger = logging.getLogger(__name__)
@@ -196,6 +201,22 @@ class ClaudeAdapter(ConfiguredAdapter):
         if self._client is None:
             self._client = anthropic.Anthropic()
         return self._client.messages.create(**request)
+
+    def served_metadata(self) -> dict[str, Any]:
+        """Return what the Anthropic models endpoint declares about this model.
+
+        **This provider declares a ``capabilities`` tree whose keys carry
+        dates**, such as the context-management entries, which is where a
+        revision behind a stable identifier shows (``tier2_execution.md``
+        section 5.2).
+
+        Returns:
+            dict[str, Any]: The declared properties, empty where the endpoint
+            returned nothing usable.
+        """
+        if self._client is None:
+            self._client = anthropic.Anthropic()
+        return declared_properties(self._client.models.retrieve(self.requested_model))
 
     def normalize_response(self, response: Any, case_id: str) -> NormalizedResponse:
         """Convert an Anthropic response into the canonical shape.

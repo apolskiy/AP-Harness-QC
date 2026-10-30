@@ -3,7 +3,7 @@
 """The shared adapter for every provider that serves the OpenAI Chat Completions API.
 
 Created: 2026-09-25
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 This file contains :class:`OpenAICompatibleAdapter`, which implements the
 interface in :mod:`execution.adapters.base` against the Chat Completions API
@@ -48,6 +48,7 @@ from execution.adapters.base import (
     Capabilities,
     ConfiguredAdapter,
     ProviderFacts,
+    declared_properties,
     require_json_object,
 )
 from execution.normalize import NormalizedResponse, ToolCall
@@ -231,6 +232,23 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
         if self._client is None:
             self._client = openai.OpenAI(**self.client_options())
         return self._client.chat.completions.create(**request)
+
+    def served_metadata(self) -> dict[str, Any]:
+        """Return what this engine's models endpoint declares about the model.
+
+        **Shared by every engine on this protocol**, which is the point of the
+        base URL being the only difference between them: openai declares
+        ``created`` and a ``shutdown_date``, and grok declares its token prices
+        and context length, both through the same call
+        (``tier2_execution.md`` section 5.2).
+
+        Returns:
+            dict[str, Any]: The declared properties, empty where the endpoint
+            returned nothing usable.
+        """
+        if self._client is None:
+            self._client = openai.OpenAI(**self.client_options())
+        return declared_properties(self._client.models.retrieve(self.requested_model))
 
     def normalize_response(self, response: Any, case_id: str) -> NormalizedResponse:
         """Convert a Chat Completions response into the canonical shape.

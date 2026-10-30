@@ -3,16 +3,16 @@
 """Unit cases for validating the planted score a golden rule declares.
 
 Created: 2026-10-19
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 Its cases check ``GoldenRuleSet`` in :mod:`ingestion.schemas`. A planted score
-at an anchored level, a planted score of six, and one on a rule without
-response-only judging are refused, while a response-only rule planting an
-unanchored score loads. The evaluation pipeline later fails a judgement that
-returns this score.
+at an anchored level, a planted score of six, one reaching the rubric's
+threshold, and one on a rule without response-only judging are refused, while a
+response-only rule planting an unanchored score below the threshold loads. The
+evaluation pipeline later fails a judgement that returns this score.
 
 Specified by ``docs/design/tier1_ingestion.md`` section 13.1 and sections 3.5
-and 3.6, invariants G9 and G10.
+and 3.6, invariants G9, G10 and G11.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
@@ -26,6 +26,7 @@ marker, per ``framework-rules.md`` section 3.3.
 #   111353  a_planted_score_of_six_is_refused
 #   111354  a_planted_score_without_a_response_only_judgement_is_refused
 #   111355  a_response_only_rule_planting_an_unanchored_score_loads
+#   111356  a_planted_score_reaching_the_threshold_is_refused
 # ------------------------------------------------------------ end of cases
 
 from typing import Any
@@ -94,6 +95,11 @@ class TestMQCPlantedScoreDeclaration:
     ) -> None:
         """Only a response-only rule's judge reads an answer to the attack.
 
+        **The planted value is one G9 and G11 both admit**, so neither of them
+        is what refuses this rule and the case isolates G10. Planting a 4 here
+        would be refused for reaching the threshold instead, which is a
+        different invariant and would make this case prove nothing.
+
         Design: ``tier1_ingestion.md`` section 3.5, G10.
 
         Args:
@@ -102,11 +108,11 @@ class TestMQCPlantedScoreDeclaration:
         Returns:
             None
         """
-        step(1, "load a rule planting a 4 that does not judge its answer alone")
+        step(1, "load a rule planting an admissible 2 that does not judge its answer alone")
         with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION") as raised:
             GoldenRuleSet.from_dict({
                 **sample_rule_payload,
-                "rubric": {**sample_rule_payload["rubric"], "planted_score": 4},
+                "rubric": {**sample_rule_payload["rubric"], "planted_score": 2},
             })
 
         step(2, "read whether the refusal names both fields")
@@ -116,9 +122,42 @@ class TestMQCPlantedScoreDeclaration:
     def MQC_ING_UNI_111355_a_response_only_rule_planting_an_unanchored_score_loads(
         self, sample_rule_payload: dict[str, Any]
     ) -> None:
-        """A 4, which the sample rubric does not anchor, is carried on the rubric.
+        """A 2, which the sample rubric neither anchors nor passes, is carried.
 
         Design: ``tier1_ingestion.md`` section 3.6.
+
+        Args:
+            sample_rule_payload (dict): Minimal rule payload, anchoring 1, 3 and
+                5 at a threshold of 3.0.
+
+        Returns:
+            None
+        """
+        step(1, "load a response-only rule planting an unanchored 2")
+        rule = GoldenRuleSet.from_dict({
+            **sample_rule_payload,
+            "judge_response_only": True,
+            "rubric": {**sample_rule_payload["rubric"], "planted_score": 2},
+        })
+        assert rule.rubric is not None and rule.rubric.planted_score == 2, (
+            "the planted score was not carried on the rubric"
+        )
+
+    def MQC_ING_UNI_111356_a_planted_score_reaching_the_threshold_is_refused(
+        self, sample_rule_payload: dict[str, Any]
+    ) -> None:
+        """The boundary is the threshold itself: at it refused, under it carried.
+
+        A planted value the rubric would pass leaves the fingerprint as the only
+        thing failing a steered judgement, so a fingerprint that misfires becomes
+        a finding against a vendor. The 4 this project planted until 2026-10-29
+        did exactly that six times in 115 judgements.
+
+        Both halves plant 2, which no sample criterion anchors, so G9 cannot be
+        what refuses the first half and the case isolates G11.
+
+        Design: ``tier1_ingestion.md`` section 3.6, G11, and
+        ``tier3_evaluation.md`` section 4C.5.
 
         Args:
             sample_rule_payload (dict): Minimal rule payload, anchoring 1, 3 and 5.
@@ -126,12 +165,32 @@ class TestMQCPlantedScoreDeclaration:
         Returns:
             None
         """
-        step(1, "load a response-only rule planting an unanchored 4")
+        step(1, "load a rule whose planted score equals its threshold exactly")
+        with pytest.raises(ValueError, match="QC_DATA_INVARIANT_VIOLATION") as raised:
+            GoldenRuleSet.from_dict({
+                **sample_rule_payload,
+                "judge_response_only": True,
+                "rubric": {
+                    **sample_rule_payload["rubric"],
+                    "threshold": 2.0,
+                    "planted_score": 2,
+                },
+            })
+
+        step(2, "read whether the refusal names the field and the threshold")
+        message = str(raised.value)
+        assert "planted_score" in message and "threshold" in message, message
+
+        step(3, "load the same planted score one step below the threshold")
         rule = GoldenRuleSet.from_dict({
             **sample_rule_payload,
             "judge_response_only": True,
-            "rubric": {**sample_rule_payload["rubric"], "planted_score": 4},
+            "rubric": {
+                **sample_rule_payload["rubric"],
+                "threshold": 3.0,
+                "planted_score": 2,
+            },
         })
-        assert rule.rubric is not None and rule.rubric.planted_score == 4, (
-            "the planted score was not carried on the rubric"
+        assert rule.rubric is not None and rule.rubric.planted_score == 2, (
+            "a planted score below the threshold was not carried on the rubric"
         )

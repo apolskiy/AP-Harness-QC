@@ -3,7 +3,7 @@
 """Whether a CI definition gates what it runs, read before a push.
 
 Created: 2026-10-25
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 This file contains ``ungated_graded_jobs``, which reports a job that runs
 graded cases out of this repository's checkout and reaches no precondition
@@ -12,7 +12,15 @@ invocation, and the readers it needs: ``_job_scripts``, which follows a local
 expression, and ``_reaches_a_precondition``, which walks a job's ``needs:``.
 It also contains ``unearned_run_conclusions``, which reports a job that would
 give a run a conclusion its workflow did not earn, having run alone while the
-job gated on the triggering run's conclusion was skipped.
+job gated on the triggering run's conclusion was skipped, and
+``ungated_dispatches``, which reports a job that starts a workflow that spends
+without reading a green pairing from a job it needs.
+
+**The two gating checks ask different questions of different jobs.**
+``ungated_graded_jobs`` asks whether a job that measures a model reaches a
+verified instrument; ``ungated_dispatches`` asks whether a job that makes
+another workflow measure one does. A job of the second kind runs no case, so
+the first check passes it in silence.
 
 A precondition case in each repository calls it with that repository's root, so
 a workflow that would measure a model with an unchecked instrument fails the
@@ -23,7 +31,7 @@ reached its nine-hundred-line runway as this was written. The subjects divide
 cleanly: that module reads what a definition says, a pylint path list or a
 spending ceiling, and this one reads what stands in front of a job.
 
-Specified by ``docs/design/harness_ci_pipeline.md`` section 8.6.
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.6 and 8.9.
 """
 
 import re
@@ -66,6 +74,26 @@ _TRIGGER_CONCLUSION: Final[re.Pattern] = re.compile(
 # THE CONDITION THAT SURVIVES A SKIPPED PREREQUISITE, which is what a summary
 # job wants and what makes it report a run nothing earned (section 8.8.2).
 _ALWAYS: Final[str] = "always()"
+
+# THE TWO WAYS A JOB STARTS ANOTHER WORKFLOW, the command line and the API.
+# Both are read because a job using the second would otherwise look like a job
+# that dispatches nothing (design section 8.9).
+_DISPATCH: Final[re.Pattern] = re.compile(
+    r"gh\s+workflow\s+run|/actions/workflows/[^\s]+/dispatches"
+)
+
+# A DISPATCH NAMING A REPOSITORY THAT IS NOT THIS ONE. The expression for this
+# repository is permitted, because a job dispatching into its own repository is
+# spending its own quota and is this check's subject; anything else belongs to
+# the repository that owns the pairing.
+_FOREIGN_REPOSITORY: Final[re.Pattern] = re.compile(
+    r"--repo[=\s]+(?!\"?\$\{\{\s*github\.repository\s*\}\})"
+)
+
+# WHAT A GATED CONDITION READS, with the spaces already removed from both
+# sides so `needs.resolve.outputs.green=='true'` and the spaced form are one
+# comparison.
+_GREEN_PAIRING: Final[str] = "needs.{job}.outputs.green"
 
 
 def unearned_run_conclusions(root: Path) -> list[str]:
@@ -207,6 +235,92 @@ def ungated_graded_jobs(root: Path) -> list[str]:
                 f"an instrument nothing checked"
             )
     return gaps
+
+
+def ungated_dispatches(root: Path) -> list[str]:
+    """Report every job dispatching a spending workflow with no green pairing.
+
+    Section 8.6 gates a job that **runs** graded cases on the preconditions.
+    This gates a job that **causes** graded cases to run elsewhere on the
+    instrument having been verified, which neither covers nor is covered by
+    the other: a red there means nothing was measured, and a red here means
+    nothing was dispatched and nothing was spent.
+
+    **A dispatch into another repository is out of scope**, and belongs to the
+    repository that owns the pairing. That is the boundary section 8.6.3 draws:
+    a job reaching another repository is measuring that repository's subject,
+    and only the repository holding the pin can say whether a harness is green.
+
+    Design: ``harness_ci_pipeline.md`` section 8.9.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: One entry per job, naming the file, the job and what it
+        needs. Empty where every dispatching job reads a green pairing, and
+        empty against a root with no pin of its own, which is why this reports
+        nothing here and is called from both repositories.
+    """
+    gaps: list[str] = []
+    for path in sorted((root / ".github" / "workflows").glob("*.yml")):
+        if path.name.endswith(_ON_DEMAND_SUFFIX):
+            continue
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        jobs: dict[str, Any] = parsed.get("jobs") or {}
+        for name, body in jobs.items():
+            scripts = _job_scripts(root, body or {})
+            if not _dispatches_a_workflow(scripts):
+                continue
+            if _reads_a_green_pairing(name, jobs):
+                continue
+            needed = ", ".join(_needed(jobs[name] or {})) or "nothing"
+            gaps.append(
+                f"{path.name} job {name!r} dispatches a workflow that spends "
+                f"and reads no green pairing: it needs {needed}, so it would "
+                f"spend against a harness nothing verified"
+            )
+    return gaps
+
+
+def _dispatches_a_workflow(scripts: list[tuple[str, bool]]) -> bool:
+    """Say whether a job dispatches a workflow in its own repository.
+
+    Args:
+        scripts (list[tuple[str, bool]]): Each command, and whether it runs in
+            a checkout the job fetched.
+
+    Returns:
+        bool: True where a command of this job's own dispatches a workflow and
+        does not name another repository to dispatch into.
+    """
+    return any(
+        not elsewhere
+        and _DISPATCH.search(command)
+        and not _FOREIGN_REPOSITORY.search(command)
+        for command, elsewhere in scripts
+    )
+
+
+def _reads_a_green_pairing(name: str, jobs: dict[str, Any]) -> bool:
+    """Say whether a job's condition reads a green pairing from a job it needs.
+
+    Args:
+        name (str): The dispatching job's name.
+        jobs (dict[str, Any]): Every job in the workflow.
+
+    Returns:
+        bool: True where the condition names the ``green`` output of a job this
+        one reaches. **The job it needs, not any job**: a condition reading an
+        output of something that does not gate it would not stop the dispatch.
+    """
+    condition = _condition(jobs.get(name))
+    if not condition:
+        return False
+    return any(
+        _GREEN_PAIRING.format(job=reached) in condition.replace(" ", "")
+        for reached in _reached(name, jobs)
+    )
 
 
 def _job_scripts(root: Path, job: dict[str, Any]) -> list[tuple[str, bool]]:

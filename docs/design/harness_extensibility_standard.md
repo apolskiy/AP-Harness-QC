@@ -129,6 +129,7 @@ Adding an engine is the most likely extension. An adapter implements one interfa
 | `normalize_response` | Return the canonical response shape |
 | `extract_tool_calls` | Return tool-call intent in canonical form: **captured, never executed** (A9) |
 | `resolve_model_version` | The version the provider **returned**, not the one requested (A8) |
+| `served_metadata` | What the provider declares about the model **now**, read without sending a prompt. Added 2026-10-29: a pinned identifier cannot move, so the identifier above detects no change and the declared properties beside it do (`tier2_execution.md` section 5.2) |
 | `map_error` | Translate provider failures into `QC_HARNESS_*` codes |
 
 `map_error` matters more than it looks: provider error taxonomies differ, and without translation a rate limit from one vendor and a rate limit from another become different rows in the record, destroying comparability.

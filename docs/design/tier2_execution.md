@@ -351,6 +351,152 @@ Captured in preflight and attached per result (A8). **The resolved identifier, n
 
 Preflight failure aborts before any case runs, per `cmn_verdict_and_cli.md` section 4.2. A run whose model identity is unknown produces scores nobody can interpret later.
 
+### 5.1 The resolved identifier is a constant while the roster pins a model
+
+Measured 2026-10-29, against all four rostered providers.
+
+**A pinned identifier cannot move, so nothing watching it detects a change.**
+Section 5 records the resolved version per result, which is what A8 asks for
+and is right for that purpose. It was also read as a change detector, and for
+that it sees nothing at all.
+
+Each provider's model metadata endpoint was asked about the model
+`config/engines.yaml` names:
+
+| Engine | Requested | The provider returned |
+|---|---|---|
+| `claude` | `claude-opus-5-5` | `claude-opus-5-5` |
+| `gemini` | `gemini-3.8-flash` | `models/gemini-3.8-flash` |
+| `grok` | `grok-4.7` | `grok-4.7` |
+| `openai` | `gpt-4.1` | `gpt-4.1` |
+
+**Every one echoes the request**, and a recorded response says the same: a
+gemini fixture carries `requested_model` and `resolved_model` both reading
+`gemini-3.8-flash`. Resolving the version from a live response therefore costs
+a request and returns the string that was sent.
+
+**The pin is deliberate and is not the defect.** A3.1 pinned a concrete
+identifier rather than an alias precisely so a floating alias could not move
+under a recorded baseline, and that decision is kept. What follows from it is
+that the identifier is the wrong field to watch, because the project chose a
+field that does not change.
+
+**The event a change detector exists for leaves the identifier untouched.**
+`harness_ci_pipeline.md` section 5.1 states it as a residual risk, that a
+provider may revise a model behind a stable identifier so a probe reporting no
+change is evidence rather than proof. The measurement makes it the whole of
+what such a probe sees.
+
+### 5.2 `served_metadata`, the operation a change detector reads
+
+**The metadata endpoint returns more than the identifier, and the rest of it
+moves.** The same measurement recorded what each provider reports beside the
+name:
+
+| Engine | Fields a revision would move |
+|---|---|
+| `gemini` | `version`, reading `3.0` against the `3.8-flash` in the name; the input and output token limits; `supported_actions`; `thinking`; the sampling defaults |
+| `openai` | `created`, and `shutdown_date`, reading `2027-01-14` |
+| `claude` | The `capabilities` tree, whose keys carry dates such as `compact_20260112` |
+| `grok` | `created`, four token prices, `context_length`, `long_context_threshold`, and the reasoning effort levels |
+
+**So a change detector compares the whole object rather than one field**, as a
+digest, and reports which fields moved. That sends no prompt, which is what
+`harness_ci_pipeline.md` section 4 always claimed a probe cost and what no
+implementation ever delivered.
+
+`served_metadata` is a required adapter operation,
+listed in `harness_extensibility_standard.md` section 3.1 beside
+`resolve_model_version`. Neither replaces the other:
+
+| | `resolve_model_version` | `served_metadata` |
+|---|---|---|
+| Reads | A response the run already paid for | A metadata endpoint, with no prompt |
+| Answers | Which identity produced **this** result | What the provider serves **now** |
+| Costs | Nothing beyond a request a case already sends | One metadata call per engine |
+| Moves when | The provider returns a different identifier | Any declared property of the model moves |
+
+**`shutdown_date` earns the operation on its own.** A retirement date appearing
+or moving is an event this project has already been caught by, when
+`gemini-2.5-flash` stayed listed by the API and returned 404 on use (A3.1). A
+declared retirement date announces that in advance.
+
+#### 5.2.1 The probe is a call, not a workflow, and it has two callers
+
+Stated by the project owner on 2026-10-29: "probe is a call through harness.
+which gets a particular model's version. it can run in a probe job or any other
+model job."
+
+**One implementation, two callers**, which is the arrangement
+`framework-rules.md` section 4.1 asks for rather than two mechanisms competing:
+
+| Caller | Asks | What the answer does |
+|---|---|---|
+| A probe job | Has the version moved since the baseline | Triggers the weekly regression against the new version |
+| Any run that measures a model | What am I measuring against | Becomes that run's provenance, in both artifacts (`cmn_verdict_and_cli.md` section 5.6) |
+
+**Recording is the primary caller and detection is the secondary one.** A
+detected change decides when to spend; a recorded version decides whether a
+result means anything a year later, when the run that produced it has aged out
+of GitHub's retention and only the collected artifact survives. The earlier
+design had this the other way around, which is why it specified a nightly
+workflow and never specified provenance at all.
+
+**The replay side needs no call.** A replayed run measured a recording, so the
+version it measured against is the one in the fixture, which is already there
+and is the correct answer. It is also the only answer available: a gate run
+holds no credential by design (`harness_ci_pipeline.md` section 8), so a run
+with no key reads the recording rather than asking a provider what it serves
+today.
+
+### 5.3 Preflight is invocable from a command line, and was invoked as though it were
+
+Added 2026-10-29, after the probe move found that the command it had been
+running since 2026-09-26 ran no program.
+
+**A module invoked with the interpreter's module flag and declaring no entry
+point exits 0 having done nothing.** It is not an error, it produces no output,
+and the arguments after the module name are left in `sys.argv` for a program
+that never runs.
+
+| The workflow ran | What happened |
+|---|---|
+| `python -m execution.preflight`, given a baseline path and an output path | The module was imported, both arguments ignored, exit 0 |
+| What the step then read | An empty `changed_engines`, so the baseline commit and the dispatch were skipped by their own conditions |
+
+**The argument names were deliberately described rather than written here
+until `main` existed.** `MQC_CMN_UNI_400002` reports a flag a live document
+tells a reader to type that nothing declares, and until the parser declared
+them that is exactly what they were. `main` declares them as of 2026-10-29, so
+they are written below.
+
+**This is the silent-success shape `code-style.md` section 8.1.3 bans `sed -i`
+for**, arriving through a different door: a command that reports success having
+done something other than what was written. The difference is that `sed`
+reports success on a pattern matching nothing, and here the pattern was a
+module with nothing to call.
+
+**So the entry point is part of the specification rather than an assumed
+convenience.** `main` walks the roster in `config/engines.yaml`, calls
+`served_metadata` per engine, compares against the baseline through
+`probe_all`, writes the baseline back, and writes the changed engines in the
+`name=value` form a CI step output takes.
+
+| Argument | Holds | Absent |
+|---|---|---|
+| `--baseline` | The file the previous digests were recorded in | **Exit 2.** There is nothing to compare against, and a probe with no baseline silently reporting no change is the defect section 4.3 of the CI design records |
+| `--output` | Where the changed engines are written | Written to standard output, which is what a person running it by hand wants |
+| `--roster` | The engine roster to walk | `config/engines.yaml`, the packaged default |
+
+**`MQC_EXE_UNI_113513` asserts the entry point exists**, by running the module
+with no arguments and requiring exit 2. The assertion is on 2 rather than on
+anything non-zero because 0 is what the defect produced: a module with nothing
+to call exits 0, and so does a successful run.
+
+**An engine whose probe failed leaves its baseline untouched**, which
+`probe_all` already implements: overwriting it with nothing would make the next
+run report a change that never happened.
+
 ---
 
 ## 5A. The Anthropic Request States What It Depends On
@@ -1849,10 +1995,19 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 
 **Category `1138xx` is adapter conformance, one case per engine and check**,
 allocated 2026-10-16 when the battery was split (`harness_test_taxonomy.md`
-section 1.1). Each engine takes twenty consecutive identifiers in roster order,
-`113800` claude, `113820` gemini, `113840` grok and `113860` openai, which
-leaves room for one more engine; a sixth needs a category of its own.
+section 1.1). Each engine took twenty consecutive identifiers in roster order,
+`113800` claude, `113820` gemini, `113840` grok and `113860` openai.
 `113114` fails while any registered engine lacks its cases.
+
+**The category is closed to new checks as of 2026-10-29, and the subject
+continues in partition `440000`-`449999`.** The allocation above recorded that
+it left room for a fifth engine, and that was never true: the battery holds a
+case per engine **and** per check, so twenty checks across five engines is
+exactly the hundred the category holds and the twenty-first check puts it at
+105. The category had also already lost `113880` to a judgement recording case.
+**The twenty checks here keep their numbers and the free slots stay theirs**;
+the twenty-first check and any fifth engine are in the partition
+(`harness_test_taxonomy.md` section 3.2.1.5).
 
 | ID | Cat | Behaviour |
 |---|---|---|
@@ -2096,6 +2251,27 @@ leaves room for one more engine; a sixth needs a category of its own.
 | ~~`113219`~~ | | ~~`a_stored_request_disagreeing_with_its_hash_is_stale`~~. **Retired 2026-10-11**, as above. `113613` states it |
 | ~~`113220`~~ | | ~~`a_fixture_carrying_a_credential_shaped_value_is_reported`~~. **Retired 2026-10-11**, as above. `113614` states it |
 | `113209` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
+| `113513` | P | `preflight_declares_a_command_line_entry_point` (5.3) |
+| `440000` | P | `claude_reports_what_its_provider_serves` (5.2) |
+| `440001` | P | `gemini_reports_what_its_provider_serves` (5.2) |
+| `440002` | P | `grok_reports_what_its_provider_serves` (5.2) |
+| `440003` | P | `openai_reports_what_its_provider_serves` (5.2) |
+
+#### 10.1.0 The twenty-first conformance check, and why it is not in `1138xx`
+
+Added 2026-10-29 with ``served_metadata``, the first operation added to the
+adapter contract since the battery was split.
+
+**The four cases are the twenty-first check, and they sit in partition
+`440000`-`449999`** for the reason the preamble to this section gives: the
+category holds a case per engine and per check, so a hundred slots bound their
+product, and the allocation that recorded room for a fifth engine could not
+have held one at twenty-one checks. `harness_test_taxonomy.md` section 3.2.1.5
+carries the ruling and the arithmetic.
+
+**`113513` is not part of that**, and belongs with the probe's own cases in
+`1135xx`: it is about `execution/preflight.py` having a command line to be
+called from, not about an adapter's contract.
 
 #### 10.1.1 The version probe
 
@@ -2165,7 +2341,7 @@ leaves room for one more engine; a sixth needs a category of its own.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 213 cases, 99 negative, 105 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 218 cases, 99 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

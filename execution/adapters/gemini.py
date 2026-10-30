@@ -3,7 +3,7 @@
 """The adapter that sends cases to Google's Gemini models and reads their replies.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-29
 
 This file contains :class:`GeminiAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Google Gen AI API. It composes and
@@ -44,6 +44,7 @@ from execution.adapters.base import (
     Capabilities,
     ConfiguredAdapter,
     ProviderFacts,
+    declared_properties,
     require_json_object,
 )
 from execution.normalize import NormalizedResponse, ToolCall
@@ -201,6 +202,21 @@ class GeminiAdapter(ConfiguredAdapter):
         if self._client is None:
             self._client = genai.Client()
         return self._client.models.generate_content(**request)
+
+    def served_metadata(self) -> dict[str, Any]:
+        """Return what the Gen AI models endpoint declares about this model.
+
+        **This provider reports a ``version`` of its own**, reading `3.0`
+        against the `3.8-flash` in the name, which is the field the identifier
+        cannot supply (``tier2_execution.md`` section 5.2).
+
+        Returns:
+            dict[str, Any]: The declared properties, empty where the endpoint
+            returned nothing usable.
+        """
+        if self._client is None:
+            self._client = genai.Client()
+        return declared_properties(self._client.models.get(model=self.requested_model))
 
     def normalize_response(self, response: Any, case_id: str) -> NormalizedResponse:
         """Convert a Gen AI response into the canonical shape.

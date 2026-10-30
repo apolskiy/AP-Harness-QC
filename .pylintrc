@@ -115,6 +115,20 @@ good-names=_
 # only reason it should ever move.
 max-attributes=22
 
+# THIRTY SINCE 2026-10-29, where the default twenty had been implicit. One
+# class in this project is a registry rather than an object: each
+# `mqc_uni_conformance_<engine>.py` carries one method per adapter conformance
+# check, so its method count is the size of the adapter contract and not a
+# measure of how much the class does. The contract reached twenty-one with
+# `served_metadata`.
+#
+# THE LIMIT STILL MEANS SOMETHING AT THIRTY. An ordinary class that sprawled
+# is still reported, and the headroom is nine more checks rather than
+# unbounded; the identifier partition the subject was given on the same day
+# records that it is expected to grow (`harness_test_taxonomy.md` section
+# 3.2.1.5).
+max-public-methods=30
+
 # SIX BECAUSE PYLINT COUNTS `self`, so the default of 5 means a method may take
 # four arguments and a plain function five. That is not the standard this project
 # intends, and it bites hardest on test methods, whose arguments are pytest

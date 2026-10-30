@@ -1271,6 +1271,69 @@ requires.
 | `112419` | The report carries each observation's request, response, screen matches, checks, and the judge prompt with its scores, or why it was not judged, with credentials redacted |
 | `112420` | A passing case and a failing case each attach `exchanges`; a case that dispatched nothing attaches none, and the vendor report still attaches on a failure only |
 
+### 5.6 A run states which model it measured, in both artifacts
+
+Added 2026-10-29 at the project owner's instruction: "when regression job
+against model runs we need to get the model id for reports, otherwise reports
+are useless. This way when comparing job run results, model is also a key
+factor, especially, if what was not working before starts working."
+
+**Two runs are comparable only where each says what produced it.** The question
+a later comparison asks is whether a result moved because this project changed
+or because the provider did, and nothing in a report answers it unless the
+report carries the model.
+
+#### 5.6.1 What each artifact carried, measured
+
+| Artifact | The model it measured against |
+|---|---|
+| Allure raw results | **Present.** `published_fields` publishes `resolved_model` per case, through `observation_parameters` (section 5.2.1) |
+| The generated Allure report | **Absent.** Nothing writes an `environment.properties`, so the site has no environment block at all |
+| **JUnit XML** | **Absent.** Nothing in either repository calls `record_testsuite_property` or `record_property` |
+
+**The absent one is the one a collector parses.** `testing-standards.md`
+section 5 names JUnit XML first in the artifact contract and leaves durable
+history to something outside this repository collecting it, which is the
+arrangement the project owner confirmed on 2026-10-29: a JUnit report can be
+parsed into a database, and that database is not part of this project. **What
+this project owes that collector is provenance in the file**, and the file did
+not have it.
+
+#### 5.6.2 Run-level, because a run is one engine
+
+**`record_testsuite_property`, which is session-scoped and writes a
+`<property>` under the root `<testsuite>`.** Each run records its engine, the
+model it requested, and the version the provider served.
+
+| | `record_testsuite_property` | `record_property` |
+|---|---|---|
+| Scope | The run | One case |
+| Under the default `xunit2` family | **Compatible**, stated in pytest's own fixture | **Warns**, and needs `legacy` or `xunit1` |
+
+**So per-case provenance in JUnit would cost a format downgrade, and buys
+nothing here.** Every run in the shipped topology names one engine and one
+mode: `--engine` takes a single value and the ladder is one call per engine. A
+run that somehow served two models publishes `resolved_models` already, which
+is the unsound-run condition section 4.9.6 gates on rather than a case to
+report per test.
+
+**`RunMetadata` already holds what is written.** It carries `resolved_models`
+per engine and the selection, so this is an emission of a record that exists
+rather than a new one, which is the same relationship section 5.2 draws between
+the values and when they exist.
+
+#### 5.6.3 The report a person reads gets the same facts
+
+An `environment.properties` is written into the results directory before the
+report is generated, carrying the engine, the mode, the requested and served
+models, and the harness commit. **Allure builds its environment widget from
+that file and from nothing else**, so its absence is why a published report
+names no model today.
+
+**It is a rendering of the same record, not a second one.** Section 5.1 is the
+instance of the opposite: one field reached the artifact while the section
+claimed all of them did, which is what a second source of truth produces.
+
 ---
 
 ## 6. RTM Integrity
@@ -2769,6 +2832,55 @@ summary, which is what a reader sees without opening the log.
 `MQC_CMN_UNI_112332` asserts the arithmetic, including that nothing executed
 yields no rate and that a dependency skip stays out of the denominator.
 
+### 7.12 The failure lister answers which cases went red
+
+Added 2026-10-29. Both runbooks had a section called "when you only want to
+know what failed", and both answered it with an inline program in the runbook
+text: nothing linted it, no case could reach it, and it read only `failure`
+elements, so a leg whose cases broke printed nothing and read as clean.
+
+**`cmn.junit_outcomes` is that command as a file.** It reads one or more JUnit
+reports and names the cases each one reported red:
+
+```
+python -m cmn.junit_outcomes reports/junit_mqc_unit.xml reports/junit_mqc_system.xml
+```
+
+| Answers | Read from |
+|---|---|
+| **Which** cases went red | This tool, from the JUnit report |
+| **Why** one went red | Allure, or the `vendor-report` attachment a failing case carries |
+
+#### A failure and an error are listed apart
+
+**They implicate different code**, which is the division section 7.3 rests the
+exit codes on: a failing graded case is a finding about the model, and a case
+that errored measured nothing and implicates the harness or the corpus. A
+reader scanning for model findings must not meet an instrument defect inside
+that list.
+
+**A case carrying both is counted as broken once.** pytest writes an error for
+a failure in setup or teardown around an already failing call, and the
+instrument defect is the one that decides the remedy.
+
+#### The retired command had a second defect, and it was the quiet one
+
+It read only `failure` elements. **A run whose cases broke printed nothing and
+read as clean**, which is the shape section 7.3 exists to keep apart from a
+green run. An absent report is refused with exit 4 for the same reason, rather
+than printed as no failures: a leg that wrote no report measured nothing.
+
+#### It lives in the harness and is called from each root
+
+**Both runbooks documented it**, so a copy in each repository's `tools/` would
+be a copy that drifts. One implementation called with each root is the
+arrangement sections 7.2, 7.3 and 7.4 of `code-style.md` already use for the
+encoding, header and naming rules, and `cmn/` is importable from a consumer
+because the harness ships it.
+
+`MQC_CMN_UNI_112432` asserts the split, the refusal and the counts, and
+`MQC_CAS_UNI_115791` asserts that the consumer can call it.
+
 
 ## 8. Configuration
 
@@ -3221,6 +3333,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112326` | N | `an_identifier_bound_by_two_callables_is_reported` |
 | `112525` | N | `a_workflow_emitting_one_mandated_artifact_is_reported` |
 | `112526` | N | `a_file_date_line_missing_or_stale_is_reported` |
+| `112527` | N | `a_collected_module_no_gate_selects_is_reported` (`harness_test_taxonomy.md` 13.6) |
 | `112037` | N | `an_entry_whose_model_changed_is_expired` |
 | `112038` | P | `an_unconfirmed_entry_is_honoured_and_never_red` |
 | `112039` | P | `an_absent_quarantine_file_is_an_empty_quarantine` |
@@ -3303,6 +3416,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112401` | P | `a_dependent_of_a_passing_base_case_runs_normally` |
 | `112402` | N | `a_dependency_naming_no_collected_case_is_reported` |
 | `112403` | B | `a_mixed_script_word_is_a_homoglyph_and_one_script_is_not` |
+| `112432` | N | `separates_failures_from_errors_and_refuses_an_absent_report` |
+| `112435` | N | `a_step_program_refuses_what_would_measure_or_verify_nothing` |
 | `112511` | N | `a_file_open_declaring_no_encoding_is_reported` |
 | `112316` | N | `a_requirement_identifier_declared_twice_is_reported` |
 | `112317` | B | `a_register_at_eighty_percent_of_its_ceiling_is_reported` |
@@ -3393,8 +3508,16 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `420007` | N | `no_module_outside_the_boundary_imports_the_reporter` (taxonomy 16.7) |
 | `420008` | P | `the_suite_root_is_the_band_or_the_precondition_root` (taxonomy 16.8) |
 | `420009` | P | `every_registered_code_reaches_exactly_one_category` (taxonomy 16.9) |
+| `112192` | N | `a_dispatching_job_reading_no_green_pairing_is_reported` (ci_pipeline 8.9) |
+| `450000` | P | `every_field_is_carried_whatever_the_run_knew` (5.6.1) |
+| `450001` | B | `an_absent_value_reads_unrecorded_not_empty` (5.6.1) |
+| `450002` | P | `a_replay_run_records_what_it_replayed` (5.6.2) |
+| `450003` | P | `the_properties_file_is_written_where_a_report_reads_it` (5.6.3) |
+| `450004` | P | `the_junit_properties_carry_the_same_mapping` (5.6.2) |
+| `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
+| `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 461 cases, 271 negative, 140 positive, 50 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 472 cases, 277 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

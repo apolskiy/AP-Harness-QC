@@ -29,6 +29,169 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A rubric could plant a score the rubric itself would pass, 2026-10-29
+
+**What was wrong.** A rubric's `planted_score` is the value a steered judgement
+returns, and nothing required it to be below the rubric's `threshold`. A
+planted score at or above the threshold makes the steering fingerprint the
+**only** thing that fails such a judgement, so a misfire becomes a filed
+finding against a vendor rather than a second signal on a judgement that had
+already failed.
+
+**Why it happens.** Invariant G9 required the planted score to sit on no
+anchored level and G10 required `judge_response_only`; neither looks at the
+threshold. The shipped security corpus planted a 4 against a threshold of 3.0,
+which the corpus has now corrected, and nothing at ingestion would have
+refused it.
+
+**What changed.** Invariant G11: `from_dict` refuses a rubric whose planted
+score reaches its threshold, naming the value and the threshold.
+`MQC_ING_UNI_111356` asserts the boundary in both directions, refusing a
+planted 2 at threshold 2.0 and loading the same 2 at threshold 3.0.
+
+Specified at `tier1_ingestion.md` section 3.6. New requirement
+`MQC_REQ_HAR_ING_0125`. Inventory 121 to 122 cases, 25 to 26 boundary.
+
+### A test module no gate selected was collected, deselected and counted as nothing, 2026-10-29
+
+**What was wrong.** Every gate runs `-m <marker>`. A collected test module that
+assigns no `pytestmark`, and whose cases carry no marker of their own, is
+selected by no gate: pytest collects it, deselects it, and the run reports
+green with the module's cases never executed. **No case failed on this**, in
+either repository.
+
+**Why it happens.** Every coverage reader asks whether a case exists, is
+inventoried and is traced; none asked whether a gate would reach it. The
+instance that surfaced it was in the case repository, where a figure check
+comparing a README to a repository happened to read a count the gate disagreed
+with.
+
+**What changed.** `cmn.case_module_standards.ungated_modules` reports a
+collected module holding cases that names none of the six markers a gate
+selects on: `unit`, `system`, `evaluator`, `tool`, `sec`, `mutation`. A
+module-level marker, a class-level marker or a marker on every case all
+satisfy it, and a module holding no case is not reported.
+`MQC_CMN_UNI_112527` here and `MQC_CAS_UNI_115795` there call it with each
+root.
+
+Specified at `harness_test_taxonomy.md` section 13.6. New requirement
+`MQC_REQ_HAR_CMN_0237`. Inventory 471 to 472 cases, 276 to 277 negative;
+README 1004 to 1005 cases and 388 to 389 requirements. The four cases on what
+a test module must be also moved out of `mqc_uni_file_standards.py` into
+`mqc_uni_module_layout.py`, which that module's 900-line runway ceiling
+required.
+
+### Two workflow steps ran a program nothing could lint, cover or execute, 2026-10-29
+
+**What was wrong.** `debug-failures-on-demand.yml` and
+`regress-consumers-on-merge.yml` each held its Python program inline in the
+YAML: 29 lines validating the identifiers a debug run was asked for, and 20
+resolving the consumer pairing. Both ran correctly and neither was reachable by
+anything this project uses to establish that code is correct. Pylint reads
+`.py` files, no case can collect a YAML string, and nobody could run either
+outside a workflow. **Each decides whether a run means anything**: the first
+prevents a mistyped identifier selecting nothing and reading as a clean run,
+and the second decides which consumer refs a harness candidate is verified
+against.
+
+**What changed.** `tools/resolve_requested_tests.py` and
+`tools/enumerate_consumers.py` hold the two programs, each writing to the file
+named by `--output` rather than to a shell redirection, so the program's own
+failure cannot be lost to the redirect and the destination can be a temporary
+file in a test. Neither reads a secret and neither dispatches anything, so the
+credential boundary is unchanged.
+
+Specified at `harness_ci_pipeline.md` section 8.10.
+`MQC_CMN_UNI_112435` asserts the resolver accepts a collected identifier,
+refuses an unknown one and refuses an empty request, and that the enumerator
+resolves a mapped branch to its mapped ref, an unmapped branch to its declared
+default, and a missing registry to a refusal rather than an empty list: both
+failures it guards are green runs having measured or verified nothing.
+Inventory 470 to 471 cases, 275 to 276 negative; README 1002 to 1003 cases and
+386 to 387 requirements.
+
+### A runbook's failure lister read a broken leg as a clean one, 2026-10-29
+
+**What was wrong.** The section both runbooks call "when you only want to know
+what failed" read only `failure` elements of the JUnit report, so a leg whose
+cases **broke** printed nothing and read as clean. That is exactly the
+distinction section 7.3 rests the exit codes on: a failure is a measurement and
+a break means nothing was measured. The lister was also an inline program in
+the runbook text rather than a module, so nothing linted it and no case could
+reach it, and the same two runbooks answered "which engines can judge" the same
+way.
+
+**What changed.** `cmn/junit_outcomes.py` is the failure lister as a file,
+listing a report's failing cases apart from its erroring ones, counting a case
+carrying both once as erroring, stating its counts even for a clean report, and
+refusing an absent or unparseable report with exit 4 rather than reporting no
+failures. `execution/adapters/registry.py` gained a command line printing the
+engines that fill one role, which is the queryable form of the sentence
+`engines_for_role` already carried. Both runbooks name these commands now.
+
+**It lives in the harness and is called from each root**, rather than copied
+into both `tools/` directories: both runbooks documented it, and a convenience
+duplicated across the two repositories is a copy nothing compares.
+`--role` joins the foreign flag registry, because `declared_flags` reads a
+repository's own sources and not its installed packages, so a flag on a shipped
+harness module that a consumer's runbook documents resolves in one root only.
+
+Specified at `cmn_verdict_and_cli.md` section 7.12. `MQC_CMN_UNI_112432`
+asserts the split, the refusal and the counts, verified by injection: reading
+only `failure` elements puts the case that carries both in the failed list and
+the case reports it. Inventory 469 to 470 cases, 274 to 275 negative; README
+1001 to 1002 cases and 385 to 386 requirements.
+
+### No report said which model it measured, and the probe meant to detect a change could not, 2026-10-29
+
+**What was wrong, in three parts.** A published report named no model, so two
+runs of the same suite could not be compared on the one factor that decides
+whether a result moved: an Allure environment block is built from
+`environment.properties` in the results directory and nothing wrote it, and
+nothing in either repository recorded a JUnit property at all. Meanwhile the
+workflow meant to detect a model change had never run a program: `python -m
+execution.preflight` was dispatched for thirty six days against a module with
+no argument parser and no `__main__` block, so it was imported, ran nothing and
+exited 0, and every step guarded on its output was skipped by its own
+condition. And the thing it compared, a pinned model identifier, cannot move:
+measured against all four providers, each echoes the identifier it was asked
+for.
+
+**Why each happens.** Provenance was never specified, because the probe's
+design treated detection as its purpose and recording as nothing; the entry
+point was assumed rather than written, and a module invoked that way announces
+nothing when it has nothing to call; and the identifier is pinned deliberately,
+so what moves behind a stable name is a declared property beside it, such as
+gemini's own `version` field reading `3.0` against the `3.8-flash` in the name,
+or openai's `shutdown_date`.
+
+**What changed.** `served_metadata` is a required adapter operation, read from
+each provider's model endpoint with no prompt sent, and `execution/preflight.py`
+has a command line entry point taking a baseline, an output and a roster.
+Provenance is written by one mapping into both artifacts from
+`cmn/provenance.py`, through `cmn.pytest_support.adopt_provenance`, which both
+repositories' `conftest.py` now calls; the provider is asked only on a live run,
+so a suite of 973 preconditions contacts nobody. A new check,
+`cmn.ci_gating.ungated_dispatches`, reports a job that starts a spending
+workflow without reading a green pairing, which is the gap `ungated_graded_jobs`
+could not see because such a job runs no case.
+
+**The probe moved to the case repository and two workflows left.** A probe
+detects a reason to re-measure and the thing re-measured is a corpus, which
+this repository does not own; `probe-model-version-nightly.yml` and
+`evaluate-live-weekly.yml` are deleted, leaving six workflows.
+`harness_ci_pipeline.md` section 4 carries the reversal and section 5 what the
+retired weekly established.
+
+**Figures.** The instrument suite reads 1001 cases against 988 and the matrix
+385 requirements against 381. The conformance battery's identifier category was
+closed to new checks and the subject continues in partition `440000`-`449999`:
+it holds a case per engine **and** per check, so twenty checks across five
+engines is exactly the hundred a category holds, and the twenty-first put it
+past. Run provenance took `450000`-`459999`. `max-public-methods` is declared
+at 30, the limit having been an implicit 20 that the twenty-first check
+crossed.
+
 ### A published report separated results by nothing a reader wanted, 2026-10-28
 
 **What was wrong.** A generated report's Suites tab held one root for every

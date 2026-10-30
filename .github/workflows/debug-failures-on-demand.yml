@@ -91,37 +91,14 @@ jobs:
       - name: Resolve and validate the requested tests
         id: resolve
         shell: bash
-        run: |
-          python - <<'PYTHON' >> "$GITHUB_OUTPUT"
-          import os
-          import re
-          import subprocess
-          import sys
-
-          requested = [
-              entry.strip()
-              for entry in re.split(r"[,\n]", os.environ["REQUESTED"])
-              if entry.strip()
-          ]
-          if not requested:
-              print("::error::no test identifiers were supplied")
-              sys.exit(1)
-
-          collected = subprocess.run(
-              [sys.executable, "-m", "pytest", "--collect-only", "-q"],
-              capture_output=True, text=True, check=False, shell=False,
-          ).stdout
-
-          unmatched = [name for name in requested if name not in collected]
-          if unmatched:
-              print("::error::these identifiers matched no collected test: "
-                    + ", ".join(unmatched))
-              sys.exit(1)
-
-          # -k takes an expression; joining with `or` selects the union.
-          print("expression=" + " or ".join(requested))
-          print(f"count={len(requested)}")
-          PYTHON
+        # A PROGRAM IN A FILE, run by path. This step held 29 lines of Python
+        # piped to an interpreter reading standard input through a
+        # here-document, which is two of the four shapes `code-style.md`
+        # section 8.1 bans and which pylint never saw. Design section 8.10.
+        run: >-
+          python -m tools.resolve_requested_tests
+          --tests "$REQUESTED"
+          --output "$GITHUB_OUTPUT"
         env:
           REQUESTED: ${{ inputs.tests }}
 

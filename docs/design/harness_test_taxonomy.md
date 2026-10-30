@@ -433,6 +433,29 @@ starts and another ends."
 | `410000`-`419999` | `CMN`/`UNI`, the mutation audit and its declarations | `1123xx`, then `1124xx` | 2026-10-23 |
 | `420000`-`429999` | `CMN`/`UNI`, the grouping tree a readiness view is read from (section 16) | Nothing. The first subject to begin in a partition | 2026-10-24 |
 | `430000`-`439999` | `CAS`/`UNI`, the same subject in the case repository (section 16.5) | Nothing. `1157xx` held 83 of 100 and two categories were free, and a subject beginning now takes a partition | 2026-10-24 |
+| `440000`-`449999` | `EXE`/`UNI`, adapter conformance across the registered engines (`tier2_execution.md` section 10.1) | `1138xx`, which cannot hold the subject in both its dimensions | 2026-10-29 |
+| `450000`-`459999` | `CMN`/`UNI`, what a run records about the model it measured against (`cmn_verdict_and_cli.md` section 5.6) | Nothing. A subject beginning now takes a partition | 2026-10-29 |
+
+**The fifth partition is the first allocated to a subject that was already
+running**, and the reason is the one the row states: `1138xx` holds a case per
+engine **and** per check, so it grows in two dimensions at once and a hundred
+slots bound their product rather than either of them.
+
+| Checks | Four engines | Five engines |
+|---|---|---|
+| 20, as allocated 2026-10-16 | 80 | 100, exactly full |
+| **21**, the first one added since | **84** | **105, past the category** |
+
+**So the category could never hold the fifth engine it was recorded as leaving
+room for**, and the twenty-first check is what made that legible. It had also
+already lost a slot to another subject: `113880` is a judgement recording case,
+allocated into this category on 2026-10-20 while the text above it said the
+category was adapter conformance.
+
+**The twenty existing checks keep their numbers** and the nineteen slots left
+in `1138xx` stay theirs, which is the renumbering section 3.2.1 forbids left
+alone. A check added from now on, and a fifth engine's cases, go in the
+partition.
 
 **One subject per partition, and numbers run in sequence inside it.** No
 sub-partition until something needs one: ten thousand against a hundred is the
@@ -2902,6 +2925,50 @@ file, which is the finished state rather than an empty registry nobody reads.
 support module is an interface, and `_graded` imported by another module says
 the opposite of what is true. The rename is what makes the extraction an
 interface rather than a file move.
+
+### 13.6 A collected module no gate selects is reported
+
+**A test module with no gate marker is collected, deselected and reported as
+nothing.** Every gate runs `-m <marker>`. A module that assigns no
+`pytestmark`, and whose cases carry no marker of their own, is selected by no
+gate: pytest collects it, deselects it, and the run is green with the module's
+cases never executed. Nothing in the suite looked at this, because every
+coverage reader asks whether a case exists and none asked whether any gate
+would reach it.
+
+**Found on 2026-10-29 by a figure disagreeing with a count.** A new
+precondition module was written with four cases in it, and the `unit` gate's
+total went *down* by four, because the four cases that left their old module
+arrived in one no marker selected. What caught it was the README figure check
+reading 180 cases in the repository against a gate executing 176, and that
+check exists for a different reason: it compares a README to a repository, not
+a repository to its own gates. **No case failed.** The suite would have carried
+four silently dead preconditions indefinitely.
+
+| Reader | Asks | Would have caught this |
+|---|---|---|
+| `case_coverage` | Is every case in the suite in an inventory | No: the cases are inventoried |
+| `rtm` readers | Is every case traced to a requirement | No: they are traced |
+| `support_extraction` | Does a collected module define support | No: it defined one helper, now extracted |
+| README figures | Does the README match the repository | **Indirectly**, and only because a figure happened to be checked |
+
+**The rule is that a collected module names a gate.** A module matching the
+collected glob assigns a `pytestmark` naming at least one of `unit`, `system`,
+`evaluator`, `tool`, `sec` or `mutation`, or every case in it carries one of
+those as its own marker. Those six are the markers a gate selects on; `base`,
+`depends_on`, `priority`, `environment`, `inquest` and `allure_label` describe
+a case the gates already reach and select nothing on their own.
+
+**Parsed, not imported**, like every other reader in
+`case_module_standards.py`: the check reads the module's syntax tree, so a
+marker named in a docstring is prose and a module that cannot be imported is
+still measured.
+
+`MQC_CMN_UNI_112527` here and `MQC_CAS_UNI_115795` in the case repository
+report it, both reading `cmn.case_module_standards.ungated_modules`, which is
+one implementation called with each root. There is no declared backlog,
+because the rule was clean in both repositories the moment it was written: the
+one module that breached it was the one that found it.
 
 ## 14. Every Subprocess A Case Spawns Carries A Timeout
 

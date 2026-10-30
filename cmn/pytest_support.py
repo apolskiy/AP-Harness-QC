@@ -3,7 +3,7 @@
 """Shared pytest hook bodies, which each repository's ``conftest.py`` delegates to.
 
 Created: 2026-09-23
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 This file contains ``add_mqc_options``, which registers the execution flags
 from the shared option registry; ``configure_invocation``, which records what
@@ -73,6 +73,7 @@ from cmn.config import load_engines, packaged_roster_path
 from cmn.environments import is_precondition
 from cmn.grouping import load_grouping, story_for
 from cmn.options import Option, build_invocation, registered_options
+from cmn.provenance import provenance_fields, testsuite_properties, write_provenance
 from cmn.report_categories import write_categories
 
 logger = logging.getLogger(__name__)
@@ -213,6 +214,10 @@ def corpus_selection() -> tuple[Optional[Path], Optional[str]]:
 # destination table sets it and the category file is written into it.
 _ALLURE_DESTINATION: Final[str] = "allure_report_dir"
 
+# THE ONE MODE WITH A PROVIDER TO ASK. A replay run's version is in the fixture
+# it reads and a precondition run holds no credential (design section 5.6.2).
+_LIVE_MODE: Final[str] = "live"
+
 _ARTIFACT_DESTINATIONS: Final[tuple[tuple[str, str], ...]] = (
     ("xmlpath", "junit.xml"),
     (_ALLURE_DESTINATION, "allure-results"),
@@ -291,6 +296,144 @@ def adopt_report_categories(config: Any) -> Optional[Path]:
             "Report categories were not written to %s: %s", named, error
         )
         return None
+
+
+def asks_the_provider(config: Any) -> bool:
+    """Say whether this run has a provider to ask what it serves.
+
+    **Only a live run does.** A replay run measured a recording, so the version
+    that produced its responses is in the fixture and is both the correct
+    answer and the only one available; a precondition run holds no credential
+    by design and has nothing to ask. Asking regardless is what would make a
+    suite of 960 preconditions contact four vendors to label itself
+    (``tier2_execution.md`` section 5.2.1).
+
+    Args:
+        config (Any): pytest's configuration.
+
+    Returns:
+        bool: True only where the mode is live and an engine was selected.
+    """
+    if str(getattr(config.option, "mode", "") or "") != _LIVE_MODE:
+        return False
+    return bool(str(getattr(config.option, "engine", "") or ""))
+
+
+def adopt_provenance(config: Any, reader: Any) -> dict[str, str]:
+    """Build what this run measured against, and write the half a report reads.
+
+    **One implementation and two callers**, each repository's ``conftest.py``,
+    which is the arrangement ``framework-rules.md`` section 4.1 asks for. The
+    mapping is returned as well as written because the two artifacts are
+    selected by separate flags: a run given ``--junitxml`` and no
+    ``--alluredir`` still states its subject, and a mapping built inside one
+    writer could not reach the other (design section 5.6).
+
+    A report's environment block is built from a file in the results
+    directory, so it is written at configuration for the reason
+    :func:`adopt_report_categories` is: a run that crashes still leaves a
+    report saying what it was measuring. **A failed write is logged rather than
+    raised**, and a run writing no Allure results writes nothing: provenance is
+    a reporting obligation that must not cost a measurement.
+
+    **The reader is passed in rather than imported.** Asking a provider means
+    calling an adapter, and ``cmn`` does not import ``execution``: that
+    direction is the module separation in ``framework-rules.md`` section 2.
+    Taking the callable keeps the decision about **when** to ask here, where
+    both repositories share it, and the ability to ask there, where the
+    adapters are.
+
+    Args:
+        config (Any): pytest's configuration.
+        reader (Any): A callable taking an engine and a model and returning
+            the served facts, as ``execution.preflight.served_facts`` does.
+            **Called only where :func:`asks_the_provider` holds.**
+
+    Returns:
+        dict[str, str]: As :func:`cmn.provenance.provenance_fields` returns.
+    """
+    engine = str(getattr(config.option, "engine", "") or "")
+    model = rostered_model(engine)
+    served: dict[str, str] = {}
+    if model and asks_the_provider(config):
+        served = reader(engine, model)
+    fields = provenance_fields(
+        engine=engine,
+        mode=str(getattr(config.option, "mode", "") or ""),
+        requested_model=model,
+        served=served,
+    )
+    _write_provenance_beside_results(config, fields)
+    return fields
+
+
+def _write_provenance_beside_results(
+    config: Any, fields: dict[str, str]
+) -> Optional[Path]:
+    """Write the mapping where an Allure report reads it, if the run writes one.
+
+    Args:
+        config (Any): pytest's configuration.
+        fields (dict): As :func:`adopt_provenance` returns.
+
+    Returns:
+        Optional[Path]: The file written, or ``None`` where none was.
+    """
+    if not hasattr(config.option, _ALLURE_DESTINATION):
+        return None
+    named = getattr(config.option, _ALLURE_DESTINATION) or ""
+    if not named:
+        return None
+    try:
+        return write_provenance(Path(str(named)), fields)
+    except OSError as error:
+        logger.warning("Run provenance was not written to %s: %s", named, error)
+        return None
+
+
+def publish_run_provenance(recorder: Any, fields: dict[str, str]) -> None:
+    """Record the same mapping as the properties a JUnit report carries.
+
+    **Run scoped, through the session fixture.** The per-case form warns under
+    the ``xunit2`` family pytest writes by default, and it would cost a format
+    downgrade for a label that does not vary between cases
+    (design section 5.6.2).
+
+    Args:
+        recorder (Any): pytest's ``record_testsuite_property`` fixture.
+        fields (dict): As :func:`run_provenance` returns.
+
+    Returns:
+        None
+    """
+    for name, value in testsuite_properties(fields):
+        recorder(name, value)
+
+
+def rostered_model(engine: str) -> str:
+    """Return the model the roster asks for, or empty where it cannot be read.
+
+    **Public because ``conftest.py`` needs the same answer.** It asks the
+    provider what it serves, which takes the model identifier, and a second
+    roster read there would be two implementations of one question.
+
+    Args:
+        engine (str): The engine selected for this run.
+
+    Returns:
+        str: The configured model identifier, empty where the roster is absent
+        or names no such engine. **Empty rather than raising**: provenance is
+        reporting, and a run must not fail because its own label is incomplete.
+    """
+    if not engine:
+        return ""
+    try:
+        roster = load_engines(packaged_roster_path())
+    except (OSError, ValueError) as error:
+        logger.warning("Provenance could not read the engine roster: %s", error)
+        return ""
+    entry = roster.get(engine)
+    return entry.model if entry is not None else ""
 
 
 def configure_invocation(config: Any) -> None:
