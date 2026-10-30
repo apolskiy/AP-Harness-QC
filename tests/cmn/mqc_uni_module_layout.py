@@ -3,7 +3,7 @@
 """Unit preconditions for what a test module is: cases only, gated, and bounded.
 
 Created: 2026-10-29
-Last updated: 2026-10-29
+Last updated: 2026-10-30
 
 This file contains four cases on the shape of a collected test module, reading
 ``cmn.case_module_standards`` and ``cmn.module_size``.
@@ -39,7 +39,6 @@ unit of collection, which is the subject the gating case joined.
 #   112329  a_subprocess_without_a_timeout_is_reported
 # ------------------------------------------------------------ end of cases
 
-from datetime import date
 from pathlib import Path
 
 import pytest
@@ -51,6 +50,7 @@ from cmn.case_module_standards import (
 )
 from cmn.case_steps import step
 from cmn.module_size import runway_problems
+from cmn.project_clock import project_today
 
 pytestmark = pytest.mark.unit
 
@@ -91,7 +91,7 @@ class TestMQCCaseModuleContents:
         """
         problems = extraction_problems(
             _ROOT / "tests", _ROOT, _ROOT / "config" / "support_extraction.yaml",
-            date.today(),
+            project_today(),
         )
         assert not problems, (
             f"{len(problems)} case module(s) hold support code that belongs in "
@@ -211,7 +211,7 @@ class TestMQCModuleRunway:
             None
         """
         problems = runway_problems(
-            _ROOT, _ROOT / "config" / "module_runway.yaml", date.today()
+            _ROOT, _ROOT / "config" / "module_runway.yaml", project_today()
         )
         assert not problems, (
             f"{len(problems)} module(s) are at the runway ceiling without a "

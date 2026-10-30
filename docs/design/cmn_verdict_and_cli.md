@@ -3334,6 +3334,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112525` | N | `a_workflow_emitting_one_mandated_artifact_is_reported` |
 | `112526` | N | `a_file_date_line_missing_or_stale_is_reported` |
 | `112527` | N | `a_collected_module_no_gate_selects_is_reported` (`harness_test_taxonomy.md` 13.6) |
+| `112528` | N | `a_module_reading_a_local_clock_is_reported` (`code-style.md` 8.3) |
 | `112037` | N | `an_entry_whose_model_changed_is_expired` |
 | `112038` | P | `an_unconfirmed_entry_is_honoured_and_never_red` |
 | `112039` | P | `an_absent_quarantine_file_is_an_empty_quarantine` |
@@ -3517,7 +3518,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 472 cases, 277 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 473 cases, 278 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

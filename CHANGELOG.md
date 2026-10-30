@@ -29,6 +29,85 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A spending ceiling reported as an engine that stopped answering, 2026-10-30
+
+**What was wrong.** The claude leg of the four-engine re-record reached its
+`--max-spend` ceiling two thirds through the suite. Every case after that was
+undispatched, **each undispatched case incremented the engine's
+consecutive-failure streak**, the circuit breaker tripped at its threshold, and
+the remaining fifteen cases were marked broken. The run exited 3 reporting that
+claude "failed 19 cases consecutively", having measured 61 cases that passed and
+3 that genuinely failed, and it discarded all of them.
+
+**Why it happens.** The streak resets on a measured outcome, and on a refusal in
+a run that has already measured; it aborts early on an auth error.
+`QC_HARNESS_BUDGET_EXHAUSTED` is none of those, so it fell through to the
+increment. The breaker's own rationale does not hold on that path: it aborts
+"rather than spending quota to confirm it" while the budget guard has already
+stopped every dispatch, so there was no quota left to protect. The taxonomy had
+also already settled it, `framework-rules.md` section 4 giving `QC_HARNESS_*`
+the outcome "Skip or broken, never fail".
+
+**What changed.** A budget stop no longer counts toward the streak, and does not
+reset one either, a ceiling being neither a success nor a failure of the engine.
+**The ceiling still binds** and the run still stops dispatching the moment the
+next request would cross it: what changed is what the stop is called and what it
+does to the rest of the run. The code is named once now, read by the guard that
+sets it and the breaker that must not count it.
+
+**It is the second instance of one shape.** The first was the refusals section
+8.6.7 excluded after the breaker tripped on the fifth refusal of a run that had
+answered 122 requests, so section 8.3.1 states the rule generally rather than
+adding a third exception later.
+
+Specified at `tier2_execution.md` section 8.3.1. New requirement
+`MQC_REQ_HAR_EXE_0140`, asserted by `MQC_EXE_UNI_113221`, which failed against
+the shipped breaker on exactly the streak assertion while the two assertions
+before it passed. Inventory 218 to 219 cases, 99 to 100 negative; README 1006 to
+1007 cases and 390 to 391 requirements.
+
+**The new case needed room, so the dispatch module split.** It took
+`tests/execution/mqc_uni_dispatch.py` to 1023 lines, past the thousand-line hard
+limit, and pylint exited 16 while still scoring 10.00/10. Recording was the
+second subject in there, so it moved to
+`tests/execution/mqc_uni_dispatch_recording.py` with `113213`, `113214` and
+`113217`, and the shared fake clock and plan builder moved to
+`tests/execution/dispatch_support.py`, which a collected case module may not
+define (`harness_test_taxonomy.md` section 13). The first file is 743 lines,
+below the nine-hundred runway, so **both declared backlogs shrink**: the
+`module_runway.yaml` and `support_extraction.yaml` entries for that module are
+discharged rather than re-dated.
+
+### Two clocks dated one change, 2026-10-30
+
+**What was wrong.** `refresh_file_dates.py` stamped a module's `Last updated`
+line from the local clock while this file declares its dates UTC, so one change
+carried two dates. Ten call sites across the two repositories read a clock of
+their own, and two of them wrote a durable record: the file stamp here, and the
+case repository's filing sheet, which is published.
+
+**Why it happens.** `date.today` returns wherever the process happens to sit and
+raises nothing. The local date and the UTC date agree for most of the day, so
+the disagreement appears for part of every day and never as a failure, and in
+the Pacific zone the local date is the previous day for seven hours of every
+day. It is the missing-encoding defect one level up, a platform difference that
+changes a value rather than raising.
+
+**What changed.** `cmn/project_clock.py` holds `project_today`, the UTC date
+every caller takes now, and `local_clock_reads`, which reports a module reading
+a clock of its own. `date.today` and `datetime.today` are reported anywhere and
+`datetime.now` only in its bare form; `datetime.now(timezone.utc)` is an
+explicit choice rather than an accident of where a process runs and is reported
+by nothing, which is what `cmn/mutation_guard.py` and `tools/mutation_audit.py`
+already pass. Nothing caches, so a process running across midnight gives the
+later date to whatever asks next.
+
+Specified at `code-style.md` section 8.3. New requirement
+`MQC_REQ_HAR_CMN_0238`, asserted by `MQC_CMN_UNI_112528` against five
+constructed legs: the three local forms are reported, an aware call and a
+quoted name are not. Inventory 472 to 473 cases, 277 to 278 negative; README
+1005 to 1006 cases and 389 to 390 requirements.
+
 ### A rubric could plant a score the rubric itself would pass, 2026-10-29
 
 **What was wrong.** A rubric's `planted_score` is the value a steered judgement

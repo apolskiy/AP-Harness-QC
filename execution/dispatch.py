@@ -3,7 +3,7 @@
 """Sends one case to one engine, live or from a recorded fixture, and returns what came back.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-10-30
 
 This file contains ``dispatch_case``, which composes the request for a case,
 replays the recorded observation or issues the request live, and returns a
@@ -83,6 +83,10 @@ _DEFAULT_BREAKER_THRESHOLD: Final[int] = 5
 _REFUSALS: Final[frozenset[str]] = frozenset(
     {"QC_HARNESS_REQUEST_REFUSED", "QC_LLM_OVER_REFUSAL"}
 )
+
+# THE CODE FOR US DECLINING TO SPEND, named once because two readers act on it:
+# the guard that sets it and the breaker that must not count it.
+_BUDGET_STOP: Final[str] = "QC_HARNESS_BUDGET_EXHAUSTED"
 
 
 class CircuitBreakerTripped(RuntimeError):
@@ -445,6 +449,15 @@ class DispatchSession:
             self.consecutive_failures = 0
             return
 
+        # A CEILING THE OPERATOR SET IS NOT AN ENGINE THAT STOPPED ANSWERING.
+        # A case the budget prevented asked the engine nothing and spent
+        # nothing, so it says nothing about the streak and does not reset one
+        # either. Counting it aborted a run whose remaining cases were never
+        # going to be dispatched, and took 61 measured cases with it on
+        # 2026-10-30 (design section 8.3.1).
+        if outcome.taxonomy_code == _BUDGET_STOP:
+            return
+
         self.consecutive_failures += 1
         if self.consecutive_failures >= self.breaker_threshold:
             logger.error(
@@ -684,7 +697,7 @@ def _dispatch_live(context: _CaseContext, session: DispatchSession) -> DispatchO
         # own code: this is us declining, not the provider, and the remedy is a
         # decision about the budget rather than about pacing.
         if session.ceiling_reached():
-            tally.code = "QC_HARNESS_BUDGET_EXHAUSTED"
+            tally.code = _BUDGET_STOP
             if session.unpriced:
                 logger.error(
                     "%s: a ceiling of %.4f was set and %s is unpriced, so the "

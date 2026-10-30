@@ -3,7 +3,7 @@
 """Writes the creation and update dates into every module docstring that needs them.
 
 Created: 2026-10-21
-Last updated: 2026-10-21
+Last updated: 2026-10-30
 
 This file contains ``refresh``, which gives an undated module both its
 ``Created:`` and ``Last updated:`` lines and moves ``Last updated`` to today on
@@ -45,6 +45,7 @@ from cmn.file_dates import (
     first_added,
     stamped_source,
 )
+from cmn.project_clock import project_today
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         return _EXIT_REFUSED
 
-    today = date.today()
+    today = project_today()
     if parsed.check:
         problems = file_date_problems(root, today)
         for problem in problems:

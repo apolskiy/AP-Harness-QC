@@ -14222,3 +14222,195 @@ and 276 to 277 negative, README 1004 to 1005 and 388 to 389 requirements,
 adding the gating case took that module to 975 lines. Four cases moved with
 their subject, which is what the runway rule asks for: the test module as a
 unit of collection, against what every file must look like.
+
+## 2026-10-30: One Clock, And It Is UTC
+
+The owner closed a decision that had been carried since 2026-10-28: "utc was
+decided we decided to do all in utc". `cmn/project_clock.py` had been drafted
+against it and left untracked, because a draft with no design section, no
+requirement and no case is not fit to stage.
+
+### What was wrong
+
+`refresh_file_dates.py` stamped a module's `Last updated` line from the local
+clock while `CHANGELOG.md` declares its dates UTC at its head, so one change
+carried two dates. `date.today` returns wherever the process happens to sit and
+raises nothing, and the local date and the UTC date agree for most of the day,
+so the disagreement is present for part of every day and never as a failure.
+
+**It is the missing-encoding defect one level up**, which is why section 8.3
+sits beside 8.2: a platform difference that raises is a nuisance, and one that
+silently changes a value reaches the durable record.
+
+### The measurement
+
+Ten call sites read a clock of their own, five in each repository, and **two of
+them wrote a durable record**:
+
+| Repository | Call site | What it dated |
+|---|---|---|
+| Harness | `tools/refresh_file_dates.py` | The date a module says it was last updated |
+| Model | `tools/ticket_report.py` | The filing sheet's date, which is published |
+| Harness | `mqc_uni_file_dates.py`, `mqc_uni_file_standards.py`, `mqc_uni_module_layout.py` (twice) | A check's output compared against today |
+| Model | `graded_support.py` (a pricing date), `mqc_uni_file_dates.py`, `mqc_uni_standards.py` (twice) | As above |
+
+**The case fails before the fix, and that is measured rather than asserted.**
+`local_clock_reads` reported five reads per repository before the conversion and
+reports none after, and `MQC_CMN_UNI_112528` asserts the empty list. Its
+positive control is a probe module making all five relevant calls: the three
+local forms are reported and the aware call and a quoted name are not, so the
+case cannot pass by the checker having gone blind to a form.
+
+### The day rolled over mid-change, which is the ruling working
+
+The conversion ran at **17:56 Pacific on 2026-10-29, which is 00:56 UTC on
+2026-10-30**. `refresh_file_dates.py`, now reading `project_today`, stamped
+2026-10-30 on every file it touched, one day later than the same tool would have
+written an hour earlier.
+
+That is the behaviour the ruling asks for and not a surprise, and it is why this
+entry and this change's changelog entries read 2026-10-30 while the five entries
+above them, written in the same session, read 2026-10-29. The earlier entries
+keep the date they were written with.
+
+### Digressions the user spotted, and the fix
+
+* **I described two facts in the commit notes as "deliberately not softened"**,
+  which frames stating a fact as a choice somebody made. The owner's correction:
+  "There is no need to soften anything. The structure must state fucts and be
+  blameless. Bug or problem: fix." The notes themselves needed no change; the
+  framing around them did, and this entry carries none.
+* **A grep for clock forms was run across the whole repository rather than its
+  own code**, so it matched three corpus fixtures whose candidate responses
+  discuss coupon expiry and printed them in full. Nothing was wrong with the
+  result and the cost was attention. Narrowed to `tools/`, `tests/cases/` and
+  `conftest.py`, which is where this repository's own clock reads can be.
+
+### Verification
+
+| Layer | Total | Executed | Passed | Failed | Skipped | Exit |
+|---|---|---|---|---|---|---|
+| Harness `UNI` | 978 | 978 | 978 | 0 | 0 | **0** |
+| Harness `SYS` replay | 24 | 24 | 24 | 0 | 0 | **0** |
+| Harness pylint, documented path list | | | 10.00/10 | | | **0** |
+| Model `UNI` | 182 | 182 | 181 | **1** | 0 | **1** |
+| Model pylint | | | 10.00/10 | | | **0** |
+
+The one model failure is `MQC_CAS_UNI_115771`, which the live re-record closes
+and this change does not touch: 320 recorded responses still quote the retired
+payload.
+
+## 2026-10-30: A Spending Ceiling Reported As An Engine That Stopped Answering
+
+The live re-record of all four engines was dispatched to get the latest graded
+status for the demo, with the owner's ruling to keep the budget guard as a
+mechanism and lift the ceiling for this leg. Three engines measured. **The
+claude leg measured nothing usable**, and the reason was in the harness rather
+than in the engine.
+
+### What was wrong
+
+The leg reached its `--max-spend` ceiling of 2.00 USD two thirds of the way
+through the suite, having spent 2.0003. Every case after that was undispatched
+and carried `QC_HARNESS_BUDGET_EXHAUSTED`, which is correct. **Each of those
+undispatched cases incremented the engine's consecutive-failure streak**, the
+circuit breaker tripped at its threshold, and the remaining fifteen cases were
+marked broken with `CircuitBreakerTripped`.
+
+| What the run reported | What had happened |
+|---|---|
+| Exit 3, nothing trustworthy measured | 61 cases passed and 3 genuinely failed |
+| claude failed 19 cases consecutively | 19 cases were never dispatched |
+| 15 broken | The breaker aborted a run whose remaining cases were already undispatchable |
+
+### Why it happens
+
+`execution/dispatch.py` resets the streak on a measured outcome, and on a
+refusal in a run that has already measured; it aborts early only on
+`QC_HARNESS_AUTH_ERROR`. A budget stop is none of those, so it fell through to
+the increment.
+
+**The breaker's own rationale does not hold on that path.** It aborts a run
+"rather than spending quota to confirm it", and the budget guard has already
+stopped every dispatch, so there is no quota left to protect. The taxonomy had
+settled it too: `framework-rules.md` section 4 gives `QC_HARNESS_*` the outcome
+"Skip or broken, never fail", and the skip half already existed in
+`cmn/registries.py` with `cmn/band_summary.py` glossing the code as "the run
+reached its spending ceiling".
+
+**It is the second instance of one shape.** The first was the refusals excluded
+by `tier2_execution.md` section 8.6.7, after the breaker tripped on the fifth
+refusal of a run that had answered 122 requests. So section 8.3.1 states the
+rule generally, a case the operator caused is not a case the engine failed,
+rather than adding a third exception the next code will need.
+
+### What changed
+
+A budget stop returns before the increment and **does not reset the streak
+either**, a ceiling being neither a success nor a failure of the engine. The
+code is named once, `_BUDGET_STOP`, read by the guard that sets it and the
+breaker that must not count it. The ceiling still binds and the run still stops
+dispatching the moment the next request would cross it.
+
+`MQC_EXE_UNI_113221` guards it, traced by the new requirement
+`MQC_REQ_HAR_EXE_0140`. **Injected before the fix it failed on exactly the
+streak assertion** while the two assertions before it passed, which is the
+non-vacuity proof `testing-standards.md` requires: the code was reported and the
+outcome was unmeasured as they should be, and only the streak was wrong.
+
+### The case forced a split, and both declared backlogs shrink
+
+The new case took `tests/execution/mqc_uni_dispatch.py` to 1023 lines, past the
+thousand-line hard limit. **Pylint exited 16 while reading 10.00/10**, the
+message being a convention rather than a score, which is why this project gates
+on the exit code.
+
+| | Before | After |
+|---|---|---|
+| `mqc_uni_dispatch.py` | 1023 lines, declared past the runway | **743 lines, declaration discharged** |
+| Recording cases | In that module | `mqc_uni_dispatch_recording.py`, holding `113213`, `113214`, `113217` |
+| The fake clock and the plan builder | Defined in a collected module | `dispatch_support.py`, **the support-extraction declaration discharged** |
+
+**Split by subject and not by number**, per `code-style.md` section 5.1: the
+module's declared subject is dispatch, pacing and the spend ceiling, and what a
+dispatch records is the second subject in it. The owner asked that the new
+file's docstring identify it as the second file of the dispatch cases rather
+than enumerate its contents in prose, so a third subject becomes a third file
+without the docstrings having to be rewritten around it.
+
+A `@pytest.fixture` is discovered only in the module that declares it, so each
+file keeps its own two-line `clock` and `session` wiring and calls the shared
+`FakeClock`.
+
+### Digressions the user spotted, and the fix
+
+- **The new module's docstring described its three cases in a sentence.** The
+  owner's correction: name it as file two of the dispatch cases, so a further
+  split gives file three. Rewritten to say what it contains and where it sits in
+  the series, which is `code-style.md` section 3.1.1 without the prose inventory
+  that rots the moment a case moves.
+
+### Verification
+
+| Layer | Total | Executed | Passed | Failed | Skipped | Exit |
+|---|---|---|---|---|---|---|
+| Harness `UNI` | 979 | 979 | 979 | 0 | 0 | **0** |
+| Harness `SYS` replay | 24 | 24 | 24 | 0 | 0 | **0** |
+| Harness pylint, documented path list | | | 10.00/10 | | | **0** |
+
+Preconditions carry no priority, so they report as one row
+(`code-style.md` section 7.1). No mutation audit was requested.
+
+### The live legs this came out of
+
+| Engine | Total | Executed | Passed | Failed | Skipped | Exit |
+|---|---|---|---|---|---|---|
+| gemini | 94 | 94 | 93 | 1 | 0 | **1** |
+| openai | 94 | 91 | 83 | 8 | 3 | **1** |
+| grok | 94 | 93 | 91 | 2 | 1 | **1** |
+| claude | 94 | | 61 | 18 | 15 | **3**, not usable |
+
+claude is being re-recorded with a non-binding ceiling of 50.00 USD, about
+sixteen times the measured burn, so the guard still stops a retry storm while
+the suite completes. The findings across the four engines are analysed when it
+lands.

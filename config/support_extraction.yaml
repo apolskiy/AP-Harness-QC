@@ -65,9 +65,6 @@ not_yet_extracted:
   tests/execution/mqc_uni_adapters.py:
     reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _rubric_with"
     expires_on: 2026-12-31
-  tests/execution/mqc_uni_dispatch.py:
-    reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: class _FakeClock, function _plan"
-    expires_on: 2026-12-31
   tests/execution/mqc_uni_judgement_replay.py:
     reason: "Predates the rule of 2026-10-05. 2 definition(s) to extract: function _recorded, class _JudgeRequestDouble"
     expires_on: 2026-12-31

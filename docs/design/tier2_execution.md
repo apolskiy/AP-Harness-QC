@@ -1440,6 +1440,63 @@ This is the same argument that makes the verdict a pure function of an injected 
 
 **An auth error is categorically different from a failed request.** It will not resolve by waiting, every subsequent case will fail identically, and the run cannot produce a measurement. Waiting for a streak to accumulate would issue N requests that were all going to fail.
 
+#### 8.3.1 A budget stop is not a provider that stopped answering
+
+Added 2026-10-30, found by the four-engine re-record. **The breaker counts an
+engine's failures, and a harness condition is not one of them.**
+
+**What happened.** The claude leg reached its `--max-spend` ceiling two thirds
+through the suite: "the run has spent 2.0003 against a ceiling of 2.0000, so
+this case was not dispatched". The budget guard was correct and every case after
+it was undispatched. **Each undispatched case then incremented the
+consecutive-failure streak**, the breaker tripped at its threshold, and the
+remaining fifteen cases were marked broken. The run exited 3 reporting that
+claude "failed 19 cases consecutively", having measured 61 cases that passed and
+3 that genuinely failed.
+
+| What the run reported | What had happened |
+|---|---|
+| 18 failed | 15 were the breaker, 3 were `QC_LLM_INCONSISTENT` |
+| An engine failing 19 times consecutively | A ceiling the operator set, reached |
+| Exit 3, nothing trustworthy measured | 61 cases measured and discarded |
+
+**Why it happened.** The streak resets on a measured outcome, and on a refusal
+in a run that has already measured; it aborts early on an auth error. A budget
+stop is none of those, so it falls through to the increment.
+
+**The breaker's own rationale does not hold on this path.** It aborts "rather
+than spending quota to confirm it", and the budget guard has already stopped
+every dispatch, so there is no quota left to protect. The abort buys nothing and
+costs the measurement.
+
+**It is the second instance of one shape**, the first being the refusals that
+section 8.6.7 excluded after the breaker tripped on the fifth refusal of a run
+that had answered 122 requests. So the rule is stated generally here rather than
+as a third exception waiting to be found:
+
+| Outcome | Counts toward the breaker |
+|---|---|
+| A case the engine failed to answer | **Yes.** This is what the breaker is for |
+| `QC_HARNESS_AUTH_ERROR` | No. It aborts immediately instead |
+| A refusal in a run that has measured | No, section 8.6.7 |
+| **`QC_HARNESS_BUDGET_EXHAUSTED`** | **No. The operator set the ceiling and it was reached** |
+
+**And the taxonomy already said so.** `framework-rules.md` section 4 gives
+`QC_HARNESS_*` the outcome "Skip or broken, never fail", so a budget refusal
+recorded as a failure was outside the taxonomy before it reached the breaker. A
+case the ceiling prevented **was not run, so it is skipped**, and it names its
+cause as every skip does.
+
+**The run's verdict is that it has none.** `testing-standards.md` section 3.3
+makes a verdict a property of the selection the harness computed, and a run
+truncated by its ceiling did not execute that selection. It reports what it
+measured, states how many cases the ceiling prevented, and yields no verdict,
+which is the same answer a hand-typed subset gets and for the same reason.
+
+**What this does not change.** The ceiling still binds, and the run still stops
+dispatching the moment the next request would cross it. The question here is
+only what the stop is called and what it does to the rest of the run.
+
 ---
 
 ### 8.5 A busy provider is not a parser error
@@ -2088,6 +2145,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113202` | N | `exhausted_backoff_skips_case_with_rate_limit_code` |
 | `113203` | N | `circuit_breaker_aborts_after_consecutive_failures` |
 | `113204` | N | `auth_error_aborts_immediately` |
+| `113221` | N | `a_budget_stop_does_not_trip_the_breaker` (section 8.3.1) |
 | `113205` | P | `rate_limit_encounters_are_counted_and_reported` |
 | `113206` | N | `adapter_performs_no_scoring_or_interpretation` |
 | `113207` | N | `candidate_timeout_maps_to_candidate_code_not_generic` |
@@ -2341,7 +2399,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 218 cases, 99 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 219 cases, 100 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

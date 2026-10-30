@@ -27,6 +27,3 @@ past_the_runway:
   cmn/verdict.py:
     reason: "The nine verdict rules and the soundness conditions, one subject. 991 lines when the rule was written on 2026-10-05"
     expires_on: 2026-12-31
-  tests/execution/mqc_uni_dispatch.py:
-    reason: "Dispatch, pacing and the spend ceiling. 917 lines when the rule was written on 2026-10-05"
-    expires_on: 2026-12-31

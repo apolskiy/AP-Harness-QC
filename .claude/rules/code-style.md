@@ -1023,6 +1023,87 @@ reporting a pass and stop being the test it claims to be.
 
 **The rule these follow from:** a platform difference that raises an exception is a nuisance, and a platform difference that silently changes a value is a defect that reaches the durable record. Every rule above targets the second kind.
 
+### 8.3 The project reads one clock, and it is UTC
+
+Added 2026-10-30 at the project owner's ruling, after `refresh_file_dates.py`
+stamped one date on a file and `CHANGELOG.md` declared another for the same
+change. **The ruling's first consequence was immediate**: the conversion ran at
+17:56 Pacific on 2026-10-29, which is 00:56 UTC on 2026-10-30, so the project's
+day rolled over mid-change and every file the refresher touched took the later
+date. That is the behaviour this section asks for rather than a surprise, and it
+is why the prose dates of this change read 2026-10-30 while the work sat in one
+session with the entries above it.
+
+**Every date the project means by today comes from
+`cmn.project_clock.project_today`, which returns the UTC date.** A module
+reading a clock of its own is reported, so a second clock fails the unit layer
+rather than producing a date that differs by one for part of every day.
+
+**What `date.today` returns is wherever the process happens to sit.** Every
+durable record this project keeps is already UTC: git commit dates, the CI
+runners, the dates both changelogs declare at their head, and the `Created` and
+`Last updated` lines section 3.1.2 requires. A developer's offset is an
+environment difference like the default encoding, and in the Pacific zone the
+local date is the previous day for seven hours of every day.
+
+| Call | Reads | Reported |
+|---|---|---|
+| `date.today`, `datetime.today` | Wherever the process sits | Anywhere they appear |
+| `datetime.now` with no argument | The same, carrying no zone | In the bare form only |
+| `datetime.now(timezone.utc)` | UTC, explicitly | Never, being a choice rather than an accident |
+| `project_today` | UTC | Never, being the clock |
+
+**A timestamp keeps `datetime.now(timezone.utc)`**, which `cmn/mutation_guard.py`
+and `tools/mutation_audit.py` already use. `project_today` answers what day it
+is, and a caller needing the time of day asks for the time of day; what this
+rule refuses is the zoneless form rather than the aware one.
+
+#### It is section 8.2.1's class of defect, one level up
+
+A missing encoding raises nothing and changes a value. A local clock raises
+nothing and changes a date, and both are correct on the machine they were
+written on.
+
+| | |
+|---|---|
+| What announced it | Nothing. Two dates for one change, found by reading them |
+| When the two clocks agree | Most of the day, which is what carries it past review |
+| What it reaches | The durable record: a file date, a ticket date, a hold's expiry |
+
+**Two of the ten call sites stamped a durable record** when this was written.
+`tools/refresh_file_dates.py` wrote the date a module says it was last updated,
+and the case repository's `tools/ticket_report.py` wrote the date a filing sheet
+carries, which is published. The other eight were cases comparing a check's
+output against today, reading the same clock for the same answer.
+
+#### The verdict's ban is this rule stated where it is normative
+
+`cmn_verdict_and_cli.md` section 4.2 forbids the verdict reading a clock at
+all, the verdict being a pure function of observations, configuration and an
+injected date. This section is what the injecting caller does: the clock is
+read once, at the edge, in UTC.
+
+#### Nothing caches
+
+`project_today` reads the clock on every call, so a process running across
+midnight gives the later date to whatever asks next. A date computed once at
+import would be the same defect with a different cause, the stamp depending on
+when the process started rather than on where it ran.
+
+#### Enforced, not remembered
+
+`cmn.project_clock.local_clock_reads` reports every module under `cmn/`,
+`ingestion/`, `execution/`, `evaluation/`, `tools/` and `tests/` that reads a
+clock of its own, naming the file, the line and the call.
+`MQC_CMN_UNI_112528` and `MQC_CAS_UNI_115507` call it with each root, the
+one-implementation-two-callers arrangement the encoding, annotation, header,
+naming and citation rules already use.
+
+**Parsed, not matched.** `tests/cmn/mqc_uni_verdict.py` names these calls as
+strings in order to forbid them, so a scanner matching text would report the
+module that enforces the rule. The check reads call nodes from the syntax tree,
+and `project_clock.py` is excluded as the one module whose subject is the clock.
+
 ## 9. Static Analysis & Linting (Pylint 10/10)
 * **Zero-Warning Tolerance**: All production and test code MUST achieve a **10.00/10** score against `.pylintrc`.
 * **No Inline Suppressions Without Approval**: `# pylint: disable=...` directives are prohibited unless approved in Phase 2.

@@ -66,6 +66,7 @@ modules:
   tests/execution/mqc_uni_conformance_grok.py: Engine dispatch
   tests/execution/mqc_uni_conformance_openai.py: Engine dispatch
   tests/execution/mqc_uni_dispatch.py: Engine dispatch
+  tests/execution/mqc_uni_dispatch_recording.py: Engine dispatch
   tests/execution/mqc_uni_judgement_replay.py: Engine dispatch
   tests/execution/mqc_uni_normalize.py: Engine dispatch
   tests/execution/mqc_uni_preflight.py: Engine dispatch

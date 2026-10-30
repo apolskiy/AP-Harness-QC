@@ -3,7 +3,7 @@
 """Unit preconditions for what every file in the repository must look like.
 
 Created: 2026-09-24
-Last updated: 2026-10-29
+Last updated: 2026-10-30
 
 The cases here check the file rules no linter enforces, mostly through
 ``cmn.code_standards``: annotations on every callable and no PEP 563 import,
@@ -60,13 +60,14 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112522  a_registered_flag_no_case_names_is_reported
 #   112523  a_consumer_run_fails_this_job_only_on_our_codes
 #   112511  a_file_open_declaring_no_encoding_is_reported
+# TestMQCProjectClock
+#   112528  a_module_reading_a_local_clock_is_reported
 # TestMQCLintParity
 #   112151  a_pylint_invocation_differing_from_the_rest_is_reported
 #   112152  a_duplicated_yaml_key_is_reported
 # ------------------------------------------------------------ end of cases
 
 import re
-from datetime import date
 from pathlib import Path
 
 import pytest
@@ -94,6 +95,7 @@ from cmn.document_standards import (
     registered_documents,
     runbook_problems,
 )
+from cmn.project_clock import local_clock_reads, project_today
 
 pytestmark = pytest.mark.unit
 
@@ -496,7 +498,7 @@ class TestMQCEncodingDeclared:
         """
         root = Path(__file__).resolve().parents[2]
         problems = flag_coverage_problems(
-            root, "harness", root / "config" / "flag_coverage.yaml", date.today()
+            root, "harness", root / "config" / "flag_coverage.yaml", project_today()
         )
 
         assert not problems, (
@@ -624,6 +626,74 @@ class TestMQCEncodingDeclared:
         # AND NEITHER CORRECT CALL. A binary open carries no encoding and must
         # not claim one; a declared read is simply right.
         assert not any("binary" in entry or "declared" in entry for entry in reported)
+
+
+class TestMQCProjectClock:
+    """The project reads one clock, and a module reading its own is reported."""
+
+    def MQC_CMN_UNI_112528_a_module_reading_a_local_clock_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A local clock raises nothing and moves a date by one.
+
+        ``date.today`` returns wherever the process happens to sit, so a file
+        stamp, a ticket date or a hold's expiry taken from it disagrees with
+        the UTC date every durable record here already uses. The two agree for
+        most of the day, which is what carries the defect past review.
+
+        Design: ``code-style.md`` section 8.3.
+
+        Args:
+            tmp_path (Path): A directory for the positive control.
+
+        Returns:
+            None
+        """
+        reads = local_clock_reads(Path(__file__).resolve().parents[2])
+
+        assert not reads, (
+            "a module reads a clock of its own, so a date it writes depends on "
+            "where the process ran: " + "; ".join(reads)
+        )
+
+        # THE POSITIVE CONTROL, and this case is vacuous without it. "Nothing
+        # reported" cannot tell a converted repository from a checker that
+        # stopped reading one of the three local forms.
+        probe = tmp_path / "tools" / "mqc_probe.py"
+        probe.parent.mkdir()
+        probe.write_text(
+            "from datetime import date, datetime, timezone\n"
+            "def local_date():\n"
+            "    return date.today()\n"
+            "def local_stamp():\n"
+            "    return datetime.today()\n"
+            "def zoneless():\n"
+            "    return datetime.now()\n"
+            "def aware():\n"
+            "    return datetime.now(timezone.utc)\n"
+            "def named():\n"
+            '    return "date.today() is the call this module forbids"\n',
+            encoding="utf-8",
+        )
+        reported = local_clock_reads(tmp_path)
+
+        # ALL THREE LOCAL FORMS, because a checker reading two of them reports
+        # nothing on the third and looks identical from here.
+        assert len(reported) == 3, (
+            f"the checker found {len(reported)} of three local clock reads, so "
+            f"it is blind to a form: {reported}"
+        )
+        joined = "; ".join(reported)
+        assert "date.today" in joined and "datetime.today" in joined, joined
+        assert "datetime.now" in joined, joined
+
+        # AND NEITHER THE AWARE CALL ON LINE 9 NOR THE STRING ON LINE 11. A zone
+        # passed explicitly is a choice rather than an accident of where a
+        # process runs, and a module naming the call inside a string is not
+        # making it, which is the form `mqc_uni_verdict.py` uses to forbid it.
+        assert not any(":9 calls" in entry or ":11 calls" in entry for entry in reported), (
+            f"an aware call or a quoted name was reported as a local read: {reported}"
+        )
 
 
 class TestMQCLintParity:

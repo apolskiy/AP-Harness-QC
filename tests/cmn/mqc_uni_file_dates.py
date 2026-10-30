@@ -3,7 +3,7 @@
 """Unit preconditions for the creation and update dates every module docstring carries.
 
 Created: 2026-10-21
-Last updated: 2026-10-21
+Last updated: 2026-10-30
 
 The case here checks ``cmn.file_dates``: that a docstring missing either date
 line, carrying one that is not a date, created after it was last updated or
@@ -27,13 +27,14 @@ Specified by ``.claude/rules/code-style.md`` section 3.1.2 and
 #   112526  a_file_date_line_missing_or_stale_is_reported
 # ------------------------------------------------------------ end of cases
 
-from datetime import date, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 from cmn.case_steps import step
 from cmn.file_dates import file_date_problems, stamped_source
+from cmn.project_clock import project_today
 
 from tests.cmn.file_dates_support import HEADER, git_in, planted_module
 
@@ -53,7 +54,7 @@ class TestMQCFileDates:
         Returns:
             None
         """
-        today = date.today()
+        today = project_today()
         planted = {
             "undated.py": f'{HEADER}"""A planted module.\n\nWhat it holds.\n"""\n',
             "malformed.py": planted_module("yesterday", "2026-10-21"),
