@@ -469,7 +469,7 @@ satisfied by the name being unmistakable, not by a prefix for its own sake.
 | Exempt | Why |
 |---|---|
 | `README.md`, `DESIGN.md`, `CHANGELOG.md` | Conventional names a tool or a reader expects at a root. Renaming them hides them |
-| `CLAUDE.md`, `CLAUDE_LOG.md` | Read by name by the assistant and by the governance list |
+| `CLAUDE.md`, `CLAUDE_TASK.md`, `CLAUDE_LOG.md` | Read by name by the assistant and by the governance list |
 | `.claude/rules/*.md` | Governance, loaded by name |
 | `LICENSE`, `NOTICE` | The licence texts themselves |
 
@@ -625,7 +625,7 @@ history less reliably and blurs that responsibility.
 |---|---|
 | Why the change was needed: the gap, the defect, what a reader could not learn | The changelog entry, first |
 | What changed, and any figure that moved | The changelog entry, second |
-| Who asked for it, in what words, and why they asked | `CLAUDE_LOG.md` and `.claude/logs/PROMPT_LOG.md` |
+| Who asked for it, and in what words | **No tracked file.** It stays in the local working log, which is never committed |
 
 **A purpose the author does not agree with is discussed before it is written**,
 not recorded as somebody else's reason. An entry attributing a change ("at the

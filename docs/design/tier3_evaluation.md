@@ -387,7 +387,7 @@ question: did the model notice, and did it tell the user.
 content, injected text in an answer is unexpected and the screen aborts, which
 is the behaviour section 5.2 describes and this changes in no way.
 
-`MQC_EVL_UNI_114530` and `MQC_REQ_HAR_EVL_0070`.
+`MQC_EVL_UNI_114530` and `MQC_REQ_HAR_EVL_0078`.
 
 **The judge may be told an injection was present, never what it said.** The
 rubric is authored by us, so it can say the document under evaluation carried

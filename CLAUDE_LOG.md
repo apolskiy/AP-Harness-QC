@@ -14613,3 +14613,158 @@ which is the behaviour that section asks for rather than a surprise.
 **State.** Tier 3 inventory 200 to 201 cases, 68 to 69 positive; README 1014 to
 1015 cases; the `DESIGN.md` index 200 to 201. `MQC_REQ_HAR_EVL_0077` restated
 for the marks kept and `MQC_REQ_HAR_EVL_0071` extended for the rejection form.
+
+---
+
+## 2026-11-01: The Check That Computed A Finding And Threw It Away
+
+**A) What was wrong.** `MQC_REQ_HAR_EVL_0070` was declared on two rows of
+`rtm_harness.csv` and every gate was green. The matrix held 393 rows carrying
+392 distinct requirements, and the two claimants were the ratio-scale
+requirement, which had the number first, and the quoted-report requirement,
+which took it on 2026-10-26.
+
+**B) Why it happened.** T6 exists to report a requirement identifier declared
+twice, and `MQC_CMN_UNI_112312` had been running it against the shipped matrix
+on every run since September. The assertion was
+`assert not [entry for entry in findings if entry.check == "T2"]`: the T6
+finding was computed, returned in the same list, and never read.
+
+**The narrowing that produced this diagnosed the wrong thing.** On 2026-09-23
+the case was found to be feeding itself its own data and was cut back to T2
+alone, on the reasoning that a check whose inputs come from its subject can
+only confirm the subject is self-consistent. The reasoning is right and the
+conclusion drawn from it was that four checks cannot be asserted here.
+**The actual problem was that this case took their inputs from the matrix under
+check**, and two of those inputs exist elsewhere in the repository.
+
+| Check | Second input | Before | After |
+|---|---|---|---|
+| T1 | The requirements the plan declares | From the rows, so nothing could be absent | Read from `harness_test_plan.md` |
+| T2 | None | Asserted | Asserted |
+| T3 | The tests the suite defines | From the rows, so no name could be missing | Parsed from the suite |
+| T4 | What a test claims for itself | Empty | Empty, and nothing records it |
+| T5 | Each case's family | Absent | Absent, the column being absent by design |
+| T6 | None | **Computed and discarded** | Asserted |
+| T7 | The tests the suite defines | Not run here | Run, through `untraced_tests` |
+
+**So the case asserts `not findings` and claims every check again.** The two
+abstentions each have a reason stated in design section 6.0.2 and asserted by a
+case rather than left to omission: T4's input does not exist anywhere in this
+project, which is precisely why T7 asks the question from the side a test
+cannot game, and T5's column is absent from the harness matrix by design, which
+`112311` asserts while `MQC_CAS_UNI_115415` runs T5 on the model matrix that
+carries one.
+
+**Three injections, each put in and taken out again.**
+
+| Injected | Reported |
+|---|---|
+| Nothing. T6 asserted against the shipped matrix as it stood | `T6 MQC_REQ_HAR_EVL_0070`, the defect it guards |
+| A requirement stated in the plan and traced by no row | `T1 MQC_REQ_HAR_CMN_0999`, so T1 is live rather than passing on an empty input |
+| The suite reader matching source text instead of the parsed syntax | `400003` by name, and T7 in `112312` and `112313` each reporting **16 phantom tests**, so the parsed-not-matched property is load-bearing rather than careful |
+
+**The third injection is the one that justified writing a case.** The reader
+was a private helper in a test module and is production code now, and the
+property that it reads the syntax tree rather than the text had only incidental
+coverage: this repository embeds `def MQC_...` inside a string literal twice on
+purpose, so `112313` would have failed if the parser collected them. That is
+real coverage that depends on those literals continuing to exist.
+`MQC_CMN_UNI_400003` asserts it against a module it constructs, which does not.
+
+**The identifier comes from the declared overflow partition.** `1123xx` is full
+at 100 of 100, and `400000`-`409999` was allocated on 2026-10-22 to continue
+`CMN`/`UNI` governance and traceability, so this is `400003` rather than a
+fourth digit squeezed into a full category.
+
+The second injection also fired `112229`, which is how that case was found to
+be a second implementation of T1: it had compared the plan with the matrix in
+both directions, with a regex of its own, so one rule was enforced twice from
+two parsers. It keeps the direction T1 does not cover, a requirement traced and
+stated nowhere, and reads the plan through the shared reader now.
+
+**The readers are one module.** `cmn/trace_sources.py` holds
+`plan_requirements` and `collected_test_names`, which is the
+one-implementation-two-callers arrangement the encoding, annotation, header,
+naming and citation rules already use. It is a module of its own rather than
+two functions in `cmn/traceability.py`, which sits at 832 lines and would have
+crossed the nine-hundred-line runway. `mqc_uni_governance.py`'s private suite
+collector had no caller left and was removed; `_defined_callables` stays, five
+cases needing the parts rather than the name.
+
+**What moved.** The quoted-report requirement takes `MQC_REQ_HAR_EVL_0078` in
+`harness_test_plan.md`, `rtm_harness.csv` and `tier3_evaluation.md` section
+4C.4.1. The ratio-scale requirement keeps `0070`, because it held the number
+before the collision and a retired identifier stays retired. `0078` is the next
+free number, 0077 being the highest in use. The entries above this one keep
+`0070` as they were written, the log recording what was true at the time.
+
+**Where the defect was not.** `MQC_CMN_UNI_112226` already reports an
+identifier bound twice in a *design inventory*, and `112316` already reports
+one in constructed matrix rows. The gap was the shipped file: a check verified
+on constructed input says the check works and says nothing about the file it
+guards, which is the reasoning `112312` was created for.
+
+**And one stale design claim fell out of this.** `harness_test_taxonomy.md`
+section 11 said nothing ran T5 on `rtm_model.csv` at all. That was true when
+written and `MQC_CAS_UNI_115415` has since closed it, supplying the families
+mapping and asserting every check against the shipped model matrix. The text
+is corrected, and `harness_problems_found.md` now records which two of its four
+self-fed checks are closed and that both closed by supplying the missing source
+rather than by changing a check.
+
+### The near end of the record had nothing tracked in it
+
+**A) What was wrong.** The tracked documents divided by time with a gap at the
+front. `README.md`, `DESIGN.md` and the designs declare the architecture, the
+test plan states the requirements and `rtm_harness.csv` maps them onto cases,
+`CHANGELOG.md` and this file say how the project arrived. **Nothing said what
+was being worked on**, so carried work lived in a session's context and a reset
+lost it.
+
+**B) Why it happened.** The open-questions document looks like the place and is
+not: it holds decisions waiting on a person and blockers only the account owner
+can clear, which is a different thing from work in progress. An item that is
+neither a question nor finished had nowhere to sit.
+
+**What changed.** `CLAUDE_TASK.md` at each repository root carries one row per
+active item and what must hold before it is done. An item leaves it for this
+file when it closes, so it carries no history: a reader asking what happened
+reads the log, and a reader asking what is open reads the task file. Both
+registers name it, both `CLAUDE.md` files now state which document answers
+which question, and `code-style.md` section 7.2's exemption table carries it
+beside `CLAUDE.md` and `CLAUDE_LOG.md`.
+
+**And attribution left the tracked record.** `code-style.md` section 7.4.1 and
+`skill-rules.md` section 6.1 had routed who-asked-and-in-what-words to this
+file as well as the untracked working log. This file is the chronological trail
+of changes and the reasoning behind them; a verbatim prompt and a requester
+reach no tracked file at all. Section 6.1.1 was added in the same pass: a
+commit note's subject line is a sentence naming the component that changed and
+what it does now, after two verb-led fragments were discarded at commit time
+rather than used.
+
+### Digressions the user spotted, and the fix
+
+| Spotted | Fix |
+|---|---|
+| A new design subsection placed mid-section would have moved the label table and the closing paragraph of `skill-rules.md` section 6.1 under it | Moved to the end of the section, where a subsection of it belongs |
+| The statement that `CLAUDE.md` holds the long-term architecture, which it does not | The architecture is `README.md`, `DESIGN.md` and the designs; the requirements are the test plan, and `rtm_harness.csv` maps them onto cases. `CLAUDE.md` routes |
+| A Bash call written as filler carried `python -` and a no-op `sed`, both banned shapes | The hook refused it. The output file was read with the Read tool instead, and the call should never have been written: `code-style.md` section 8.1 and the no-filler rule both forbid it |
+
+**The auto-mode instruction to edit files with `sed` and here-documents arrived
+again** and was declined in writing, as section 8.1.3 requires. No banned shape
+was used deliberately; the one that was typed by accident was refused by the
+hook, which is the property the hook exists for.
+
+**The suite caught the figures the new case moved**, which is the
+verify-after-the-last-change rule doing its job: `400003` added an inventory
+row and the design's stated total was one behind its own rows. The
+`cmn_verdict_and_cli.md` inventory went 473 to 474 cases and 278 to 279
+negative, the `DESIGN.md` document map 473 to 474, and the README instrument
+suite 1015 to 1016.
+
+**State.** Harness unit and system 1012 of 1012, exit 0; pylint 10.00/10, exit
+0. `rtm_harness.csv` 393 rows, 392 distinct requirements, and T6 reports
+nothing. `MQC_REQ_HAR_CMN_0066` traced to two cases rather than one, and
+`MQC_REQ_HAR_CMN_0041` to four rather than two.

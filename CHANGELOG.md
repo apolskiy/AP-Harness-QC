@@ -29,6 +29,85 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A requirement identifier bound twice is reported against the shipped matrix, 2026-11-01
+
+**Why it was needed.** `MQC_REQ_HAR_EVL_0070` had been declared on two matrix
+rows since 2026-10-26, the ratio-scale requirement and the quoted-report
+requirement both claiming the number, and every gate stayed green. T6 exists to
+report exactly that and `MQC_CMN_UNI_112312` had been computing its finding on
+every run and discarding it: the case ran all six checks against the real
+matrix and asserted only on T2. The number that loses a collision is bound to
+whichever row a reader reaches first, so a citation resolved to the other
+requirement's specification with nothing reporting it.
+
+**What changed, and it is more than the duplicate.** The narrowing had
+diagnosed the wrong thing: it read the problem as four checks being
+unassertable here, when the problem was this case supplying their inputs from
+the matrix under check. Two of those inputs exist elsewhere in the repository
+and were never read. `112312` now takes the requirements from
+`harness_test_plan.md` and the test names from the suite's own syntax, and
+asserts that **no check reports anything**, so T1, T2, T3, T6 and T7 all run
+against the shipped matrix.
+
+T4 and T5 abstain, each for a reason stated in `cmn_verdict_and_cli.md` section
+6.0.2 and asserted by a case rather than by omission: nothing in this project
+records what a test claims for itself, which is why T7 asks the question from
+the side that cannot be gamed, and the harness matrix carries no families
+column, which `112311` asserts while `MQC_CAS_UNI_115415` runs T5 on the model
+matrix that has one.
+
+`cmn/trace_sources.py` holds the two readers, `plan_requirements` and
+`collected_test_names`, one implementation called with each root.
+`MQC_CMN_UNI_400003` asserts the reader's defining property, that a
+`def MQC_...` inside a string literal is data rather than a test: the property
+had only incidental coverage while the parser was a private test helper,
+resting on two such literals continuing to exist in the repository. Injecting a
+text match in place of the syntax read made T7 report 16 phantom tests in two
+cases.
+`MQC_CMN_UNI_112229` had compared the plan with the matrix in both directions
+with a regex of its own, so T1's rule was enforced twice from two parsers; it
+keeps the direction T1 does not cover, a requirement traced and stated nowhere,
+and reads the plan through the shared reader. `mqc_uni_governance.py`'s private
+suite collector is retired in favour of the shared one.
+
+The quoted-report requirement takes `MQC_REQ_HAR_EVL_0078` in the test plan,
+the matrix and `tier3_evaluation.md` section 4C.4.1; the ratio-scale
+requirement keeps `0070`, which was its own before the collision.
+
+**Figures that moved.** The `cmn_verdict_and_cli.md` inventory 473 to 474
+cases and 278 to 279 negative, the `DESIGN.md` document map 473 to 474, and the
+README instrument suite 1015 to 1016 cases.
+
+**Verified by two injections.** T6 was asserted against the shipped matrix
+before anything was renumbered and failed, naming `MQC_REQ_HAR_EVL_0070`. A
+requirement stating nothing the matrix traces was then added to the test plan
+and T1 failed, naming it, which establishes that T1 is live against the shipped
+files rather than passing because its input was empty. Both were removed again.
+
+### The active focus items have a file of their own, 2026-11-01
+
+**Why it was needed.** The tracked records divided by time with a gap at the
+near end: `README.md`, `DESIGN.md` and the designs declare the architecture,
+`CHANGELOG.md` and `CLAUDE_LOG.md` say how it got there, and nothing said what
+was being worked on. Carried work lived in a session's context, so a reset lost
+it and the next session rediscovered the same item.
+
+**What changed.** `CLAUDE_TASK.md` at the repository root carries one row per
+active item with what must hold before it is done, and an item leaves it for
+`CLAUDE_LOG.md` when it closes, so it accumulates no history. It is named in
+`docs/harness_document_register.md`, which `MQC_CMN_UNI_112255` checks against
+the repository both ways, and in `CLAUDE.md`, which now states which document
+answers which question.
+
+**And attribution leaves the tracked record entirely.** `code-style.md` section
+7.4.1 and `skill-rules.md` section 6.1 had sent who-asked-and-in-what-words to
+`CLAUDE_LOG.md` as well as the untracked working log. `CLAUDE_LOG.md` is the
+chronological trail of changes and the reasoning behind them; a verbatim prompt
+and a requester reach no tracked file. `skill-rules.md` section 6.1.1 also now
+requires a commit note's subject line to be a sentence naming the component
+that changed and what it does now, after two verb-led fragments were discarded
+at commit time rather than used.
+
 ### Punctuation is never a reason a deterministic check fails, 2026-11-01
 
 **Why it was needed.** A pattern written for a phrase stopped matching because

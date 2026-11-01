@@ -3,7 +3,7 @@
 """Unit tests for what each emitted result carries, and for the failure-code registry.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-01
 
 Its cases check ``cmn/metadata.py``, ``cmn/observations.py`` and the code and
 family registries. They cover ``emit_result`` and ``require_registered_code``
@@ -88,6 +88,7 @@ from typing import Any
 import pytest
 
 from cmn.code_standards import section_lines
+from cmn.trace_sources import plan_requirements
 from cmn.document_standards import (
     duplicate_inventory_bindings,
     documents_stating_an_inventory,
@@ -128,13 +129,6 @@ _CODE_PATTERN = re.compile(r"`(QC_(?:LLM|SEC|HARNESS|DATA)_[A-Z_]+)`")
 # Parsed rather than substring-matched: the surrounding prose names these
 # identifiers too, and reporting prose would be the over-reporting that trains
 # a check away on its second run.
-# A harness requirement identifier, as the plan and the matrix both write one.
-# Requirements carry an explicit MQC_REQ_ marker, so an identifier says which
-# register it belongs to without the reader knowing any vocabulary.
-# harness_test_plan.md section 2.2.
-_REQUIREMENT_ID = re.compile(r"MQC_REQ_HAR_(?:ING|EXE|EVL|CMN)_\d+")
-
-
 _FAMILY_ROW = re.compile(
     r"^\|\s*`(?P<identifier>[a-z][a-z_]+)`\s*\|[^|]+\|[^|]+\|[^|]+\|$"
 )
@@ -778,18 +772,27 @@ class TestMQCFamilyRegistrationMechanism:
         from the plan, all added over one working session, and nothing compared
         the two.
 
+        **This asserts the direction T1 does not cover.** T1 reports a
+        requirement the plan declares and the matrix traces nowhere, and
+        `112312` runs it against both shipped files; the reverse, a row
+        tracing a requirement the plan never states, is nobody's check. This
+        case asserted both until 2026-11-01 and was therefore a second
+        implementation of T1, with a second parser for the plan.
+
         **The fifth instance of one shape in this module**, after ``112202``,
         ``112313``, ``112314`` and ``112228``: two artefacts state one fact and
         nothing compares them.
+
+        Design: ``cmn_verdict_and_cli.md`` section 6.0.2.
 
         Returns:
             None
         """
         root = Path(__file__).resolve().parents[2]
-        plan = (root / "docs" / "testing" / "harness_test_plan.md").read_text(
-            encoding="utf-8"
+        stated = plan_requirements(
+            root / "docs" / "testing" / "harness_test_plan.md",
+            scope="MQC_REQ_HAR_",
         )
-        stated = set(_REQUIREMENT_ID.findall(plan))
 
         with (root / "docs" / "testing" / "rtm_harness.csv").open(
             encoding="utf-8-sig", newline=""
@@ -804,10 +807,6 @@ class TestMQCFamilyRegistrationMechanism:
         assert not traced - stated, (
             "these requirements are traced and never stated, so the plan "
             f"understates what the harness guarantees: {sorted(traced - stated)}"
-        )
-        assert not stated - traced, (
-            "these requirements are stated and never traced, so nothing covers "
-            f"them: {sorted(stated - traced)}"
         )
 
     def MQC_CMN_UNI_112230_a_registered_family_without_ground_truth_is_reported(

@@ -3,7 +3,7 @@
 """Unit tests for the requirements traceability matrix and the requirement register.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-01
 
 Its cases check ``cmn/traceability.py``. ``check_matrix_integrity`` runs checks
 T1 to T5, reporting a row with no test, a row naming an absent test, a test citing
@@ -50,6 +50,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112310  an_unknown_matrix_column_is_rejected
 #   112311  the_harness_matrix_omits_the_families_column
 #   112312  the_live_harness_matrix_passes_every_check
+#   400003  a_test_named_in_a_string_literal_is_not_a_collected_test
 #   112324  an_untraced_test_is_reported_against_either_matrix
 # TestMQCRequirementRegister
 #   112316  a_requirement_identifier_declared_twice_is_reported
@@ -64,6 +65,8 @@ from pathlib import Path
 
 import pytest
 
+from cmn.case_steps import step
+from cmn.trace_sources import collected_test_names, plan_requirements
 from cmn.traceability import (
     highest_assigned,
     register_ceiling,
@@ -287,18 +290,23 @@ class TestMQCMatrixSchema:
         assert model_only_columns() == ("families",)
 
     def MQC_CMN_UNI_112312_the_live_harness_matrix_passes_every_check(self) -> None:
-        """T2 against the real matrix: every row names at least one test.
+        """Every check runs against the shipped matrix, from sources the matrix did not produce.
 
-        **This establishes T2 and nothing else, deliberately narrowed.** An
-        earlier docstring claimed it ran the real matrix through every check,
-        while deriving ``declared`` and ``named`` from that same matrix: T1
-        cannot fail against requirements taken from the rows it checks, T3
-        cannot fail against names taken from the rows it checks, and T4
-        receives the matrix in place of the suite.
+        The requirements come from ``harness_test_plan.md`` and the test names
+        from the suite's own syntax, so T1, T2, T3, T6 and T7 are all live
+        here. **T4 and T5 abstain, each for a reason asserted elsewhere**: no
+        test in this project declares the requirements it claims, which is what
+        makes T7 the question worth asking, and the harness matrix carries no
+        families column, which `112311` asserts and `MQC_CAS_UNI_115415`
+        exercises on the matrix that has one.
 
-        A check whose inputs come from its subject can only confirm the subject
-        is self-consistent. `112313` supplies the collected suite, which is the
-        only source that is not the matrix.
+        **An earlier version derived both inputs from the matrix it was
+        checking**, so T1 could not fail against requirements taken from the
+        rows and T3 could not fail against names taken from them. A check whose
+        inputs come from its subject can only confirm the subject is
+        self-consistent, which is T2's and T6's property and not T1's or T3's.
+
+        Design: ``cmn_verdict_and_cli.md`` sections 6.0.2, 10.11 and 10.11.1.
 
         Returns:
             None
@@ -307,12 +315,72 @@ class TestMQCMatrixSchema:
         with harness.open(encoding="utf-8-sig", newline="") as handle:
             rows = [MatrixRow.from_row(entry) for entry in csv.DictReader(handle)]
 
-        declared = {row.requirement_id for row in rows}
-        named = {test_id for row in rows for test_id in row.test_ids}
-        findings = check_matrix_integrity(rows, declared, named)
+        step(1, "read the requirements the plan states and the tests the suite defines")
+        declared = plan_requirements(
+            _REPOSITORY_ROOT / "docs" / "testing" / "harness_test_plan.md",
+            scope="MQC_REQ_HAR_",
+        )
+        collected = collected_test_names(_REPOSITORY_ROOT / "tests")
+        assert declared and collected, (
+            f"a source read nothing, so every check would abstain: "
+            f"{len(declared)} requirement(s), {len(collected)} test(s)"
+        )
 
-        assert not [entry for entry in findings if entry.check == "T2"]
+        step(2, "run every check against the shipped matrix")
+        findings = check_matrix_integrity(rows, declared, collected)
+        assert not findings, (
+            "the shipped matrix disagrees with the plan or the suite: "
+            + "; ".join(f"{entry.check} {entry.subject}: {entry.detail}"
+                        for entry in findings)
+        )
+
+        step(3, "and no collected test is traced nowhere")
+        untraced = untraced_tests(rows, collected)
+        assert not untraced, (
+            f"{len(untraced)} collected test(s) appear in no matrix row: "
+            f"{sorted(entry.subject for entry in untraced)}"
+        )
         assert len(rows) > 100
+
+    def MQC_CMN_UNI_400003_a_test_named_in_a_string_literal_is_not_a_collected_test(
+        self, tmp_path: Path
+    ) -> None:
+        """A definition inside a string literal is data, so the suite reader skips it.
+
+        Two modules in this repository embed one deliberately: a traceability
+        case exercising a stale reference, and the dependency cascade's fixture
+        sub-suite. Collecting them would hand T3 and T7 two names the suite
+        does not define, and T7 would report them as untraced.
+
+        Design: ``cmn_verdict_and_cli.md`` section 6.0.2.
+
+        Args:
+            tmp_path (Path): Where the constructed module is written.
+
+        Returns:
+            None
+        """
+        defined = "MQC_CMN_UNI_999998_is_defined_here"
+        quoted = "MQC_CMN_UNI_999999_is_only_named_in_a_literal"
+        module = tmp_path / "mqc_uni_constructed.py"
+        module.write_text(
+            f"SAMPLE = \"def {quoted}(self) -> None: pass\"\n"
+            f"def {defined}(self) -> None:\n"
+            f"    return None\n",
+            encoding="utf-8",
+        )
+
+        step(1, "read a module defining one test and naming another in a literal")
+        collected = collected_test_names(tmp_path)
+        assert defined in collected, (
+            f"the reader missed a definition it should collect: {sorted(collected)}"
+        )
+
+        step(2, "read whether the name inside the string literal was collected")
+        assert quoted not in collected, (
+            "a definition inside a string literal was collected as a test, so "
+            "the matrix would be asked to trace a case the suite does not define"
+        )
 
     def MQC_CMN_UNI_112324_an_untraced_test_is_reported_against_either_matrix(
         self,

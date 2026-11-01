@@ -144,6 +144,15 @@ self-consistent.**
 **19 of 93 matrix rows were wrong** and two checks guarded that column. The one
 designed to catch it had never been given the data it needed.
 
+**Two of these four are closed, and both closed by supplying the missing
+source rather than by changing a check.** `112312` reads the requirements from
+the test plan and the test names from the suite's own syntax since 2026-11-01,
+so T1, T2, T3, T6 and T7 run against the shipped matrix; and
+`MQC_CAS_UNI_115415` supplies the families mapping, so T5 reads the model
+matrix that carries the column. T4 remains as the row above describes it,
+because nothing in this project records what a test claims for itself, and T7
+is the question asked from the side that cannot be gamed.
+
 ---
 
 ## 4. Records that were wrong about their own reason

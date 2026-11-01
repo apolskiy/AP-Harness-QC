@@ -3,7 +3,7 @@
 """Unit tests that check the test suite against its own design documents.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-01
 
 Its cases check the suite through ``cmn/traceability.py``, ``cmn/layers.py`` and
 the parsed source of the test modules. They report a collected test missing from
@@ -59,6 +59,7 @@ import pytest
 
 from cmn.config import forbidden_keys
 from cmn.layers import layer_properties, registered_layers
+from cmn.trace_sources import collected_test_names
 from cmn.traceability import MatrixRow, retirement_problems, untraced_tests
 
 pytestmark = pytest.mark.unit
@@ -212,23 +213,6 @@ def _collected_identifiers() -> dict[str, Path]:
     for module in _TEST_DIRECTORY.rglob("mqc_*.py"):
         for code, _layer, number, _behaviour in _defined_callables(module):
             found[f"{code}:{number}"] = module
-    return found
-
-def _collected_tests() -> list[tuple[str, str, str, str]]:
-    """Return every test callable the suite defines.
-
-    **A test DEFINITION, not any mention of one.** Read from the parsed syntax
-    rather than from source text, because a ``def`` inside a string literal is
-    data and a regex cannot tell it from a definition. Two modules here embed
-    one: a traceability case exercising a stale reference, and the dependency
-    cascade's fixture sub-suite.
-
-    Returns:
-        list[tuple]: Module, layer, number and behaviour for each test.
-    """
-    found: list[tuple[str, str, str, str]] = []
-    for source in sorted(_TEST_DIRECTORY.rglob("*.py")):
-        found.extend(_defined_callables(source))
     return found
 
 # A document-map row naming a design and stating a case count. Written as
@@ -473,10 +457,7 @@ class TestMQCLiveMatrixAgainstTheSuite:
         with matrix.open(encoding="utf-8-sig", newline="") as handle:
             rows = [MatrixRow.from_row(entry) for entry in csv.DictReader(handle)]
 
-        collected = {
-            f"MQC_{module}_{layer}_{number}_{behaviour}"
-            for module, layer, number, behaviour in _collected_tests()
-        }
+        collected = collected_test_names(_TEST_DIRECTORY)
 
         named = {test_id for row in rows for test_id in row.test_ids}
         dangling = sorted(named - collected)
@@ -551,10 +532,7 @@ class TestMQCLiveMatrixAgainstTheSuite:
         matrix = _REPOSITORY_ROOT / "docs" / "testing" / "rtm_harness.csv"
         with matrix.open(encoding="utf-8-sig", newline="") as handle:
             rows = [MatrixRow.from_row(entry) for entry in csv.DictReader(handle)]
-        collected = {
-            f"MQC_{module}_{layer}_{number}_{behaviour}"
-            for module, layer, number, behaviour in _collected_tests()
-        }
+        collected = collected_test_names(_TEST_DIRECTORY)
         designs = [
             path.read_text(encoding="utf-8")
             for path in sorted((_REPOSITORY_ROOT / "docs" / "design").glob("*.md"))

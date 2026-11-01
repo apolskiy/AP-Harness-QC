@@ -2383,7 +2383,7 @@ Before this, `rtm_model.csv` labelled all 9 `SEC` and `TUL` requirement rows `re
 
 **T5 did not pass on these rows; it never saw them.** `check_matrix_integrity` takes `case_families`, a mapping from test name to its family, and T5 is written as `if derived and ...`: with no mapping, `derived` is empty and the check **abstains silently**. The mapping is supplied in exactly two places, both synthetic rows inside `112304` and `112308`.
 
-**Nothing calls it on `rtm_model.csv` at all.** `112312` runs the real matrix and asserts only T2, deliberately narrowed, against `rtm_harness.csv`; and that matrix carries no `families` column by design (`112311`). So the one check written to compare this column against the cases has never been run on the only matrix that has the column.
+**Nothing called it on `rtm_model.csv` at all when this was written, and `MQC_CAS_UNI_115415` closed that.** It supplies `case_families_from_suite`, runs every check against the shipped model matrix and asserts that none reports, so T5 now reads the only matrix carrying the column. The harness side stays absent by design: `rtm_harness.csv` carries no `families` column (`112311`), families applying to graded cases and the harness having none. **`112312` no longer asserts T2 alone**, having taken the plan and the suite as its sources on 2026-11-01, so T1, T2, T3, T6 and T7 run there against the shipped files and T4 and T5 abstain for reasons section 6.0.2 of `cmn_verdict_and_cli.md` states.
 
 | | |
 |---|---|

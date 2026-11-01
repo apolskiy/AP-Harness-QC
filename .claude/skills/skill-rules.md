@@ -164,8 +164,9 @@ added (why) and use past tense".
 **Past tense, not the imperative mood the git convention teaches.** The note
 records a change that has already been made and the reason it was made;
 "Implement `--out-dir`" reads as an instruction to somebody, which is not what
-a commit note is for here. The subject line and every body paragraph open with
-a past tense verb.
+a commit note is for here. Every body paragraph states what was done in past
+tense after its label, and the subject line is a past tense sentence rather
+than a verb opening a phrase (section 6.1.1).
 
 **The subject line is its own line, and it is short.** One line of about
 seventy characters saying what the commit did, then a blank line, then the
@@ -180,7 +181,7 @@ body alone.
 why it was needed:
 
 ```
-Reported a publisher that read conclusions, and moved the Ubuntu pin to 26.04
+The publisher now reports a conclusion it read, and the Ubuntu pin moved to 26.04
 
 Fixed: <what was wrong, and what it cost>
 Added: <what is new, and why the gap mattered>
@@ -203,5 +204,35 @@ from the diff.
 **This is `code-style.md` section 7.4.1 applied to a different artefact, and
 the division of labour is the same.** The changelog states the purpose and then
 the change and never who made it; the commit note does the same for one commit,
-and authorship is recorded by the commit itself. Who asked, in what words, goes
-to `CLAUDE_LOG.md` and `.claude/logs/PROMPT_LOG.md`.
+and authorship is recorded by the commit itself. **Who asked, and in what
+words, reaches no tracked file**: `CLAUDE_LOG.md` is a chronological history of
+changes and the reasons behind them, not a record of who requested them, and a
+verbatim prompt stays in the local working log, which is never committed.
+
+#### 6.1.1 The subject line is a sentence naming what was fixed or implemented
+
+Added 2026-11-01, after two subject lines were discarded at commit time rather
+than used: neither was a sentence, neither carried a verb with anything
+performing it, and neither stated what the commit had done.
+
+**A subject line carries a grammatical subject and a verb**, and names the
+component that changed and what it does now. A verb-led phrase names an action
+with nobody performing it and nothing it was done to, so a reader of a one-line
+history is handed a fragment rather than a statement and has to open the diff
+to learn what the commit touched, which is the whole job of the line.
+
+| | |
+|---|---|
+| Discarded at commit | `Blanked punctuation before every deterministic match` |
+| The sentence it should have been | `The deterministic layer now matches a punctuation-blanked reading` |
+| Discarded at commit | `Recorded the escalated observations and read ten checks literally` |
+| The sentence it should have been | `Twelve unmeasured cases were recorded and ten checks now read punctuation as written` |
+
+**The register is the one the designs use.** A line written as a label, a
+headline or a slogan fails for the same reason a fragment does: the note is
+read by an engineer bisecting a regression, who needs the component and its new
+behaviour before anything else.
+
+**The labelled paragraphs are not an exception to this.** Each opens with its
+label and then states what was done in the same register, so the label marks
+the kind of change and the sentence after it carries the meaning.

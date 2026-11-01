@@ -1377,6 +1377,56 @@ report every test the caller left out. `untraced_tests` is public and
 called by the two repository-level cases that can supply one,
 `MQC_CMN_UNI_112313` and `MQC_CAS_UNI_115602`.
 
+#### 6.0.2 Each check runs against the shipped matrix from a source the matrix did not produce
+
+Added 2026-11-01. **A check is worth running against the real file only where
+its second input comes from somewhere else.** Section 10.11 records what
+happens otherwise: `112312` derived every input from the matrix it was checking
+and four of its five checks became tautologies.
+
+**The sources exist, and `cmn/trace_sources.py` reads them.** One module, one
+implementation, called with each root, which is the arrangement the encoding,
+annotation, header, naming and citation rules already use.
+
+| Check | Second input | Where it comes from |
+|---|---|---|
+| T1 | The requirements the plan declares | `plan_requirements`, reading the test plan |
+| T2 | None | The rows alone |
+| T3 | The tests the suite defines | `collected_test_names`, parsing the suite |
+| T4 | What a test claims for itself | **Nowhere. Nothing records it** |
+| T5 | Each case's evaluation family | The corpus, in the case repository only |
+| T6 | None | The rows alone |
+| T7 | The tests the suite defines | As T3, through `untraced_tests` |
+
+**So `112312` supplies the plan and the suite and asserts that no check
+reports anything.** Five of the seven are then live against the shipped harness
+matrix, and the two that abstain abstain for a reason stated here and asserted
+elsewhere rather than by omission.
+
+| Abstains | Because | Asserted by |
+|---|---|---|
+| T4 | No test in this project declares the requirements it claims, and section 6.0.1 is why that is not worth adding: a test that declares nothing satisfies T4 by declaring nothing, and T7 already asks the question from the side that cannot be gamed | `112324` and `112313` take T7's side of it |
+| T5 | The harness matrix carries no families column, families applying to graded cases and the harness having none | `112311`, and `MQC_CAS_UNI_115415` runs T5 on `rtm_model.csv`, which does carry one |
+
+**The parsers are shared rather than restated.** `112229` compares the plan
+against the matrix in the direction T1 does not cover, a requirement traced and
+stated nowhere, and it read the plan with a regex of its own until this change.
+Two parsers for one file disagree the first time the file's shape changes, and
+the rule the second one was re-implementing was T1.
+
+**`collected_test_names` reads the syntax tree, and `400003` is why that
+matters.** A module may carry `def MQC_...` inside a string literal, and this
+repository has two deliberately: a traceability case exercising a stale
+reference, and the dependency cascade's fixture sub-suite. Neither is a test
+the suite collects, so a reader matching text would hand T3 and T7 two names
+the suite does not define and T7 would report them as untraced.
+
+**That property had only incidental coverage** while the parser was a private
+helper in a test module: the embedded literals happen to exist, so `112313`
+would have failed had the parser collected them. A case asserting it directly
+is what keeps the property once the literals move or go, and the parser is
+production code now.
+
 ### 6.1 Matrix schema
 
 Specified here because the matrices are **loaded through the CSV loader**, so their columns are a schema like any other and the loader's rules apply: a blank cell takes the declared default, an unknown column is rejected, and no value is type-inferred.
@@ -3490,6 +3540,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `400000` | N | `a_flag_a_document_names_and_nothing_declares_is_reported` (7.1.0.4) |
 | `400001` | P | `a_flag_declared_outside_this_repository_is_not_reported` (7.1.0.4) |
 | `400002` | P | `this_repository_names_no_undeclared_flag` (7.1.0.4) |
+| `400003` | N | `a_test_named_in_a_string_literal_is_not_a_collected_test` (6.0.2) |
 | `410000` | P | `every_audited_module_hashes_to_its_declared_digest` (taxonomy 15.10.1) |
 | `410001` | N | `a_refusal_from_the_command_line_exits_four` (taxonomy 15.4.3) |
 | `410002` | P | `a_remeasure_takes_the_module_on_disk_and_refuses_damage` (taxonomy 15.10.2) |
@@ -3518,7 +3569,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 473 cases, 278 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 474 cases, 279 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3810,7 +3861,11 @@ are tautologies dressed as coverage.
 
 **A check whose inputs come from its subject can only confirm the subject is
 self-consistent.** That is a real property and it is not the property this one
-was written to establish. `112312` has been narrowed to claim only T2.
+was written to establish. `112312` was narrowed to claim only T2, and the
+narrowing was itself replaced on 2026-11-01: the inputs now come from the test
+plan and from the suite's own syntax, so the case claims every check again and
+means it. Section 6.0.2 carries the sources and section 10.11.1 what the
+narrowing had covered up.
 
 `112313` supplies the **collected suite** as the suite, which is the only source
 that is not the matrix. It fails in both directions: a matrix row naming a test
@@ -3820,6 +3875,50 @@ that does not exist, and a collected test no row names.
 test was designed; this asks whether it was traced. A test can satisfy either
 without the other, which is exactly how the gap occurred: the new case was
 inventoried correctly and traced not at all.
+
+#### 10.11.1 The narrowing dropped T6, which reads nothing but the rows
+
+Added 2026-11-01. **`MQC_REQ_HAR_EVL_0070` was declared on two rows of the
+shipped harness matrix and the suite stayed green**: 393 rows carrying 392
+distinct requirements, with the ratio-scale requirement and the quoted-report
+requirement both claiming the number since 2026-10-26. `112312` computed the
+T6 finding on every run and discarded it, because the assertion selects T2 and
+reads no other check's findings.
+
+**The narrowing diagnosed the wrong thing.** It read the problem as "four of
+these checks cannot be asserted here" when the problem was "this case supplies
+their inputs from the wrong place". T6 needs no second input at all and was cut
+anyway, and T1 and T3 have second inputs that exist in the repository and were
+never read.
+
+| Check | Second input | Before | Now |
+|---|---|---|---|
+| T1 | The requirements the plan declares | Taken from the rows, so nothing could be absent | Read from `harness_test_plan.md` |
+| T2 | None, the rows alone | Asserted | Asserted |
+| T3 | The tests the suite defines | Taken from the rows, so no name could be missing | Parsed from the suite |
+| T4 | What a test claims for itself | Empty | Empty, and nothing records it (section 6.0.2) |
+| T5 | Each case's family | Absent | Absent, the column being absent by design |
+| T6 | None, the rows alone | **Computed and discarded** | Asserted |
+| T7 | The tests the suite defines | Not run here | Run, through `untraced_tests` |
+
+**T6's subject is the matrix's self-consistency, which is the one property a
+self-fed check does establish.** Section 10.11 rejects the others because a
+check whose inputs come from its subject can only confirm the subject is
+self-consistent; T6 is written to confirm exactly that, so the objection reads
+as the argument for including it. Section 6.0.2 carries the arrangement that
+replaced the narrowing, and `cmn/trace_sources.py` holds the two readers.
+
+**The requirement is `MQC_REQ_HAR_CMN_0066`**, which held one case before this:
+`112316`, against constructed rows. A check verified on constructed input alone
+says the check works and says nothing about the file it guards, which is the
+reasoning `112312` was created for and the reasoning that left this binding
+unread for six days.
+
+**And `112229` stopped being a second implementation of T1.** It had compared
+the plan with the matrix in both directions, with a regex of its own, so the
+rule T1 states was enforced twice from two parsers. It keeps the direction T1
+does not cover, a requirement traced and stated nowhere, and reads the plan
+through the shared reader.
 
 ### 10.12 The index that drifted from what it indexes
 

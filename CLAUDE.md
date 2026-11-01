@@ -14,8 +14,20 @@ It publishes standard CI artifacts for read-only consumption and depends on no c
 
 Before generating proposals, architecture designs, or code, you MUST review and adhere to every governance file below. Paths are relative to the repository root (`AP-Harness-QC/`) and are the real on-disk locations.
 
-1. `CLAUDE_LOG.md` (repo root, **tracked**): First-priority instruction. Log architecture decisions, trade-offs, and quality audits. The project's progress record, written for an external reader.
-1b. `.claude/logs/PROMPT_LOG.md` (**not tracked**): Verbatim prompts and working notes. Never put raw prompts in `CLAUDE_LOG.md`.
+1. `CLAUDE_LOG.md` (repo root, **tracked**): First-priority instruction. Log architecture decisions, trade-offs, and quality audits. **The permanent development trail**, written for an external reader: it is what stops a failed attempt being repeated or context being lost across a session reset. It records changes and the reasoning behind them, never a verbatim prompt and never who asked for what.
+1a. `CLAUDE_TASK.md` (repo root, **tracked**): **The active focus items**, one row each with what must hold before the item is done. Entries are added, worked and removed, so it carries no history: a closed item's record goes to `CLAUDE_LOG.md`.
+1b. `.claude/logs/PROMPT_LOG.md` (**not tracked**): Verbatim prompts and working notes. A work product, never committed and never shared, and nothing is copied from it into a tracked file.
+
+**These two divide by time, and neither declares the architecture.** `CLAUDE_TASK.md` holds what is active now and `CLAUDE_LOG.md` the permanent trail of what was done and why. This file routes a reader to the rest and holds the core directives and the boundaries.
+
+| Document | Answers |
+|---|---|
+| `README.md`, `DESIGN.md`, `docs/design/*` | **The architecture**: what the project is, how it is built, and why it is built that way |
+| `docs/testing/harness_test_plan.md` | **The requirements**, each stated as what must hold |
+| `docs/testing/rtm_harness.csv` | **Which case satisfies which requirement**, traced both ways and checked both ways by T1 to T7 |
+| `CLAUDE.md` | The directive router, the core directives, the boundaries |
+| `CLAUDE_TASK.md` | **What is active now.** One row per item, removed when it closes |
+| `CLAUDE_LOG.md` | Changes and the reasoning behind them, in date order |
 2. `.claude/skills/skill-rules.md`: Workflow governance, the 4-phase execution pipeline (Phase 0 through Phase 3), Git safety, and logging rules.
 3. `.claude/rules/code-style.md`: Variable rules (>= 3 chars, zero single-letter variables), Google docstrings, Python typing, documentation prose rules, and 10.00/10 Pylint compliance.
 3b. `.claude/rules/claude_code_rules_because_of_findings.md`: The portable statement of the shell rules this project's own failures produced. `code-style.md` sections 8.1 and 8.1.1 stay normative and carry what was measured; this file is what travels to another project or another machine, where the `PreToolUse` hook does not exist.
