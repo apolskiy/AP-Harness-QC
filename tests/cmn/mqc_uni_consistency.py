@@ -3,7 +3,7 @@
 """Unit preconditions for repeat observations that disagree, and what a run does about it.
 
 Created: 2026-10-01
-Last updated: 2026-10-21
+Last updated: 2026-11-01
 
 The cases here check ``cmn.verdict`` and ``cmn.observations``:
 ``inconsistent_cases`` reports a case whose observations disagree,
@@ -11,7 +11,8 @@ The cases here check ``cmn.verdict`` and ``cmn.observations``:
 inside the passing band is recorded and gates nothing, ``further_observations``
 gives any failure two more, and ``score_spread`` needs exactly two scores. They
 also check that ``cmn.replay_audit.divergent_recordings`` reports a case whose
-recordings disagree on the request.
+recordings disagree on the request, and that ``stale_judgements`` reports a
+judgement scoring a response its own recording no longer holds.
 
 The verdict reads these outcomes as a measurement of the model, so these cases
 decide whether a model answering one question several ways is reported rather
@@ -36,6 +37,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112035  a_score_moving_inside_the_band_is_recorded_not_gated
 #   112036  any_failure_earns_two_further_observations
 #   112335  a_case_whose_recordings_disagree_on_the_request_is_reported
+#   112436  a_judgement_scoring_a_replaced_response_is_reported
+#   112437  a_judgement_with_no_recording_is_reported_an_old_one_is_not
 # TestMQCScoreSpread
 #   112361  score_spread_needs_two_scores_exactly
 # ------------------------------------------------------------ end of cases
@@ -47,7 +50,7 @@ from pathlib import Path
 import pytest
 
 from cmn.observations import Observation, further_observations
-from cmn.replay_audit import divergent_recordings
+from cmn.replay_audit import divergent_recordings, stale_judgements
 from cmn.verdict import (
     inconsistency_rate,
     inconsistent_cases,
@@ -384,6 +387,152 @@ class TestMQCObservationConsistency:
         )
         assert not divergent_recordings(tmp_path), (
             "a case holding one recording was reported as disagreeing"
+        )
+
+
+    def MQC_CMN_UNI_112436_a_judgement_scoring_a_replaced_response_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A judgement holds a score for the response its own recording holds.
+
+        **It is 12.4.1's defect one step away.** ``load_judgement`` refuses a
+        judgement whose request hash moved, and it refuses it on the run that
+        draws it, so a judgement the escalation never reaches is refused by
+        nothing and a partial refresh waits for the run that first reads it.
+
+        **The stored prompt carries the candidate response verbatim**, which is
+        what lets the files be compared without composing a request, loading a
+        rubric or reading the corpus.
+
+        Design: ``cmn_verdict_and_cli.md`` section 12.4.2.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        answer = "Recognise the settlement when control of the goods passes."
+        folder = tmp_path / "claude" / "MQC_TASK_alpha" / "MQC_RULE_alpha"
+        folder.mkdir(parents=True)
+        (folder / "0.json").write_text(
+            json.dumps({"request_hash": "aaa111", "response": {"text": answer}}),
+            encoding="utf-8",
+        )
+        judged = (tmp_path / "judgements" / "claude" / "gemini"
+                  / "MQC_TASK_alpha" / "MQC_RULE_alpha")
+        judged.mkdir(parents=True)
+        (judged / "0.json").write_text(
+            json.dumps({
+                "request_hash": "ddd444",
+                "reply": {},
+                "prompt": f"Grade one response against the rubric.\n\n{answer}\n",
+            }),
+            encoding="utf-8",
+        )
+
+        # A STORE THAT AGREES IS SILENT, or the check reports every judgement
+        # it reads and the report is worth nothing.
+        assert not stale_judgements(tmp_path), (
+            "a judgement whose prompt holds its own recording's response was "
+            "reported, so the check cannot tell a scored response from a "
+            "replaced one"
+        )
+
+        # RE-RECORD THE OBSERVATION AND THE JUDGEMENT IS LEFT BEHIND, which is
+        # what a store refreshed in part holds and what no run reports until
+        # an escalation reaches that observation.
+        (folder / "0.json").write_text(
+            json.dumps({
+                "request_hash": "bbb222",
+                "response": {"text": "Recognise the settlement when invoiced."},
+            }),
+            encoding="utf-8",
+        )
+        problems = stale_judgements(tmp_path)
+        assert len(problems) == 1, (
+            f"a judgement scoring a replaced response was not reported, so it "
+            f"waits for the run that draws it: {problems}"
+        )
+        assert "MQC_TASK_alpha" in problems[0], (
+            f"the report does not name the case, so nobody can act on it: "
+            f"{problems[0]}"
+        )
+        assert "claude" in problems[0] and "gemini" in problems[0], (
+            f"the report names neither the engine that answered nor the one "
+            f"that graded, and the judgement's identity is both: {problems[0]}"
+        )
+
+
+    def MQC_CMN_UNI_112437_a_judgement_with_no_recording_is_reported_an_old_one_is_not(
+        self, tmp_path: Path
+    ) -> None:
+        """A judgement outliving its observation is reported; an old one is not.
+
+        **The two directions are separate defects.** A judgement whose
+        observation has no recording at all can never be drawn, so the hash
+        guard can never refuse it, and it is the partial refresh seen from the
+        other end.
+
+        **A judgement carrying no prompt is an abstention rather than a
+        tolerance.** One recorded before ``tier2_execution.md`` section 7.9.4
+        is rebuilt from the observation it scored, so it replays correctly and
+        holds nothing to compare; reporting it would report the age of a file
+        as a defect. 31 of the shipped store's 751 judgements are that old.
+
+        Design: ``cmn_verdict_and_cli.md`` section 12.4.2.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        answer = "Control passes at delivery, so the revenue is recognised then."
+        folder = tmp_path / "grok" / "MQC_TASK_beta" / "MQC_RULE_beta"
+        folder.mkdir(parents=True)
+        (folder / "0.json").write_text(
+            json.dumps({"request_hash": "ccc333", "response": {"text": answer}}),
+            encoding="utf-8",
+        )
+        judged = (tmp_path / "judgements" / "grok" / "gemini"
+                  / "MQC_TASK_beta" / "MQC_RULE_beta")
+        judged.mkdir(parents=True)
+        (judged / "0.json").write_text(
+            json.dumps({"request_hash": "ddd444", "reply": {}}),
+            encoding="utf-8",
+        )
+
+        # NO PROMPT, SO NOTHING TO COMPARE. The recording holds text, so a
+        # check reading an absent prompt as an empty one would report this.
+        assert not stale_judgements(tmp_path), (
+            "a judgement recorded before the prompt was stored was reported, "
+            "which reports the age of a file as a defect and fails a store "
+            "that replays correctly"
+        )
+
+        # AND A JUDGEMENT WHOSE OBSERVATION WAS NEVER RECORDED is reported,
+        # there being no response for it to have scored.
+        (judged / "1.json").write_text(
+            json.dumps({
+                "request_hash": "eee555",
+                "reply": {},
+                "prompt": f"Grade one response against the rubric.\n\n{answer}\n",
+            }),
+            encoding="utf-8",
+        )
+        problems = stale_judgements(tmp_path)
+        assert len(problems) == 1, (
+            f"a judgement scoring an observation with no recording was not "
+            f"reported, so dead data reads as a measurement: {problems}"
+        )
+        assert "observation 1" in problems[0], (
+            f"the report does not name which observation is unrecorded: "
+            f"{problems[0]}"
+        )
+        assert "no recording" in problems[0], (
+            f"the report does not say what is missing, so it reads as the "
+            f"replaced-response finding: {problems[0]}"
         )
 
 

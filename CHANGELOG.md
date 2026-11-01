@@ -29,6 +29,48 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A judgement scoring a response the store no longer holds is reported, 2026-11-01
+
+**Why it was needed.** A replay store's candidate recordings have been required
+to agree on the request since 2026-10-06, and judgements are excluded from that
+comparison for a reason that holds: each scores a different response, so
+requiring them to agree would report the whole store. What nothing compared was
+each judgement against the **one** response it scored. Re-recording an
+observation after it was judged leaves a judgement holding a score for text the
+store no longer carries, and the only guard against that sits in
+`load_judgement`, which refuses it on the run that draws it. A judgement the
+escalation never reaches is refused by nothing, which is the same silence
+section 12.4.1 was written for, one step along.
+
+**What changed.** `cmn.replay_audit.stale_judgements` reports a judgement whose
+recorded prompt does not carry the text its own candidate recording holds, and
+a judgement whose observation has no recording at all. It reads the prompt
+`tier2_execution.md` section 7.9.4 stores beside each judgement, which carries
+the candidate response verbatim, so the comparison needs no composed request,
+no rubric and no corpus. A judgement carrying no prompt is an abstention rather
+than a tolerance, one recorded before that section being rebuilt from the
+observation it scored. `cmn_verdict_and_cli.md` section 12.4.2 specifies it,
+`MQC_REQ_HAR_CMN_0239` states it, and `MQC_CMN_UNI_112436` and `112437` hold
+what it reports and what it abstains on.
+
+**What the shipped store measures.** 751 judgements, of which 720 carry a
+prompt and every one of those holds the response its recording holds, 31
+predate the stored prompt, and none scores an observation that was never
+recorded. The check reports nothing today, which is the state an audit written
+before the next partial refresh is supposed to find.
+
+**Figures that moved.** The `cmn_verdict_and_cli.md` inventory 474 to 476 cases
+and 279 to 281 negative, the `DESIGN.md` document map 474 to 476, and the
+README instrument suite 1016 to 1018 with its traced requirements 393 to 394.
+The suite reported the requirement count rather than a reader finding it, which
+is `MQC_CMN_UNI_112323` doing the job the inventory check did a change earlier.
+
+**Verified by injection**, three in, each taken out again. Reading an absent
+prompt as an empty one made `112437` fail and the case repository's audit report
+all 31 judgements that predate the stored prompt. Dropping the report for an
+observation with no recording made `112437` fail. Reversing the containment
+comparison, which is the plausible typo, made `112436` fail.
+
 ### A requirement identifier bound twice is reported against the shipped matrix, 2026-11-01
 
 **Why it was needed.** `MQC_REQ_HAR_EVL_0070` had been declared on two matrix

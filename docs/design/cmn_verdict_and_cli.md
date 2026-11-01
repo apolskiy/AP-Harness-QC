@@ -3469,6 +3469,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112403` | B | `a_mixed_script_word_is_a_homoglyph_and_one_script_is_not` |
 | `112432` | N | `separates_failures_from_errors_and_refuses_an_absent_report` |
 | `112435` | N | `a_step_program_refuses_what_would_measure_or_verify_nothing` |
+| `112436` | N | `a_judgement_scoring_a_replaced_response_is_reported` (12.4.2) |
+| `112437` | N | `a_judgement_with_no_recording_is_reported_an_old_one_is_not` (12.4.2) |
 | `112511` | N | `a_file_open_declaring_no_encoding_is_reported` |
 | `112316` | N | `a_requirement_identifier_declared_twice_is_reported` |
 | `112317` | B | `a_register_at_eighty_percent_of_its_ceiling_is_reported` |
@@ -3569,7 +3571,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 474 cases, 279 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 476 cases, 281 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -5376,6 +5378,79 @@ trying to establish a rate.
 answer one question by construction: a differing hash means some of them answer
 a question the corpus no longer asks, and a store half refreshed is worse than
 one wholly stale, because the half that loads looks current.
+
+### 12.4.2 A judgement the escalation never drew can score a response the store no longer holds
+
+Added 2026-11-01, closing the half 12.4.1 left open.
+
+**Section 12.4.1 requires a case's candidate recordings to agree on the
+request, and it excludes judgements for a reason that holds.** A judgement
+scores one candidate response, so its request carries that response and every
+observation's judgement answers a legitimately different question. Requiring
+them to agree would report the whole store.
+
+**What nothing compared is each judgement against the one response it scored.**
+A candidate observation re-recorded after it was judged leaves a judgement
+holding a score for text the store no longer carries.
+
+| | Refuses a stale judgement |
+|---|---|
+| A run that draws the observation | `load_judgement`, on the request hash, as `QC_HARNESS_FIXTURE_STALE` |
+| A run whose escalation never reaches it | **Nothing** |
+| An audit of the files | **Nothing, until this subsection** |
+
+**It is 12.4.1's defect on the judgement side**, and it arrives the same way:
+the guard sits at the moment of reading, so a recording nothing reads is
+guarded by nothing. The remedy is the same too, which is to read the store
+rather than a run.
+
+#### The stored prompt is what makes it checkable from the files
+
+`tier2_execution.md` section 7.9.4 stores the rendered judge request beside the
+hash, and **that prompt carries the candidate response verbatim**. So a
+judgement can be compared with the recording it scored without composing a
+request, loading a rubric or reading the corpus, which is what keeps the check
+inside the harness: `cmn.replay_audit.stale_judgements` reports a judgement
+whose prompt does not carry the text its candidate recording holds.
+
+| The store holds | Reported |
+|---|---|
+| A judgement whose prompt carries its recording's response | No |
+| A judgement whose prompt carries other text | **Yes**, naming both engines, the case, the observation and both lengths |
+| A judgement with no prompt | No. Nothing to compare, and section 7.9.4 rebuilds it |
+| A judgement whose observation has no recording | **Yes**, the same partial refresh from the other end |
+| A judgement that will not parse | No. That is the loader's finding, and reporting it twice would name one defect as two |
+
+**A judgement carrying no prompt is an abstention rather than a tolerance.** A
+recording made before section 7.9.4 is rebuilt by `observation_judge_request`
+from the observation it scored, so it replays correctly and carries nothing to
+compare against. Reporting it would report the age of a file as a defect.
+
+**A judgement whose observation has no recording is reported**, because it can
+never be drawn and the hash guard can therefore never refuse it. It is the
+partial refresh seen from the other end, a judgement outliving the response it
+scored rather than scoring a replaced one.
+
+#### What the shipped store measures, and why that is the figure to state
+
+Measured on 2026-11-01, before the check was written, so the subsection states
+what the store does rather than what it should do:
+
+| | Count |
+|---|---|
+| Judgements | 751 |
+| Carrying a prompt, which holds the response its recording holds | 720 |
+| Carrying a prompt that holds other text | **0** |
+| Recorded before section 7.9.4, so carrying no prompt | 31 |
+| Scoring an observation with no recording | 0 |
+
+**The check reports nothing today and that is the point of writing it now.**
+The one instance 12.4.1 found was a candidate recording left behind by a prompt
+change, and the same change set re-records judgements; a store that is clean
+while the audit is absent is a store whose next partial refresh is silent.
+`112436` and `112437` assert the two reports and the abstention, and
+`MQC_CAS_UNI_115799` calls it against the shipped fixtures, the
+one-implementation-two-callers arrangement 12.4.1 already uses.
 
 ### 12.5 A dated snapshot prices as its base, because the provider pins one and the table does not
 

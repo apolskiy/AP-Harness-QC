@@ -14768,3 +14768,116 @@ suite 1015 to 1016.
 0. `rtm_harness.csv` 393 rows, 392 distinct requirements, and T6 reports
 nothing. `MQC_REQ_HAR_CMN_0066` traced to two cases rather than one, and
 `MQC_REQ_HAR_CMN_0041` to four rather than two.
+
+
+## 2026-11-01: The Guard That Only Fires On The Run That Reads The File
+
+A) **A judgement could hold a score for a response the store no longer
+carries, and nothing would say so.** B) Because the only guard is
+`load_judgement`, which compares the judge request hash at the moment it loads
+a judgement and refuses a mismatch as `QC_HARNESS_FIXTURE_STALE`. A judgement
+no escalation ever draws is never loaded, so it is never compared.
+
+**This is section 12.4.1's finding one step along, and 12.4.1 is the proof the
+shape repeats.** That entry came from candidate recordings: three observations
+of one task answered one request and two answered an older one, and nothing
+complained because the narrow escalation rule never read them. The remedy there
+was to stop asking a run and read the files instead. The judgement side kept
+the run-time guard and got no audit, for a reason that looked sufficient.
+
+### The exclusion was right, and it was read as covering more than it says
+
+`divergent_recordings` excludes the `judgements` subtree deliberately. A
+judgement scores one candidate response, so its request carries that response
+and every observation's judgement answers a legitimately different question;
+requiring them to agree reported the whole store on its first run against real
+fixtures.
+
+| Question | Answer |
+|---|---|
+| Must a case's judgements agree with each other | **No.** Each scores a different response |
+| Must a judgement agree with the response it scored | **Yes**, and nothing asked |
+
+**The second question is the one that was never put.** Once it is put, the
+answer is cheap, which is the part worth recording: the exclusion was load
+bearing for the comparison it was written for and said nothing about any other.
+
+### What made it checkable was a field added for another reason
+
+Section 7.9.4 of `tier2_execution.md` stores the rendered judge request beside
+the hash, added 2026-10-20 so that reading what the judge had been asked would
+not mean rebuilding the request. It is **read by nothing that loads a
+judgement**. That field carries the candidate response verbatim, so the store
+can be audited without composing a request, loading a rubric or reading the
+corpus, none of which `cmn/` may do.
+
+**Measured before writing anything**, because the subsection had to state what
+the store does rather than what it should do:
+
+| | Count |
+|---|---|
+| Judgements | 751 |
+| Carrying a prompt that holds their recording's response | 720 |
+| Carrying a prompt that holds other text | 0 |
+| Carrying no prompt, predating section 7.9.4 | 31 |
+| Scoring an observation with no recording | 0 |
+
+**The 31 were the finding that nearly went in wrong.** The first measurement
+reported them as judgements recorded against another response, because the
+prompt was absent and an absent prompt holds nothing. Reading section 7.9.4
+settled it: such a judgement is rebuilt from the observation it scored, so it
+replays correctly, and reporting it would report the age of a file as a defect.
+**An abstention stated with its reason, not a tolerance**, which is the same
+distinction the judgement exclusion itself needed.
+
+### Three injections, each reverted
+
+| Injected | Reported |
+|---|---|
+| An absent prompt read as an empty one | `112437` failed, and the case repository's audit named all 31 old judgements |
+| The report for an observation with no recording dropped | `112437` failed |
+| The containment comparison reversed, which is the plausible typo | `112436` failed |
+
+**The first injection is the one that establishes the audit is live**, because
+it made the case repository's caller report 31 real files by name. A check that
+reports nothing against a clean store cannot otherwise be told from a check
+that reads nothing, which is the defect the 112312 work had just finished
+correcting.
+
+### The name was over by eleven characters, and pylint said so
+
+`112437` was first written as
+`a_judgement_with_no_recording_is_reported_and_one_with_no_prompt_is_not`,
+which is 71 characters against the 60 the `method-rgx` in `.pylintrc` admits.
+It is an ordinary lint failure and it is recorded because the fix touches three
+files: the callable, the design inventory row and the matrix row all carry the
+behaviour suffix, and changing one of them alone fails a different check than
+the one that fired.
+
+### The suite found the figure, again, and it was a different figure
+
+**`112323` failed on the README's traced-requirement count**, 393 against the
+394 the matrix now carries, and the full run is where it surfaced rather than
+the module run. The change a day earlier moved three case counts and this one
+moved a requirement count, so the figure that was checked last time is not the
+figure that moved this time. **That is the argument for running the whole
+suite after the last edit** rather than the modules that were touched.
+
+**Both repositories missed the same figure**, which is the part worth keeping.
+`MQC_CAS_UNI_115317` failed on 199 against 200 for the case repository's own
+matrix, on all four engines, for the identical reason: a new requirement moves
+a count in a README that carries no history, and the counts that moved in the
+previous change were the case counts. One check per repository caught it, from
+the same arrangement.
+
+### Digressions the user spotted, and the fix
+
+| Spotted | The fix |
+|---|---|
+| Why `regress-consumers-on-merge` appears above `gate-on-change` in the run list, when the gate must be green first | Nothing to fix. It fires on `workflow_run` of the gate and its first job refuses unless the conclusion was success; `gh run list` sorts by start time, so the later run prints first. On the 04:07 push the gate finished at about 04:13:11 and the regression started 04:13:13 |
+
+**State.** Harness unit and system 1014 of 1014, exit 0; pylint 10.00/10, exit
+0. The case repository's preconditions 186 of 186 per engine. The
+`cmn_verdict_and_cli.md` inventory 474 to 476 cases and 279 to 281 negative,
+the `DESIGN.md` map 474 to 476, the README instrument suite 1016 to 1018, and
+`CLAUDE_TASK.md` loses the row this closed.

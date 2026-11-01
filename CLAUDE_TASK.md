@@ -32,15 +32,15 @@ becomes a question.
 
 ## In progress
 
-Nothing. The last item closed on 2026-11-01, when `112312` began asserting T6
-against the shipped matrix and the quoted-report requirement took
-`MQC_REQ_HAR_EVL_0078`.
+Nothing. The last item closed on 2026-11-01, when `stale_judgements` began
+reporting a judgement that scores a response its own recording no longer
+holds, and `MQC_CAS_UNI_115799` began calling it against the shipped
+fixtures.
 
 
 ## Waiting
 
 | Item | Waiting on |
 |---|---|
-| A judgement fixture recorded against a response that was later re-recorded is not reported | `stale_judgements` beside `divergent_recordings` in `cmn/replay_audit.py`, design subsection 12.4.2, a plan row, a matrix row, and cases `112436` and `112437` |
 | `regress-consumers-on-merge` attributes an outcome on the graded path and not on the deterministic gates | A decision on whether the deterministic legs carry attribution at all, the gates being pass or fail rather than graded |
 | The quarantine trigger at `cmn/verdict.py` is unreachable | Nothing. The project owner ruled it is not to be fixed, and it is recorded here so it is not rediscovered as a finding |
