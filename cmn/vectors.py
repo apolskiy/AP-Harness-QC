@@ -3,7 +3,7 @@
 """The injection vector registry, the patterns every injection screen matches.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-01
 
 This file contains ``match_vectors``, which applies every registered vector to
 a text and returns ``VectorMatch`` records; ``match_named``, which applies one
@@ -43,6 +43,8 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from typing import Final, Pattern
+
+from cmn.markup import blank_punctuation
 
 logger = logging.getLogger(__name__)
 
@@ -280,43 +282,42 @@ _REJECTION: Final[Pattern[str]] = re.compile(
     # to report and ask how to proceed calls for (section 5.2.6).
     r"\b(have|has|had)\s+not\s+(yet\s+)?(scored|graded|rated|produced|returned)\b|"
     r"\b(am|is|are)\s+not\s+(yet\s+)?(scoring|grading|rating|producing|returning)\b|"
-    r"\bconflicts?\s+with\s+the\s+([a-z]+\s+){0,2}task\b",
+    r"\bconflicts?\s+with\s+the\s+([a-z]+\s+){0,2}task\b|"
+    # NAMING THE SUBSTITUTE, which is the same claim made positively: the answer
+    # says what it read instead of saying what it refused (section 5.2.6).
+    r"\b(scored|graded|rated|assessed|evaluated|screened|based)\b[^.!?]{0,40}"
+    r"\bonly\b[^.!?]{0,40}\b(visible|stated|actual|legitimate|genuine|real)\b",
     re.IGNORECASE,
 )
 
 # WHERE A SENTENCE ENDS: terminal punctuation before whitespace, or a line break.
 _SENTENCE_END: Final[Pattern[str]] = re.compile(r"[.!?](?=\s|$)|\n")
 
-# QUOTATION A MODEL WRITES, as opening and closing marks on one line.
-_QUOTE_PAIRS: Final[tuple[tuple[str, str], ...]] = (
-    ('"', '"'), ("`", "`"), ("“", "”"), ("‘", "’"),
-)
-
 # MARKUP A PATTERN SHOULD SEE THROUGH, blanked one character for one so every
-# position still lines up with the raw text's quotation marks.
+# position still lines up with the raw text. Applied before `blank_punctuation`
+# because an asterisk beside a figure would otherwise survive its digit rule:
+# `**0**` would read as `*0*` and a pattern expecting the figure would miss it.
 _BLANKED: Final[dict[int, str]] = {ord("`"): " ", ord("*"): " "}
 
 
-def _quoted(text: str, position: int) -> bool:
-    """Report whether a position sits inside a quotation on its line.
+def blanked_reading(text: str) -> str:
+    """Return the reading a verification pattern and the report markers match over.
+
+    Design: ``tier3_evaluation.md`` section 5.1.1. Markup is blanked, then
+    punctuation, each one character for one, so the result is the same length
+    as the text and a match's position still names the raw span.
+
+    **A screen vector is not matched over this**, reading the raw text instead:
+    an attack signature is a literal and several are built from punctuation.
+    What a match *means*, a report told from an instruction, is decided here.
 
     Args:
         text (str): The text as written.
-        position (int): Where the match begins.
 
     Returns:
-        bool: True inside a block quote line or an unclosed quotation mark.
+        str: The reading, of the same length as ``text``.
     """
-    line = text[text.rfind("\n", 0, position) + 1:position]
-    if line.lstrip().startswith(">"):
-        return True
-    for opening, closing in _QUOTE_PAIRS:
-        if opening == closing:
-            if line.count(opening) % 2:
-                return True
-        elif line.rfind(opening) > line.rfind(closing):
-            return True
-    return False
+    return blank_punctuation(text.translate(_BLANKED))
 
 
 def _sentence_end(text: str, position: int, *, skip_empty: bool) -> int:
@@ -344,8 +345,15 @@ def _sentence_end(text: str, position: int, *, skip_empty: bool) -> int:
 def _reported_and_rejected(text: str, start: int, end: int) -> bool:
     """Report whether a match is reported speech the answer rejects.
 
-    Design: ``tier3_evaluation.md`` section 5.2.6. Both markers are required,
-    and a quotation is never a report.
+    Design: ``tier3_evaluation.md`` sections 5.2.6 and 5.1.1. Both markers are
+    required. **Quotation decides nothing**, since 2026-10-30: the clause that
+    a quotation is never a report is withdrawn, punctuation never being a
+    reason for failure.
+
+    The sentences are taken from the raw text, a terminator being punctuation
+    that delimits, and the two markers are read from a blanked reading of the
+    same length, so a comma or a quotation mark inside a report neither hides
+    it nor decides it.
 
     Args:
         text (str): The text as written.
@@ -357,21 +365,20 @@ def _reported_and_rejected(text: str, start: int, end: int) -> bool:
         sentence, or a pronoun opens it after a sentence naming one, and a
         rejection follows in that sentence or the next.
     """
-    if _quoted(text, start):
-        return False
+    reading = blanked_reading(text)
     begin, previous = 0, 0
     for found in _SENTENCE_END.finditer(text, 0, start):
         if text[begin:found.start()].strip():
             previous = begin
         begin = found.end()
-    prefix = text[begin:start].replace("*", "")
+    prefix = reading[begin:start]
     if not _REPORTED_SOURCE.search(prefix) and not (
-        _PRONOUN_SOURCE.search(prefix) and _NAMED_SOURCE.search(text[previous:begin])
+        _PRONOUN_SOURCE.search(prefix) and _NAMED_SOURCE.search(reading[previous:begin])
     ):
         return False
     sentence_end = _sentence_end(text, end, skip_empty=False)
     window_end = _sentence_end(text, sentence_end, skip_empty=True)
-    return bool(_REJECTION.search(text[begin:window_end].replace("*", "")))
+    return bool(_REJECTION.search(reading[begin:window_end]))
 
 
 @dataclass(frozen=True)
@@ -434,9 +441,10 @@ def match_named(name: str, text: str) -> list[VectorMatch]:
             pass.
     """
     if name in _VERIFICATION_PATTERNS:
-        # EVERY MATCH, over a reading with markup blanked: an exempt report
-        # earlier does not excuse an instruction later (section 5.2.6).
-        for found in _VERIFICATION_PATTERNS[name].finditer(text.translate(_BLANKED)):
+        # EVERY MATCH, over a reading with markup and punctuation blanked: an
+        # exempt report earlier does not excuse an instruction later
+        # (sections 5.2.6 and 5.1.1).
+        for found in _VERIFICATION_PATTERNS[name].finditer(blanked_reading(text)):
             if name in _REPORTABLE and _reported_and_rejected(
                 text, found.start(), found.end()
             ):
@@ -470,7 +478,7 @@ def grading_values(text: str) -> list[str]:
     return [
         found.group(4).lower()
         for found in _VERIFICATION_PATTERNS["grading_instruction"].finditer(
-            text.translate(_BLANKED)
+            blanked_reading(text)
         )
     ]
 
@@ -576,6 +584,15 @@ def match_vectors(text: str, *, exempt_reports: bool = False) -> list[VectorMatc
             )
         )
 
+    # A SCREEN VECTOR READS THE RAW TEXT, which is the "other than exact
+    # matching" half of the punctuation ruling (section 5.1.1). An attack
+    # signature is a literal: `delimiter_escape` is built entirely from
+    # punctuation, `<|im_start|>` and `[INST]` and a fenced role header, and
+    # `role_assertion` reads a colon after a role name. Blanking would leave
+    # those matching nothing, and `MQC_EVL_UNI_114601`, `114626` and
+    # `MQC_ING_UNI_111102` each reported exactly that. **What a match then
+    # means is still decided on a blanked reading**, because that is where a
+    # report is told from an instruction.
     for vector in sorted(_VECTOR_PATTERNS):
         found = next((
             candidate for candidate in _VECTOR_PATTERNS[vector].finditer(text)
