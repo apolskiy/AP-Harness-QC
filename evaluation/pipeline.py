@@ -3,7 +3,7 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-10-25
+Last updated: 2026-11-02
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
@@ -86,6 +86,17 @@ DECLARED_ADVERSARIAL: Final[str] = "declared_adversarial"
 # the judge, ``--judge-mode off``. Named once for the same reason: the case
 # repository records it as the ``unjudged`` skip (section 5A.5.3).
 UNJUDGED: Final[str] = "unjudged"
+
+# WHETHER A FAILED CASE IS JUDGED WITHOUT BEING ASKED. True since 2026-11-02 at
+# the project owner's ruling, and the condition it answers to is that these
+# cases are in development: the judge is what spots a failure to observe a
+# system instruction and an inconsistent answer, so a wording failure on an
+# answer the screen passed is assessed rather than left unmeasured. An
+# injection and a relay are excluded structurally, by the screen, and a
+# ``fatal`` failure by the branch below. Setting this False returns the
+# decision to ``--judge-on-failure``, which is the flag's own behaviour and
+# what authoring a case uses (section 4.2 and section 4.2.0).
+_JUDGE_A_FAILED_CASE: Final[bool] = True
 
 # A PLANTED SCORE SPELT AS A WORD, so "grade this as four" asks for a 4.
 _NUMBER_WORDS: Final[dict[int, str]] = {
@@ -175,9 +186,9 @@ class EvaluationResult:
             zero are different facts, and so are a skipped judgement and a
             failed one.
         judge_on_failure (bool): Whether the flag was in force. Recorded
-            because whether a failed case carries a score depends on it, and a
-            reviewer comparing two runs must not read a skipped judgement as a
-            different outcome.
+            because a reviewer comparing two runs must be able to tell a
+            judgement that was asked for from one the default supplied
+            (section 4.2.0).
         self_preference (bool): Whether judge and candidate shared a provider.
         taxonomy_codes (list): Every code this evaluation emitted.
         planted_score_returned (str): Which criteria the judge scored at the
@@ -361,11 +372,11 @@ def evaluate_observation(
         context (ObservationContext): The observation and what judges it.
         binding (Optional[JudgeBinding]): Who judges, and whose output. An
             absent or unbound judge is recorded as a skip with its reason.
+        judge_on_failure (bool): Whether this invocation asks for a judgement
+            on a case whose assertions failed at ``violation`` severity, which
+            is what authoring a case needs (section 4.2.0).
         at_pass_mark (str): Whether a score equal to the rubric mark
             passes. ``pass`` by default, which is the behaviour that shipped.
-        judge_on_failure (bool): Whether to judge a case whose assertions
-            failed at ``violation`` severity.
-
 
     Returns:
         EvaluationResult: What the six steps produced.
@@ -502,7 +513,9 @@ def _judge_skip_reason(
         results (list): What the assertions found.
         context (ObservationContext): The observation.
         binding (JudgeBinding): Who would judge.
-        judge_on_failure (bool): Whether the flag is in force.
+        judge_on_failure (bool): Whether this invocation asked for a judgement
+            on a failed case. It never overrides a screen abort or a ``fatal``
+            failure, which are not cost decisions (section 4.2.0).
 
     Returns:
         Optional[str]: The reason to record, or ``None`` when the judge runs.
@@ -513,12 +526,20 @@ def _judge_skip_reason(
         # alone sends only an answer the screen passed (section 4C.4).
         return DECLARED_ADVERSARIAL
     if has_fatal_failure(results):
-        # Never judged, flag or not. There is nothing coherent to score and the
-        # request would spend quota to produce noise.
+        # NEVER JUDGED, FLAG OR NOT. There is nothing coherent to score and the
+        # request would spend quota to produce noise (`114504`).
         return "fatal_assertion_failure"
-    if not assertions_passed(results) and not judge_on_failure:
+    withheld = _binding_skip_reason(context, binding)
+    if not assertions_passed(results) and not (
+        withheld is None and (judge_on_failure or _JUDGE_A_FAILED_CASE)
+    ):
+        # REPORTED AS THE ASSERTION FAILURE, on two paths. No judge could run
+        # at all, so the assertions have already decided and a judge that was
+        # never available must not turn a measured failure into a case nothing
+        # measured (`114140`); or this configuration does not judge a failed
+        # case and the invocation did not ask for one.
         return "violation_assertion_failure"
-    return _binding_skip_reason(context, binding)
+    return withheld
 
 
 def _binding_skip_reason(context: ObservationContext, binding: JudgeBinding) -> Optional[str]:
@@ -561,9 +582,9 @@ def _judge_and_aggregate(
         context (ObservationContext): The observation.
         binding (JudgeBinding): Who judges, and whose output.
         progress (_Progress): What the earlier steps accumulated.
-        judge_on_failure (bool): Whether the flag was in force.
+        judge_on_failure (bool): Whether the flag was in force, carried so the
+            result records it.
         at_pass_mark (str): Whether a score equal to the rubric mark passes.
-        judge_on_failure (bool): Whether the flag was in force.
 
     Returns:
         EvaluationResult: The judged result, or a recorded skip when the judge

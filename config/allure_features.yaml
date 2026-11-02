@@ -85,6 +85,7 @@ modules:
   tests/evaluation/mqc_uni_judge.py: Judging and scoring
   tests/evaluation/mqc_uni_judge_prompt.py: Judging and scoring
   tests/evaluation/mqc_uni_judgement_gaps.py: Judging and scoring
+  tests/evaluation/mqc_uni_judge_on_failure.py: Judging and scoring
   tests/evaluation/mqc_uni_pipeline.py: Judging and scoring
   tests/evaluation/mqc_uni_punctuation.py: Judging and scoring
   tests/evaluation/mqc_uni_reported_injection.py: Judging and scoring

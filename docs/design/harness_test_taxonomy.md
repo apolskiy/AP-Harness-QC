@@ -1961,6 +1961,51 @@ aborting, which is the state every declared adversarial case is in.
 
 `MQC_REQ_HAR_CMN_0225`.
 
+### 8.2.6 The judge phases are read from the result, never suppressed by a failed assertion
+
+Found 2026-11-02, in the replay that followed the ruling that only a `fatal`
+failure and a screen abort withhold the judge (`tier3_evaluation.md` section
+4.2).
+
+**A) An observation the judge scored was published as one the judge never
+reached.** openai's `154515` observation 5 failed its no-quote assertion,
+reached the judge, and was scored. Its ledger read `PHASE_05_VERIFY ... failed`
+and then `PHASE_06_VERIFY: the judge was reached for this observation | not
+run`, which is the opposite of what happened.
+
+**B) `ledger` carried one stop flag forward over every later phase.** The first
+phase to fail or not run set it, and every phase after that was recorded as not
+run without being assessed. That was accurate while a failed assertion ended
+the pipeline, and the ruling ended that: the assertions still gate the outcome
+and no longer gate the judge.
+
+| The assertions | The judge | The ledger said | It should say |
+|---|---|---|---|
+| Passed | Ran | `ok` | `ok` |
+| Failed at `violation`, the screen clean | **Ran, and scored** | **`not run`** | **`ok`, carrying the score** |
+| Failed at `fatal` | Withheld | `not run` | `not run`, naming the reason |
+| Not reached, the screen having aborted | Withheld | `not run` | `not run`, naming the reason |
+
+**The remedy is to assess the two judge phases rather than to suppress them**,
+because `EvaluationResult.judge_skipped_reason` already carries whether the
+judge ran and why not. Suppression was a second answer to a question the result
+answers, which is the shape section 8.2.5 corrected one phase earlier.
+
+**Three readers were wrong at once, as they were then, and all three take one
+fix.** The Allure step tree a reviewer reads, the `stopped at` clause with its
+count of phases that did not run, and the ticket's judge prompt per judged
+observation (`AP-Model-QC` `consumer_ci.md` section 9.5.5.8): a ticket omits
+the prompt for an observation whose phase says the judge was never reached, so
+the evidence the ruling was made to produce would have been filed as absent.
+
+**What does not change is where the observation stopped.** `stopped_at` returns
+the first failed phase, so an assertion failure is still named as the stop and
+the verdict still comes from the conjunctive gate. What changes is the count of
+phases that did not run, which becomes zero on such an observation because none
+did.
+
+`MQC_REQ_HAR_CMN_0240`.
+
 ### 8.3 It reaches the durable record for free
 
 Allure steps are a standard part of the format and are already parsed by collectors that read it. Emitting structured step names through `allure.step` therefore delivers step-level history through an existing field rather than new machinery.

@@ -3,19 +3,30 @@
 """Unit cases for the order in which one response is screened, asserted and judged.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-02
 
 Its cases check :func:`evaluation.pipeline.evaluate_observation`. Assertions run
-before the judge, a screen abort skips both, a ``violation`` skips the judge
-unless ``--judge-on-failure`` is set and a ``fatal`` failure is never judged. A
+before the judge, a screen abort skips both, a ``violation`` failure fails the
+case and still reaches the judge, and a ``fatal`` failure is never judged. A
 declared adversarial case invokes no judge and is graded by its assertions. They
 also check the conjunctive gate, an errored or empty response, a tool-only rule
 and a rule without a rubric.
 
 The result this function returns is what the verdict counts, so a defect here
 passes or fails cases regardless of what each step found. Covers
-`MQC_EVL_UNI_114500` through `114502`, `114503` through `114507` and `114508`,
-inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
+`MQC_EVL_UNI_114500` through `114502`, `114504` through `114506`, `114508` and
+`114531`, inventoried in ``docs/design/tier3_evaluation.md`` section 11.1.
+
+**`114501` is retired**, 2026-11-02. It asserted that a ``violation`` failure
+withholds the judge by default, and the default now judges it, so `114531`
+holds the rule in its place and the identifier stays retired.
+
+**`114503` and `114507` are not retired, and asserting them was the gap.**
+``--judge-on-failure`` is for authoring a case rather than for setting the
+default, and nothing read it into the pipeline until 2026-11-02: `114503`
+holds that the flag asks for a judgement on a failed case and `114507` that
+the result records which of the flag and the default supplied it
+(``tier3_evaluation.md`` section 4.2.0).
 
 **Assertions are conjunctive gates.** A case passes only when every assertion
 passes and the rubric clears its threshold, so these cases assert the gate and
@@ -35,9 +46,6 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCOrderOfOperations
 #   114500  programmatic_assertions_run_before_judge
 #   114502  screen_abort_skips_assertions_and_judge
-#   114501  violation_failure_skips_judge_by_default
-#   114503  violation_failure_judged_under_flag
-#   114504  fatal_failure_never_judged_even_under_flag
 # TestMQCAdversarialCasesAreNeverJudged
 #   114508  declared_adversarial_case_invokes_no_judge
 #   114509  a_declared_case_is_still_graded_by_assertion
@@ -46,7 +54,6 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114506  assertion_failure_fails_case_despite_passing_rubric
 #   114510  a_failing_rubric_fails_a_case_with_passing_assertions
 #   114505  skipped_judgement_recorded_as_not_evaluated
-#   114507  judge_on_failure_flag_recorded_in_metadata
 #   114511  an_unusable_judge_reply_is_a_skip_not_a_failure
 # TestMQCNoOutputProduced
 #   114512  an_errored_response_invokes_no_judge
@@ -76,7 +83,8 @@ from evaluation.pipeline import (
 from ingestion.schemas import GoldenRuleSet, ToolDefinition, ToolExpectation
 
 from tests.evaluation.pipeline_support import (
-    RecordingJudge, observation_context, rule_set_with_rubric,
+    RecordingJudge, observation_context, rule_set_with_rubric, schema_rule_set,
+    violation_rule_set,
 )
 
 pytestmark = pytest.mark.unit
@@ -96,40 +104,7 @@ def fixture_rules(sample_rule_payload: dict[str, Any]) -> GoldenRuleSet:
     Returns:
         GoldenRuleSet: The built record.
     """
-    payload = dict(sample_rule_payload)
-    payload["assertions"] = [
-        {
-            "assertion_id": "MQC_ASR_mentions_years",
-            "kind": "contains",
-            "parameters": {"value": "five years"},
-            "taxonomy_code": "QC_LLM_CONTEXT_OMISSION",
-            "severity": "violation",
-        }
-    ]
-    return GoldenRuleSet.from_dict(payload)
-
-
-@pytest.fixture(name="fatal_rules")
-def fixture_fatal_rules(sample_rule_payload: dict[str, Any]) -> GoldenRuleSet:
-    """Return a rule set whose single assertion is fatal.
-
-    Args:
-        sample_rule_payload (dict): Minimal rule payload.
-
-    Returns:
-        GoldenRuleSet: The built record.
-    """
-    payload = dict(sample_rule_payload)
-    payload["assertions"] = [
-        {
-            "assertion_id": "MQC_ASR_parses",
-            "kind": "json_schema",
-            "parameters": {"required_keys": ["summary"]},
-            "taxonomy_code": "QC_LLM_SCHEMA_VIOLATION",
-            "severity": "fatal",
-        }
-    ]
-    return GoldenRuleSet.from_dict(payload)
+    return violation_rule_set(sample_rule_payload)
 
 
 class TestMQCOrderOfOperations:
@@ -183,74 +158,6 @@ class TestMQCOrderOfOperations:
         assert result.judge_skipped_reason == "screen_abort"
         assert result.passed is False
         assert "QC_SEC_INJECTION_ATTEMPT" in result.taxonomy_codes
-
-    def MQC_EVL_UNI_114501_violation_failure_skips_judge_by_default(
-        self,
-        rules: GoldenRuleSet,
-    ) -> None:
-        """Judging a case that already failed costs a request and changes nothing.
-
-        Args:
-            rules (GoldenRuleSet): The rule set.
-
-        Returns:
-            None
-        """
-        judge = RecordingJudge()
-        result = evaluate_observation(
-            observation_context(rules, "It requires some experience."), judge.binding()
-        )
-
-        assert result.assertion_results[0].passed is False
-        assert not judge.requests
-        assert result.judge_skipped_reason == "violation_assertion_failure"
-        assert result.judge_on_failure is False
-
-    def MQC_EVL_UNI_114503_violation_failure_judged_under_flag(self, rules: GoldenRuleSet) -> None:
-        """The flag buys a diagnostic score for a case that already failed.
-
-        The score is diagnostic, not exculpatory: it distinguishes good content
-        with broken formatting from content that was poor as well, and those
-        prompt different fixes.
-
-        Args:
-            rules (GoldenRuleSet): The rule set.
-
-        Returns:
-            None
-        """
-        judge = RecordingJudge()
-        result = evaluate_observation(
-            observation_context(rules, "It requires some experience."), judge.binding(),
-            judge_on_failure=True,
-        )
-
-        assert len(judge.requests) == 1
-        assert result.judged is True
-        assert result.passed is False
-
-    def MQC_EVL_UNI_114504_fatal_failure_never_judged_even_under_flag(
-        self,
-        fatal_rules: GoldenRuleSet,
-    ) -> None:
-        """There is nothing coherent to score, so the flag does not apply.
-
-        Args:
-            fatal_rules (GoldenRuleSet): A rule set with a fatal assertion.
-
-        Returns:
-            None
-        """
-        judge = RecordingJudge()
-        result = evaluate_observation(
-            observation_context(fatal_rules, "not json at all"), judge.binding(),
-            judge_on_failure=True,
-        )
-
-        assert not judge.requests
-        assert result.judge_skipped_reason == "fatal_assertion_failure"
-        assert result.judge_on_failure is True
-
 
 class TestMQCAdversarialCasesAreNeverJudged:
     """The rule that removes the exposure rather than mitigating it."""
@@ -414,8 +321,7 @@ class TestMQCConjunctiveGate:
         """
         judge = RecordingJudge(score=5)
         result = evaluate_observation(
-            observation_context(rules, "It requires some experience."), judge.binding(),
-            judge_on_failure=True,
+            observation_context(rules, "It requires some experience."), judge.binding()
         )
 
         assert result.score.value == 5.0
@@ -466,35 +372,6 @@ class TestMQCConjunctiveGate:
         assert result.score is None
         assert result.judged is False
         assert result.judge_skipped_reason == "violation_assertion_failure"
-
-    def MQC_EVL_UNI_114507_judge_on_failure_flag_recorded_in_metadata(
-        self,
-        rules: GoldenRuleSet,
-    ) -> None:
-        """Whether a failed case carries a score depends on the flag.
-
-        A reviewer comparing two runs must not read a skipped judgement as a
-        different outcome, which is only possible if the flag is in the record.
-
-        Args:
-            rules (GoldenRuleSet): The rule set.
-
-        Returns:
-            None
-        """
-        judge = RecordingJudge()
-        without = evaluate_observation(
-            observation_context(rules, "It requires some experience."), judge.binding()
-        )
-        with_flag = evaluate_observation(
-            observation_context(rules, "It requires some experience."), judge.binding(),
-            judge_on_failure=True,
-        )
-
-        assert without.judge_on_failure is False
-        assert with_flag.judge_on_failure is True
-        assert without.judged is False
-        assert with_flag.judged is True
 
     def MQC_EVL_UNI_114511_an_unusable_judge_reply_is_a_skip_not_a_failure(
         self,
@@ -826,21 +703,11 @@ class TestMQCRubriclessRule:
         Returns:
             None
         """
-        payload = dict(sample_rule_payload)
-        payload.pop("rubric", None)
-        # IT STILL CHECKS SOMETHING. A rule with neither rubric nor assertion
-        # judges nothing and ingestion rejects it outright, so stripping the
-        # rubric alone would test that refusal rather than this one.
-        payload["assertions"] = [
-            {
-                "assertion_id": "MQC_ASR_parses",
-                "kind": "json_schema",
-                "parameters": {"required_keys": ["summary"]},
-                "taxonomy_code": "QC_LLM_SCHEMA_VIOLATION",
-                "severity": "violation",
-            }
-        ]
-        rules = GoldenRuleSet.from_dict(payload)
+        # THE ASSERTION STAYS AT VIOLATION SEVERITY, so what withholds the
+        # judge here is the absent rubric rather than a fatal failure.
+        rules = schema_rule_set(
+            sample_rule_payload, severity="violation", keep_rubric=False
+        )
         assert rules.rubric is None, "the fixture still carries a rubric"
 
         judge = RecordingJudge()

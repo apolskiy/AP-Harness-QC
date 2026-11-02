@@ -236,3 +236,34 @@ behaviour before anything else.
 **The labelled paragraphs are not an exception to this.** Each opens with its
 label and then states what was done in the same register, so the label marks
 the kind of change and the sentence after it carries the meaning.
+
+#### 6.1.2 A note states the rule now in force, and the gaps the change leaves open
+
+Added 2026-11-02 at the project owner's instruction: whoever reads the note
+three or four months from now has to understand what was added or changed, why,
+how it relates to the project, and what logical gaps it may introduce.
+
+**One assertive sentence states what now holds**, as a rule rather than as a
+description of the edit. The labelled paragraphs say what was fixed, added or
+changed; this sentence says what a reader can rely on afterwards, which is the
+one thing a diff cannot show. The form, as the owner gave it: where no
+injection is detected, the report is forwarded to the judge for assessment,
+even where the answer partly or wholly violated the system instruction.
+
+**And one paragraph names what the change does not reach**, measured where it
+can be measured. A fix that routes an answer past one gate and into a second
+gate that stops it anyway has not delivered the rule its note claims, and the
+reader three months later is the one who pays for the sentence nobody wrote.
+`Verified:` carries the injection and the run that prove the change; this
+carries the part the change leaves undone.
+
+| | Answers |
+|---|---|
+| The subject line | Which component changed, and what it does now (section 6.1.1) |
+| `Fixed:`, `Added:`, `Changed:` | What was done, and why it was needed |
+| **The rule now in force** | **What a reader can rely on after this commit** |
+| **The gaps left open** | **What the change does not reach, and where that is recorded** |
+
+**A gap named nowhere else is a gap nobody reads.** Each one a note names is
+also a `CLAUDE_TASK.md` row or a recorded open question, because a commit note
+is history from the moment it is written and history is not a to-do list.

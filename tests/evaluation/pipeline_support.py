@@ -3,7 +3,7 @@
 """Shared builders and a recording judge for the evaluation pipeline cases.
 
 Created: 2026-10-18
-Last updated: 2026-10-29
+Last updated: 2026-11-02
 
 This file contains :func:`declared_material`, the unauthored material of a
 declared case, :func:`observation_context`, an ``ObservationContext`` over a
@@ -129,6 +129,73 @@ class RecordingJudge:
         return JudgeBinding(
             invoke=self, judge_engine="gemini", candidate_engine="openai"
         )
+
+
+def violation_rule_set(payload_source: dict[str, Any]) -> GoldenRuleSet:
+    """Return a rule set carrying one ``violation`` assertion and a rubric.
+
+    Shared by ``mqc_uni_pipeline.py`` and ``mqc_uni_judge_on_failure.py``,
+    which ask different questions of the same rule set: the order the steps
+    run in, and whether a failed assertion is judged.
+
+    Args:
+        payload_source (dict): Minimal rule payload.
+
+    Returns:
+        GoldenRuleSet: The built record.
+    """
+    payload = dict(payload_source)
+    payload["assertions"] = [
+        {
+            "assertion_id": "MQC_ASR_mentions_years",
+            "kind": "contains",
+            "parameters": {"value": "five years"},
+            "taxonomy_code": "QC_LLM_CONTEXT_OMISSION",
+            "severity": "violation",
+        }
+    ]
+    return GoldenRuleSet.from_dict(payload)
+
+
+def schema_rule_set(
+    payload_source: dict[str, Any],
+    *,
+    severity: str = "fatal",
+    keep_rubric: bool = True,
+) -> GoldenRuleSet:
+    """Return a rule set whose single assertion is a JSON schema check.
+
+    **The severity and the rubric are the two things callers vary**, and they
+    vary them one at a time: a `fatal` assertion is never judged, and a rule
+    with a `violation` assertion and no rubric is judged by nobody because
+    there is nothing to score. Built here rather than inline in each module,
+    the two payloads differing by one line being what pylint reports as a
+    duplicate.
+
+    Args:
+        payload_source (dict): Minimal rule payload.
+        severity (str): ``fatal`` or ``violation``.
+        keep_rubric (bool): Whether the rubric stays on the payload.
+
+    Returns:
+        GoldenRuleSet: The built record.
+    """
+    payload = dict(payload_source)
+    if not keep_rubric:
+        payload.pop("rubric", None)
+    # IT STILL CHECKS SOMETHING. A rule with neither rubric nor assertion
+    # judges nothing and ingestion rejects it outright, so stripping the
+    # rubric alone would test that refusal rather than the one a caller means.
+    payload["assertions"] = [
+        {
+            "assertion_id": "MQC_ASR_parses",
+            "kind": "json_schema",
+            "parameters": {"required_keys": ["summary"]},
+            "taxonomy_code": "QC_LLM_SCHEMA_VIOLATION",
+            "severity": severity,
+        }
+    ]
+    return GoldenRuleSet.from_dict(payload)
 
 
 def rule_set_with_rubric(payload_source: dict[str, Any]) -> GoldenRuleSet:

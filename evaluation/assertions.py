@@ -3,7 +3,7 @@
 """Programmatic assertions, the deterministic part of evaluating a model's response.
 
 Created: 2026-09-26
-Last updated: 2026-11-01
+Last updated: 2026-11-02
 
 This file contains the assertion kinds a golden rule can declare, ``regex``,
 ``json_schema``, ``length``, ``contains``, ``not_contains``, ``claim``,
@@ -11,13 +11,13 @@ This file contains the assertion kinds a golden rule can declare, ``regex``,
 rule's assertions against one response and report whether they held.
 
 **These assertions run first**, before any LLM judge reads the response, and a
-failure can keep the judge out of the evaluation altogether, for cost or for
-security. A ``fatal`` failure is never judged; a ``violation`` is judged only
-under ``--judge-on-failure``, since a judgement cannot change a case that
-already failed; and a declared adversarial case is graded by its assertions,
-reaching a judge only when its rule opts in to judging the answer alone. Each
-test family, and each case in it, decides through the severities and flags its
-rules declare.
+failure can keep the judge out of the evaluation altogether, for security or
+because there is nothing coherent to score. A ``fatal`` failure is never
+judged; a ``violation`` fails the case and **is** judged, since 2026-11-02, the
+score being diagnostic rather than exculpatory; and a declared adversarial case
+is graded by its assertions, reaching a judge only when its rule opts in to
+judging the answer alone. Each test family, and each case in it, decides
+through the severities its rules declare.
 
 Specified by ``docs/design/tier3_evaluation.md`` sections 4.1, 4.2, 4C.4 and 5.
 
@@ -47,9 +47,9 @@ from cmn.vectors import match_named
 
 logger = logging.getLogger(__name__)
 
-# A fatal failure is never judged, flag or not: there is nothing coherent to
-# score. A violation is judged only under the flag. The two severities exist
-# solely to make that distinction, so they are a closed set.
+# A fatal failure is never judged: there is nothing coherent to score. A
+# violation fails the case and is judged anyway, since 2026-11-02, so the two
+# severities exist solely to make that distinction and are a closed set.
 _SEVERITIES: Final[frozenset[str]] = frozenset({"violation", "fatal"})
 
 

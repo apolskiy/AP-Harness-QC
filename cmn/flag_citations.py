@@ -3,7 +3,7 @@
 """Flag checks: whether a flag a document tells a reader to type is declared.
 
 Created: 2026-10-22
-Last updated: 2026-10-29
+Last updated: 2026-11-02
 
 This file contains ``declared_flags``, every flag a repository's own scripts
 declare to argparse or to pytest, read from their syntax trees;

@@ -3543,6 +3543,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `400001` | P | `a_flag_declared_outside_this_repository_is_not_reported` (7.1.0.4) |
 | `400002` | P | `this_repository_names_no_undeclared_flag` (7.1.0.4) |
 | `400003` | N | `a_test_named_in_a_string_literal_is_not_a_collected_test` (6.0.2) |
+| `400004` | N | `a_judged_failure_reports_its_judge_phases` (taxonomy 8.2.6) |
 | `410000` | P | `every_audited_module_hashes_to_its_declared_digest` (taxonomy 15.10.1) |
 | `410001` | N | `a_refusal_from_the_command_line_exits_four` (taxonomy 15.4.3) |
 | `410002` | P | `a_remeasure_takes_the_module_on_disk_and_refuses_damage` (taxonomy 15.10.2) |
@@ -3571,7 +3572,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 476 cases, 281 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 477 cases, 282 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

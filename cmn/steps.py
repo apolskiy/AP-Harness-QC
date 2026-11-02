@@ -3,7 +3,7 @@
 """Case steps, the record of what a graded case did and where it stopped.
 
 Created: 2026-10-07
-Last updated: 2026-10-25
+Last updated: 2026-11-02
 
 This file contains ``ledger``, which reads one observation's dispatch outcome
 and evaluation result into the ``StepOutcome`` of each pipeline phase;
@@ -74,6 +74,14 @@ _STEPS: Final[tuple[tuple[str, str], ...]] = (
 
 _ACTION: Final[str] = "ACTION"
 _VERIFY: Final[str] = "VERIFY"
+
+# THE TWO PHASES A FAILED ASSERTION NO LONGER DECIDES. A `violation` failure on
+# a response the screen passed is judged, so suppressing these would publish an
+# observation the judge scored as one it never reached, and a ticket would file
+# the evidence as absent. `judge_skipped_reason` carries whether the judge ran,
+# so they are assessed from the result either way (`harness_test_taxonomy.md`
+# section 8.2.6).
+_JUDGE_STEPS: Final[frozenset[int]] = frozenset({6, 7})
 
 _REACHED: Final[str] = "ok"
 _FAILED: Final[str] = "failed"
@@ -208,7 +216,7 @@ def ledger(outcome: Any, result: Any) -> list[StepOutcome]:
     stopped = False
     for index, (action, verification) in enumerate(_STEPS, start=1):
         for phase, name in ((_ACTION, action), (_VERIFY, verification)):
-            if stopped:
+            if stopped and index not in _JUDGE_STEPS:
                 entries.append(
                     StepOutcome(index, phase, name, _NOT_RUN)
                 )

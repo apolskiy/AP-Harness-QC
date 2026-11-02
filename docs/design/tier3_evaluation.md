@@ -127,21 +127,106 @@ Treating the two results as independent would let a malformed response earn a hi
 
 Where a rubric score exists for a failed case, its role is **diagnostic**: it distinguishes good content with broken formatting from content that was poor as well. Those prompt different fixes.
 
-### 4.2 Judging after an assertion failure is off by default
+### 4.2 A failed assertion is judged while the cases are in development, and an injection or a relay is not
 
-Invoking a judge on a case that has already failed costs a request for information that changes no outcome. Under a paid configuration that cost is material, so the default is to skip.
+**Changed 2026-11-02 at the project owner's ruling**, stated as the rule now in
+force: where no injection is detected, the response is forwarded to the judge
+for assessment, and a partial or complete violation of the system instruction
+does not change that. **The project is developing these cases**, and that is
+the condition the default answers to: the judge is what spots a failure to
+observe a system instruction and an inconsistent answer, and a scenario the
+assertions have since been corrected for is re-recorded rather than left
+unmeasured.
 
-| Assertion result | Default | With `--judge-on-failure` |
+| Assertion result | The judge |
+|---|---|
+| All pass | Runs |
+| `violation` failure, the screen clean | **Runs**, since 2026-11-02 |
+| `violation` failure reporting an injection or a relay | Does not run. The screen stops the observation before the assertions |
+| `fatal` failure | Does not run. There is nothing coherent to score |
+
+**It applies only where judging is part of the case.** A rule that authors no
+rubric, a tool-only rule and a case with no judge bound are deterministic: the
+assertions are the whole measurement, and `no_rubric_authored`,
+`no_judge_configured` and `UNJUDGED` continue to say so. Nothing in this
+section asks a deterministic failure to be judged, because there is nothing to
+judge it against.
+
+**Injection and relay are excluded, and the exclusion is structural rather
+than a check added here.** A rule forbidding a relay is screened as an ordinary
+case, so an answer repeating the injection aborts at the screen and never
+reaches the assertions, let alone a judge (section 4C.4). A declared
+adversarial rule judged on more than its answer invokes no judge at all. What
+the default newly judges is therefore a wording failure on an answer the screen
+passed, which is the partial violation the ruling names.
+
+**Measured over the population it affects**, rather than argued: of the
+judgements this change added under the eight no-quote rules, none carries any
+phrase of the planted instruction in the judge prompt. The 32 relay-rule
+judgements that do carry one predate it and are the report-and-reject exemption
+of section 4C.4.1, where the task asked the model to quote what it found.
+
+**Judging a failed case cannot pass it.** Section 4.1 is untouched: the
+assertions are conjunctive gates, so a score on a failed case is diagnostic,
+separating good content with a broken form from content that was poor as well.
+What the ruling changes is whether the assessment happens at all, not what it
+decides.
+
+**What the replaced default cost.** It read that invoking a judge on a case
+that has already failed costs a request for information that changes no
+outcome, so the default was to skip. Two consequences, both measured on the
+case repository's corpus:
+
+| | |
+|---|---|
+| **The answer a prompt asked for went unassessed** | 39 of the 120 no-quote observations failed on reusing two of the hidden passage's words and none reached a judge. One of them is the answer the 2026-11-01 screen ruling was written to route there: it cleared the screen at `PHASE_04` and stopped at `PHASE_05`, with `PHASE_06` recorded as not run |
+| **A repaired assertion left a hole in the store** | An observation whose assertion failed recorded no judgement, so widening that assertion later turned its case into a skip for want of a judgement nobody had asked for. 14 of the 39 hold no stored judgement at all (`AP-Model-QC` `consumer_ci.md` section 9.4.10) |
+
+**The cost is one judge call per failing observation in a live run**, accepted
+at the ruling. A replay spends nothing and reads the store, and a judgement the
+store lacks is a `QC_HARNESS_FIXTURE_MISSING` skip exactly as before.
+
+#### 4.2.0 `--judge-on-failure` is for authoring a case, and it was never the defaults switch
+
+**Added 2026-11-02 at the project owner's correction**, after this section was
+rewritten to retire the flag. **The flag exists to author and debug a case**,
+which is a purpose the default does not serve and does not replace: somebody
+writing a new case wants the rubric's reading of a response the assertions
+rejected, in order to tell a wrong case from a wrong model, and wants it on an
+invocation of their choosing rather than wherever a default happens to sit.
+
+**The retirement was wrong, and the reason given for it was the error.** The
+flag was declared in `cmn/options.py`, recorded in the result metadata,
+documented and traced, and **nothing read it into the pipeline**. That is a gap
+in the implementation, which is the third of the three holes
+`testing-standards.md` names and the one this project meets most often. The
+remedy for a designed capability that was never built is to build it.
+
+| What was true | What was concluded | What follows |
 |---|---|---|
-| All pass | Judge runs | Judge runs |
-| `violation` failure | **Judge skipped** | Judge runs |
-| `fatal` failure | Judge skipped | **Still skipped** |
+| The flag was designed, documented and traced | Correct | Nothing to undo |
+| Nothing wired it to the pipeline | Correct | **Wire it** |
+| Therefore the capability was worthless | **Wrong** | The design is the specification, and code that disagrees with it is the defect |
 
-A `fatal` failure is never judged, flag or not. There is nothing coherent to score, and the request would spend quota to produce noise.
+**And the decision was taken without being discussed**, which the four-phase
+pipeline exists to prevent: a change to a designed capability is a Phase 0
+question, and an assistant that answers one by itself has removed the step that
+makes the design a shared record rather than a running commentary on the code.
 
-The flag applies to whatever invocation carries it, so a whole suite or a single case can be re-run for diagnosis after a failure is seen.
+**So the flag stays, is wired, and its meaning is unchanged**: an invocation
+carrying it asks for a judgement on a case whose assertions failed. While the
+default does the same, the flag states the intent explicitly and is recorded in
+`cli_flags`, so a run's record says whether its judgements were asked for or
+inherited. **It never overrides the two structural exclusions.** A screen abort
+and a `fatal` failure are not cost decisions, and `114504` holds that a `fatal`
+failure is never judged, flag or not.
 
-**The flag is recorded in result metadata.** Whether a failed case carries a rubric score depends on it, and a reviewer comparing two runs must not mistake a skipped judgement for a different outcome.
+**`violation_assertion_failure` survives as a reason, on one path.** Where no
+judge could run at all, withheld or unconfigured, and the assertions have
+already failed, the observation is recorded as that failure rather than as an
+unjudged case: a judge that was never available must not turn a measured
+failure into something nothing measured. `114140` holds exactly that and
+reported it when this change first removed the reason outright.
 
 ### 4.2.1 An errored response is not judged, and is not asserted against either
 
@@ -2305,7 +2390,8 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114606` | B | `screen_hit_continues_for_declared_adversarial_case` |
 | `114607` | N | `screen_makes_no_model_call` |
 | `114500` | P | `programmatic_assertions_run_before_judge` |
-| `114501` | N | `violation_failure_skips_judge_by_default` |
+| `114531` | P | `a_violation_failure_reaches_the_judge` (4.2) |
+| ~~`114501`~~ | | ~~`violation_failure_skips_judge_by_default`~~. **Retired 2026-11-02** with the default it asserted, a `violation` failure now reaching the judge (4.2). `114531` holds the rule in its place |
 
 | `114502` | N | `screen_abort_skips_assertions_and_judge` |
 | `114100` | P | `assertion_result_records_originating_assertion_id` |
@@ -2360,11 +2446,11 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114210` | N | `a_score_two_levels_below_fails_calibration` |
 | `114211` | N | `a_score_two_levels_above_fails_calibration` |
 | `114203` | P | `deviation_within_tolerance_is_recorded_for_trend` |
-| `114503` | P | `violation_failure_judged_under_flag` |
+| `114503` | P | `violation_failure_judged_under_flag` (4.2.0) |
 | `114504` | N | `fatal_failure_never_judged_even_under_flag` |
 | `114505` | P | `skipped_judgement_recorded_as_not_evaluated` |
 | `114506` | N | `assertion_failure_fails_case_despite_passing_rubric` |
-| `114507` | P | `judge_on_failure_flag_recorded_in_metadata` |
+| `114507` | P | `judge_on_failure_flag_recorded_in_metadata` (4.2.0) |
 | `114408` | N | `judge_timeout_maps_to_judge_code_not_candidate` |
 | `114409` | N | `judge_timeout_with_passing_assertions_is_a_skip` |
 | `114410` | N | `assertion_failure_dominates_judge_timeout` |
@@ -2481,7 +2567,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 203 cases, 93 negative, 70 positive, 40 boundary.**
+**Inventory: 203 cases, 92 negative, 71 positive, 40 boundary.**
 
 ### 11.3 The five cases added with A19
 

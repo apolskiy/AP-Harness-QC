@@ -3,7 +3,7 @@
 """Unit tests for the step ledger that reports where a graded case stopped.
 
 Created: 2026-10-07
-Last updated: 2026-10-25
+Last updated: 2026-11-02
 
 Its cases check ``cmn/steps.py`` through ``ledger``, ``case_steps``,
 ``observation_step``, ``stopped_at``, ``stopped_line``, ``step_lines`` and
@@ -41,6 +41,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112337  a_rule_without_a_rubric_reports_its_judge_steps_inapplicable
 #   112398  a_rubric_only_rule_reports_its_check_step_inapplicable
 #   112339  a_screen_that_matched_without_aborting_is_not_a_failed_step
+#   400004  a_judged_failure_reports_its_judge_phases
 # TestMQCCaseSteps
 #   112388  an_observation_step_verifies_one_request
 #   112389  escalation_steps_not_taken_are_recorded_as_not_run
@@ -62,8 +63,8 @@ from cmn.steps import (
 )
 
 from tests.cmn.steps_support import (
-    Announced, dispatched, evaluated, failed_check, mixed_observations,
-    screened_declared, screened_stop, unmeasured,
+    Announced, dispatched, evaluated, failed_check, judged_after_failed_check,
+    mixed_observations, screened_declared, screened_stop, unmeasured,
 )
 
 pytestmark = pytest.mark.unit
@@ -309,6 +310,60 @@ class TestMQCStepLedger:
         assert "not earned" in escalation.detail, (
             f"escalation was earned on three agreeing observations: "
             f"{escalation.detail}"
+        )
+
+    def MQC_CMN_UNI_400004_a_judged_failure_reports_its_judge_phases(self) -> None:
+        """The judge phases read the result, so a scored failure is not published unjudged.
+
+        Since 2026-11-02 a ``violation`` failure on a response the screen
+        passed is judged, and the score beside it is diagnostic. A ledger that
+        suppresses every phase after the first failure publishes that
+        observation as one the judge never reached, which is what a ticket
+        would then file as missing evidence.
+
+        **The withheld path is asserted beside it**, because the remedy is to
+        read ``judge_skipped_reason`` rather than to stop suppressing: a judge
+        that did not run still reports its reason.
+
+        Design: ``harness_test_taxonomy.md`` section 8.2.6.
+
+        Returns:
+            None
+        """
+        scored = ledger(dispatched(), judged_after_failed_check())
+
+        halt = stopped_at(scored)
+        assert halt is not None, "a failed assertion reported no stop"
+        assert (halt.number, halt.phase) == (5, "VERIFY"), (
+            f"the stop is reported at {halt.number} {halt.phase}, not the check"
+        )
+
+        judge_phases = [entry for entry in scored if entry.number in (6, 7)]
+        assert len(judge_phases) == 4, f"{len(judge_phases)} judge phase(s)"
+        for entry in judge_phases:
+            assert entry.outcome == "ok", (
+                f"PHASE_{entry.number:02d}_{entry.phase} reads "
+                f"{entry.outcome!r} although the judge scored this "
+                f"observation, so its judgement is published as absent"
+            )
+
+        assert "did not run" not in stopped_line(scored), (
+            f"the line counts phases as unrun that ran: {stopped_line(scored)}"
+        )
+
+        # THE WITHHELD PATH STILL NAMES ITS REASON, which is the fact the
+        # phases read rather than a stop carried forward.
+        withheld = ledger(dispatched(), failed_check())
+        send = [
+            entry for entry in withheld
+            if entry.number == 6 and entry.phase == "VERIFY"
+        ]
+        assert len(send) == 1, f"{len(send)} judge verifications"
+        assert send[0].outcome == "not run", (
+            f"a withheld judge reads {send[0].outcome!r}"
+        )
+        assert send[0].detail == "assertions failed", (
+            f"the withheld judge names {send[0].detail!r} rather than its reason"
         )
 
 

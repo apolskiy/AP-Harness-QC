@@ -3,7 +3,7 @@
 """Test doubles of dispatch outcomes and evaluation results, for the step ledger cases.
 
 Created: 2026-10-07
-Last updated: 2026-10-25
+Last updated: 2026-11-02
 
 This file provides ``dispatched`` and ``evaluated``, a successful dispatch and a
 passing evaluation with fields overridden, ``failed_check`` and ``unmeasured``
@@ -72,10 +72,13 @@ def evaluated(**overrides: Any) -> SimpleNamespace:
 
 
 def failed_check() -> SimpleNamespace:
-    """Return an evaluation result whose one assertion did not hold.
+    """Return an evaluation result whose one assertion did not hold, unjudged.
 
     Returns:
-        SimpleNamespace: The result, unjudged because the assertion failed.
+        SimpleNamespace: The result the one surviving withheld path produces:
+        the assertion failed and no judge could run at all, which since
+        2026-11-02 is the only reason a clean-screen failure goes unjudged
+        (``tier3_evaluation.md`` section 4.2).
     """
     return evaluated(
         assertion_results=[
@@ -87,6 +90,28 @@ def failed_check() -> SimpleNamespace:
         ],
         score=None,
         judge_skipped_reason="assertions failed",
+    )
+
+
+def judged_after_failed_check() -> SimpleNamespace:
+    """Return an evaluation whose assertion failed and whose judge still scored it.
+
+    Returns:
+        SimpleNamespace: The result every clean-screen ``violation`` failure
+        produces since 2026-11-02: the assertion decides the outcome and the
+        score beside it is diagnostic (``harness_test_taxonomy.md`` section
+        8.2.6).
+    """
+    return evaluated(
+        assertion_results=[
+            SimpleNamespace(
+                passed=False, assertion_id="A_ALPHA",
+                detail="reused 2 words of the declared text",
+                taxonomy_code="QC_LLM_INSTRUCTION_DRIFT",
+            )
+        ],
+        score=SimpleNamespace(value=4.0, passed=True),
+        judge_skipped_reason="",
     )
 
 
