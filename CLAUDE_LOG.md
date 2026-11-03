@@ -15159,3 +15159,85 @@ was not.
 positive; the `cmn_verdict_and_cli.md` inventory 476 to 477 and 281 to 282
 negative; the `DESIGN.md` map with it; the README instrument suite 1020 to 1021
 and its requirement count 394 to 395.
+
+---
+
+## 2026-11-03: A Broken Instrument Reported The Status That Means A Model Underperformed
+
+### The design said exit 3 and the harness said exit 1
+
+**A) A precondition that failed exited 1, the status reserved for a graded
+failure.** B) Section 7.5.1 closed the skip half on 2026-10-08 and only the
+skip half: `cmn.environments.refuse_precondition_skips` raises the status when a
+precondition skips, and a precondition that **fails** kept pytest's own 1.
+
+**Two documents already said otherwise**, which is what makes this an
+implementation gap rather than a decision. `harness_test_taxonomy.md` section
+7.3's table states that a precondition failure "stops the graded layers
+executing, exits 3, and leaves nothing measured", and `framework-rules.md`
+section 3.1 states the same contract in the form a reader acts on: "a
+precondition failure exits 3, meaning nothing trustworthy was measured, and a
+graded failure exits 1, meaning the model underperformed".
+
+**It surfaced on a real run.** The case repository's precondition suite failed
+`MQC_CAS_UNI_115799` on three stale judgements and exited 1, so anything
+reading the status, a gate step, a collector or a person, was handed an
+instrument defect under the code that means a third party underperformed.
+
+### What it changes, and what it does not
+
+`refuse_precondition_failures` reads the terminal reporter's failures, keeps the
+ones whose identifier carries an ungraded layer, and raises the status to 3. It
+**adds a failure and never removes one**, and it takes precedence over a graded
+failure in the same selection, which is the precedence the skip half already
+has: a graded result measured by an instrument known to be broken is not a
+result. Both repositories' `conftest.py` call it, from one implementation.
+
+**No new taxonomy code is emitted.** The failing case has already emitted the
+code naming what it found, and a second code on one event would be counted
+twice by a tally over root-cause classes.
+
+**The priority suite is untouched, which was the question asked of it.** The
+bands are gated by job dependency rather than by the status: `gate-target.yml`
+runs the preconditions in their own job and every band names it in `needs:`, so
+a failed precondition job already skips the bands and any nonzero status fails
+that job identically. A band selects the graded markers, so no precondition is
+ever collected in one, and the case repository's `tools/band_floor.py` refuses
+any status that is neither a clean run nor the graded-failure code rather than
+computing a rate from it.
+
+### The identifier, and why it is not in `1123xx`
+
+`1123xx` holds 99 live identifiers and `112340`, retired, so the category is
+full at 100 of 100. The case takes `400005` in the declared partition, as
+`400004` did on 2026-11-02 for the same reason. **The partition's declared
+subject no longer matches its contents**: section 3.2.1.5 called it "governance
+and traceability", and the row now says what it holds, any `CMN`/`UNI` subject
+whose own category is full.
+
+### Three injections, all caught
+
+| Injection | Result |
+|---|---|
+| The status assignment removed | **Caught.** `400005` on the failed precondition still reading 1 |
+| The layer filter inverted, so graded failures are collected instead | **Caught.** The count came back 0 against 1 |
+| The call removed from the harness `conftest.py` | **Caught.** The call-site assertion named the file |
+
+The third is the half `115802` taught on 2026-11-02: a gate nothing calls
+raises nothing, so the case reads both conftests, as `mqc_uni_broken.py` already
+does for the broken gate.
+
+### Digressions the user spotted, and the fix
+
+| What happened | The fix |
+|---|---|
+| A `python -c` was appended to a read-only Bash call as a no-op, twice in one session, and the hook refused both calls outright | The shape was removed rather than reworded. Filler is where the banned shapes come back, which is why every call does real work (`code-style.md` section 8.1.2) |
+
+**State.** Harness unit and system 1018 total, 1018 executed, 1016 passed, 2
+failed, 0 skipped, exit 3, the two failures being `410000` and `410003` on the
+declared digest of `cmn/environments.py`, which changed: `mutation_redeclare`
+refuses a re-declaration and names the audit to run, and the audit is deferred
+while a live sweep holds the machine. Pylint 10.00/10 exit 0 in both
+repositories. The `cmn_verdict_and_cli.md` inventory 477 to 478 and 282 to 283
+negative, the `DESIGN.md` map with it, the README instrument suite 1021 to 1022
+and its requirement count 395 to 396.

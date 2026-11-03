@@ -70,9 +70,9 @@ survivors:
   cmn/layers.py:
     digest: 92f251267b12456eab51f94adfec5b6bd2db0b18bb312b59d5fb12f3fb7d0519
   cmn/environments.py:
-    digest: 394b7e049995e73bf8e646b9c6422aa6395e880f49025958e75301707b57c643
+    digest: ec4dbb18a4d0c08673bd4118e641e562eee9f0ebe3eb6eb2a1821efc282d1a39
     accepted:
-      - mutation: "line 113: 1 to 2"
+      - mutation: "line 114: 1 to 2"
         kind: unobservable
         reason: >-
           The default root of a sibling lookup moves one directory up. Telling

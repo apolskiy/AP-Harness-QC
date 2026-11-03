@@ -3,20 +3,21 @@
 """Environment scopes, which deselect a case where what it needs is absent.
 
 Created: 2026-10-08
-Last updated: 2026-10-24
+Last updated: 2026-11-03
 
 This file contains ``mark_environment`` and ``environment_marker``, which a case uses
 to declare a scope; ``registered_environment_scopes``, ``scope_available``,
 ``declared_scopes`` and ``unavailable_here``, which decide whether a scope holds here;
 ``deselect_unavailable_environments``; ``refuse_precondition_skips``, which fails a run
-where an ungraded precondition skipped; ``is_precondition``; ``under_ci``; and
+where an ungraded precondition skipped; ``refuse_precondition_failures``, which does the
+same where one failed; ``is_precondition``; ``under_ci``; and
 ``registered_markers``, which reads the markers a ``pytest.ini`` registers.
 
 Both repositories' ``conftest.py`` deselect at collection and refuse at session end, so
 a case that cannot run here leaves the total rather than skipping, and a precondition
-skip exits 3.
+that skipped or failed exits 3 rather than 0 or 1.
 
-Specified in ``docs/design/harness_test_taxonomy.md`` section 7.5.1.
+Specified in ``docs/design/harness_test_taxonomy.md`` sections 7.5.1 and 7.5.2.
 
 **A skip is an outcome and this is not one.** "This case could not have run
 here" is a statement about the selection, so a case whose scope the environment
@@ -222,6 +223,50 @@ def refuse_precondition_skips(session: Any) -> int:
         "%d precondition(s) skipped, so the run exits 3: a precondition needing "
         "something this environment lacks declares an environment scope and is "
         "deselected instead",
+        len(offenders),
+    )
+    session.exitstatus = _PRECONDITION_EXIT
+    return len(offenders)
+
+
+def refuse_precondition_failures(session: Any) -> int:
+    """Fail the run with exit 3 where an ungraded precondition failed.
+
+    **Exit 1 means a model underperformed, and a broken instrument is not
+    that.** A precondition that failed leaves nothing trustworthy measured,
+    which is what exit 3 already says, and pytest's own status for a failing
+    test is 1: anything reading the status, a gate step, a collector or a
+    person, read an instrument defect as a finding about a third party.
+
+    **It raises the status over a graded failure in the same selection**, which
+    is the precedence a precondition skip already takes: a graded result
+    measured by an instrument known to be broken is not a result.
+
+    Design: ``harness_test_taxonomy.md`` section 7.5.2.
+
+    Args:
+        session (Any): The finishing session, whose exit status is raised.
+
+    Returns:
+        int: How many precondition failures were found. **Zero leaves the exit
+        status alone**, so this adds a failure and never removes one.
+    """
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is None:
+        return 0
+    offenders = [
+        report for report in reporter.stats.get("failed", [])
+        if is_precondition(getattr(report, "nodeid", ""))
+    ]
+    if not offenders:
+        return 0
+    # NO CODE OF ITS OWN IS EMITTED HERE, because the failing case has already
+    # emitted the taxonomy code naming what it found, and a second code on the
+    # same event would be counted twice by a tally over root-cause classes.
+    logger.error(
+        "%d precondition(s) failed, so the run exits 3 rather than 1: a "
+        "precondition measures the instrument, so its failure leaves nothing "
+        "trustworthy measured and is not a finding about a model",
         len(offenders),
     )
     session.exitstatus = _PRECONDITION_EXIT

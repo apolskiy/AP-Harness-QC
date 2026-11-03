@@ -429,7 +429,7 @@ starts and another ends."
 
 | Partition | Holds | Continues | Allocated |
 |---|---|---|---|
-| `400000`-`409999` | `CMN`/`UNI`, governance and traceability | `1123xx`, full at 100 of 100 | 2026-10-22 |
+| `400000`-`409999` | `CMN`/`UNI`, governance and traceability, and since 2026-11-02 any `CMN`/`UNI` subject whose own category is full | `1123xx`, full at 100 of 100 | 2026-10-22 |
 | `410000`-`419999` | `CMN`/`UNI`, the mutation audit and its declarations | `1123xx`, then `1124xx` | 2026-10-23 |
 | `420000`-`429999` | `CMN`/`UNI`, the grouping tree a readiness view is read from (section 16) | Nothing. The first subject to begin in a partition | 2026-10-24 |
 | `430000`-`439999` | `CAS`/`UNI`, the same subject in the case repository (section 16.5) | Nothing. `1157xx` held 83 of 100 and two categories were free, and a subject beginning now takes a partition | 2026-10-24 |
@@ -1685,6 +1685,46 @@ reach and was not true inside the module either.
 | `_MARKER` | Deselection stops, silently | Collection error |
 | The ini entry | Collection error | Collection error |
 | One ini only | Nothing | `112355` fails |
+
+### 7.5.2 A precondition failure exits 3, and until 2026-11-03 it exited 1
+
+**A) A precondition that failed reported exit 1, the code reserved for a model
+that underperformed.** B) Section 7.5.1 closed the skip half and only the skip
+half: `cmn.environments` raises the status when a precondition **skips**, and a
+precondition that **fails** was left with pytest's own exit 1. Section 7.3 of
+this document and section 589's statement that a precondition failure "stops the
+graded layers executing, exits 3, and leaves nothing measured" were therefore
+true of the design and not of the harness.
+
+**The exit code is the contract, which is what makes this worth a code change
+rather than a note.** Exit 1 is a finding about a third party and exit 3 is an
+instrument defect, so anything reading the status, a gate step, a collector or a
+person, classified a broken instrument as a model result.
+
+| Status | Means | Set by |
+|---|---|---|
+| 0 | Everything selected passed | pytest |
+| 1 | A graded case failed, so the model underperformed | pytest |
+| **3** | **Nothing trustworthy was measured** | `cmn.environments`, on a precondition skip and now on a precondition failure |
+
+**It takes precedence over a graded failure in the same run**, which is the
+precedence the skip half already has: a mixed selection whose precondition failed
+reports 3 although a graded case also failed, because the graded result was
+measured by an instrument that is known to be broken.
+
+#### It changes nothing about which cases run
+
+**The priority suite is gated by job dependency, not by the status.**
+`gate-target.yml` runs the preconditions in their own job and every band job
+declares it in `needs:`, so a failed precondition job already skips the bands and
+any nonzero status fails that job identically.
+
+**A band run cannot produce the code**, because a band selects the graded markers
+and a precondition carries `unit` or `system`, so none is ever collected there.
+**And the floor refuses it if one ever leaks in**: the case repository's
+`tools/band_floor.py` accepts a clean run and the graded-failure code and refuses
+every other status rather than computing a pass rate from a run that measured
+nothing.
 
 ### 7.6 Harness failure halts execution, conditionally (A11.4)
 

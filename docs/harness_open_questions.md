@@ -114,6 +114,40 @@ and `QC_HARNESS_JUDGEMENT_STALE` should exist, and whether
 decision rather than an omission, and overturning one costs every stored row
 that carries the old code.
 
+### 2.7 Should `--max-spend` bound the judge's bill as well as the candidate's?
+
+Opened 2026-11-03. **The ceiling counts the candidate half only.** Spend is
+accumulated on the `DispatchSession` `execution/dispatch.py` holds, where
+`record_spend` is called once per candidate response, and `ceiling_reached` is
+asked before each candidate request. The judge runs through
+`execution/judge_channel.py`, which builds a session of its own for request
+spacing, adds every judge response's usage to `self._usage`, and exposes it as a
+`usage` property. **Nothing reads that property**, so no judge token reaches the
+ceiling and the warning a stopped run prints reports a total the judge is absent
+from.
+
+**Measured, over the completed store of 2026-11-03.** The judge was about 18% of
+the gemini run, 0.1261 estimated against 0.5855 measured, and between 0.12 and
+0.17 on each engine because gemini judges every run. A claude run that reported
+reaching a ceiling of 2.00 therefore spent 2.00 of candidate plus an unmeasured
+judge bill. **The judge's share is largest where the candidate is cheapest**:
+0.1457 against openai's 0.4005 is 27%, while 0.1655 against claude's 3.2001 is
+5%, so a ceiling that counted both halves would bind unevenly across the roster.
+
+**Why it is a question rather than a repair.** Joining the two changes what the
+flag means: the same corpus and the same ceiling would stop sooner, so a figure
+somebody chose from a measured run stops being the figure they chose. The
+alternative is to leave the ceiling as a candidate ceiling and say so, which is
+what the case repository's README now does. Either way the judge's usage is
+measured already and reported nowhere, and that part is an implementation gap
+rather than a decision.
+
+**A second gap sits beside it and needs no ruling.** A judgement record stores
+the prompt, the reply and the request hash, and no token counts, so the judge
+half of a past run cannot be priced from the store at all: the figures above are
+estimated from character length. Storing the counts the channel already reads
+would make them measurable.
+
 ## 2A. Settled, and where the reasoning now lives
 
 Removed from section 2 once the decision was recorded. The question is here so a

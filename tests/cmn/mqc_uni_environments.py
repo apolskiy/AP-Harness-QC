@@ -3,7 +3,7 @@
 """Unit preconditions for what a run may leave out, and what it may not skip.
 
 Created: 2026-10-08
-Last updated: 2026-10-24
+Last updated: 2026-11-03
 
 The cases here check ``cmn.environments``: that ``refuse_precondition_skips``
 fails a run in which a precondition skipped, that
@@ -31,6 +31,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCPreconditionSkips
 #   112344  a_precondition_that_skipped_fails_the_run
+#   400005  a_precondition_that_failed_fails_the_run_with_exit_3
 # TestMQCEnvironmentScope
 #   112345  a_case_whose_environment_scope_is_absent_is_deselected
 # TestMQCMarkerRegistry
@@ -55,6 +56,7 @@ from cmn.environments import (
     deselect_unavailable_environments,
     is_precondition,
     mark_environment,
+    refuse_precondition_failures,
     refuse_precondition_skips,
     registered_environment_scopes,
     scope_available,
@@ -79,7 +81,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 
 
 class TestMQCPreconditionSkips:
-    """Zero skips, enforced rather than stated."""
+    """Zero skips and no failure under a model's status, both enforced."""
 
     def MQC_CMN_UNI_112344_a_precondition_that_skipped_fails_the_run(self) -> None:
         """An ungraded skip exits 3, and a graded one leaves the status alone.
@@ -128,6 +130,79 @@ class TestMQCPreconditionSkips:
         # NO REPORTER MEANS NOTHING TO READ, which must not raise: the hook runs
         # in every invocation, including ones that collected nothing.
         assert refuse_precondition_skips(Session(None)) == 0
+
+    def MQC_CMN_UNI_400005_a_precondition_that_failed_fails_the_run_with_exit_3(
+        self,
+    ) -> None:
+        """An ungraded failure exits 3, and a graded one keeps exit 1.
+
+        **Exit 1 is a finding about a model and exit 3 is an instrument
+        defect.** A precondition that failed left nothing trustworthy measured
+        and carried pytest's own 1 until 2026-11-03, so a gate step, a
+        collector or a person reading the status classified a broken instrument
+        as a third party's shortfall.
+
+        **The raise beats a graded failure in the same selection**, which is
+        the precedence a precondition skip already takes.
+
+        Design: ``harness_test_taxonomy.md`` section 7.5.2.
+
+        Returns:
+            None
+        """
+        failed = Session(
+            Reporter(failed=("tests/cmn/m.py::T::MQC_CMN_UNI_112000_x",))
+        )
+        assert refuse_precondition_failures(failed) == 1
+        assert failed.exitstatus == 3, (
+            "a failed precondition reported exit 1, which is the status that "
+            "means a model underperformed"
+        )
+
+        # A GRADED FAILURE IS THE ONE THING EXIT 1 IS FOR, so this gate leaves
+        # it alone: the model underperformed and the instrument measured it.
+        graded = Session(
+            Reporter(failed=("tests/cases/m.py::T::MQC_EVL_EVAL_134200_x",)),
+            exitstatus=1,
+        )
+        assert refuse_precondition_failures(graded) == 0
+        assert graded.exitstatus == 1
+
+        # AND THE PRECEDENCE, which is the half a run mixing the two layers
+        # depends on: a graded failure has already set 1 and the instrument is
+        # the thing in doubt, so the status becomes 3.
+        mixed = Session(
+            Reporter(
+                failed=(
+                    "tests/cases/m.py::T::MQC_EVL_EVAL_134200_x",
+                    "tests/cmn/m.py::T::MQC_CMN_UNI_112000_x",
+                )
+            ),
+            exitstatus=1,
+        )
+        assert refuse_precondition_failures(mixed) == 1
+        assert mixed.exitstatus == 3
+
+        # A CLEAN RUN IS LEFT CLEAN. Nothing failed, so this adds nothing.
+        clean = Session(Reporter())
+        assert refuse_precondition_failures(clean) == 0
+        assert clean.exitstatus == 0
+
+        # NO REPORTER MEANS NOTHING TO READ, as above.
+        assert refuse_precondition_failures(Session(None)) == 0
+
+        # AND THE CALL SITE, because a gate nothing calls raises nothing.
+        # `MQC_CMN_UNI_400004`'s neighbour in `mqc_uni_broken.py` reads both
+        # conftests the same way, the sibling being skipped where it is absent.
+        for conftest in (
+            _ROOT / "conftest.py",
+            _ROOT.parent / "AP-Model-QC" / "conftest.py",
+        ):
+            if not conftest.is_file():
+                continue
+            assert "refuse_precondition_failures(session)" in conftest.read_text(
+                encoding="utf-8"
+            ), f"{conftest} does not call refuse_precondition_failures"
 
 
 class TestMQCEnvironmentScope:

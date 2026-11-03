@@ -29,6 +29,90 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The judge's share of a run is restated per engine, and the inquest path is exercised, 2026-11-03
+
+**Why it was needed.** Section 2.7 of `docs/harness_open_questions.md` measured
+the judge's share from one engine's sweep, which made it look like a flat tenth
+of a dollar. Measured over the completed store it is between 0.12 and 0.17 on
+every engine, and **the share of the bill varies by a factor of five**: 27% of
+openai's run against 5% of claude's. A ceiling joining the two halves would
+therefore bind unevenly across the roster, which is an argument the question has
+to carry rather than a detail.
+
+**What changed.** The measured paragraph in section 2.7 states the per-engine
+figures and the spread. **No code changed.**
+
+**The mutation declaration for `cmn/environments.py` was reconciled** with the
+exit-3 change recorded below. Inserting `refuse_precondition_failures` moved the
+accepted survivor down a line, so the audit reported it undeclared at line 114
+while the declaration still named 113. The digest was re-measured and the line
+shifted; the kind and the reason are unchanged, the audit reports one survivor
+and nothing undeclared, and `MQC_CMN_UNI_410000` and `410003` pass.
+
+**`opens_an_inquest` was used for the first time**, in the case repository. Eight
+graded cases there had never been dispatched live, each sitting behind a
+foundation that fails on its engine, and `--fill-gaps` in live mode is the one
+thing that measures them: `enforce_dependencies` marks the item, `cmn/emission.py`
+restates its observations as `unattributed`, and the result counts in no
+denominator. The mechanism shipped on 2026-10-11 and nothing had opened an
+inquest until now. Two operational facts are worth recording, neither of them
+defects: `--fill-gaps` finds a recording that loads cleanly and logs "already
+recorded, not dispatched", so the dependent's recordings have to be absent for
+the dispatch to happen at all; and `--with-prerequisites` has to stay on the
+command, because `arrange_dependencies` refuses a run whose declared foundation
+is not collected.
+
+### A failed precondition exits 3, the status that means nothing was measured, 2026-11-03
+
+**Why it was needed.** A precondition that failed exited 1, which is the status
+reserved for a graded failure: the model underperformed. Section 7.5.1 enforced
+zero skips in 2026-10-08 and closed only the skip half, so the gate raised the
+status for a precondition that did not run and left pytest's own 1 for one that
+ran and failed. Two documents already stated the contract the other way,
+`harness_test_taxonomy.md` section 7.3 and `framework-rules.md` section 3.1, so
+this was an implementation gap rather than a change of rule. It surfaced on a
+real run: the case repository's precondition suite failed on three stale
+judgements and reported 1, handing an instrument defect to anything reading the
+status under the code that means a third party underperformed.
+
+**What changed.** `cmn.environments.refuse_precondition_failures` raises the
+status to 3 for a failed ungraded case, from one implementation both
+repositories' `conftest.py` call. It adds a failure and never removes one, and
+it takes precedence over a graded failure in the same selection, which is the
+precedence the skip half already had. No new taxonomy code is emitted, the
+failing case having already emitted the one naming what it found.
+`MQC_CMN_UNI_400005` holds it, with the call site, and three injections were
+caught: the status assignment removed, the layer filter inverted, and the call
+removed from a conftest.
+
+**What it does not change.** The priority suite is gated by job dependency
+rather than by the status, a band selects the graded markers so no precondition
+is collected in one, and the band floor refuses any status that is neither a
+clean run nor the graded-failure code. Figures: the `cmn_verdict_and_cli.md`
+inventory 477 to 478 and 282 to 283 negative, the `DESIGN.md` map with it, the
+README instrument suite 1021 to 1022 and its requirement count 395 to 396.
+
+### The spending ceiling is recorded as covering the candidate half only, 2026-11-03
+
+**Why it was needed.** `--max-spend` reads as a ceiling on what a run spends,
+and it bounds the candidate's bill alone. Spend is accumulated on the dispatch
+session, which `record_spend` fills once per candidate response and
+`ceiling_reached` consults before each candidate request; the judge channel
+holds a session of its own for request spacing, accumulates every judge
+response's usage and exposes it as a property **nothing reads**. A run can
+therefore pass its stated ceiling by the whole judge bill, and the warning a
+stopped run prints reports a total the judge is absent from. Measured over the
+live sweep of 2026-11-02, the judge was about 18% of the gemini run, 0.1216
+estimated against 0.5525 measured.
+
+**What changed.** `docs/harness_open_questions.md` section 2.7 records the gap,
+what it measured, and why joining the two halves is a decision rather than a
+repair: the same ceiling would stop a sweep sooner, so a figure chosen from a
+measured run stops being the figure that was chosen. **No code changed.** A
+second gap is recorded with it and needs no ruling: a judgement record stores no
+token counts, so the judge half of a past run can only be estimated from the
+stored prompt and reply.
+
 ### A failed assertion is judged while these cases are in development, 2026-11-02
 
 **Why it was needed.** The judge was withheld from every case whose assertions

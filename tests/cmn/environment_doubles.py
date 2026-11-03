@@ -3,7 +3,7 @@
 """Stand-ins for the pytest objects the environment scope cases drive.
 
 Created: 2026-10-08
-Last updated: 2026-10-21
+Last updated: 2026-11-03
 
 This file contains ``Marker``, ``Item``, ``Hook``, ``Config``, ``Report``,
 ``Reporter``, ``Manager`` and ``Session``, each a minimal double of a pytest
@@ -105,7 +105,7 @@ class Config:
 
 
 class Report:
-    """One skipped report as the terminal reporter holds it."""
+    """One report as the terminal reporter holds it, skipped or failed."""
 
     def __init__(self, nodeid: str) -> None:
         """Hold the identifier.
@@ -120,18 +120,23 @@ class Report:
 
 
 class Reporter:
-    """The terminal reporter's statistics, with skips in them."""
+    """The terminal reporter's statistics, with skips and failures in them."""
 
-    def __init__(self, *skipped: str) -> None:
-        """Hold the skipped reports.
+    def __init__(self, *skipped: str, failed: tuple[str, ...] = ()) -> None:
+        """Hold the skipped and failed reports.
 
         Args:
             *skipped: Node identifiers that skipped.
+            failed (tuple): Node identifiers that failed. **Keyword-only**, so
+                every existing caller reads as the skip case it was written as.
 
         Returns:
             None
         """
-        self.stats = {"skipped": [Report(nodeid) for nodeid in skipped]}
+        self.stats = {
+            "skipped": [Report(nodeid) for nodeid in skipped],
+            "failed": [Report(nodeid) for nodeid in failed],
+        }
 
 
 class Manager:
