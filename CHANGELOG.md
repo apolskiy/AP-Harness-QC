@@ -29,6 +29,29 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The measured judge share is taken again over a re-recorded store, 2026-11-04
+
+**Why it was needed.** The figures in section 2.7 of
+`docs/harness_open_questions.md` described the store of 2026-11-03. Two
+assertions were repaired in the case repository the same day, and a rule change
+invalidates every recording the rule scored, so all four engines were re-recorded
+and every figure the section quotes was measured against recordings that no
+longer exist.
+
+**What changed.** The measured paragraph quotes the new figures: the judge is
+between 0.13 and 0.16 on each engine, 17% of the gemini run, 26% of openai's and
+5% of claude's. **The conclusion is unchanged**, which is the part worth
+recording: the share still varies by a factor of five across the roster, so a
+ceiling joining the candidate and judge halves would still bind unevenly. **No
+code changed.**
+
+**What it leaves open.** The question itself, which is whether `--max-spend`
+should cover both halves, and the related gap that a live run recording an
+observation without writing a new judgement leaves the previous judgement in
+place. The case repository hit the second one on this re-record: two judgements
+scored responses the store no longer held, both for observations that abort at
+the screen and therefore never reach the judge at all.
+
 ### The judge's share of a run is restated per engine, and the inquest path is exercised, 2026-11-03
 
 **Why it was needed.** Section 2.7 of `docs/harness_open_questions.md` measured

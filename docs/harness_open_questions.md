@@ -126,13 +126,15 @@ spacing, adds every judge response's usage to `self._usage`, and exposes it as a
 ceiling and the warning a stopped run prints reports a total the judge is absent
 from.
 
-**Measured, over the completed store of 2026-11-03.** The judge was about 18% of
-the gemini run, 0.1261 estimated against 0.5855 measured, and between 0.12 and
-0.17 on each engine because gemini judges every run. A claude run that reported
+**Measured, over the completed store of 2026-11-04.** The judge was about 17% of
+the gemini run, 0.1271 estimated against 0.6100 measured, and between 0.13 and
+0.16 on each engine because gemini judges every run. A claude run that reported
 reaching a ceiling of 2.00 therefore spent 2.00 of candidate plus an unmeasured
 judge bill. **The judge's share is largest where the candidate is cheapest**:
-0.1457 against openai's 0.4005 is 27%, while 0.1655 against claude's 3.2001 is
+0.1498 against openai's 0.4170 is 26%, while 0.1647 against claude's 3.1538 is
 5%, so a ceiling that counted both halves would bind unevenly across the roster.
+The figures moved when two repaired assertions forced a re-record on all four
+engines, and the shape they describe did not.
 
 **Why it is a question rather than a repair.** Joining the two changes what the
 flag means: the same corpus and the same ceiling would stop sooner, so a figure
