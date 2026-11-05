@@ -3,13 +3,13 @@
 """The typed records every loaded task and rule set becomes, under one import.
 
 Created: 2026-10-18
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 This package re-exports every schema record from the files that define them:
 the task side, :class:`TaskDataSet` with :class:`Constraint`,
 :class:`ContextDocument` and :class:`ToolDefinition`; the rule side,
 :class:`GoldenRuleSet` with :class:`ProgrammaticAssertion`,
-:class:`ToolExpectation`, :class:`Rubric`, :class:`RubricCriterion` and
+:class:`ToolExpectation`, :class:`AnswerList`, :class:`Rubric`, :class:`RubricCriterion` and
 :class:`Anchor`; the joined :class:`EvaluationCase`; and
 ``canonical_identifier``.
 
@@ -53,6 +53,7 @@ from ingestion.schemas.rubric import (
 from ingestion.schemas.rules import (
     ProgrammaticAssertion,
     ToolExpectation,
+    AnswerList,
     GoldenRuleSet,
 )
 from ingestion.schemas.case import (
@@ -70,6 +71,7 @@ __all__ = [
     "Rubric",
     "ProgrammaticAssertion",
     "ToolExpectation",
+    "AnswerList",
     "GoldenRuleSet",
     "EvaluationCase",
 ]

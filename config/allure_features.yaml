@@ -55,6 +55,7 @@ modules:
   tests/ingestion/mqc_uni_invariants.py: Case ingestion
   tests/ingestion/mqc_uni_loaders.py: Case ingestion
   tests/ingestion/mqc_uni_planted_score.py: Case ingestion
+  tests/ingestion/mqc_uni_answer_list_schema.py: Case ingestion
   tests/ingestion/mqc_uni_schemas.py: Case ingestion
 
   # Execution: one request per case, through an adapter, and what it returns.
@@ -88,6 +89,9 @@ modules:
   tests/evaluation/mqc_uni_judge_on_failure.py: Judging and scoring
   tests/evaluation/mqc_uni_pipeline.py: Judging and scoring
   tests/evaluation/mqc_uni_punctuation.py: Judging and scoring
+  tests/evaluation/mqc_uni_assertion_scope.py: Judging and scoring
+  tests/evaluation/mqc_uni_answer_list.py: Judging and scoring
+  tests/evaluation/mqc_uni_answer_route.py: Judging and scoring
   tests/evaluation/mqc_uni_reported_injection.py: Judging and scoring
   tests/evaluation/mqc_uni_response_only_judging.py: Judging and scoring
   tests/evaluation/mqc_uni_score_scale.py: Judging and scoring

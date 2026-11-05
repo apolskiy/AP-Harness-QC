@@ -3,7 +3,7 @@
 """Unit cases for punctuation never deciding a deterministic check.
 
 Created: 2026-10-30
-Last updated: 2026-10-30
+Last updated: 2026-11-05
 
 Its cases check :func:`cmn.markup.blank_punctuation` through
 :func:`evaluation.assertions.run_assertion`. Two answers differing only in
@@ -25,6 +25,7 @@ marker, per ``framework-rules.md`` section 3.3.
 # TestMQCPunctuationBlanking
 #   114649  punctuation_between_words_does_not_decide_a_pattern
 #   114650  a_mark_on_a_digit_or_inside_a_word_survives_blanking
+#   114676  a_mark_beside_a_bracketed_figure_survives_blanking
 #   114651  a_claim_splits_raw_sentences_before_blanking_each
 #   114652  length_json_schema_and_source_phrase_absent_read_raw_text
 # ------------------------------------------------------------ end of cases
@@ -151,6 +152,41 @@ class TestMQCPunctuationBlanking:
         assert blank_punctuation('reads "go." Next') == "reads  go   Next", (
             "a terminator inside a quotation was kept, although no sentence ends "
             "there and the raw text does not break there either"
+        )
+
+    def MQC_EVL_UNI_114676_a_mark_beside_a_bracketed_figure_survives_blanking(
+        self,
+    ) -> None:
+        """A multiplier beside a bracketed fraction is kept, and a bracketed word keeps nothing.
+
+        Design: ``tier3_evaluation.md`` section 5.1.1.
+
+        Returns:
+            None
+        """
+        bracketed = ("(2/5) * 100%", "100 * (2/5)", "(1 / 2) * (100)")
+        for number, figure in enumerate(bracketed, start=1):
+            step(number, f"blank the multiplier in {figure!r}")
+            assert blank_punctuation(f"so {figure} here") == f"so {figure} here", (
+                f"the mark beside a bracketed figure in {figure!r} was blanked: "
+                f"{blank_punctuation(f'so {figure} here')!r}"
+            )
+
+        step(len(bracketed) + 1, "read openai's working through the ninety percent gate")
+        gate = _assertion(
+            "regex",
+            {"pattern": r"(?i)(?<![×x*]\s)(?<![×x*])\b(9\d|100)(\.\d+)?\s*(%|per\s?cent)"},
+        )
+        assert not run_assertion(gate, "(2/5) * 100% = **40%**").passed, (
+            "a 100 percent multiplier after a bracketed fraction was read as a figure"
+        )
+
+        step(len(bracketed) + 2, "blank a mark beside a bracket holding a word")
+        assert (
+            blank_punctuation("(see note) * 40"), blank_punctuation("40 * (note 2)")
+        ) == (" see note    40", "40    note 2)"), (
+            "a mark between a figure and a bracketed word was kept, which no "
+            "figure needs"
         )
 
     def MQC_EVL_UNI_114651_a_claim_splits_raw_sentences_before_blanking_each(

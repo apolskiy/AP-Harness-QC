@@ -3,7 +3,7 @@
 """Builds the judge's prompt, keeping text the harness did not write out of its instructions.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 This file contains ``compose_judge_request``, which builds a
 :class:`JudgeRequest` whose instruction text comes only from the rubric and the
@@ -149,11 +149,15 @@ class UnauthoredMaterial:
             where the rubric needs them. A grounding criterion asking whether
             every claim traces to a source cannot be judged by a judge that
             never saw the source.
+        system_instruction (Optional[str]): The system instruction the
+            candidate was given, authored by the case author like the task
+            instruction. Design: ``tier3_evaluation.md`` section 3.1.2.
     """
 
     candidate_output: str
     task_instruction: Optional[str] = None
     context_documents: dict[str, str] = field(default_factory=dict)
+    system_instruction: Optional[str] = None
 
     def as_data_fields(self) -> dict[str, str]:
         """Return every value under the typed field name it travels in.
@@ -163,6 +167,8 @@ class UnauthoredMaterial:
             identifier so two documents cannot collide into one field.
         """
         fields: dict[str, str] = {"candidate_output": self.candidate_output}
+        if self.system_instruction is not None:
+            fields["system_instruction"] = self.system_instruction
         if self.task_instruction is not None:
             fields["task_instruction"] = self.task_instruction
         for document_id, content in self.context_documents.items():

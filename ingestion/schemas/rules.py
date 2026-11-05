@@ -3,14 +3,16 @@
 """The golden rule set record, which states how a model's response is judged.
 
 Created: 2026-10-18
-Last updated: 2026-10-25
+Last updated: 2026-11-05
 
 This file contains :class:`GoldenRuleSet`, which holds a rule's priority and
 the conditions justifying it, its programmatic assertions, its optional rubric
 and tool expectation, its requirement identifiers and its evaluation families;
 :class:`ProgrammaticAssertion`, one deterministic check with its kind,
-parameters, severity and taxonomy code; and :class:`ToolExpectation`, the
-tools a response must and must not invoke. Each is built through
+parameters, severity and taxonomy code; :class:`ToolExpectation`, the
+tools a response must and must not invoke; and :class:`AnswerList`, the list
+the prompt asked for and how a request for clarification in its place is
+judged. Each is built through
 ``from_dict``, which enforces the rule-set invariants.
 
 **Evaluation reads every part of it.** The assertions run first, tool
@@ -155,6 +157,107 @@ class ToolExpectation:
         )
 
 
+_LIST_STYLES: Final[frozenset[str]] = frozenset({"numbered", "bulleted"})
+
+
+@dataclass(frozen=True)
+class AnswerList:
+    """The list a rule's prompt asked for, and how a request for clarification is judged.
+
+    Attributes:
+        style (str): ``numbered`` or ``bulleted``.
+        clarification_rubric (Rubric): Judges whether a request for
+            clarification names a real ambiguity or conflict in the prompt.
+        count (Optional[int]): The exact number of items asked for.
+        max_count (Optional[int]): The ceiling, for a bulleted list.
+    """
+
+    style: str
+    clarification_rubric: Rubric
+    count: Optional[int] = None
+    max_count: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any], owner: str) -> "AnswerList":
+        """Build a declaration, enforcing the shape half of invariant G12.
+
+        Design: ``tier1_ingestion.md`` section 3.5.
+
+        Args:
+            payload (dict): Mapping carrying ``style``, ``clarification_rubric``
+                and one of ``count`` and ``max_count``.
+            owner (str): The rule identifier, for the message.
+
+        Returns:
+            AnswerList: The frozen record.
+
+        Raises:
+            KeyError: When a required field is absent or an unknown key is present.
+            ValueError: With ``QC_DATA_INVARIANT_VIOLATION`` for an unregistered
+                style, both bounds or neither, a bound below one, or a ceiling
+                on a numbered list.
+        """
+        _reject_unknown_keys(payload, cls, owner)
+        _require_present_and_filled(
+            payload, ("style", "clarification_rubric"), cls.__name__, owner
+        )
+        style = _normalize_text(payload["style"]).lower()
+        if style not in _LIST_STYLES:
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: AnswerList of {owner} declares style "
+                f"{style!r}; registered styles are {sorted(_LIST_STYLES)}"
+            )
+        bounds = {
+            name: _coerce_int(payload[name], name, owner)
+            for name in ("count", "max_count") if payload.get(name) is not None
+        }
+        if len(bounds) != 1 or min(bounds.values()) < 1:
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: AnswerList of {owner} declares {bounds}; "
+                f"it declares exactly one of count and max_count, at one or more"
+            )
+        if style == "numbered" and "count" not in bounds:
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: AnswerList of {owner} declares a numbered "
+                f"list with max_count; a numbered list declares count, since its order "
+                f"is checked against the numbers 1 to count"
+            )
+        return cls(
+            style=style,
+            clarification_rubric=Rubric.from_dict(dict(payload["clarification_rubric"])),
+            count=bounds.get("count"),
+            max_count=bounds.get("max_count"),
+        )
+
+
+def _scopes_beyond(assertions: list[ProgrammaticAssertion], declared: AnswerList,
+                   owner: str) -> None:
+    """Refuse an assertion scoped to an item beyond the declared count (G12).
+
+    Args:
+        assertions (list): The rule's assertions.
+        declared (AnswerList): The rule's list declaration.
+        owner (str): The rule identifier, for the message.
+
+    Returns:
+        None
+
+    Raises:
+        ValueError: With ``QC_DATA_INVARIANT_VIOLATION``, naming each assertion.
+    """
+    ceiling = declared.count or declared.max_count or 0
+    beyond = sorted(
+        entry.assertion_id for entry in assertions
+        if isinstance(entry.parameters.get("scope"), dict)
+        and int(entry.parameters["scope"].get("list_item", 0)) > ceiling
+    )
+    if beyond:
+        raise ValueError(
+            f"QC_DATA_INVARIANT_VIOLATION: GoldenRuleSet {owner} scopes {beyond} to an "
+            f"item beyond the {ceiling} its answer_list declares"
+        )
+
+
 @dataclass(frozen=True)
 class GoldenRuleSet:
     """How a response is judged.
@@ -183,6 +286,9 @@ class GoldenRuleSet:
             decides it**: a task that tells the model to report an instruction
             and forbids nothing cannot fail it for quoting what it was told to
             report (section 4C.4.1).
+        answer_list (Optional[AnswerList]): The list the prompt asked for,
+            which decides the route an answer takes (``tier3_evaluation.md``
+            section 5.5).
     """
 
     rule_id: str
@@ -216,7 +322,9 @@ class GoldenRuleSet:
     # cases failed on every engine for quoting evidence their own prompt asked
     # them to report, which is what this declaration separates.
     relay_forbidden: bool = False
-
+    # THE LIST THE PROMPT ASKED FOR, and how a request for clarification in its
+    # place is judged (tier3_evaluation.md 5.5, invariant G12).
+    answer_list: Optional[AnswerList] = None
 
     @staticmethod
     def _validate_families(payload: Any, owner: str) -> tuple[str, ...]:
@@ -311,6 +419,12 @@ class GoldenRuleSet:
             None if expectation_payload is None
             else ToolExpectation.from_dict(dict(expectation_payload))
         )
+        list_payload = payload.get("answer_list")
+        answer_list = (
+            None if list_payload is None else AnswerList.from_dict(dict(list_payload), owner)
+        )
+        if answer_list is not None:
+            _scopes_beyond(assertions, answer_list, owner)
         if not assertions and rubric is None and expectation is None:
             logger.error("QC_DATA_INVARIANT_VIOLATION %s judges nothing", owner)
             raise ValueError(
@@ -341,6 +455,7 @@ class GoldenRuleSet:
             ),
             judge_response_only=cls._validate_response_only(payload, rubric, owner),
             relay_forbidden=bool(payload.get("relay_forbidden", False)),
+            answer_list=answer_list,
         )
 
     @staticmethod

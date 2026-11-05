@@ -3,7 +3,7 @@
 """Records model responses and judge replies to disk and replays them in later runs.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 This file contains the candidate side of the fixture store, ``record_fixture``
 and ``load_fixture`` keyed by a ``FixtureKey`` and checked against
@@ -309,6 +309,10 @@ def record_fixture(
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding=_ENCODING, newline="\n"
     )
+    # THE JUDGEMENTS OF THE RESPONSE JUST REPLACED GO WITH IT (design section
+    # 7.14.1), before any judge is called, so a run whose screen aborts leaves
+    # no score for text the store no longer holds.
+    _retire_judgements(path.parent, path.stem)
     retired = retire_stale_siblings(path.parent, request_hash)
     if retired:
         logger.info(
@@ -320,7 +324,7 @@ def record_fixture(
 
 
 def retire_stale_siblings(pair: Path, request_hash: str) -> int:
-    """Remove observations in one pair that answer a different request.
+    """Remove observations in one pair that answer a different request, and their judgements.
 
     **A pair answers one request** (design section 7.14). The key is the pair
     and the observation index, and the request is composed from the task and
@@ -352,8 +356,37 @@ def retire_stale_siblings(pair: Path, request_hash: str) -> int:
         if str(stored.get("request_hash", "")) == request_hash:
             continue
         sibling.unlink()
+        _retire_judgements(pair, sibling.stem)
         retired += 1
     return retired
+
+
+def _retire_judgements(pair: Path, observation: str) -> int:
+    """Remove every judge engine's judgement of one observation of one pair.
+
+    The pair directory is ``<root>/<engine>/<task>/<rule>``, as
+    :meth:`FixtureKey.as_path` lays it out, and the judgements of its
+    observations sit under ``<root>/judgements/<engine>/<judge>/<task>/<rule>``,
+    as :meth:`JudgementKey.path` does. Design section 7.14.1.
+
+    Args:
+        pair (Path): The directory holding one pair's observations.
+        observation (str): The observation index, as its file stem.
+
+    Returns:
+        int: How many judgements were removed.
+    """
+    judged_root = pair.parents[2] / "judgements" / pair.parents[1].name
+    removed = 0
+    for judged in sorted(judged_root.glob(f"*/{pair.parent.name}/{pair.name}/{observation}.json")):
+        judged.unlink()
+        removed += 1
+    if removed:
+        logger.info(
+            "Retired %d judgement(s) of %s/%s observation %s with their recording",
+            removed, pair.parent.name, pair.name, observation,
+        )
+    return removed
 
 
 def fixture_credential_problems(root: Path) -> list[str]:

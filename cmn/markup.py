@@ -3,7 +3,7 @@
 """The readings a check matches against, so it reads what a model said.
 
 Created: 2026-10-05
-Last updated: 2026-11-01
+Last updated: 2026-11-05
 
 This file contains two readings of a response. ``normalise_markup`` strips code
 fences, backticks and bold markers and folds typographic quotes and apostrophes
@@ -191,8 +191,10 @@ def _between_figures(text: str, index: int) -> bool:
 
     Returns:
         bool: True where the nearest non-space character on **both** sides is a
-        digit. Both, because one side alone would keep the comma in ``and, 40``
-        and leave the sensitivity this blanking exists to remove.
+        digit, or a bracket closing directly after a digit on the left and one
+        opening directly before a digit on the right, as in ``(2/5) * 100``.
+        Both, because one side alone would keep the comma in ``and, 40`` and
+        leave the sensitivity this blanking exists to remove.
     """
     left = index - 1
     while left >= 0 and text[left] in " \t":
@@ -200,7 +202,12 @@ def _between_figures(text: str, index: int) -> bool:
     right = index + 1
     while right < len(text) and text[right] in " \t":
         right += 1
-    return (
-        left >= 0 and right < len(text)
-        and text[left].isdigit() and text[right].isdigit()
+    if left < 0 or right >= len(text):
+        return False
+    ends_figure = text[left].isdigit() or (
+        text[left] == ")" and left > 0 and text[left - 1].isdigit()
     )
+    starts_figure = text[right].isdigit() or (
+        text[right] == "(" and right + 1 < len(text) and text[right + 1].isdigit()
+    )
+    return ends_figure and starts_figure

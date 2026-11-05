@@ -1381,6 +1381,45 @@ request retires the old ones immediately, so a run interrupted after one
 observation leaves a short pair rather than a mixed one, and a short pair is a
 gap the next run fills.
 
+#### 7.14.1 A recording that is replaced or retired takes its judgements with it
+
+Added 2026-11-04, after the third orphan judgement set found in one week.
+
+**A judgement scores one recorded response.** Section 7.9.4 stores the rendered
+judge request beside it, and that request carries the response verbatim, so a
+judgement whose recording is overwritten or removed scores text the store no
+longer holds.
+
+**The write left them behind on two paths:**
+
+| Path | What happened to the recording | What happened to its judgements |
+|---|---|---|
+| A live run re-records an observation and the screen aborts before the judge is called | Overwritten | **Kept**, scoring the response it replaced |
+| A re-record retires a sibling answering a superseded request | Removed | **Kept**, scoring an observation with no recording |
+
+`cmn_verdict_and_cli.md` section 12.4.2 reports both from the files, and it
+reported them each time. **A store the write leaves inconsistent and an audit
+reports afterwards is a store repaired by hand after every run.** So the write
+that changes a recording removes the judgements of that observation, for every
+judge engine, at the moment it changes it.
+
+| `record_fixture` writes | It removes |
+|---|---|
+| Observation N of a pair | Every judgement of observation N of that pair on that candidate engine |
+| And retires sibling M | Every judgement of observation M as well |
+
+**Removal before judging, never after.** The live sequence records the
+response and then calls the judge, which records a new judgement; removing at
+the recording leaves nothing stale whether or not the judge is reached.
+
+**Only the candidate engine that recorded is touched.** Judgements are keyed by
+both engines (section 7.9.3), so a re-record on one engine leaves every other
+engine's judgements alone.
+
+**Removal, as for the recording itself.** The store holds what the current
+corpus asks; a response and its score worth keeping as evidence are copied out
+before a re-record, which is the procedure the case repository follows.
+
 ## 8. Rate Limiting
 
 The objective is evaluation, never load-testing a provider. On a free tier, pacing decides whether a run completes at all (A7.3).
@@ -2176,6 +2215,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113614` | N | `a_fixture_carrying_a_credential_shaped_value_is_reported` |
 | `113615` | P | `a_recording_without_a_request_is_a_gap_not_a_stale_fixture` |
 | `113616` | P | `recording_retires_a_pair_answering_another_request` |
+| `113620` | N | `a_replaced_or_retired_recording_takes_its_judgements_with_it` |
 | `113505` | P | `a_resolved_version_is_returned_stripped` |
 | `113506` | P | `a_change_dispatches_once_not_on_every_later_run` |
 | `113507` | P | `a_failed_probe_leaves_its_baseline_untouched` |
@@ -2399,7 +2439,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 219 cases, 100 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 220 cases, 101 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

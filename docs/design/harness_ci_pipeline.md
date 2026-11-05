@@ -1499,14 +1499,19 @@ the thing it controls becomes reachable.
 
 #### 8.2.1 The ceiling, and the arithmetic behind it
 
-**Two dollars per run**, as a workflow input so a dispatcher can lower it.
+**Four dollars per run**, as a workflow input so a dispatcher can lower it.
 
 | | |
 |---|---|
 | Measured cost of a recording run | **Six cents** for the `SEC` family, 2026-09-28 |
-| A full graded run for one engine | Cents, including the judge |
+| A full graded run for one engine | $0.57 on openai to **$3.37 of candidate spend on claude**, measured over a full live sweep in the case repository |
 | The account's monthly limit | **$20 per provider**, recorded in `harness_open_questions.md` section 1 |
-| The ceiling | $2.00, which is roughly thirty times the measured cost and a tenth of the monthly limit |
+| The ceiling | $4.00, above the costliest engine's full run and a fifth of the monthly limit |
+
+**Raised from $2.00 on 2026-11-04.** The first figure was set when a full run
+cost cents. A claude sweep then measured $3.37 of candidate spend, so at $2.00
+a dispatch at the default stopped partway and reported a partial measurement as
+though the selection had been measured.
 
 **The figure is a backstop, not a budget.** It exists to stop a loop, a
 mispriced model or an escalation storm, not to ration ordinary runs: a run that

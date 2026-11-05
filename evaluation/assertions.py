@@ -3,7 +3,7 @@
 """Programmatic assertions, the deterministic part of evaluating a model's response.
 
 Created: 2026-09-26
-Last updated: 2026-11-02
+Last updated: 2026-11-05
 
 This file contains the assertion kinds a golden rule can declare, ``regex``,
 ``json_schema``, ``length``, ``contains``, ``not_contains``, ``claim``,
@@ -529,6 +529,40 @@ _BLANKED_PARAMETERS: Final[dict[str, tuple[str, ...]]] = {
     "not_contains": ("value",),
 }
 
+# A NUMBERED ITEM OPENS AT THE MARGIN, per design section 5.4: its number and a
+# period or closing parenthesis, optionally after a heading's hashes or inside
+# emphasis. An indented number is a sub-list and opens nothing. Public, because
+# the list check of section 5.5 reads the same openers.
+ITEM_OPENER: Final[re.Pattern[str]] = re.compile(
+    r"^(?:#{1,6}[ \t]+)?(?:\*\*|__|\*|_)?(\d+)[.)]", re.MULTILINE
+)
+
+
+def _list_item(text: str, number: int) -> Optional[str]:
+    """Return item ``number`` of the answer's top-level numbered list.
+
+    Design: ``tier3_evaluation.md`` section 5.4.
+
+    Args:
+        text (str): The candidate output.
+        number (int): The item to cut out, counting from 1.
+
+    Returns:
+        Optional[str]: The item, from its opening line to the line opening the
+        next item or the end; None where no line opens it, the first opening
+        being read where the number opens two.
+    """
+    openers = list(ITEM_OPENER.finditer(text))
+    start = next((match.start() for match in openers if int(match.group(1)) == number), None)
+    if start is None:
+        return None
+    end = next(
+        (match.start() for match in openers
+         if match.start() > start and int(match.group(1)) == number + 1),
+        len(text),
+    )
+    return text[start:end]
+
 
 # `normalise_markup` lives in `cmn.markup`: removing markup is a text
 # concern, and which kinds read it is this module's. Section 5.1.
@@ -605,9 +639,30 @@ def run_assertion(assertion: Any, text: str) -> AssertionResult:
             f"{sorted(_ASSERTION_KINDS)}"
         )
 
+    parameters = dict(assertion.parameters)
+    # ONE NUMBERED ITEM, where the assertion names one, and a missing item fails
+    # whatever `present` says: an absent answer is never a clean one. Per design
+    # section 5.4.
+    scope = parameters.pop("scope", None)
+    if scope is not None:
+        number = int(scope["list_item"])
+        item = _list_item(text, number)
+        if item is None:
+            detail = f"the answer has no numbered item {number} for this assertion to read"
+            logger.info("%s %s failed: %s", assertion.taxonomy_code,
+                        assertion.assertion_id, detail)
+            return AssertionResult(
+                assertion_id=assertion.assertion_id,
+                kind=assertion.kind,
+                passed=False,
+                severity=assertion.severity,
+                detail=detail,
+                taxonomy_code=assertion.taxonomy_code,
+            )
+        text = item
+
     # NORMALISED FOR THE KINDS THAT READ PROSE, unless this assertion declares
     # that markup is part of what it checks. Per design section 5.1.
-    parameters = dict(assertion.parameters)
     literal = bool(parameters.pop("literal_markup", False))
     literal_marks = bool(parameters.pop("literal_punctuation", False))
     normalise = assertion.kind in _MARKUP_SENSITIVE and not literal

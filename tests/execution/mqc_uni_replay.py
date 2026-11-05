@@ -3,7 +3,7 @@
 """Unit cases for storing recorded responses and finding them again by request hash.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 Its cases check :mod:`execution.replay`. :func:`hash_request` hashes a request
 alike across line endings and differently when it changes. The fixture store
@@ -51,6 +51,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113614  a_fixture_carrying_a_credential_shaped_value_is_reported
 #   113615  a_recording_without_a_request_is_a_gap_not_a_stale_fixture
 #   113616  recording_retires_a_pair_answering_another_request
+#   113620  a_replaced_or_retired_recording_takes_its_judgements_with_it
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -64,10 +65,12 @@ from execution.replay import (
     FixtureKey,
     FixtureMissing,
     FixtureStale,
+    JudgementKey,
     fixture_credential_problems,
     hash_request,
     load_fixture,
     record_fixture,
+    record_judgement,
     retire_stale_siblings,
     stored_observation_count,
 )
@@ -612,3 +615,75 @@ class TestMQCStoredRequest:
         broken.write_text("{ not json", encoding="utf-8")
         assert retire_stale_siblings(pair.as_path(tmp_path).parent, new_hash) == 0
         assert broken.is_file()
+
+    def MQC_EXE_UNI_113620_a_replaced_or_retired_recording_takes_its_judgements_with_it(
+        self, tmp_path: Path
+    ) -> None:
+        """Recording an observation removes the judgements that scored the old one.
+
+        Both write paths are covered: an observation overwritten in place, as
+        a live run whose screen aborts before the judge leaves it, and a
+        sibling retired for answering a superseded request. Other observations
+        and other candidate engines keep their judgements.
+
+        Design: ``tier2_execution.md`` section 7.14.1.
+
+        Returns:
+            None
+        """
+        old_request = {"prompt": "The question as it was.", "model": "gemini-flash"}
+        new_request = {"prompt": "The question as it is now.", "model": "gemini-flash"}
+
+        # FIVE OLD OBSERVATIONS, EACH JUDGED BY TWO JUDGES, and one judgement of
+        # another candidate engine's observation 0, which nothing here touches.
+        for index in range(5):
+            record_fixture(
+                tmp_path,
+                FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=index),
+                hash_request(old_request), {"text": f"old {index}"}, "gemini-flash",
+                old_request,
+            )
+            for judge in ("gemini", "claude"):
+                record_judgement(
+                    tmp_path, JudgementKey(_CASE_ID, "gemini", judge, index),
+                    "judge-hash", "judge-model", {"score": 5},
+                )
+        other_engine = JudgementKey(_CASE_ID, "openai", "gemini", 0)
+        record_judgement(tmp_path, other_engine, "judge-hash", "judge-model", {"score": 1})
+
+        # THE QUESTION MOVES. Recording observation 0 retires 1 to 4.
+        record_fixture(
+            tmp_path, FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=0),
+            hash_request(new_request), {"text": "new 0"}, "gemini-flash", new_request,
+        )
+        survivors = sorted(
+            path.relative_to(tmp_path / "judgements").as_posix()
+            for path in (tmp_path / "judgements").rglob("*.json")
+        )
+        assert survivors == [other_engine.path(tmp_path).relative_to(
+            tmp_path / "judgements").as_posix()], (
+            f"judgements {survivors} outlived the recordings they scored, so the "
+            f"store holds scores for responses it no longer carries"
+        )
+
+        # OVERWRITTEN UNDER THE SAME REQUEST, as a screen abort leaves it: the
+        # judgement of observation 0 goes, observation 1's stays.
+        for index in range(2):
+            record_judgement(
+                tmp_path, JudgementKey(_CASE_ID, "gemini", "gemini", index),
+                "judge-hash", "judge-model", {"score": 5},
+            )
+        record_fixture(
+            tmp_path, FixtureKey(case_id=_CASE_ID, engine="gemini", observation_index=0),
+            hash_request(new_request), {"text": "new 0, again"}, "gemini-flash", new_request,
+        )
+        assert not JudgementKey(_CASE_ID, "gemini", "gemini", 0).path(tmp_path).is_file(), (
+            "a judgement survived the recording it scored being overwritten, so "
+            "it scores text the store no longer holds"
+        )
+        assert JudgementKey(_CASE_ID, "gemini", "gemini", 1).path(tmp_path).is_file(), (
+            "recording observation 0 removed observation 1's judgement"
+        )
+        assert other_engine.path(tmp_path).is_file(), (
+            "a re-record on one candidate engine removed another engine's judgement"
+        )

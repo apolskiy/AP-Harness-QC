@@ -3,7 +3,7 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-11-02
+Last updated: 2026-11-05
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
@@ -46,7 +46,7 @@ component deciding whether it failed.
 """
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Final, Optional
 
 from cmn.vectors import grading_values
@@ -59,6 +59,7 @@ from cmn.vectors import grading_values
 from execution.replay import FixtureMissing, FixtureStale
 
 from evaluation.aggregation import AggregateScore, aggregate
+from evaluation.answer_list import CLARIFICATION_ROUTE, answer_route, check_answer_list
 from evaluation.assertions import (
     AssertionResult,
     assertions_passed,
@@ -198,6 +199,9 @@ class EvaluationResult:
             one was composed, and empty where none was (design section 4C.6).
         judge_reply (dict): The judge's reply as it returned it, each criterion
             with its score and rationale, empty where no usable reply came back.
+        answer_route (str): ``list``, ``clarification`` or ``neither`` where
+            the rule declares a list, empty where it declares none or the
+            evaluation ended before the route was read (design section 5.5).
     """
 
     case_id: str
@@ -214,6 +218,7 @@ class EvaluationResult:
     planted_score_returned: str = ""
     judge_prompt: str = ""
     judge_reply: dict[str, Any] = field(default_factory=dict)
+    answer_route: str = ""
 
     @property
     def judged(self) -> bool:
@@ -296,6 +301,62 @@ class _Progress:
 
 
 
+@dataclass(frozen=True)
+class _ClarificationRules:
+    """A rule as the clarification route reads it: its fatal checks and its clarification rubric.
+
+    Every other attribute is the rule's own. Design section 5.5.
+
+    Attributes:
+        base (Any): The rule.
+        rubric (Any): The rule's ``answer_list.clarification_rubric``.
+        assertions (list): The rule's assertions of ``fatal`` severity.
+    """
+
+    base: Any
+    rubric: Any
+    assertions: list[Any]
+
+    def __getattr__(self, name: str) -> Any:
+        """Return the rule's own attribute for anything the route does not replace.
+
+        Args:
+            name (str): The attribute.
+
+        Returns:
+            Any: The rule's value.
+        """
+        return getattr(self.base, name)
+
+
+def _routed(context: ObservationContext) -> ObservationContext:
+    """Return the context the route reads: on the clarification route, its rules replaced.
+
+    Design: section 5.5.
+
+    Args:
+        context (ObservationContext): The observation.
+
+    Returns:
+        ObservationContext: Unchanged unless the answer takes the clarification
+        route, where the rules carry the fatal assertions alone and the
+        clarification rubric.
+    """
+    rules = context.rules
+    if isinstance(rules, _ClarificationRules):
+        return context
+    if answer_route(rules, context.material.candidate_output) != CLARIFICATION_ROUTE:
+        return context
+    return replace(context, rules=_ClarificationRules(
+        base=rules,
+        rubric=rules.answer_list.clarification_rubric,
+        assertions=[
+            entry for entry in (getattr(rules, "assertions", None) or [])
+            if entry.severity == "fatal"
+        ],
+    ))
+
+
 def _response_only(rules: Any) -> bool:
     """Return whether a rule is judged on its answer alone.
 
@@ -313,10 +374,12 @@ def _response_only(rules: Any) -> bool:
 def observation_judge_request(context: ObservationContext) -> Any:
     """Return the judge request an observation is sent, as the pipeline composes it.
 
-    The answer alone on a rule judged on it, since the task and its documents
-    are where a declared payload lives (section 4C.4), and the whole material
+    The answer and the system instruction on a rule judged on the answer, since
+    the task and its documents are where a declared payload lives and the system
+    instruction holds what the answer is judged against (section 4C.4), and the whole material
     otherwise. A caller holding a recorded response rebuilds the exact prompt
-    from it (section 4C.6).
+    from it (section 4C.6). An answer on the clarification route is sent with
+    the clarification rubric (section 5.5).
 
     Args:
         context (ObservationContext): The observation, its rule carrying a rubric.
@@ -324,8 +387,12 @@ def observation_judge_request(context: ObservationContext) -> Any:
     Returns:
         Any: The composed ``JudgeRequest``.
     """
+    context = _routed(context)
     material = (
-        UnauthoredMaterial(candidate_output=context.material.candidate_output)
+        UnauthoredMaterial(
+            candidate_output=context.material.candidate_output,
+            system_instruction=context.material.system_instruction,
+        )
         if _response_only(context.rules) else context.material
     )
     return compose_judge_request(
@@ -462,10 +529,20 @@ def evaluate_observation(
             checks_ran=False, rubric_authored=rubric_authored,
         )
 
-    progress.results = run_assertions(
+    # THE LIST THE PROMPT ASKED FOR, OR A REQUEST FOR CLARIFICATION, settled
+    # before any assertion or judge reads the answer. The clarification route
+    # runs the fatal checks alone and judges on the clarification rubric; the
+    # list check reports on the other two (section 5.5).
+    route = answer_route(context.rules, context.material.candidate_output)
+    context = _routed(context)
+    if route and route != CLARIFICATION_ROUTE:
+        progress.results.append(
+            check_answer_list(context.material.candidate_output, context.rules.answer_list)
+        )
+    progress.results.extend(run_assertions(
         getattr(context.rules, "assertions", None) or [],
         context.material.candidate_output,
-    )
+    ))
 
     # STEP 3B. Tool compliance is an assertion in everything but where it is
     # declared, so its results join the same list and gate the same way.
@@ -491,12 +568,15 @@ def evaluate_observation(
             case_id=context.case_id, screen=progress.screen,
             assertion_results=progress.results, judge_skipped_reason=reason,
             judge_on_failure=judge_on_failure, taxonomy_codes=progress.codes,
-            checks_ran=declared, rubric_authored=rubric_authored,
+            checks_ran=declared, rubric_authored=rubric_authored, answer_route=route,
         )
 
-    return _judge_and_aggregate(
-        context, bound, progress, judge_on_failure=judge_on_failure,
-        at_pass_mark=at_pass_mark,
+    return replace(
+        _judge_and_aggregate(
+            context, bound, progress, judge_on_failure=judge_on_failure,
+            at_pass_mark=at_pass_mark,
+        ),
+        answer_route=route,
     )
 
 
@@ -673,7 +753,12 @@ def _judge_and_aggregate(
         at_pass_mark=at_pass_mark,
     )
     if score.passed is False:
-        progress.codes.append("QC_LLM_RUBRIC_FAILURE")
+        # A REQUEST FOR CLARIFICATION BELOW ITS RUBRIC was not warranted, which
+        # the registry names (section 5.5).
+        progress.codes.append(
+            "QC_LLM_OVER_CLARIFICATION" if isinstance(context.rules, _ClarificationRules)
+            else "QC_LLM_RUBRIC_FAILURE"
+        )
     steered = _planted_score_returned(
         context.rules.rubric, reply.scores, context.material.candidate_output
     )

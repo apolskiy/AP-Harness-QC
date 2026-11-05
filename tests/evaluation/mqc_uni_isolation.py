@@ -3,11 +3,12 @@
 """Unit cases for keeping untrusted text out of the judge's instructions.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 Its cases check :func:`evaluation.isolation.compose_judge_request`. The candidate
-output, the task instruction and the context documents each appear only in a
-data field, an injection through any of them never reaches the instruction text,
+output, the system instruction, the task instruction and the context documents
+each appear only in a data field, a task without a system instruction sends no
+such field, an injection through any of them never reaches the instruction text,
 and ordinary and adversarial cases are isolated alike. They also check what the
 instruction carries, no priority and no requirement identifiers, the meaning of
 levels two and four, and a reply schema naming every criterion.
@@ -38,9 +39,12 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114310  injection_via_candidate_output_never_reaches_instructions
 #   114311  injection_via_task_instruction_never_reaches_instructions
 #   114312  injection_via_context_documents_never_reaches_instructions
+#   114313  injection_via_system_instruction_never_reaches_instructions
 #   114302  isolation_applies_to_ordinary_and_adversarial_alike
 #   114306  task_instruction_is_isolated_into_a_data_field
 #   114307  context_documents_are_isolated_into_a_data_field
+#   114314  system_instruction_is_isolated_into_a_data_field
+#   114315  a_task_without_a_system_instruction_sends_no_such_field
 #   114309  each_observation_composes_under_its_own_index
 # TestMQCJudgeInstructionContent
 #   114303  judge_receives_no_priority_field
@@ -151,6 +155,20 @@ class TestMQCIsolation:
         """
         self._never_reaches_instructions(sample_rubric_record, "context_documents")
 
+    @pytest.mark.base
+    def MQC_EVL_UNI_114313_injection_via_system_instruction_never_reaches_instructions(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """An injection in the system instruction never reaches the instructions.
+
+        Args:
+            sample_rubric_record (Rubric): pytest's fixture.
+
+        Returns:
+            None
+        """
+        self._never_reaches_instructions(sample_rubric_record, "system_instruction")
+
     def _never_reaches_instructions(
         self, sample_rubric_record: Rubric, field_name: str
     ) -> None:
@@ -242,6 +260,48 @@ class TestMQCIsolation:
         assert request.data["context_document.MQC_DOC_one"] == _PAYLOAD
         assert request.data["context_document.MQC_DOC_two"] == "Benign text."
         assert request.instruction_contains(_PAYLOAD) is False
+
+    def MQC_EVL_UNI_114314_system_instruction_is_isolated_into_a_data_field(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """A system instruction reaches the judge word for word, as data.
+
+        Design: tier3_evaluation.md section 3.1.2.
+
+        Args:
+            sample_rubric_record (Rubric): A rubric to compose against.
+
+        Returns:
+            None
+        """
+        rounding = "State every percentage to one decimal place, rounded half up."
+        request = compose_judge_request(
+            _CASE_ID, sample_rubric_record, _material(system_instruction=rounding)
+        )
+
+        assert request.data["system_instruction"] == rounding
+        assert rounding in request.rendered()
+        assert request.instruction_contains(rounding) is False
+
+    def MQC_EVL_UNI_114315_a_task_without_a_system_instruction_sends_no_such_field(
+        self, sample_rubric_record: Rubric
+    ) -> None:
+        """No system instruction, no field: the request carries nothing empty.
+
+        Design: tier3_evaluation.md section 3.1.2.
+
+        Args:
+            sample_rubric_record (Rubric): A rubric to compose against.
+
+        Returns:
+            None
+        """
+        request = compose_judge_request(_CASE_ID, sample_rubric_record, _material())
+
+        assert "system_instruction" not in request.data
+        assert set(request.data) == {
+            "candidate_output", "task_instruction", "context_document.MQC_DOC_posting",
+        }
     def MQC_EVL_UNI_114309_each_observation_composes_under_its_own_index(
         self, sample_rubric_record: Rubric
     ) -> None:

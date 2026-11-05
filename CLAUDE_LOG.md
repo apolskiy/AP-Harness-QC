@@ -15241,3 +15241,67 @@ while a live sweep holds the machine. Pylint 10.00/10 exit 0 in both
 repositories. The `cmn_verdict_and_cli.md` inventory 477 to 478 and 282 to 283
 negative, the `DESIGN.md` map with it, the README instrument suite 1021 to 1022
 and its requirement count 395 to 396.
+
+
+## 2026-11-04 and 2026-11-05: The Judge Is Shown The System Instruction
+
+The 2026-11-04 changes are each in `CHANGELOG.md` with their cases: the list a
+rule may declare, the scoped assertion, a quotation spanning a sentence end, a
+multiplier beside a bracketed fraction, the judgements a replaced recording
+takes with it, and the four-dollar spending ceiling. This entry records the
+2026-11-05 change, which the case repository's review of its sweep surfaced.
+
+### A judge scored answers against instructions it was never shown
+
+**A) No judge request carried the system instruction.** B) `UnauthoredMaterial`
+held the output, the task instruction and the documents, because the material
+was designed before any task carried a system instruction that mattered to the
+grade. Section 4.2 sends a response that broke its system instruction to the
+judge because the judge is what spots it, so the rule and its mechanism
+disagreed. The case repository's `134203` made it concrete: a rounding rule
+belongs in the system instruction, and a judge that never sees it cannot hold an
+answer to it.
+
+### Two halves, each with its own failing case
+
+| Change | Case | Before the fix |
+|---|---|---|
+| `UnauthoredMaterial.system_instruction`, isolated into a data field of that name | `114313`, `114314` | Both failed; `114315` guards an empty field being sent |
+| A response-only judge receives the answer and the system instruction, at the project owner's ruling | `114532` | Failed, reporting `['candidate_output']` as the only field |
+
+**The response-only half was put to the owner rather than assumed.** Section
+4C.4 withholds the task and its documents because a declared payload lives
+there, and that reason does not reach the system instruction, which carries the
+rules the answer is judged against. It still travels as an isolated data field,
+so a payload a case author placed there would reach the judge as data.
+
+**No live judge was used to test any of it**, at the owner's ruling: a harness
+case checks the request the harness builds, and nothing has to sit on the
+receiving end. A live judgement measures the judge, not the instrument.
+
+### Three injections, and one expectation that was wrong
+
+Renaming the data field, dropping it, and sending an empty one were each caught
+by the case written for it. **`114313` was expected to catch the rename and did
+not**: it checks that an injection never reaches the instruction text, which a
+renamed field still satisfies. `114314` caught it, being the case that reads the
+field by name.
+
+### What it changes downstream
+
+The case repository's 208 stored judgements of tasks carrying a system
+instruction all belong to response-only rules, so the first half changed none of
+them and the second makes all of them stale. That repository holds them for
+judging again from their recorded answers.
+
+### Digressions the user spotted, and the fix
+
+| What happened | The fix |
+|---|---|
+| The design said the first half would make stored judgements stale, before anything was measured | A replay was unchanged and the stored prompts showed why. The text was corrected to the measurement |
+| The answer-only rule was cited as section 4C.3 | It is 4C.4 |
+
+**State.** Harness unit 1026 of 1026, system 24 of 24 in replay, 0 skipped,
+four mutation audits deselected (not requested), 1054 in total. Pylint exit 0.
+The `tier3_evaluation.md` inventory 225 to 229, the README instrument suite 1050
+to 1054 and its requirement count 401 to 402.

@@ -3,7 +3,7 @@
 """The injection vector registry, the patterns every injection screen matches.
 
 Created: 2026-09-26
-Last updated: 2026-11-01
+Last updated: 2026-11-05
 
 This file contains ``match_vectors``, which applies every registered vector to
 a text and returns ``VectorMatch`` records; ``match_named``, which applies one
@@ -352,6 +352,39 @@ def _sentence_end(text: str, position: int, *, skip_empty: bool) -> int:
         cursor = found.end()
 
 
+def _quotation_opening(text: str, starts: list[int]) -> int:
+    """Return where the sentence opening a double quotation still open at the last start begins.
+
+    Design: ``tier3_evaluation.md`` section 5.2.6. A straight double quote
+    toggles a quotation, a typographic opening mark opens one and its closing
+    mark closes it.
+
+    Args:
+        text (str): The text as written.
+        starts (list[int]): Where each sentence up to the match's begins, in
+            order, the last being the match's own.
+
+    Returns:
+        int: The start of the sentence holding the opening mark, or the match's
+        own sentence start where no quotation is open there.
+    """
+    begin = starts[-1]
+    opened: list[int] = []
+    for index, character in enumerate(text[:begin]):
+        if character == '"':
+            if opened and text[opened[-1]] == '"':
+                opened.pop()
+            else:
+                opened.append(index)
+        elif character == "“":
+            opened.append(index)
+        elif character == "”" and opened:
+            opened.pop()
+    if not opened:
+        return begin
+    return max(sentence for sentence in starts if sentence <= opened[0])
+
+
 def _reported_and_rejected(text: str, start: int, end: int) -> bool:
     """Report whether a match is reported speech the answer rejects.
 
@@ -372,16 +405,19 @@ def _reported_and_rejected(text: str, start: int, end: int) -> bool:
 
     Returns:
         bool: True where a source is named as speaking before the match in its
-        sentence, or a pronoun opens it after a sentence naming one, and a
+        sentence, or in the sentence opening a double quotation still open at
+        the match, or a pronoun opens it after a sentence naming one, and a
         rejection follows in that sentence or the next.
     """
     reading = blanked_reading(text)
     begin, previous = 0, 0
+    starts = [0]
     for found in _SENTENCE_END.finditer(text, 0, start):
         if text[begin:found.start()].strip():
             previous = begin
         begin = found.end()
-    prefix = reading[begin:start]
+        starts.append(begin)
+    prefix = reading[_quotation_opening(text, starts):start]
     if not _REPORTED_SOURCE.search(prefix) and not (
         _PRONOUN_SOURCE.search(prefix) and _NAMED_SOURCE.search(reading[previous:begin])
     ):
