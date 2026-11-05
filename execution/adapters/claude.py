@@ -3,7 +3,7 @@
 """The adapter that sends cases to Anthropic's Claude models and reads their replies.
 
 Created: 2026-09-24
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 This file contains :class:`ClaudeAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Anthropic Messages API. It composes
@@ -140,6 +140,37 @@ class ClaudeAdapter(ConfiguredAdapter):
             "import anthropic",
             f"client = anthropic.Anthropic()  # reads {cls.API_KEY_ENV}",
         )
+
+    @classmethod
+    def reproduction_endpoint(cls) -> str:
+        """Return the Messages API endpoint, the recorded request being its wire body.
+
+        Every recorded key, ``output_config`` included, is a Messages API body
+        parameter (``consumer_ci.md`` section 9.5.3.1).
+
+        Returns:
+            str: The endpoint URL.
+        """
+        return "https://api.anthropic.com/v1/messages"
+
+    @classmethod
+    def reproduction_headers(cls) -> tuple[tuple[str, str], ...]:
+        """Return the credential header and the API version header the endpoint takes.
+
+        Returns:
+            tuple[tuple[str, str], ...]: ``x-api-key``, naming the credential
+            variable through ``{key}``, and ``anthropic-version``.
+        """
+        return (("x-api-key", "{key}"), ("anthropic-version", "2023-06-01"))
+
+    @classmethod
+    def reproduction_reply_fields(cls) -> str:
+        """Return where a Messages API reply holds the answer and any tool call.
+
+        Returns:
+            str: The ``content`` blocks, by type.
+        """
+        return "each `content` block, `text` for the answer and `tool_use` for a tool call"
 
     # WHAT THIS SDK READS FOR ITSELF. The Anthropic client resolves its own
     # credential rather than taking one through a constructor argument, so

@@ -3,7 +3,7 @@
 """The list check, which decides whether an answer gave the list its prompt asked for.
 
 Created: 2026-11-04
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 This file contains :func:`check_answer_list`, which reports whether an answer
 holds the numbered or bulleted list a rule declares, as an assertion result

@@ -3,7 +3,7 @@
 """The adapter that sends cases to Google's Gemini models and reads their replies.
 
 Created: 2026-09-26
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 This file contains :class:`GeminiAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Google Gen AI API. It composes and
@@ -102,6 +102,15 @@ class GeminiAdapter(ConfiguredAdapter):
             "from google import genai",
             f"client = genai.Client()  # reads {cls.API_KEY_ENV}",
         )
+
+    @classmethod
+    def reproduction_reply_fields(cls) -> str:
+        """Return where the SDK's response holds the answer and any tool call.
+
+        Returns:
+            str: The response's text and its function calls.
+        """
+        return "`response.text`, and `response.function_calls` for a tool call"
 
     # WHAT THIS SDK CARRIES IN A CLASS RATHER THAN A STATUS. Every
     # status meaning comes from the shared table instead.

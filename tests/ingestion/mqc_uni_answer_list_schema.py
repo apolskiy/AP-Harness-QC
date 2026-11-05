@@ -3,7 +3,7 @@
 """Unit cases for validating the answer list a golden rule declares.
 
 Created: 2026-11-04
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 Its cases check ``GoldenRuleSet`` in :mod:`ingestion.schemas`. A declared list
 loads with its style, its bound and its clarification rubric; an unregistered

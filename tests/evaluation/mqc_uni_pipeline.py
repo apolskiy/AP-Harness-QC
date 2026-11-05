@@ -3,7 +3,7 @@
 """Unit cases for the order in which one response is screened, asserted and judged.
 
 Created: 2026-09-26
-Last updated: 2026-11-02
+Last updated: 2026-11-05
 
 Its cases check :func:`evaluation.pipeline.evaluate_observation`. Assertions run
 before the judge, a screen abort skips both, a ``violation`` failure fails the
@@ -66,6 +66,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114517  a_tool_only_rule_passes_on_its_tool_check
 # TestMQCRubriclessRule
 #   114518  a_rubricless_rule_with_a_bound_judge_is_not_judged
+# TestMQCJudgeMaterial
+#   114533  an_ordinary_judge_is_shown_the_system_instruction
 # ------------------------------------------------------------ end of cases
 
 from typing import Any
@@ -726,3 +728,45 @@ class TestMQCRubriclessRule:
         # AND IT STILL PASSES ON ITS OWN CHECKS. A rubricless rule is not a
         # broken one, so failing it here would trade a crash for a false red.
         assert result.passed
+
+
+class TestMQCJudgeMaterial:
+    """What an ordinary judged observation hands the judge."""
+
+    def MQC_EVL_UNI_114533_an_ordinary_judge_is_shown_the_system_instruction(
+        self, rules: GoldenRuleSet
+    ) -> None:
+        """An ordinary rule's judge receives the system instruction beside the whole material.
+
+        Design: ``tier3_evaluation.md`` section 3.1.2.
+
+        Args:
+            rules (GoldenRuleSet): A rule with a passing assertion and a rubric.
+
+        Returns:
+            None
+        """
+        system = "State every percentage to one decimal place, rounded half up."
+        material = UnauthoredMaterial(
+            candidate_output="It requires five years of Python.",
+            system_instruction=system,
+            task_instruction="Summarise the posting.",
+            context_documents={"DOC_posting": "Five years of Python required."},
+        )
+        judge = RecordingJudge()
+        evaluate_observation(
+            observation_context(rules, material.candidate_output, material=material),
+            judge.binding(),
+        )
+
+        assert judge.requests, "an ordinary rule with a passing assertion reached no judge"
+        assert set(judge.requests[0].data) == {
+            "candidate_output", "system_instruction", "task_instruction",
+            "context_document.DOC_posting",
+        }, f"the judge did not receive the whole material: {sorted(judge.requests[0].data)}"
+        assert judge.requests[0].data["system_instruction"] == system, (
+            "the system instruction reached the judge altered or not at all"
+        )
+        assert system not in judge.requests[0].instruction, (
+            "the system instruction reached the judge's instruction text"
+        )

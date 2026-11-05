@@ -3,7 +3,7 @@
 """The registry that finds the adapter class for an engine name such as ``gemini``.
 
 Created: 2026-09-26
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 This file contains ``register_adapter``, which enrols an adapter class under
 the engine name it declares, and enrols the four shipped adapters;
@@ -250,39 +250,63 @@ def reproduction_snippet(engine: str, request: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def reproduction_curl(engine: str, request: dict[str, Any]) -> str:
-    """Return a ``curl`` posting one recorded request, where that is exact.
-
-    Offered only by an adapter whose recorded request is the wire body, which
-    is the OpenAI protocol. The body travels in a quoted heredoc, so an
-    apostrophe in a prompt cannot end the shell's quoting, and the credential
-    is the engine's own variable, named and never valued. Design:
-    ``consumer_ci.md`` section 9.5.3.1.
+def reproduction_body(engine: str, request: dict[str, Any]) -> str:
+    """Return the body a ``curl`` posts, to be saved as ``request.json``.
 
     Args:
         engine (str): The engine the call was made against.
         request (dict): The composed request the recording stored.
 
     Returns:
-        str: A bash command, or an empty string where the engine is
-        unregistered or its recording is not the wire body.
+        str: The recorded request as indented JSON, or an empty string where
+        the engine is unregistered or its recording is not the wire body.
     """
     try:
         adapter = adapter_for(engine)
     except (KeyError, ValueError):
         return ""
-    endpoint = adapter.reproduction_endpoint()
-    if not endpoint:
+    if not adapter.reproduction_endpoint():
         return ""
-    body = json.dumps(request, indent=2, ensure_ascii=False)
-    return "\n".join([
-        f"curl {endpoint} \\",
-        f'  -H "Authorization: Bearer ${adapter.API_KEY_ENV}" \\',
-        '  -H "Content-Type: application/json" \\',
-        "  --data-binary @- <<'JSON'",
-        body,
-        "JSON",
-    ])
+    return json.dumps(request, indent=2, ensure_ascii=False)
+
+
+def reproduction_curl(engine: str, request: dict[str, Any], *, shell: str = "bash") -> str:
+    """Return a ``curl`` posting one recorded request from ``request.json``, where that is exact.
+
+    Offered only by an adapter whose recorded request is the wire body. The
+    body is read from the file :func:`reproduction_body` gives, so no shell
+    re-quotes it and no here-document is needed, and the credential is the
+    engine's own variable, named and never valued. Design: ``consumer_ci.md``
+    section 9.5.3.1.
+
+    Args:
+        engine (str): The engine the call was made against.
+        request (dict): The composed request the recording stored.
+        shell (str): ``bash`` for ``curl``, or ``powershell`` for ``curl.exe``,
+            which PowerShell runs in place of its own ``curl`` alias.
+
+    Returns:
+        str: The command, or an empty string where the engine is unregistered
+        or its recording is not the wire body.
+    """
+    if not reproduction_body(engine, request):
+        return ""
+    adapter = adapter_for(engine)
+    powershell = shell == "powershell"
+    key = f"$env:{adapter.API_KEY_ENV}" if powershell else f"${adapter.API_KEY_ENV}"
+    joiner = " `" if powershell else " \\"
+    headers = [
+        *(f'  -H "{name}: {value.format(key=key)}"'
+          for name, value in adapter.reproduction_headers()),
+        '  -H "Content-Type: application/json"',
+    ]
+    body = '  --data-binary "@request.json"' if powershell else "  --data-binary @request.json"
+    program = "curl.exe" if powershell else "curl"
+    lines = [f"{program} {adapter.reproduction_endpoint()}", *headers, body]
+    return "\n".join(
+        line + (joiner if index < len(lines) - 1 else "")
+        for index, line in enumerate(lines)
+    )
 
 
 def main(argv: Optional[list[str]] = None) -> int:

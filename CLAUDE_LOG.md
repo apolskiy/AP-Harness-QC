@@ -15305,3 +15305,135 @@ judging again from their recorded answers.
 four mutation audits deselected (not requested), 1054 in total. Pylint exit 0.
 The `tier3_evaluation.md` inventory 225 to 229, the README instrument suite 1050
 to 1054 and its requirement count 401 to 402.
+
+### Every route to a judge, tested through the pipeline
+
+**The rule, as ruled on 2026-11-05.** A task carrying a system instruction sends
+it to the engine under test, so a judged case sends it to the judge as well; it
+is withheld only where no judge runs or the task carries none.
+
+**Two of the three routes had no case through the pipeline.** `114313` to
+`114315` call `compose_judge_request` directly and `114532` covers the
+response-only route. The ordinary rule judged on the whole material and the
+clarification route of section 5.5, which replaces the rubric and keeps the
+material, were each tested only as far as the composer, so a route building
+its own material without the instruction would have passed every case.
+
+`MQC_EVL_UNI_114533` and `114678` run `evaluate_observation` with a recording
+judge and read the request it received. No live judge is involved and no
+production code changed.
+
+| Injected into `evaluation/pipeline.py` | Caught by | Not caught by |
+|---|---|---|
+| The whole-material branch sends the material without the instruction | `114533`, `114678` | `114313` to `114315` |
+| The clarification route rebuilds the material without it | `114678` | `114313` to `114315`, `114533` |
+
+**State.** Harness unit 1028 of 1028, system 24 of 24 in replay, 0 skipped,
+four mutation audits deselected (not requested), 1056 in total. Pylint exit 0.
+The `tier3_evaluation.md` inventory 229 to 231 and the README instrument suite
+1054 to 1056.
+
+### A recorded call, reproduced from a request.json on every wire-body engine
+
+**The gap.** The case repository's tickets now carry a reproduction a
+vendor can run without that repository. The harness offered a `curl` on the
+OpenAI-protocol engines alone, inline in bash, and named no reply field.
+claude's recording is its Messages API body, so it can be posted exactly.
+
+**What changed.** `reproduction_body` gives the recorded request for a
+`request.json` file, and `reproduction_curl` posts it with `curl` or
+`curl.exe`, the credential named as `$VAR` or `$env:VAR`. Each adapter declares
+its endpoint, headers and reply fields. gemini declares no endpoint: its
+recording carries `config.automatic_function_calling`, which has no REST form.
+
+**`113138` to `113141` were vacuous on two points.** They read the expected
+headers from the adapter under test, and checked only that the reply-field
+text was non-empty.
+
+| Injected | Before | After |
+|---|---|---|
+| claude's endpoint withdrawn | `113138` | `113138` |
+| The body sent through a here-document | `113138`, `113140`, `113141` | The same |
+| claude's `x-api-key` dropped | **Nothing** | `113138` |
+| `choices[0].message.content` dropped from the reply fields | **Nothing** | `113140`, `113141` |
+
+The credential header and the answer field are now stated in the case.
+
+**State.** Harness unit 1028 of 1028, system 24 of 24 in replay, 0 skipped,
+four mutation audits deselected (not requested), 1056 in total. Pylint exit 0
+after the case docstrings were shortened. No count moved.
+
+### The no-quote check counted a connective pair as a quote
+
+**A) `source_phrase_absent` failed an answer for two words such as
+"instructions and".** B) Any contiguous run of `min_words` declared words
+counted, and with `min_words: 2` a word of the source beside a connective is a
+run. Two words of which one is `and` restate nothing of the source, and the
+failure withheld the response from the judge, so a candidate was never graded
+on the strength of a coincidence.
+
+**The rule, at the project owner's ruling.** A run holding `and`, `or`,
+`despite`, `in spite` (one word or two), `regardless` or `unless` counts only
+where it holds at least two other words. A run holding no connective still
+fails at `min_words`. `tier3_evaluation.md` section 5.2.7, requirement
+`MQC_REQ_HAR_EVL_0083`, case `114679`.
+
+**The first implementation missed one shape, and the case found it.** Pairing
+"in spite" was read inside the run, and `_longest_reuse` tries a run from every
+start, so the run starting at "spite" did not contain its "in" and counted
+"spite" as an ordinary word. Step 9 failed on it. The connective positions are
+now computed once over the whole answer and the run reads them.
+
+| Injected | Caught by `114679` at |
+|---|---|
+| The connective filter removed | Step 1 |
+| One other word beside a connective suffices | Step 1 |
+| "in spite" as two words not paired | Step 9 |
+| `and` dropped from the set | Step 1 |
+| `or`, `despite`, `inspite`, `regardless`, `unless` dropped, one at a time | Steps 7, 8, 10, 11, 12 |
+
+**What it changes downstream.** The case repository's no-quote failures that
+rested on a connective pair would now pass the check, and those responses were
+never judged. They are judged in the live run, not here.
+
+**State.** Harness unit 1029 of 1029, system 24 of 24 in replay, 0 skipped,
+four mutation audits deselected (not requested), 1057 in total. Pylint exit 0.
+README 1057 cases and 403 requirements, `DESIGN.md` tier 3 at 232 cases.
+
+### The connectives became a default list of function words, and a rule extends it
+
+**The same day, the owner widened the list and ruled how it grows.** Added:
+`but`, `nor`, `for`, `so`, `yet`, `although`, `either`, `neither`, `both`,
+`since`, `because`, and the articles `the` and `a`. With articles on it the
+list is no longer connectives, so it is renamed **function words** in the
+design, the requirement, the case name and the code.
+
+**The list is a default, extended by the case that needs a word.** I first
+wrote that the list was fixed and no rule extends it, reading "we will not
+change harness every time a new instruction is used" as a ban on extension.
+The owner corrected it: the list exists to be extended, and what must not
+change per instruction is the harness code and its API. So a rule declares
+`function_words`, added to the default for that rule's check only; a word
+needed later is case data. Requirement `MQC_REQ_HAR_EVL_0084`, case `114680`.
+
+**A word the check reads as a function word wherever it stands.** `for`,
+`so`, `yet`, `the` and `a` are function words in some places only, and the
+check compares spellings, so `do so` holds one. The design states it.
+
+**114680's first draft could not have passed.** Its answer "with gaps, and
+flags" keeps two other words even with `with` added, so it counts either way;
+the case failed before the fix for the wrong reason. The answers were cut to
+one counting pair each before the code was written.
+
+| Injected | Caught by |
+|---|---|
+| The filter removed, or one other word sufficing | `114679` step 1 |
+| "in spite" as two words not paired | `114679` step 20 |
+| Each of the 19 default words dropped, one at a time | `114679`, the step for that word |
+| The extension ignored | `114680` step 1 |
+| The extension replacing the default | `114680` step 3 |
+| One rule's extension kept for the next rule | `114680` step 2 |
+| A malformed extension read | `114680` step 4 |
+
+**`mqc_uni_assertions.py` passed the 900-line runway** with `114680`, so the
+`source_phrase_absent` subject moved to `mqc_uni_source_phrase.py`, unchanged.

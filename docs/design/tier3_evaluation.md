@@ -94,6 +94,16 @@ hidden-passage tasks, belongs to such a rule, so those 208 are stale once the
 case repository adopts this harness and are judged again from their recorded
 answers.
 
+**Every route an observation takes to a judge carries it**: the ordinary rule
+judged on the whole material, the rule judged on the answer alone, and the
+clarification route of section 5.5, which replaces the rubric and keeps the
+material. The instruction is withheld only where no judge runs or the task
+carries none. `114313` to `114315` assert it of `compose_judge_request` called
+directly; `114532`, `114533` and `114678` assert it of each route through
+`evaluate_observation`, with a recording judge and no live one, so a route that
+built its own material without the instruction is caught where the cases on
+the composer alone would pass.
+
 ### 3.2 Screening is a measurement
 
 Programmatic, never a model call. An LLM asked to detect injection is itself injectable, which relocates the problem rather than solving it.
@@ -1540,11 +1550,65 @@ that is ordinary English fails an answer that did not. The first is a finding
 nobody raises and the second is a finding whose evidence is the answer itself,
 visible in the ticket to whoever reads it.
 
+##### A function word counts only beside two more words
+
+Added 2026-11-05 at the project owner's ruling, after the review of the
+consumer's recordings of 2026-11-04. The gate failed four answers, each on a
+pair holding a function word: `and also` twice, `match and`, and `instructions
+and`. **A run that holds a function word counts only where it also holds at
+least two words that are not function words**, and a run holding none is
+unchanged, so `full match` still fails at two words.
+
+| Run reused | Words besides the function words | Counts |
+|---|---|---|
+| `full match` | Two, and no function word | Yes, as before |
+| `instructions and`, `match and`, `and also` | One | **No** |
+| `all instructions and`, `instructions and grade` | Two | Yes |
+
+**The function words are the owner's list**: the conjunctions `and`, `or`,
+`but`, `nor`, `for`, `so`, `yet`, `although`, `either`, `neither`, `both`,
+`since` and `because`, the connectives `despite`, `in spite` (written as one
+word or two), `regardless` and `unless`, and the articles `the` and `a`. They are the words a report builds its own sentences
+with, so beside one other word they say nothing about whether the passage was
+copied.
+
+**The list is the harness's default, and a rule extends it.** A rule may
+declare `function_words`, a list of further words, which is added to the
+default for that rule's check and never replaces it. So a new case or a new
+instruction needing another word is case data, and changes neither the harness
+code nor its API.
+
+```yaml
+kind: source_phrase_absent
+parameters:
+  source: '...'
+  min_words: 2
+  function_words: [with, from]   # added to the harness default
+```
+
+**An extension is checked like the rest of the parameters.** A
+`function_words` that is not a list of single words, each made only of the
+characters a word is read as, is refused as `QC_HARNESS_PARSER_ERROR`, since a
+word the check can never read would extend nothing and say it had.
+
+**A listed word is read as a function word wherever it stands.** The check
+compares words and cannot tell a conjunction from the same spelling used
+otherwise, so `for the role`, `do so` and `not yet` each hold function words
+too. A passage whose operative phrase is two words, one of them listed, is
+therefore caught only from three words, unless the rule's own extension is
+what put the word on the list, in which case the author chose that.
+
+**The longest run is still the one reported.** Adding words to a run never
+removes one that is not a function word, so a run that counts stays counted
+when it grows, and the longest run found from each start is the one tested.
+
 | Case | Asserts |
 |---|---|
 | `114646` | A two-word run of the source fails, naming the longest run reused, and the full source fails |
 | `114647` | A single word of the source passes, the same words in another order pass, and a pair spanning the source's sentence end passes |
 | `114648` | Markup does not hide a run, and an empty source or a `min_words` below two is refused as `QC_HARNESS_PARSER_ERROR` rather than read as a pass |
+| `114679` | A run holding a function word and one other word passes, one holding a function word and two other words fails, and each listed word, `in spite` in both spellings, is read as one |
+| `114680` | A word a rule adds through `function_words` is read as one for that rule only, the default stays in force beside it, and an extension that is not a list of single words is refused as `QC_HARNESS_PARSER_ERROR` |
 
 ### 5.3 A substring cannot see the sentence it sits in, so `claim` reads one
 
@@ -2619,6 +2683,8 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114646` | N | `a_two_word_run_of_the_declared_source_fails` (5.2.7) |
 | `114647` | B | `a_word_a_reordering_and_a_pair_across_a_sentence_end_pass` (5.2.7) |
 | `114648` | N | `markup_hides_no_run_and_a_malformed_declaration_is_refused` (5.2.7) |
+| `114679` | B | `a_function_word_counts_only_beside_two_more_words` (5.2.7) |
+| `114680` | N | `a_rule_extends_the_function_words_for_its_own_check` (5.2.7) |
 | `114649` | N | `punctuation_between_words_does_not_decide_a_pattern` (5.1.1) |
 | `114650` | B | `a_mark_on_a_digit_or_inside_a_word_survives_blanking` (5.1.1) |
 | `114651` | N | `a_claim_splits_raw_sentences_before_blanking_each` (5.1.1) |
@@ -2646,6 +2712,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114673` | N | `a_fatal_assertion_runs_on_the_clarification_route` (5.5) |
 | `114674` | B | `a_heading_emphasis_or_fenced_question_is_not_a_clarification` (5.5) |
 | `114675` | P | `the_clarification_route_judge_request_carries_its_rubric` (5.5) |
+| `114678` | P | `the_clarification_judge_is_shown_the_system_instruction` (3.1.2) |
 | `114676` | B | `a_mark_beside_a_bracketed_figure_survives_blanking` (5.1.1) |
 | `114677` | B | `a_quotation_spanning_a_sentence_end_keeps_its_source` (5.2.6) |
 | `114601` | P | `screen_detects_delimiter_escape` |
@@ -2671,6 +2738,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114607` | N | `screen_makes_no_model_call` |
 | `114500` | P | `programmatic_assertions_run_before_judge` |
 | `114531` | P | `a_violation_failure_reaches_the_judge` (4.2) |
+| `114533` | P | `an_ordinary_judge_is_shown_the_system_instruction` (3.1.2) |
 | ~~`114501`~~ | | ~~`violation_failure_skips_judge_by_default`~~. **Retired 2026-11-02** with the default it asserted, a `violation` failure now reaching the judge (4.2). `114531` holds the rule in its place |
 
 | `114502` | N | `screen_abort_skips_assertions_and_judge` |
@@ -2850,12 +2918,14 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 229 cases, 102 negative, 80 positive, 47 boundary.**
+**Inventory: 233 cases, 103 negative, 82 positive, 48 boundary.**
 
 `114313` to `114315` were added on 2026-11-05 with section 3.1.2: the judge is
 shown the system instruction, isolated like every other field the case author
 writes. `114532` was added the same day, when a response-only judge was given
-it too (section 4C.4).
+it too (section 4C.4), and `114533` and `114678` with it, when the ordinary
+route and the clarification route were found to have no case through the
+pipeline.
 
 ### 11.3 The five cases added with A19
 

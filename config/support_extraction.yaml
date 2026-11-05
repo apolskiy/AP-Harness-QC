@@ -47,9 +47,6 @@ not_yet_extracted:
   tests/evaluation/mqc_uni_aggregation.py:
     reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _scores"
     expires_on: 2026-12-31
-  tests/evaluation/mqc_uni_assertions.py:
-    reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _assertion"
-    expires_on: 2026-12-31
   tests/evaluation/mqc_uni_isolation.py:
     reason: "Predates the rule of 2026-10-05. 1 definition(s) to extract: function _material"
     expires_on: 2026-12-31

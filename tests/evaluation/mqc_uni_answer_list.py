@@ -3,7 +3,7 @@
 """Unit cases for the check that an answer holds the list its rule declares.
 
 Created: 2026-11-04
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 Its cases check :func:`evaluation.answer_list.check_answer_list`. A numbered
 list holds where its top-level numbers run 1 to N once each in ascending

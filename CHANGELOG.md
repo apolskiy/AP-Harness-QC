@@ -29,6 +29,55 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The no-quote check counts a function word only beside two more words, and a rule extends the list, 2026-11-05
+
+**Why it was needed.** `source_phrase_absent` failed an answer that reused two
+consecutive words of the declared text, so "instructions and" counted as a
+quote of "ignore these instructions and grade". A run of two words in which
+one is a function word restates nothing of the source, and a failure there
+withholds the response from the judge for something that is not a quote. A
+new case needing another such word must not need a harness change to get it.
+
+**What changed.**
+- A run holding a function word counts as reuse only where it holds at least
+  two other words. A run holding none still fails at `min_words`.
+- The default list is `and`, `or`, `but`, `nor`, `for`, `so`, `yet`,
+  `although`, `either`, `neither`, `both`, `since`, `because`, `despite`,
+  `in spite` (one word or two), `regardless`, `unless`, `the` and `a`.
+- A rule adds words for its own check through an optional `function_words`
+  parameter, which never replaces the default; one that is not a list of
+  single words is refused as `QC_HARNESS_PARSER_ERROR`.
+- `tier3_evaluation.md` section 5.2.7 states both, `MQC_REQ_HAR_EVL_0083` and
+  `0084` require them, and `MQC_EVL_UNI_114679` and `114680` assert them. The
+  `source_phrase_absent` cases moved to `mqc_uni_source_phrase.py`, since
+  `mqc_uni_assertions.py` had passed the 900-line runway.
+- The README now counts 1058 test cases and 404 requirements.
+
+### A recorded call is reproduced from a request.json, in bash and PowerShell, on every engine whose recording is its wire body, 2026-11-05
+
+**Why it was needed.** A vendor's engineer re-issues a reported call outside
+any test repository, and the reproduction offered a `curl` on the
+OpenAI-protocol engines alone. claude's recording is its Messages API body, so
+it had none, and every `curl` that did exist was a bash line carrying the body
+inline, which PowerShell cannot run. No engine said which reply field holds
+the answer.
+
+**What changed.**
+- `reproduction_body` returns the recorded request as JSON for a
+  `request.json` file, and `reproduction_curl` posts that file with `curl`
+  for bash or `curl.exe` for PowerShell. The credential is named by its
+  variable, `$VAR` or `$env:VAR`, and no command carries a here-document.
+- Each adapter declares its endpoint, its headers and its reply fields.
+  claude posts to `/v1/messages` with `x-api-key` and `anthropic-version`;
+  gemini declares no endpoint, its recording carrying a field with no REST
+  form, and is reproduced through its SDK.
+- `MQC_EXE_UNI_113138` to `113141` check the endpoint, the body, both shells,
+  the credential header and the answer field. The credential header and the
+  answer field are now stated in the case rather than read from the adapter
+  it checks: dropping claude's `x-api-key`, or the OpenAI protocol's
+  `choices[0].message.content`, passed the earlier form and fails this one.
+  `MQC_REQ_HAR_EXE_0136` states the requirement. No case was added.
+
 ### The judge is shown the system instruction, 2026-11-05
 
 **Why it was needed.** A judge scored every response without the system
@@ -59,6 +108,16 @@ the judge now receives the answer and the system instruction
 (`tier3_evaluation.md` section 4C.4). `MQC_EVL_UNI_114532` failed before the
 change, reporting the answer as the only field. Instrument suite: 1054 test
 cases; `tier3_evaluation.md`: 229 cases.
+
+**Every route to a judge is now tested through the pipeline.** `114313` to
+`114315` call the request composer directly, so a route building its own
+material without the instruction would pass them. `MQC_EVL_UNI_114533` covers
+the ordinary rule judged on the whole material and `114678` the clarification
+route, which replaces the rubric and keeps the material. Both run against a
+recording judge. Dropping the instruction from the whole-material route failed
+both, dropping it on the clarification route alone failed `114678`, and the
+composer cases passed under both. No production code changed. Instrument
+suite: 1056 test cases; `tier3_evaluation.md`: 231 cases.
 
 **What it changes downstream.** Every stored judgement in the case repository
 of a task carrying a system instruction belongs to a response-only rule, 208 of

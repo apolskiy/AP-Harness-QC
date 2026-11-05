@@ -3,7 +3,7 @@
 """The interface every model provider adapter implements, and the code they share.
 
 Created: 2026-09-26
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 This file contains :class:`ProviderAdapter`, the abstract interface an adapter
 fills in, composing a request from a case, dispatching it once, normalizing
@@ -383,6 +383,35 @@ class ConfiguredAdapter(ProviderAdapter):
         Returns:
             str: The endpoint, or an empty string where the recording is not
             the wire body and no ``curl`` is offered.
+        """
+        return ""
+
+    @classmethod
+    def reproduction_headers(cls) -> tuple[tuple[str, str], ...]:
+        """Return the headers a ``curl`` re-issuing a recorded request sends.
+
+        Declared beside :meth:`reproduction_endpoint`, because the credential
+        header and any version header differ by provider.
+
+        Returns:
+            tuple[tuple[str, str], ...]: Each header's name and value, where
+            ``{key}`` stands for the shell's reference to the engine's
+            credential variable, so **no credential appears**. Empty where no
+            ``curl`` is offered.
+        """
+        return ()
+
+    @classmethod
+    def reproduction_reply_fields(cls) -> str:
+        """Return where a re-issued call's reply holds the answer and any tool call.
+
+        A ticket names it, so a reader comparing their reply with the recorded
+        one reads the same field (``consumer_ci.md`` section 9.5.5.13).
+
+        Returns:
+            str: The fields, in the form the reproduction returns: the HTTP
+            body where a ``curl`` is offered, the SDK object otherwise. Empty
+            where the adapter declares no reproduction.
         """
         return ""
 

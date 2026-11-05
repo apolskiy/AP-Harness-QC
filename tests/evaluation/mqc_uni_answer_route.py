@@ -3,7 +3,7 @@
 """Unit cases for the route an answer takes when its rule declares a list.
 
 Created: 2026-11-04
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 Its cases check :func:`evaluation.pipeline.evaluate_observation` and
 :func:`evaluation.pipeline.observation_judge_request` on a rule declaring a
@@ -34,6 +34,7 @@ marker, per ``framework-rules.md`` section 3.3.
 #   114673  a_fatal_assertion_runs_on_the_clarification_route
 #   114674  a_heading_emphasis_or_fenced_question_is_not_a_clarification
 #   114675  the_clarification_route_judge_request_carries_its_rubric
+#   114678  the_clarification_judge_is_shown_the_system_instruction
 # ------------------------------------------------------------ end of cases
 
 from typing import Any, Final
@@ -41,6 +42,7 @@ from typing import Any, Final
 import pytest
 
 from cmn.case_steps import step
+from evaluation.isolation import UnauthoredMaterial
 from evaluation.pipeline import evaluate_observation, observation_judge_request
 from ingestion.schemas import GoldenRuleSet
 
@@ -65,6 +67,9 @@ _ASKING: Final[str] = (
     "Before I answer: should the rows be read in the order the excerpt gives "
     "them, or sorted by score?"
 )
+# WHAT THE CASE AUTHOR TOLD THE CANDIDATE, which every route shows the judge
+# (tier3_evaluation.md section 3.1.2).
+_SYSTEM: Final[str] = "Answer in exactly two numbered items."
 
 
 @pytest.fixture(name="listed")
@@ -322,3 +327,37 @@ class TestMQCAnswerRoute:
         step(2, "rebuild the request for a held list, which carries the rule's rubric")
         held = observation_judge_request(observation_context(listed, _HELD))
         assert held.reply_schema["properties"]["scores"]["required"] == ["C_QUALITY"]
+
+    def MQC_EVL_UNI_114678_the_clarification_judge_is_shown_the_system_instruction(
+        self, listed: GoldenRuleSet
+    ) -> None:
+        """The clarification route replaces the rubric and keeps the system instruction.
+
+        Design: ``tier3_evaluation.md`` sections 3.1.2 and 5.5.
+
+        Args:
+            listed (GoldenRuleSet): The declaring rule.
+
+        Returns:
+            None
+        """
+        material = UnauthoredMaterial(
+            candidate_output=_ASKING,
+            system_instruction=_SYSTEM,
+            task_instruction="List what the excerpt returns and why.",
+        )
+        judge = RecordingJudge(score=4)
+        step(1, "evaluate an asking answer, which takes the clarification route")
+        evaluate_observation(
+            observation_context(listed, _ASKING, material=material), judge.binding(),
+        )
+        assert _criteria(judge) == [[_CLARIFYING]], (
+            f"the answer did not reach the judge on the clarification rubric: {_criteria(judge)}"
+        )
+        step(2, "read the system instruction the judge received")
+        assert judge.requests[0].data.get("system_instruction") == _SYSTEM, (
+            "the clarification route dropped or altered the system instruction"
+        )
+        assert _SYSTEM not in judge.requests[0].instruction, (
+            "the system instruction reached the judge's instruction text"
+        )

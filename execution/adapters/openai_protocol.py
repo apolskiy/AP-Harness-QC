@@ -3,7 +3,7 @@
 """The shared adapter for every provider that serves the OpenAI Chat Completions API.
 
 Created: 2026-09-25
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 This file contains :class:`OpenAICompatibleAdapter`, which implements the
 interface in :mod:`execution.adapters.base` against the Chat Completions API
@@ -155,6 +155,25 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
             str: The full endpoint URL.
         """
         return f"{cls.BASE_URL or _SDK_DEFAULT_BASE_URL}/chat/completions"
+
+    @classmethod
+    def reproduction_headers(cls) -> tuple[tuple[str, str], ...]:
+        """Return the bearer credential header this protocol takes.
+
+        Returns:
+            tuple[tuple[str, str], ...]: The ``Authorization`` header, its value
+            naming the credential variable through ``{key}``.
+        """
+        return (("Authorization", "Bearer {key}"),)
+
+    @classmethod
+    def reproduction_reply_fields(cls) -> str:
+        """Return where a chat completion holds the answer and any tool call.
+
+        Returns:
+            str: The two fields of the first choice's message.
+        """
+        return "`choices[0].message.content`, and `choices[0].message.tool_calls` for a tool call"
 
     def client_options(self) -> dict[str, Any]:
         """Return the constructor arguments this engine's client needs.

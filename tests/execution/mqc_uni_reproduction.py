@@ -3,7 +3,7 @@
 """Unit cases for the snippet that re-issues a recorded provider call, per engine.
 
 Created: 2026-10-15
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 Its cases check :func:`reproduction_snippet` and :func:`reproduction_curl` in
 :mod:`execution.adapters.registry`. For each registered engine the snippet
@@ -57,6 +57,7 @@ from cmn.credentials import credential_shaped_value
 from execution.adapters.openai_protocol import OpenAICompatibleAdapter
 from execution.adapters.registry import (
     registered_engines,
+    reproduction_body,
     reproduction_curl,
     reproduction_snippet,
 )
@@ -65,7 +66,16 @@ from tests.execution.conformance_checks import adapter_named
 
 pytestmark = pytest.mark.unit
 
-
+# WHAT EACH PROVIDER'S REPLY AND CREDENTIAL ARE, stated here rather than read
+# from the adapter under test, so an adapter dropping one is reported.
+_ANSWER_FIELD: dict[str, str] = {
+    "claude": "`text`", "gemini": "`response.text`",
+    "grok": "`choices[0].message.content`", "openai": "`choices[0].message.content`",
+}
+_CREDENTIAL_HEADER: dict[str, str] = {
+    "claude": "x-api-key: {key}", "grok": "Authorization: Bearer {key}",
+    "openai": "Authorization: Bearer {key}",
+}
 
 
 class TestMQCReproduction:
@@ -319,7 +329,7 @@ class TestMQCReproduction:
     def MQC_EXE_UNI_113138_claude_offers_curl_only_on_the_wire_protocol(
         self, minimal_case: EvaluationCase
     ) -> None:
-        """For ``claude``: An OpenAI-protocol engine offers a ``curl``; the others offer none.
+        """For ``claude``: A recording that is its wire body is posted by ``curl``.
 
         Args:
             minimal_case (EvaluationCase): pytest's fixture.
@@ -332,7 +342,7 @@ class TestMQCReproduction:
     def MQC_EXE_UNI_113139_gemini_offers_curl_only_on_the_wire_protocol(
         self, minimal_case: EvaluationCase
     ) -> None:
-        """For ``gemini``: An OpenAI-protocol engine offers a ``curl``; the others offer none.
+        """For ``gemini``: A recording that is its wire body is posted by ``curl``.
 
         Args:
             minimal_case (EvaluationCase): pytest's fixture.
@@ -345,7 +355,7 @@ class TestMQCReproduction:
     def MQC_EXE_UNI_113140_grok_offers_curl_only_on_the_wire_protocol(
         self, minimal_case: EvaluationCase
     ) -> None:
-        """For ``grok``: An OpenAI-protocol engine offers a ``curl``; the others offer none.
+        """For ``grok``: A recording that is its wire body is posted by ``curl``.
 
         Args:
             minimal_case (EvaluationCase): pytest's fixture.
@@ -358,7 +368,7 @@ class TestMQCReproduction:
     def MQC_EXE_UNI_113141_openai_offers_curl_only_on_the_wire_protocol(
         self, minimal_case: EvaluationCase
     ) -> None:
-        """For ``openai``: An OpenAI-protocol engine offers a ``curl``; the others offer none.
+        """For ``openai``: A recording that is its wire body is posted by ``curl``.
 
         Args:
             minimal_case (EvaluationCase): pytest's fixture.
@@ -373,12 +383,16 @@ class TestMQCReproduction:
         engine: str,
         minimal_case: EvaluationCase,
     ) -> None:
-        """An OpenAI-protocol engine offers a ``curl``; the others offer none.
+        """An engine whose recording is its wire body offers a ``curl``; the others none.
 
-        The ``curl`` posts the recorded request, unchanged, to the engine's own
-        endpoint, naming its credential variable. The body is a quoted heredoc,
-        and the prompt here carries an apostrophe to show it survives. An
-        engine whose recording is not the wire body returns an empty string.
+        Every engine names the reply field holding the answer. The body is the
+        recorded request, unchanged, written as ``request.json`` and read from
+        that file by a ``curl`` for bash and a ``curl.exe`` for PowerShell, each
+        posting to the engine's own endpoint with its own headers and sending
+        its credential variable in the provider's credential header. Neither carries a
+        here-document. The prompt here carries an apostrophe, which a file
+        cannot lose to a shell's quoting. An engine whose recording is not the
+        wire body returns an empty string for all three.
 
         Design: ``consumer_ci.md`` section 9.5.3.1.
 
@@ -394,36 +408,53 @@ class TestMQCReproduction:
             **adapter.compose_request(minimal_case),
             "probe_text": "the source doesn't support it",
         }
-        command = reproduction_curl(adapter.engine_name, request)
+        bash = reproduction_curl(adapter.engine_name, request)
+        powershell = reproduction_curl(adapter.engine_name, request, shell="powershell")
+        body = reproduction_body(adapter.engine_name, request)
+        assert _ANSWER_FIELD[engine] in adapter.reproduction_reply_fields(), (
+            f"{adapter.engine_name} does not name {_ANSWER_FIELD[engine]}, so a reader "
+            f"re-issuing the call cannot tell where to read the answer"
+        )
 
-        if not isinstance(adapter, OpenAICompatibleAdapter):
-            assert command == "", (
+        if adapter.engine_name == "gemini":
+            assert (bash, powershell, body) == ("", "", ""), (
                 f"{adapter.engine_name} offers a curl although its recording is "
                 f"not the wire body, so the call it makes is not the one recorded"
             )
             return
 
-        endpoint = (adapter.BASE_URL or "https://api.openai.com/v1") + "/chat/completions"
-        assert command.startswith(f"curl {endpoint} "), (
-            f"{adapter.engine_name}'s curl does not post to {endpoint}"
+        endpoint = adapter.reproduction_endpoint()
+        expected_endpoint = (
+            "https://api.anthropic.com/v1/messages" if engine == "claude"
+            else (adapter.BASE_URL or "https://api.openai.com/v1") + "/chat/completions"
         )
-        assert f'"Authorization: Bearer ${adapter.API_KEY_ENV}"' in command, (
-            f"{adapter.engine_name}'s curl does not name {adapter.API_KEY_ENV}"
-        )
-        assert "<<'JSON'\n" in command, (
-            f"{adapter.engine_name}'s curl body is not in a quoted heredoc, so "
-            f"the shell expands or ends it inside a prompt"
-        )
-        opening, _, rest = command.partition("<<'JSON'\n")
-        body, _, closing = rest.partition("\nJSON")
-        assert opening and closing.strip() == "", (
-            f"{adapter.engine_name}'s curl does not carry its body in a quoted "
-            f"heredoc, so an apostrophe in a prompt ends the shell's quoting"
+        assert endpoint == expected_endpoint, (
+            f"{adapter.engine_name} posts to {endpoint}, not {expected_endpoint}"
         )
         assert json.loads(body) == request, (
-            f"{adapter.engine_name}'s curl body is not the recorded request"
+            f"{adapter.engine_name}'s request.json is not the recorded request"
         )
-        for line in command.splitlines():
+        assert bash.startswith(f"curl {endpoint} ") and powershell.startswith(
+            f"curl.exe {endpoint} "
+        ), f"{adapter.engine_name}'s commands do not post to {endpoint}"
+        credential = _CREDENTIAL_HEADER[engine]
+        assert f'"{credential.format(key="$" + adapter.API_KEY_ENV)}"' in bash and (
+            f'"{credential.format(key="$env:" + adapter.API_KEY_ENV)}"' in powershell
+        ), f"{adapter.engine_name}'s commands do not send {credential.split(':')[0]}"
+        for name, value in adapter.reproduction_headers():
+            assert f'"{name}: {value.format(key="$" + adapter.API_KEY_ENV)}"' in bash, (
+                f"{adapter.engine_name}'s bash curl does not send {name}"
+            )
+            assert (
+                f'"{name}: {value.format(key="$env:" + adapter.API_KEY_ENV)}"' in powershell
+            ), f"{adapter.engine_name}'s PowerShell curl does not send {name}"
+        assert "--data-binary @request.json" in bash and (
+            '--data-binary "@request.json"' in powershell
+        ), f"{adapter.engine_name}'s commands do not read the body from request.json"
+        assert "<<" not in bash + powershell, (
+            f"{adapter.engine_name}'s curl carries a here-document, which bash alone reads"
+        )
+        for line in (bash + "\n" + powershell + "\n" + body).splitlines():
             assert not credential_shaped_value(line.strip()), (
                 f"{adapter.engine_name} put a credential-shaped value in its curl"
             )

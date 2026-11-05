@@ -3,7 +3,7 @@
 """Builders and readers the answer-list case modules share.
 
 Created: 2026-11-04
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 This file contains :func:`list_declaration`, an answer-list declaration
 carrying only what the list check reads; :func:`declared_list_payload`, a rule

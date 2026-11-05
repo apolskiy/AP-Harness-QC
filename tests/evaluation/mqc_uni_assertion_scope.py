@@ -3,7 +3,7 @@
 """Unit cases for an assertion that reads one numbered item of the answer.
 
 Created: 2026-11-04
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
 Its cases check ``scope: {list_item: N}`` through
 :func:`evaluation.assertions.run_assertion`. A scoped assertion reads only the

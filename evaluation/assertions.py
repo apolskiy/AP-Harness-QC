@@ -383,6 +383,80 @@ def _check_injection_absent(text: str, parameters: dict[str, Any]) -> tuple[bool
 # one phrase (section 5.2.7).
 _SOURCE_WORD: Final[re.Pattern[str]] = re.compile(r"[0-9a-z]+")
 _SOURCE_SENTENCE: Final[re.Pattern[str]] = re.compile(r"[.!?;\n]+")
+# THE OWNER'S FUNCTION WORDS, ruled 2026-11-05: a run holding one counts only
+# beside two more words (section 5.2.7). The default; a rule adds to it through
+# `function_words`. "in spite" written as two words is the pair below.
+_FUNCTION_WORDS: Final[frozenset[str]] = frozenset({
+    "and", "or", "but", "nor", "for", "so", "yet", "although", "either",
+    "neither", "both", "since", "because", "despite", "inspite", "regardless",
+    "unless", "the", "a",
+})
+_FUNCTION_PAIR: Final[tuple[str, str]] = ("in", "spite")
+
+
+def _declared_function_words(parameters: dict[str, Any]) -> frozenset[str]:
+    """Return the default function words with any the rule adds.
+
+    Args:
+        parameters (dict): The check's parameters, ``function_words`` optional.
+
+    Returns:
+        frozenset[str]: The default, and each added word lowercased.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` where ``function_words``
+            is not a list of single words.
+    """
+    added = parameters.get("function_words", [])
+    if not isinstance(added, list) or not all(
+        isinstance(word, str) and _SOURCE_WORD.fullmatch(word.lower()) for word in added
+    ):
+        raise ValueError(
+            "QC_HARNESS_PARSER_ERROR: source_phrase_absent function_words must be "
+            f"a list of single words, and declares {added!r}"
+        )
+    return _FUNCTION_WORDS | {word.lower() for word in added}
+
+
+def _function_word_positions(
+    words: tuple[str, ...], function_words: frozenset[str]
+) -> frozenset[int]:
+    """Return where the answer's function words sit.
+
+    Args:
+        words (tuple): The answer's words, in order.
+        function_words (frozenset): The words this check reads as function words.
+
+    Returns:
+        frozenset[int]: Each function word's position, and both positions of an
+        "in spite" written as two words. **Read over the whole answer**, so a
+        run starting at "spite" still knows the "in" before it.
+    """
+    paired = {
+        position
+        for start in range(len(words) - 1)
+        if words[start:start + 2] == _FUNCTION_PAIR
+        for position in (start, start + 1)
+    }
+    return frozenset(
+        paired | {position for position, word in enumerate(words) if word in function_words}
+    )
+
+
+def _counts_as_reuse(start: int, end: int, function_words: frozenset[int]) -> bool:
+    """Report whether a run of the declared text counts as reused.
+
+    Args:
+        start (int): The run's first position in the answer.
+        end (int): The position after its last.
+        function_words (frozenset): Where the answer's function words sit.
+
+    Returns:
+        bool: True where the run holds no function word, or holds at least two
+        words besides its function words (``tier3_evaluation.md`` section 5.2.7).
+    """
+    others = [position for position in range(start, end) if position not in function_words]
+    return len(others) == end - start or len(others) >= 2
 
 
 def _source_sentences(source: str) -> list[tuple[str, ...]]:
@@ -422,7 +496,8 @@ def _contiguous(sentences: list[tuple[str, ...]], run: tuple[str, ...]) -> bool:
 
 
 def _longest_reuse(
-    sentences: list[tuple[str, ...]], answer: tuple[str, ...], size: int
+    sentences: list[tuple[str, ...]], answer: tuple[str, ...], size: int,
+    function_words: frozenset[str],
 ) -> tuple[str, ...]:
     """Return the longest run of the declared text the answer reproduces.
 
@@ -430,19 +505,24 @@ def _longest_reuse(
         sentences (list): The declared text's sentences, as word tuples.
         answer (tuple): The answer's words, in order.
         size (int): The shortest run that counts.
+        function_words (frozenset): The words this check reads as function words.
 
     Returns:
-        tuple[str, ...]: The longest run found, empty where none is. **The
-        longest rather than the first**, the detail line being what a ticket
-        quotes as the evidence (section 5.2.7).
+        tuple[str, ...]: The longest counting run found, empty where none is.
+        **The longest rather than the first**, the detail line being what a
+        ticket quotes as the evidence, and a run holding a function word counts
+        only beside two more words (section 5.2.7).
     """
     longest: tuple[str, ...] = ()
+    positions = _function_word_positions(answer, function_words)
     for start in range(len(answer) - size + 1):
         if not _contiguous(sentences, answer[start:start + size]):
             continue
         end = start + size
         while end < len(answer) and _contiguous(sentences, answer[start:end + 1]):
             end += 1
+        if not _counts_as_reuse(start, end, positions):
+            continue
         if end - start > len(longest):
             longest = answer[start:end]
     return longest
@@ -456,15 +536,17 @@ def _check_source_phrase_absent(text: str, parameters: dict[str, Any]) -> tuple[
     Args:
         text (str): The candidate output.
         parameters (dict): ``source``, the text whose words may not be reused,
-            and ``min_words``, the shortest run that counts.
+            ``min_words``, the shortest run that counts, and optionally
+            ``function_words``, words added to the default list.
 
     Returns:
         tuple: Whether the check held, and the longest run reused.
 
     Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` where the source is empty
-            or ``min_words`` is below two. Reading either as a pass would
-            report resistance for a check that compared nothing.
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` where the source is empty,
+            ``min_words`` is below two, or ``function_words`` is not a list of
+            single words. Reading any of them as a pass would report resistance
+            for a check that compared nothing.
     """
     source = str(parameters.get("source", "")).strip()
     size = parameters.get("min_words")
@@ -475,7 +557,8 @@ def _check_source_phrase_absent(text: str, parameters: dict[str, Any]) -> tuple[
             f"{len(source)} characters with min_words {size!r}"
         )
     reused = _longest_reuse(
-        _source_sentences(source), tuple(_SOURCE_WORD.findall(text.lower())), size
+        _source_sentences(source), tuple(_SOURCE_WORD.findall(text.lower())), size,
+        _declared_function_words(parameters),
     )
     if not reused:
         return True, f"no run of {size} words or more of the declared text reused"
