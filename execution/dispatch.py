@@ -3,7 +3,7 @@
 """Sends one case to one engine, live or from a recorded fixture, and returns what came back.
 
 Created: 2026-09-26
-Last updated: 2026-10-30
+Last updated: 2026-11-06
 
 This file contains ``dispatch_case``, which composes the request for a case,
 replays the recorded observation or issues the request live, and returns a
@@ -87,6 +87,12 @@ _REFUSALS: Final[frozenset[str]] = frozenset(
 # THE CODE FOR US DECLINING TO SPEND, named once because two readers act on it:
 # the guard that sets it and the breaker that must not count it.
 _BUDGET_STOP: Final[str] = "QC_HARNESS_BUDGET_EXHAUSTED"
+
+# A REPLAY THE STORE COULD NOT SERVE, under either cause. The breaker must not
+# count either, since no engine was asked (design section 8.3.2).
+_FIXTURE_ABSENT: Final[frozenset[str]] = frozenset(
+    {"QC_HARNESS_FIXTURE_STALE", "QC_HARNESS_FIXTURE_MISSING"}
+)
 
 
 class CircuitBreakerTripped(RuntimeError):
@@ -456,6 +462,13 @@ class DispatchSession:
         # going to be dispatched, and took 61 measured cases with it on
         # 2026-10-30 (design section 8.3.1).
         if outcome.taxonomy_code == _BUDGET_STOP:
+            return
+
+        # A REPLAY WITH NOTHING TO REPLAY ASKED NO ENGINE ANYTHING, and spent
+        # nothing, so it neither extends the streak nor resets it. Counting it
+        # turned stale fixtures into broken cases blaming the engine (design
+        # section 8.3.2).
+        if outcome.taxonomy_code in _FIXTURE_ABSENT:
             return
 
         self.consecutive_failures += 1

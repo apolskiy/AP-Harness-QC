@@ -15465,3 +15465,37 @@ gemini model by name and failed on the move; it names the new one.
 **What it costs.** Argon is not on the free tier, so the free judge of A3
 Option 1 ends. Astra is five times `gpt-4.1` on input and over six times on
 output.
+
+### The circuit breaker counted a replay with no usable fixture, 2026-11-05
+
+**Found by the case repository's regression** after the model move.
+`MQC_CAS_UNI_115757` replays band 0 on gemini, every gemini fixture answered
+`gemini-3.8-flash`, and the run reported five cases failing and every later one
+broken by `CircuitBreakerTripped`, naming gemini as having stopped answering.
+Nothing had asked gemini anything.
+
+**Why it happens.** `DispatchSession.record` listed what does not count, a
+measurement, a refusal in a run that has measured and a budget stop, and a
+fixture the store could not serve was not on the list. Section 8.3.1 had stated
+the rule generally ("a case the engine failed to answer") precisely so a third
+instance would not need finding, and the code still enumerated.
+
+**The fix**, after `MQC_EXE_UNI_113222` failed against the unfixed code with
+the breaker tripping on the third replay:
+
+| Injected | Caught by |
+|---|---|
+| The exemption removed | `113222`, the missing-fixture half |
+| A stale fixture still counted | `113222`, the stale half |
+| A missing fixture still counted | `113222`, the missing-fixture half |
+
+**An edit landed inside the wrong case first.** The new case was inserted after
+a sentence 113221 carries in its middle rather than at its end, splitting it;
+the run reported `NameError: name 'scripted' is not defined`, and the control
+of the injection run failing was what showed it. The tail was moved back and
+the diff confirmed the module only gained the new case.
+
+**What it changes downstream.** The case repository's `115757` passes against
+the fixed harness: its band skips the stale fixtures, naming them, and carries
+its outcomes as the case asserts. Its failure was this defect, not the stale
+fixtures.

@@ -29,6 +29,25 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A replay with no usable fixture no longer trips the circuit breaker, 2026-11-05
+
+**Why it was needed.** After the gemini default moved, the case repository's
+regression replayed band 0 over fixtures answering the old model. Each case
+met `QC_HARNESS_FIXTURE_STALE` and each counted toward the breaker's
+consecutive-failure streak, so the fifth tripped it and every later case was
+broken with "gemini failed 6 cases consecutively, so the run aborts rather than
+spending quota to confirm it". A replay asks no engine and spends nothing, and
+the stale fixtures, whose remedy is to record again, were hidden behind an
+instrument crash.
+
+**What changed.**
+- A missing or stale fixture neither extends the streak nor resets it.
+- `tier2_execution.md` section 8.3.2 carries the rule, `MQC_REQ_HAR_EXE_0142`
+  states it, and `MQC_EXE_UNI_113222` asserts it. The case failed before the
+  fix, with the breaker tripping on the third replay, and three injections
+  were each caught.
+- The README now counts 1059 test cases and 405 requirements.
+
 ### openai runs GPT-6 Astra, gemini and the judge run Gemini 4 Argon, and the README names each model, 2026-11-05
 
 **Why it was needed.** openai ran `gpt-4.1`, an April 2025 snapshot, and gemini

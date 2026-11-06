@@ -3,7 +3,7 @@
 """Unit cases for how requests to a provider are paced, retried and stopped.
 
 Created: 2026-09-26
-Last updated: 2026-10-30
+Last updated: 2026-11-06
 
 Its cases check :func:`execution.dispatch.dispatch_case` and
 ``DispatchSession``. Live requests are spaced at the configured interval and
@@ -50,6 +50,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113203  circuit_breaker_aborts_after_consecutive_failures
 #   113204  auth_error_aborts_immediately
 #   113221  a_budget_stop_does_not_trip_the_breaker
+#   113222  a_replay_without_a_fixture_does_not_trip_the_breaker
 # TestMQCDispatcherRestraint
 #   113206  adapter_performs_no_scoring_or_interpretation
 #   113209  an_unregistered_mode_is_rejected_before_any_adapter
@@ -522,6 +523,52 @@ class TestMQCCircuitBreaker:
         dispatch_case(minimal_case, "claude", plan, session)
         assert session.consecutive_failures == 1, (
             "excluding a budget stop also stopped a real failure counting"
+        )
+
+    def MQC_EXE_UNI_113222_a_replay_without_a_fixture_does_not_trip_the_breaker(
+        self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path
+    ) -> None:
+        """A missing or stale fixture is a skip naming its cause, not an engine failure.
+
+        Each is replayed past the breaker's threshold, so a streak that counted
+        them would abort the run.
+
+        Design: ``tier2_execution.md`` section 8.3.2.
+
+        Args:
+            minimal_case (Any): The case to replay.
+            session (DispatchSession): The paced session.
+            tmp_path (Any): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        session.breaker_threshold = 3
+        plan = plan_for(tmp_path, mode="replay")
+
+        for _ in range(4):
+            missing = dispatch_case(minimal_case, "claude", plan, session)
+            assert missing.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING", missing.taxonomy_code
+        assert session.consecutive_failures == 0, (
+            "a missing fixture counted toward the breaker's streak, so a replay "
+            "reports an engine that stopped answering"
+        )
+
+        stored = ClaudeAdapter().normalize_response(claude_response(), minimal_case.case_id)
+        record_fixture(
+            tmp_path,
+            FixtureKey(minimal_case.case_id, "claude", 0),
+            hash_request({"model": "a model no longer configured"}),
+            stored.as_mapping(),
+            stored.resolved_model,
+        )
+        for _ in range(4):
+            stale = dispatch_case(minimal_case, "claude", plan, session)
+            assert stale.taxonomy_code == "QC_HARNESS_FIXTURE_STALE", stale.taxonomy_code
+            assert not stale.measured, "a stale fixture reported a measurement"
+        assert session.consecutive_failures == 0, (
+            "a stale fixture counted toward the breaker's streak, so a replay "
+            "reports an engine that stopped answering"
         )
 
 

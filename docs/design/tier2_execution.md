@@ -1536,6 +1536,33 @@ which is the same answer a hand-typed subset gets and for the same reason.
 dispatching the moment the next request would cross it. The question here is
 only what the stop is called and what it does to the rest of the run.
 
+#### 8.3.2 A replay with no usable fixture asked no engine anything
+
+Added 2026-11-05, found by the case repository's regression after the gemini
+default moved to `gemini-4-argon`. **The third instance of the shape section
+8.3.1 states generally**, and the one its table left out.
+
+**What happened.** Every gemini fixture answered the old model, so a replay of
+band 0 met `QC_HARNESS_FIXTURE_STALE` on each case. Each stale fixture
+incremented the streak, the breaker tripped on the fifth, and every case after
+it was broken with "gemini failed 6 cases consecutively, so the run aborts
+rather than spending quota to confirm it". A replay spends no quota, and gemini
+was never asked.
+
+**Why it happened.** The breaker resets on a measurement and on a refusal in a
+run that has measured, and it returns early on a budget stop. A fixture that is
+missing or stale is none of those, so it fell through to the increment, as the
+budget stop did before section 8.3.1.
+
+| Outcome | Counts toward the breaker |
+|---|---|
+| **`QC_HARNESS_FIXTURE_STALE`, `QC_HARNESS_FIXTURE_MISSING`** | **No. The store had nothing to replay, and no engine was asked** |
+
+**What it costs when counted.** The stale fixtures are skips naming their
+cause, which is the remedy a reader needs: record again. Past the threshold
+they become broken cases naming an engine that stopped answering, the run
+exits 3 as though the instrument crashed, and the cause is hidden behind it.
+
 ---
 
 ### 8.5 A busy provider is not a parser error
@@ -2185,6 +2212,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113203` | N | `circuit_breaker_aborts_after_consecutive_failures` |
 | `113204` | N | `auth_error_aborts_immediately` |
 | `113221` | N | `a_budget_stop_does_not_trip_the_breaker` (section 8.3.1) |
+| `113222` | N | `a_replay_without_a_fixture_does_not_trip_the_breaker` (section 8.3.2) |
 | `113205` | P | `rate_limit_encounters_are_counted_and_reported` |
 | `113206` | N | `adapter_performs_no_scoring_or_interpretation` |
 | `113207` | N | `candidate_timeout_maps_to_candidate_code_not_generic` |
@@ -2439,7 +2467,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 220 cases, 101 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 221 cases, 102 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 
