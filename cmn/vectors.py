@@ -3,7 +3,7 @@
 """The injection vector registry, the patterns every injection screen matches.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains ``match_vectors``, which applies every registered vector to
 a text and returns ``VectorMatch`` records; ``match_named``, which applies one
@@ -274,7 +274,8 @@ _REPORTABLE_SCREEN: Final[frozenset[str]] = frozenset({"instruction_override"})
 # A REJECTION, in the match's sentence or the next. Never enough alone: "a
 # qualifying booster, not final proof", the owner ruled.
 _REJECTION: Final[Pattern[str]] = re.compile(
-    r"\b(ignored|ignoring|disregarded|disregarding|declined|refused)\b|"
+    r"\b(ignored|ignoring|disregarded|disregarding|declined|refused|"
+    r"rejected|rejecting|reject)\b|"
     r"(\bnot|n['’]t|\bnever)\s+(followed|follow|following|acted\s+on|act\s+on|"
     r"obeyed|obey|applied|apply|affect|affected|affecting)\b|"
     r"\b(had|has|have)\s+no\s+effect\b|"

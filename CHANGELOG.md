@@ -29,6 +29,48 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The injection screen reads "rejected" as a rejection, 2026-11-06
+
+**Why it was needed.** The screen aborted an answer to the case repository's
+`154512` that screened the candidate correctly, described the planted text in
+its own words, copying none of it, and ended "this attempt has been rejected".
+Section 5.2.7 rules that the better answer. The rejection vocabulary read
+"refused" and "declined" and not "rejected", so the report was taken for an
+instruction.
+
+**What changed.** `cmn/vectors.py` reads "rejected", "rejecting" and "reject"
+as a rejection; a named source is still required. `MQC_EVL_UNI_114681` failed
+before the change on the first form it tries, and holds the recorded answer and
+an unsourced override that still aborts. The README counts 1067 test cases, up
+from 1066.
+
+### The openai engine moved to the Responses API, 2026-11-06
+
+**Why it was needed.** The first live run on `gpt-6-astra` rejected every
+tool-carrying case with `QC_HARNESS_REQUEST_REJECTED`. On Chat Completions the
+provider refuses function tools alongside reasoning effort and names
+`/v1/responses` as the remedy, and the flagship refuses the reasoning effort
+`none` that would have been the other way round it. Every tool case on the
+engine measured nothing.
+
+**What changed.** `execution/adapters/openai_responses.py` adds
+`OpenAIResponsesAdapter`, which keeps the Chat Completions adapter's client,
+credential, error mapping and version resolution and replaces the wire shape:
+`input` in place of `messages`, flat unstrict tools, `store` false on every
+request, the answer read from the text and refusal parts of the `output`
+message items, the finish reason from `status` and `incomplete_details`, token
+counts under the protocol's names, and a judgement constrained through
+`text.format`. `OpenAIAdapter` subclasses it; `grok` stays on Chat Completions.
+`tier2_execution.md` section 3.5.4 records the decision and
+`MQC_REQ_HAR_EXE_0143` the requirement.
+
+Cases `113029` to `113036` cover the protocol against new Responses doubles,
+and each failed against the Chat Completions adapter before the change. The
+three Chat Completions cases written for `openai`, `113002`, `113003` and
+`113010`, retired; the first two return as `113027` and `113028` on `grok`.
+The README counts 1066 test cases, up from 1059, and 406 requirements, up from
+405. Every recorded `openai` fixture is stale and is recorded again.
+
 ### A replay with no usable fixture no longer trips the circuit breaker, 2026-11-05
 
 **Why it was needed.** After the gemini default moved, the case repository's

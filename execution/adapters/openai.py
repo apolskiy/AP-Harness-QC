@@ -1,29 +1,30 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The adapter that sends cases to OpenAI's models, over the Chat Completions protocol.
+"""The adapter that sends cases to OpenAI's models, over the Responses protocol.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains :class:`OpenAIAdapter`, which names the ``openai`` engine,
 its default model and the ``OPENAI_API_KEY`` credential variable, and inherits
 everything else from
-:class:`~execution.adapters.openai_protocol.OpenAICompatibleAdapter`. The
+:class:`~execution.adapters.openai_responses.OpenAIResponsesAdapter`. The
 registry enrols it, so dispatch and the judge channel reach it whenever a run
 names ``openai``.
 
-The Chat Completions protocol lives in
-:mod:`execution.adapters.openai_protocol`. **What remains here is what is
-actually specific to OpenAI**, which is its name, its default model and the
-fact that it needs no endpoint override because it is the SDK's own default.
+The Responses protocol lives in :mod:`execution.adapters.openai_responses`.
+**What remains here is what is actually specific to OpenAI**, which is its
+name, its default model and the fact that it needs no endpoint override
+because it is the SDK's own default.
 
-Replay-only under A3 until a key is provisioned.
+Specified by ``docs/design/tier2_execution.md`` section 3.5.4, which records
+why this engine left Chat Completions.
 """
 
 import logging
 from typing import Final
 
-from execution.adapters.openai_protocol import OpenAICompatibleAdapter
+from execution.adapters.openai_responses import OpenAIResponsesAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ _ENGINE_NAME: Final[str] = "openai"
 _DEFAULT_MODEL: Final[str] = "gpt-6-astra"
 
 
-class OpenAIAdapter(OpenAICompatibleAdapter):
+class OpenAIAdapter(OpenAIResponsesAdapter):
     """OpenAI, behind the one interface Tier 2 knows about.
 
     Attributes:

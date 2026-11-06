@@ -3,7 +3,7 @@
 """Unit cases for the snippet that re-issues a recorded provider call, per engine.
 
 Created: 2026-10-15
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 Its cases check :func:`reproduction_snippet` and :func:`reproduction_curl` in
 :mod:`execution.adapters.registry`. For each registered engine the snippet
@@ -70,7 +70,10 @@ pytestmark = pytest.mark.unit
 # from the adapter under test, so an adapter dropping one is reported.
 _ANSWER_FIELD: dict[str, str] = {
     "claude": "`text`", "gemini": "`response.text`",
-    "grok": "`choices[0].message.content`", "openai": "`choices[0].message.content`",
+    "grok": "`choices[0].message.content`", "openai": "`output_text`",
+}
+_ENDPOINT_PATH: dict[str, str] = {
+    "claude": "/messages", "grok": "/chat/completions", "openai": "/responses",
 }
 _CREDENTIAL_HEADER: dict[str, str] = {
     "claude": "x-api-key: {key}", "grok": "Authorization: Bearer {key}",
@@ -425,9 +428,9 @@ class TestMQCReproduction:
 
         endpoint = adapter.reproduction_endpoint()
         expected_endpoint = (
-            "https://api.anthropic.com/v1/messages" if engine == "claude"
-            else (adapter.BASE_URL or "https://api.openai.com/v1") + "/chat/completions"
-        )
+            "https://api.anthropic.com/v1" if engine == "claude"
+            else adapter.BASE_URL or "https://api.openai.com/v1"
+        ) + _ENDPOINT_PATH[engine]
         assert endpoint == expected_endpoint, (
             f"{adapter.engine_name} posts to {endpoint}, not {expected_endpoint}"
         )

@@ -129,7 +129,8 @@ which is actually vendor-specific.
 
 | Protocol | Module | Engines |
 |---|---|---|
-| Chat Completions | `openai_protocol.py` | `openai`, `grok`, and any of DeepSeek, Mistral, Groq, Together, OpenRouter, Ollama |
+| Chat Completions | `openai_protocol.py` | `grok`, and any of DeepSeek, Mistral, Groq, Together, OpenRouter, Ollama |
+| OpenAI Responses | `openai_responses.py` | `openai`, since 2026-11-06 (section 3.5.4) |
 | Google Gen AI | `gemini.py` | `gemini` |
 | Anthropic Messages | `claude.py` | `claude` |
 
@@ -216,6 +217,58 @@ enumeration gone, an engine off the roster reached `dispatch_plan` for the first
 time, and `dispatch_plan` had always been willing to run it. The enumeration had
 been hiding a missing gate by refusing three engines' worth of values for the
 wrong reason.
+
+#### 3.5.4 The openai engine speaks the Responses protocol
+
+Added 2026-11-06.
+
+**OpenAI's flagship models refuse function tools on Chat Completions.** The
+first live run on `gpt-6-astra` rejected every tool-carrying case with
+`QC_HARNESS_REQUEST_REJECTED`: the provider answered that function tools with
+reasoning effort are not supported on that endpoint and named `/v1/responses`
+as the remedy. Setting the effort to `none` was the other remedy offered, and
+the flagship refuses that value as well, accepting only `low` to `xhigh`. So
+on Chat Completions the top-tier model could not be offered a tool at all, and
+every tool case on the engine measured nothing.
+
+**The remedy is a protocol, and a protocol is a module.** The Responses API is
+OpenAI's own and no other rostered vendor serves it, so `grok` stays on Chat
+Completions and `openai` moves. `OpenAIResponsesAdapter` in
+`openai_responses.py` subclasses `OpenAICompatibleAdapter` and replaces only
+what the wire shape changes; the client, the credential, the error classes,
+the models endpoint and version resolution are inherited, both protocols
+being served by the same SDK.
+
+| | Chat Completions | Responses |
+|---|---|---|
+| Conversation field | `messages` | `input`, the same roles |
+| A tool definition | Nested under `function` | Flat: `type`, `name`, `description`, `parameters`, `strict` |
+| A tool call | `choices[0].message.tool_calls`, arguments a JSON string | A `function_call` item in `output`, arguments a JSON string |
+| The answer | `choices[0].message.content` | The `output_text` parts of every `message` item in `output` |
+| Why it stopped | `finish_reason` | `status`, with `incomplete_details.reason` when incomplete |
+| Token counts | `prompt_tokens`, `completion_tokens`, `*_tokens_details` | `input_tokens`, `output_tokens`, `*_tokens_details` |
+| A judgement's schema | `response_format` | `text.format` |
+
+**`strict` is false on a candidate's tool.** Strict mode requires every
+property to be listed as required and forbids additional properties, which is
+a rewrite of the case's schema; a tool is offered exactly as the case declares
+it. The judge's reply schema is ours and already strict.
+
+**`store` is false on every request.** The protocol keeps a response on the
+provider's side by default so a later request can refer to it. The harness
+makes one request per case and never refers back (A9), so retaining a model's
+answer to an evaluation prompt buys nothing and leaves a copy outside the
+fixture store.
+
+**A refusal part is text.** The protocol returns a declined answer as a
+`refusal` part of a message item rather than as `output_text`. It is the
+model's visible reply, so it is concatenated with the text parts in order,
+which is what a provider returning a refusal as ordinary text already gives.
+
+**What it costs.** Every `openai` request changes shape, so every recorded
+`openai` fixture is stale and is recorded again; the hash catches this without
+anything else being told (section 7). The judge is `gemini`, so no judgement
+changes protocol.
 
 ### 3.6 A role is derived, never listed
 
@@ -2268,8 +2321,18 @@ the twenty-first check and any fifth engine are in the partition
 | `113114` | P | `the_registry_enrols_every_adapter_in_the_battery` |
 | `113000` | P | `claude_maps_refusal_stop_reason_to_content_filter` |
 | `113001` | P | `claude_concatenates_every_text_block_in_order` |
-| `113002` | P | `openai_maps_the_superseded_tool_call_finish_reason` |
-| `113003` | B | `openai_absent_tool_calls_field_yields_an_empty_list` |
+| ~~`113002`~~ | | ~~`openai_maps_the_superseded_tool_call_finish_reason`~~. **Retired 2026-11-06**: the `openai` engine left Chat Completions (section 3.5.4), so the protocol difference is asserted on the engine still serving it, `113027` |
+| ~~`113003`~~ | | ~~`openai_absent_tool_calls_field_yields_an_empty_list`~~. **Retired 2026-11-06** for the same reason, superseded by `113028` on Chat Completions and `113031` on Responses |
+| `113027` | P | `grok_maps_the_superseded_tool_call_finish_reason` |
+| `113028` | B | `grok_absent_tool_calls_field_yields_an_empty_list` |
+| `113029` | P | `openai_sends_the_system_instruction_as_an_input_role` |
+| `113030` | P | `openai_offers_a_tool_flat_and_unstrict` |
+| `113031` | B | `openai_a_response_with_no_function_call_yields_an_empty_list` |
+| `113032` | P | `openai_reads_text_and_refusal_parts_in_order` |
+| `113033` | P | `openai_maps_an_incomplete_response_to_its_finish_reason` |
+| `113034` | P | `openai_reads_token_counts_under_the_responses_names` |
+| `113035` | P | `openai_constrains_a_judgement_through_the_text_format` |
+| `113036` | N | `openai_asks_the_provider_not_to_store_the_request` |
 | `113004` | P | `gemini_reads_the_resolved_version_from_its_own_field` |
 | `113005` | P | `gemini_reconciles_a_stop_reason_carrying_captured_calls` |
 | `113006` | N | `gemini_a_blocked_candidate_yields_empty_text_not_an_error` |
@@ -2281,7 +2344,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113026` | N | `gemini_maps_a_timeout_to_its_harness_code` |
 | `113115` | N | `an_unregistered_engine_name_names_what_is_registered` |
 | `113009` | P | `claude_sends_the_system_instruction_as_its_own_field` |
-| `113010` | P | `openai_sends_the_system_instruction_as_a_message_role` |
+| ~~`113010`~~ | | ~~`openai_sends_the_system_instruction_as_a_message_role`~~. **Retired 2026-11-06**: the field it read is gone from the `openai` request (section 3.5.4), superseded by `113029` |
 | `113011` | P | `composed_request_states_effort_rather_than_inheriting_it` |
 | `113012` | N | `composed_request_carries_no_field_the_model_rejects` |
 | `113611` | N | `a_missing_fixture_becomes_a_skip_rather_than_an_error` |
@@ -2436,16 +2499,17 @@ called from, not about an adapter's contract.
 | Tool arguments arrive parsed on two providers and as a JSON string on the third | `113110` with `113401` | One provider's tool cases fail on a shape the others never produce |
 | A policy refusal is a distinct stop reason on one provider only | `113000` | A refusal reads as an ordinary completion and is scored as one |
 | Text arrives as several blocks rather than one field | `113001` | Output is silently truncated to its first block |
-| A superseded finish-reason spelling is still emitted by older deployments | `113002` | A successful tool call records as an unknown outcome |
-| The tool-call field is omitted entirely rather than sent empty | `113003` | Normalization fails on the ordinary no-tool response |
+| A superseded finish-reason spelling is still emitted by older deployments | `113027`, formerly `113002` | A successful tool call records as an unknown outcome |
+| The tool-call field is omitted entirely rather than sent empty | `113028`, formerly `113003` | Normalization fails on the ordinary no-tool response |
 | The resolved version field is named differently on each provider | `113111`, `113004` | Preflight aborts the run for a provider that answered correctly |
 | A tool-calling turn reports the ordinary stop reason | `113005` | Tool-use rates compare vendor conventions, per section 4.3 |
 | A blocked candidate carries no content at all, not empty content | `113006` | A model behaviour worth recording becomes a harness failure recording nothing |
 | Automatic function calling is on by default | `113007` | The harness executes a tool the model chose, per section 3.3 |
 | One error class carries every client failure, distinguished by status | `113008` | Every provider failure records as a parser error |
-| A system instruction is a request field on one provider and a message role on another | `113009`, `113010` | The instruction is folded into the prompt, where models follow it at a different rate |
+| A system instruction is a request field on one provider and a message role on another | `113009`, `113029` | The instruction is folded into the prompt, where models follow it at a different rate |
+| A flagship refuses function tools on Chat Completions | `113029` to `113036` | Every tool case on the engine is rejected and measures nothing, per section 3.5.4 |
 
-**`113003` is a boundary rather than a positive** because the absent field is the ordinary case, not the exceptional one. Most responses contain no tool call, so the shape the inventory is likeliest to leave untested is the one that occurs most often.
+**`113028` and `113031` are boundaries rather than positives** because the absent field is the ordinary case, not the exceptional one. Most responses contain no tool call, so the shape the inventory is likeliest to leave untested is the one that occurs most often.
 
 **`113209` belongs with the registry cases rather than with the pacing ones.** Mode selection is independent of engine selection, so an unregistered mode is rejected on the plan before an adapter is chosen. Rejecting it later would make the error depend on which engine happened to be selected, and a mode nobody supports would produce three different messages.
 
@@ -2467,7 +2531,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 221 cases, 102 negative, 110 positive, 9 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 228 cases, 103 negative, 115 positive, 10 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

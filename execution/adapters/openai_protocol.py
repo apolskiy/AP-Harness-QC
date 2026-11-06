@@ -3,7 +3,7 @@
 """The shared adapter for every provider that serves the OpenAI Chat Completions API.
 
 Created: 2026-09-25
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains :class:`OpenAICompatibleAdapter`, which implements the
 interface in :mod:`execution.adapters.base` against the Chat Completions API
@@ -12,9 +12,12 @@ token usage, parses tool-call arguments, resolves the model version, composes
 and parses a judge request, and builds the client and the reproduction
 endpoint from the engine's declared base URL and credential variable.
 
-**It is never registered itself.** The OpenAI and Grok adapters subclass it
-with an engine name, a default model, an endpoint and a credential variable,
-and the registry enrols those subclasses.
+**It is never registered itself.** The Grok adapter subclasses it with an
+engine name, a default model, an endpoint and a credential variable, and the
+registry enrols that subclass. The OpenAI adapter reaches it through
+:class:`~execution.adapters.openai_responses.OpenAIResponsesAdapter`, which
+keeps its client, credential and error mapping and replaces the wire shape
+(``tier2_execution.md`` section 3.5.4).
 
 **A protocol is not a vendor**, which is the whole point of this module.
 xAI (Grok), DeepSeek, Mistral, Groq, Together and OpenRouter all serve this

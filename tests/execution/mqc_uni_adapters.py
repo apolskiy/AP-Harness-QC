@@ -3,15 +3,17 @@
 """Unit cases for what each provider adapter does differently from the others.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-06
 
 Its cases check the adapters in ``execution/adapters/``, ``ClaudeAdapter``,
 ``OpenAIAdapter``, ``GeminiAdapter`` and ``GrokAdapter`` on the shared
 ``OpenAICompatibleAdapter``. They cover how each maps refusals, finish reasons,
-system instructions, errors and token usage, Gemini's blocked prompts and
+system instructions, errors and token usage, the Chat Completions protocol's
+own conventions, Gemini's blocked prompts and
 disabled automatic function calling, an engine inheriting a shared wire
 protocol without sharing its credential, and engine roles read from the
-registry.
+registry. The ``openai`` engine's Responses protocol has its cases in
+``mqc_uni_responses_protocol.py``.
 
 Its cases are listed in the block below, inventoried in
 ``docs/design/tier2_execution.md`` section 10.1.3.
@@ -41,10 +43,9 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113009  claude_sends_the_system_instruction_as_its_own_field
 #   113011  composed_request_states_effort_rather_than_inheriting_it
 #   113012  composed_request_carries_no_field_the_model_rejects
-# TestMQCOpenAIAdapter
-#   113002  openai_maps_the_superseded_tool_call_finish_reason
-#   113003  openai_absent_tool_calls_field_yields_an_empty_list
-#   113010  openai_sends_the_system_instruction_as_a_message_role
+# TestMQCChatCompletionsAdapter
+#   113027  grok_maps_the_superseded_tool_call_finish_reason
+#   113028  grok_absent_tool_calls_field_yields_an_empty_list
 # TestMQCGeminiAdapter
 #   113004  gemini_reads_the_resolved_version_from_its_own_field
 #   113005  gemini_reconciles_a_stop_reason_carrying_captured_calls
@@ -308,10 +309,14 @@ class TestMQCClaudeAdapter:
         assert not {"temperature", "top_p", "top_k"} & set(composed)
 
 
-class TestMQCOpenAIAdapter:
-    """What this provider does that the other two do not."""
+class TestMQCChatCompletionsAdapter:
+    """What the Chat Completions protocol does, on the engine that serves it.
 
-    def MQC_EXE_UNI_113002_openai_maps_the_superseded_tool_call_finish_reason(self) -> None:
+    Design: ``tier2_execution.md`` section 3.5.4. The ``openai`` engine left
+    this protocol, so its differences are asserted on ``grok``.
+    """
+
+    def MQC_EXE_UNI_113027_grok_maps_the_superseded_tool_call_finish_reason(self) -> None:
         """An older deployment still emits the previous spelling.
 
         Dropping it would record a successful tool call as an unknown outcome,
@@ -321,15 +326,15 @@ class TestMQCOpenAIAdapter:
         Returns:
             None
         """
-        adapter = OpenAIAdapter()
+        adapter = GrokAdapter()
         for spelling in ("tool_calls", "function_call"):
             response = openai_response(
                 tool_calls=[("search", {"query": "x"})], finish_reason=spelling
             )
             assert adapter.normalize_response(response, _CASE_ID).finish_reason == "tool_calls"
 
-    def MQC_EXE_UNI_113003_openai_absent_tool_calls_field_yields_an_empty_list(self) -> None:
-        """This provider omits the field rather than sending an empty list.
+    def MQC_EXE_UNI_113028_grok_absent_tool_calls_field_yields_an_empty_list(self) -> None:
+        """This protocol omits the field rather than sending an empty list.
 
         A boundary rather than a positive: no tool call is the ordinary case,
         so the shape the inventory is likeliest to leave untested is the one
@@ -340,33 +345,8 @@ class TestMQCOpenAIAdapter:
         """
         response = openai_response()
         assert response.choices[0].message.tool_calls is None
-        normalized = OpenAIAdapter().normalize_response(response, _CASE_ID)
+        normalized = GrokAdapter().normalize_response(response, _CASE_ID)
         assert not normalized.tool_calls
-
-    def MQC_EXE_UNI_113010_openai_sends_the_system_instruction_as_a_message_role(
-        self, furnished_case: EvaluationCase, minimal_case: EvaluationCase
-    ) -> None:
-        """This provider takes a message role where Anthropic takes a field.
-
-        The instruction must lead the conversation. Appending it after the user
-        prompt would make it a follow-up correction, which models follow at a
-        different rate than an opening instruction.
-
-        Args:
-            furnished_case (Any): A case carrying a system instruction.
-            minimal_case (Any): A case carrying none.
-
-        Returns:
-            None
-        """
-        adapter = OpenAIAdapter()
-        messages = adapter.compose_request(furnished_case)["messages"]
-        assert messages[0]["role"] == "system"
-        assert messages[0]["content"] == furnished_case.task.system_instruction
-        assert all(
-            entry["role"] != "system"
-            for entry in adapter.compose_request(minimal_case)["messages"]
-        )
 
 
 class TestMQCGeminiAdapter:

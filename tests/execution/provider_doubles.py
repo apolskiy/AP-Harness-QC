@@ -3,14 +3,17 @@
 """Fake provider responses and errors, shaped like each real SDK, for the adapter cases.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-06
 
 This file contains builders for each provider's response, error and judgement,
 such as :func:`claude_response`, :func:`openai_error` and
 :func:`gemini_judgement`, plus :func:`gemini_blocked_prompt`. ``ADAPTER_DOUBLES``
-maps each registered engine to its builders, ``ERROR_CLASS_CODES`` gives the
-harness code each error kind must map to, and ``MQCToolWasExecuted`` is raised
-when an adapter acts on a tool call.
+maps each registered engine to its builders, and ``ERROR_CLASS_CODES`` gives
+the harness code each error kind must map to. The ``openai`` engine's response
+and judgement builders live in :mod:`tests.execution.responses_doubles`, its
+protocol being its own (``tier2_execution.md`` section 3.5.4), and the
+invocation log every double refuses an execution on lives in
+:mod:`tests.execution.doubles_shared`.
 
 The conformance battery, the per-adapter cases, the unit and system dispatch
 cases, the judgement-replay and spending cases and the whole-chain system case
@@ -40,6 +43,17 @@ import httpx
 import openai
 from google.genai import errors as genai_errors
 
+from tests.execution.doubles_shared import (
+    DEFAULT_CACHED as _DEFAULT_CACHED,
+    DEFAULT_INPUT as _DEFAULT_INPUT,
+    DEFAULT_MODEL as _DEFAULT_MODEL,
+    DEFAULT_TEXT as _DEFAULT_TEXT,
+    DEFAULT_THINKING as _DEFAULT_THINKING,
+    DEFAULT_TOKENS as _DEFAULT_TOKENS,
+    InvocationLog as _InvocationLog,
+)
+from tests.execution.responses_doubles import responses_judgement, responses_response
+
 # The four provider failure classes every adapter maps, and the harness code
 # each one must produce. Named once here so the battery cannot test a provider
 # against a code that provider never raises.
@@ -66,53 +80,6 @@ ERROR_CLASS_CODES: Final[dict[str, str]] = {
 # An error class no adapter recognises. It must map to the parser code and be
 # preserved in the log, so an unanticipated failure stays diagnosable.
 UNRECOGNISED_ERROR: Final[Exception] = RuntimeError("a failure nobody anticipated")
-
-_DEFAULT_TEXT: Final[str] = "The answer, grounded in the supplied document."
-_DEFAULT_MODEL: Final[str] = "served-build-001"
-_DEFAULT_TOKENS: Final[int] = 42
-
-# DISTINCT FROM EACH OTHER ON PURPOSE. Equal defaults would let an adapter
-# read the wrong count and still pass.
-_DEFAULT_INPUT: Final[int] = 137
-_DEFAULT_THINKING: Final[int] = 41
-_DEFAULT_CACHED: Final[int] = 19
-
-
-class MQCToolWasExecuted(AssertionError):
-    """An adapter invoked a tool the model merely intended to call.
-
-    Raised by the doubles rather than recorded quietly, because executing a
-    model's tool call is the one failure in Tier 2 that acts on the world.
-    """
-
-
-@dataclass
-class _InvocationLog:
-    """What an adapter tried to execute, which must always be nothing.
-
-    Attributes:
-        invocations (list): Tool names an adapter attempted to run.
-    """
-
-    invocations: list[str] = field(default_factory=list)
-
-    def executed(self, tool_name: str) -> None:
-        """Record and refuse an execution attempt.
-
-        Args:
-            tool_name (str): The tool an adapter tried to run.
-
-        Returns:
-            None
-
-        Raises:
-            MQCToolWasExecuted: Always. Tool usage is behaviour under test.
-        """
-        self.invocations.append(tool_name)
-        raise MQCToolWasExecuted(
-            f"the adapter executed {tool_name}, which A9 forbids: tool-call intent "
-            f"is the recorded artifact and is never acted on"
-        )
 
 
 @dataclass
@@ -776,18 +743,22 @@ ADAPTER_DOUBLES: Final[dict[str, _AdapterDoubles]] = {
             error=claude_error,
             judgement=claude_judgement,
         ),
+    # THE RESPONSES PROTOCOL, with the Chat Completions errors: both are
+    # served by one SDK, which raises the same classes on either endpoint
+    # (tier2 section 3.5.4).
     "openai": _AdapterDoubles(
-            response=openai_response,
+            response=responses_response,
             error=openai_error,
-            judgement=openai_judgement,
+            judgement=responses_judgement,
         ),
     "gemini": _AdapterDoubles(
             response=gemini_response,
             error=gemini_error,
             judgement=gemini_judgement,
         ),
-    # SHARED WITH OPENAI BY PROTOCOL, not by coincidence. xAI serves the Chat
-    # Completions shape, so the same response and error doubles exercise it.
+    # THE CHAT COMPLETIONS DOUBLES, by protocol rather than by vendor. xAI
+    # serves the Chat Completions shape, so these response and error doubles
+    # exercise it.
     # An engine added on this protocol reuses this line with its name changed,
     # which is the conformance half of design section 3.3.
     "grok": _AdapterDoubles(
