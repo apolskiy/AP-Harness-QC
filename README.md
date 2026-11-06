@@ -33,6 +33,25 @@ beside it carry what is specified and not yet built.
 | Quarantine | Skips before the request is formed, so it saves the run's cost and never buys a pass |
 | Specified and not yet built | Recorded as deferrals, not as silence |
 
+### Models and judge
+
+**Each engine runs its provider's flagship**, confirmed against the provider's
+model list before every live run outside CI, and the judge follows the same
+rule. Last confirmed 2026-11-05, when one candidate call and one judgement call
+on each new model went through the adapters.
+
+| Engine | Default model, `config/engines.yaml` | Previously |
+|---|---|---|
+| openai | `gpt-6-astra` | `gpt-4.1`, to 2026-11-05 |
+| claude | `claude-opus-5-5` | Unchanged |
+| gemini | `gemini-4-argon` | `gemini-3.8-flash`, to 2026-11-05 |
+| grok | `grok-4.7` | Unchanged |
+| **Judge** | **gemini, `gemini-4-argon`** | `gemini-3.8-flash`, to 2026-11-05 |
+
+Any rostered engine declaring structured output may judge instead, through
+`--judge-engine`, and it judges with its own default model above.
+`config/pricing.yaml` prices every model in the table.
+
 Every case is inventoried in a design document before it is implemented, traced
 in `docs/testing/rtm_harness.csv`, and checked in both directions by
 `MQC_CMN_UNI_112303`, `112305`, `112306`, `112226` and `112313`. That order is

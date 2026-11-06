@@ -15437,3 +15437,31 @@ one counting pair each before the code was written.
 
 **`mqc_uni_assertions.py` passed the 900-line runway** with `114680`, so the
 `source_phrase_absent` subject moved to `mqc_uni_source_phrase.py`, unchanged.
+
+### openai moved to GPT-6 Astra, gemini and the judge to Gemini 4 Argon, 2026-11-05
+
+**The flagship check that opens the live run.** Each provider's model list was
+read with the funded key:
+
+| Engine | Was | Newest top tier listed | Decision |
+|---|---|---|---|
+| openai | `gpt-4.1` | `gpt-6-astra`; `gpt-6.1-sol` and `gpt-6.1-terra` are newer, cheaper tiers | `gpt-6-astra` |
+| claude | `claude-opus-5-5` | `claude-fable-5-1` is listed as most capable, while Opus 5.5 is newer and the recommended default | Unchanged |
+| gemini | `gemini-3.8-flash` | `gemini-4-argon` | `gemini-4-argon`, candidate and judge |
+| grok | `grok-4.7` | `grok-4.7` | Unchanged |
+
+**Each new model was called once before anything moved**, one candidate and
+one judgement call through the adapters. Argon served `gemini-4-argon` and both
+returned a schema-constrained judgement. The first Astra judgement call failed
+on a test schema lacking `additionalProperties: false`, which strict mode
+requires; the harness's own judge schema carries it.
+
+**What moved.** `config/engines.yaml`, the openai and gemini adapter defaults,
+`config/pricing.yaml`, A3 in the ambiguity register, the judge example in
+`tier3_evaluation.md` section 5A.4, and the README, which now names each
+engine's model and the judge's. `MQC_CMN_UNI_450005` asserted the roster's
+gemini model by name and failed on the move; it names the new one.
+
+**What it costs.** Argon is not on the free tier, so the free judge of A3
+Option 1 ends. Astra is five times `gpt-4.1` on input and over six times on
+output.

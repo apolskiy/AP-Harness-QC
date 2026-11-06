@@ -3,7 +3,7 @@
 """The adapter that sends cases to OpenAI's models, over the Chat Completions protocol.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-05
 
 This file contains :class:`OpenAIAdapter`, which names the ``openai`` engine,
 its default model and the ``OPENAI_API_KEY`` credential variable, and inherits
@@ -32,7 +32,7 @@ _ENGINE_NAME: Final[str] = "openai"
 # Supplied at execution time per B8, never hardcoded into a case. This is the
 # fallback when configuration names no model, so an unconfigured run is still
 # reproducible rather than failing at the boundary.
-_DEFAULT_MODEL: Final[str] = "gpt-4.1"
+_DEFAULT_MODEL: Final[str] = "gpt-6-astra"
 
 
 class OpenAIAdapter(OpenAICompatibleAdapter):

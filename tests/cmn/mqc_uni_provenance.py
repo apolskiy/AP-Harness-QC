@@ -3,7 +3,7 @@
 """Unit cases for what a run records about the model it measured against.
 
 Created: 2026-10-29
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 Its cases check :mod:`cmn.provenance` and the two functions in
 :mod:`cmn.pytest_support` that drive it. ``provenance_fields`` carries every
@@ -239,7 +239,7 @@ class TestMQCProvenanceAdoption:
 
         asked = Reader(_SERVED)
         fields = adopt_provenance(live, asked)
-        assert asked.asked == [("gemini", "gemini-3.8-flash")]
+        assert asked.asked == [("gemini", "gemini-4-argon")]
         assert fields["served_version"] == "3.0"
 
     def MQC_CMN_UNI_450006_a_run_writing_no_allure_results_writes_no_file(

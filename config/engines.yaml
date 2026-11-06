@@ -16,7 +16,10 @@ engines:
     # 404s on use: no longer available to new users (A3.1). Pinned rather
     # than -latest, because A8 records the resolved identifier and an alias
     # moving under a baseline defeats that.
-    model: gemini-3.8-flash
+    # MOVED 2026-11-05 from gemini-3.8-flash to the provider's flagship, which
+    # the check before every live run outside CI confirms (A3, revision of
+    # 2026-11-05). Not on the free tier, so this engine is paid from here on.
+    model: gemini-4-argon
     # 4.0s, AND A FAILED ATTEMPT TO WIDEN IT IS WHY THIS COMMENT EXISTS.
     # Recording met QC_HARNESS_RATE_LIMIT on most cases, and 4.0s is 15
     # requests a minute, so the pace looked like the cause. It was not:
@@ -37,7 +40,9 @@ engines:
     observations: 3
     timeout_ms: 60000
   openai:
-    model: gpt-4.1
+    # MOVED 2026-11-05 from gpt-4.1, an April 2025 snapshot, to GPT-6 Astra,
+    # the provider's top tier (A3, revision of 2026-11-05).
+    model: gpt-6-astra
     spacing_sec: 1.0
     observations: 3
     timeout_ms: 60000
@@ -84,7 +89,11 @@ judge:
   # candidate, which is a coincidence rather than a property. Re-pointing the
   # judge registers as a version change and dispatches a live run, because a
   # different judge is a different instrument.
-  model: gemini-3.8-flash
+  #
+  # MOVED 2026-11-05 with the gemini candidate, so the judge is the provider's
+  # flagship too, and every stored judgement is made again (A3, revision of
+  # 2026-11-05).
+  model: gemini-4-argon
 
 # ADAPTERS THAT SHIP AND ARE DELIBERATELY NOT SELECTABLE. A registered adapter
 # absent from the roster above cannot be selected, and before this existed

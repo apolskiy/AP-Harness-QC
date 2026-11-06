@@ -2008,7 +2008,7 @@ judge model is not in the roster.
 ```yaml
 judge:
   engine: gemini
-  model: gemini-3.8-flash
+  model: gemini-4-argon
 ```
 
 An absent `model` falls back to the roster entry for `judge.engine`, which is

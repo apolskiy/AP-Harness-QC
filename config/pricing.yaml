@@ -45,6 +45,26 @@ models:
     # visible count understates the bill by however much the model thought.
     thinking_billed_as: output
 
+  # GEMINI-4-ARGON, PRICED 2026-11-05 when it became the gemini candidate and
+  # judge. The provider published the rise in advance, as it did for the flash
+  # model above, so both windows are named. No context-length tier is listed,
+  # and the model is absent from the free tier.
+  gemini-4-argon:
+    source: https://aistudio.google.com/docs/pricing
+    tiers:
+      - priced_on: 2026-11-05
+        effective_from: 2026-01-01
+        effective_until: 2026-11-30
+        input: 2.00
+        output: 10.00
+        cached_input: 0.10
+      - priced_on: 2026-11-05
+        effective_from: 2026-12-01
+        input: 4.00
+        output: 20.00
+        cached_input: 0.20
+    thinking_billed_as: output
+
   gemini-2.5-flash:
     source: https://ai.google.dev/gemini-api/docs/pricing
     # RETIRED, AND PRICED ANYWAY. DESIGN.md section 2.2 records that this model
@@ -78,6 +98,23 @@ models:
     # WORTH KNOWING BEFORE A WEEKLY RUN GOES LIVE ON THIS ENGINE. Input is 2.7
     # times the flash rate and output 2.1 times, so the same corpus costs roughly
     # twice as much here, and the batch tier halves it.
+
+  # GPT-6-ASTRA, PRICED 2026-11-05 when it replaced gpt-4.1 as the openai
+  # candidate. gpt-4.1 stays priced above, since the recordings made with it
+  # are still in the corpus until the re-record replaces them. THE SHORT-CONTEXT
+  # RATES: the provider doubles input above 272k tokens, which this corpus
+  # cannot reach, for the reason the grok note below gives.
+  gpt-6-astra:
+    source: https://developers.openai.com/api/docs/pricing
+    tiers:
+      - priced_on: 2026-11-05
+        effective_from: 2026-01-01
+        input: 10.00
+        output: 50.00
+        cached_input: 1.00
+    # A REASONING MODEL, so `reasoning_tokens` is populated and billed as
+    # output: one call on 2026-11-05 reported 25 reasoning tokens.
+    thinking_billed_as: output
 
   claude-opus-5-5:
     source: https://platform.claude.com/docs/en/about-claude/pricing

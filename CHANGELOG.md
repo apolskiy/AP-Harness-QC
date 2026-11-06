@@ -29,6 +29,31 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### openai runs GPT-6 Astra, gemini and the judge run Gemini 4 Argon, and the README names each model, 2026-11-05
+
+**Why it was needed.** openai ran `gpt-4.1`, an April 2025 snapshot, and gemini
+and the judge ran `gemini-3.8-flash`, while each provider now serves a newer
+top tier. A run against a superseded model measures something nobody ships, and
+nothing a reader opens said which model an engine runs or which judges it.
+
+**What changed.**
+- `config/engines.yaml` and the adapter defaults name `gpt-6-astra` for openai
+  and `gemini-4-argon` for gemini and the judge. claude stays on
+  `claude-opus-5-5` and grok on `grok-4.7`, each its provider's latest.
+- `config/pricing.yaml` prices both: Astra at $10.00 / $50.00 per million,
+  Argon at $2.00 / $10.00 until 2026-11-30 and $4.00 / $20.00 from
+  2026-12-01. Argon is not on the free tier, so the free judge of A3 Option 1
+  ends.
+- `harness_phase0_project_ambiguities.md` A3 records the revision and its
+  cost. `MQC_CMN_UNI_450005` asks the provider about the roster's new gemini
+  model.
+- The README states each engine's default model and the judge's, and when
+  they were last confirmed.
+
+**What it changes downstream.** Every openai and gemini recording, and every
+stored judgement on all four engines, answers a model no longer configured, so
+the case repository records and judges them again in the live run.
+
 ### The no-quote check counts a function word only beside two more words, and a rule extends the list, 2026-11-05
 
 **Why it was needed.** `source_phrase_absent` failed an answer that reused two

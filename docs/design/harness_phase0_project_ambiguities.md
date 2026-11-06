@@ -89,6 +89,13 @@ Current first-party Claude options (verified against the Claude API skill, cache
 > **The interface stays open, and that is the point of naming a default rather than hardcoding one.** Any engine on the roster that declares the `structured_output` capability may judge; selecting a different one is a configuration entry or a `--judge-engine` flag, never a code change. `tier3_evaluation.md` section 5A carries the resolution rules.
 > **The self-preference consequence is unchanged.** Gemini judging Gemini relocates the confound rather than removing it, and it remains a stated limitation. What the open interface buys is that cross-judging becomes a configuration change the day a second key exists, which is the cheapest form the option can take while unexercised.
 
+> **REVISED 2026-11-05: every engine and the judge run the provider's flagship, confirmed before each live run outside CI.**
+> **What changed.** openai moved from `gpt-4.1`, an April 2025 snapshot, to `gpt-6-astra`, the top GPT-6 tier, rather than the newer and cheaper `gpt-6.1-sol` or `gpt-6.1-terra`. gemini moved from `gemini-3.8-flash` to `gemini-4-argon`, and the judge with it. claude stays on `claude-opus-5-5`, the latest Opus and the provider's recommended default, and grok on `grok-4.7`, the newest it serves.
+> **Why.** The project measures models, and a superseded model measures something nobody ships. A judge older than the candidates it scores is the same defect in the instrument.
+> **How it was confirmed.** Each provider's model list was read with the funded key, and one candidate call and one judgement call on each new model went through the adapters, returning a served `gemini-4-argon` and a schema-constrained judgement from both.
+> **What it costs.** Option 1's free judge ends: `gemini-4-argon` is not on the free tier and costs $2.00 / $10.00 per 1M until 2026-11-30, then $4.00 / $20.00. `gpt-6-astra` costs $10.00 / $50.00 against `gpt-4.1`'s $2.00 / $8.00. Both are in `config/pricing.yaml`.
+> **What it invalidates.** Every openai and gemini recording, and every stored judgement on all four engines, since the judge is a different instrument. The case repository records and judges them again in the live run.
+
 **Recommendation (superseded 2026-09-23, kept as a dated record):** judge with `claude-opus-5`. Use all three families as candidates rather than one: Tier 2's multi-provider adapter interface is decorative unless more than one real response shape exercises it. Three families also convert the self-preference confound from a disclosed caveat into a **measured quantity**: compare how the Claude judge scores Claude output against the others, and optionally cross-judge with a second-family evaluator. Divergence between judges is the bias, quantified.
 
 ---
@@ -770,6 +777,7 @@ The debug workflow was fully specified in `testing-standards.md` section 3.3, wi
 
 | # | Decision | Date | Decided by |
 |---|---|---|---|
+| A3 | **AMENDED**: every engine and the judge run the provider's flagship, confirmed before each live run outside CI. openai moved to `gpt-6-astra`, gemini and the judge to `gemini-4-argon`; claude and grok are unchanged. The free judge of Option 1 ends. | 2026-11-05 | User |
 | A19 | **AMENDED, part four**: a rule declaring `judge_response_only` judges a declared adversarial case on its answer alone once the screen finds no registered vector; a screen hit fails without a judge. No payload reaches a judge. | 2026-10-18 | User |
 | A3 | **AMENDED**: the Gemini judge is now **named in configuration** (`judge.engine` in `engines.yaml`) rather than implied, and any roster engine declaring `structured_output` may judge. The pre-decision recommendation of a Claude judge is marked superseded. Option 1 itself is unchanged. | 2026-09-23 | User |
 | A3 | **AMENDED**: Claude candidate model moved to `claude-opus-5-5`; the adapter states its effort level rather than inheriting an API default. No recurring cost change, since Claude stays replay-only. | 2026-09-23 | User |

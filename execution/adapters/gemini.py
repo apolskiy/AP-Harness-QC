@@ -56,7 +56,7 @@ _ENGINE_NAME: Final[str] = "gemini"
 # Supplied at execution time per B8, never hardcoded into a case. This is the
 # fallback when configuration names no model, so an unconfigured run is still
 # reproducible rather than failing at the boundary.
-_DEFAULT_MODEL: Final[str] = "gemini-3.8-flash"
+_DEFAULT_MODEL: Final[str] = "gemini-4-argon"
 
 # This provider's finish reasons, mapped into the canonical vocabulary. Three
 # distinct refusal-shaped outcomes collapse into one canonical value because the
