@@ -35,6 +35,7 @@ import anthropic
 
 from cmn.tokens import TokenUsage
 from execution.adapters.base import (
+    KEY_PLACEHOLDER,
     Capabilities,
     ConfiguredAdapter,
     ProviderFacts,
@@ -155,12 +156,12 @@ class ClaudeAdapter(ConfiguredAdapter):
         """Return the lines that construct an Anthropic client.
 
         Returns:
-            tuple[str, ...]: The import and the construction, naming the
-            variable the client reads.
+            tuple[str, ...]: The import and the construction, the client
+            taking ``<key>`` where the reader pastes their key.
         """
         return (
             "import anthropic",
-            f"client = anthropic.Anthropic()  # reads {cls.API_KEY_ENV}",
+            f'client = anthropic.Anthropic(api_key="{KEY_PLACEHOLDER}")',
         )
 
     @classmethod
@@ -180,8 +181,8 @@ class ClaudeAdapter(ConfiguredAdapter):
         """Return the credential header and the API version header the endpoint takes.
 
         Returns:
-            tuple[tuple[str, str], ...]: ``x-api-key``, naming the credential
-            variable through ``{key}``, and ``anthropic-version``.
+            tuple[tuple[str, str], ...]: ``x-api-key``, carrying the
+            placeholder through ``{key}``, and ``anthropic-version``.
         """
         return (("x-api-key", "{key}"), ("anthropic-version", "2023-06-01"))
 

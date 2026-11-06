@@ -957,9 +957,32 @@ reaches it.
 | The observation | Outcome `passw`, which counts as a pass in every pass rate |
 | The case | A passing report carrying the user property `mqc_outcome` `passw`, and one `mqc_warning_code` per distinct code the passw observations carry, so JUnit carries both and a filing tool can name the finding |
 | The result block | `passw: <n>`, always printed beside `passed`, and taken out of `passed` |
-| The exit code | Unchanged. A warning is not a failure |
+| The exit code | Unchanged in a graded layer. A warning is not a failure |
 | Every pass floor | A pass: the verdict's 90% floor, the P0 and P1 gate, and a band's floor all count it |
 | A ticket | Filed as a warning, apart from the failures, for the vendor to decide |
+| A precondition | **Never `passw`.** A `unit` or `system` case passes or fails; one reporting `passw` is an instrument defect, logged as `QC_HARNESS_PRECONDITION_WARNED`, and the run exits 3 (section 5.1.2.1) |
+
+##### 5.1.2.1 A precondition has two outcomes, pass and fail
+
+Added 2026-11-06 at the project owner's ruling. **`passw` describes a model
+that corrected itself**, so it belongs to the graded layers, which measure a
+model. A precondition measures the instrument, and an instrument that stated
+something wrong and then corrected it has not passed: the measurement is in
+doubt. **So a precondition reporting `passw` is an instrument defect**, in
+either repository, and the run exits 3 as it does for a precondition that
+skipped (section 7.5.1) or failed (section 7.5.2).
+
+| Layer | Outcomes it may report |
+|---|---|
+| `UNI`, `SYS` | `pass`, `fail` |
+| `EVAL`, `TOOL`, `SEC` | `pass`, `passw`, `fail`, and the skips section 7.4.1 counts |
+
+**A precondition that exercises the `passw` machinery is not one reporting
+`passw`.** It builds observations, reports and registers as data and asserts on
+them; it never records a `passw` observation as its own result.
+`cmn.passw.refuse_precondition_warnings` reads the passing reports at session
+end, and both repositories' conftests call it beside the skip and failure
+refusals. `MQC_CMN_UNI_112442` asserts it.
 
 **It gets its own row for the reason a skip does**: the count is what asks for
 examination. Folded into `passed` it would be invisible, and folded into
@@ -1096,6 +1119,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_BRANCH_NAME` | A branch name departs from the grammar in `harness_ci_pipeline.md` section 3C.6, or names a case that is not inventoried |
 | `QC_HARNESS_BRANCH_STALE` | A branch was cut from `main` past the staleness ceiling and has not been succeeded (3C.6.3) |
 | `QC_HARNESS_PRECONDITION_SKIPPED` | A precondition case skipped, so it measured nothing. The run exits 3; a precondition needing something the environment lacks declares an environment scope and is deselected instead (section 7.5.1) |
+| `QC_HARNESS_PRECONDITION_WARNED` | A precondition case passed with a warning. A precondition passes or fails, so the run exits 3 (section 5.1.2.1) |
 | `QC_HARNESS_PREREQUISITE_MISMATCH` | A carried outcome or a precondition record was written for another run: a commit, the rule set, the engine, the mode or the platform differs, and the message names which. Refused rather than ignored (`cmn_verdict_and_cli.md` sections 7.6 and 7.1.4) |
 | `QC_HARNESS_UNMET_PREREQUISITE` | A selected case rests on a foundation the selection excludes, and `--with-prerequisites` was not given. Refuses the run, naming both remedies (`cmn_verdict_and_cli.md` section 7.8.2) |
 | `QC_HARNESS_REGISTER_REFUSED` | A findings register was not written, because the run it was built from measured nothing it could record. Nothing is overwritten |
@@ -1116,6 +1140,7 @@ constant reached none of them, and five had:
 |---|---|
 | `QC_HARNESS_PREREQUISITE_MISMATCH` | The carry file, and the precondition record |
 | `QC_HARNESS_PRECONDITION_SKIPPED` | The zero-skip refusal |
+| `QC_HARNESS_PRECONDITION_WARNED` | The precondition passw refusal |
 | `QC_HARNESS_UNMET_PREREQUISITE` | The band selection |
 | `QC_DATA_ENGINE_DEFAULTED` | The defaulted-engine warning |
 | A bare precondition prefix, with no condition after it | The case repository's findings register, now `QC_HARNESS_REGISTER_REFUSED` |

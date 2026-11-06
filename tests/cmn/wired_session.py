@@ -68,6 +68,7 @@ def unwired_conftests() -> list[str]:
         for conftest in (REPOSITORY_ROOT / "conftest.py",
                          REPOSITORY_ROOT.parent / "AP-Model-QC" / "conftest.py")
         if conftest.is_file()
-        for wired in ("mark_passw(outcome.get_result(), item)", "passw_count(", "passw=")
+        for wired in ("mark_passw(outcome.get_result(), item)", "passw_count(", "passw=",
+                      "refuse_precondition_warnings(session)")
         if wired not in conftest.read_text(encoding="utf-8")
     ]

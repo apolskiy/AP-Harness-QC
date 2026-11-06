@@ -3,7 +3,7 @@
 """The adapter that sends cases to Google's Gemini models and reads their replies.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains :class:`GeminiAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Google Gen AI API. It composes and
@@ -41,6 +41,7 @@ from google import genai
 
 from cmn.tokens import TokenUsage
 from execution.adapters.base import (
+    KEY_PLACEHOLDER,
     Capabilities,
     ConfiguredAdapter,
     ProviderFacts,
@@ -95,12 +96,12 @@ class GeminiAdapter(ConfiguredAdapter):
         """Return the lines that construct a Gemini client.
 
         Returns:
-            tuple[str, ...]: The import and the construction, naming the
-            variable the client reads.
+            tuple[str, ...]: The import and the construction, the client
+            taking ``<key>`` where the reader pastes their key.
         """
         return (
             "from google import genai",
-            f"client = genai.Client()  # reads {cls.API_KEY_ENV}",
+            f'client = genai.Client(api_key="{KEY_PLACEHOLDER}")',
         )
 
     @classmethod

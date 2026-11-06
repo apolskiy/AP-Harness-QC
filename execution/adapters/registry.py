@@ -3,7 +3,7 @@
 """The registry that finds the adapter class for an engine name such as ``gemini``.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains ``register_adapter``, which enrols an adapter class under
 the engine name it declares, and enrols the four shipped adapters;
@@ -40,7 +40,7 @@ import json
 import pprint
 from typing import Any, Final, Iterator, Optional, Type
 
-from execution.adapters.base import ProviderAdapter
+from execution.adapters.base import KEY_PLACEHOLDER, ProviderAdapter
 from execution.adapters.claude import ClaudeAdapter
 from execution.adapters.gemini import GeminiAdapter
 from execution.adapters.grok import GrokAdapter
@@ -214,8 +214,8 @@ def reproduction_snippet(engine: str, request: dict[str, Any]) -> str:
     ``curl`` only where the recording is also the wire body
     (``consumer_ci.md`` section 9.5.3.1).
 
-    **No credential appears.** Every client reads its own environment variable,
-    which is named in a comment so a reader knows what to set.
+    **No credential appears.** Every client takes ``<key>`` where the reader
+    pastes their own key, so the copied snippet runs with nothing else set.
 
     Args:
         engine (str): The engine the call was made against.
@@ -275,9 +275,9 @@ def reproduction_curl(engine: str, request: dict[str, Any], *, shell: str = "bas
 
     Offered only by an adapter whose recorded request is the wire body. The
     body is read from the file :func:`reproduction_body` gives, so no shell
-    re-quotes it and no here-document is needed, and the credential is the
-    engine's own variable, named and never valued. Design: ``consumer_ci.md``
-    section 9.5.3.1.
+    re-quotes it and no here-document is needed, and the credential header
+    carries ``<key>`` where the reader pastes their own key, the same in both
+    shells. Design: ``consumer_ci.md`` section 9.5.3.1.
 
     Args:
         engine (str): The engine the call was made against.
@@ -293,10 +293,9 @@ def reproduction_curl(engine: str, request: dict[str, Any], *, shell: str = "bas
         return ""
     adapter = adapter_for(engine)
     powershell = shell == "powershell"
-    key = f"$env:{adapter.API_KEY_ENV}" if powershell else f"${adapter.API_KEY_ENV}"
     joiner = " `" if powershell else " \\"
     headers = [
-        *(f'  -H "{name}: {value.format(key=key)}"'
+        *(f'  -H "{name}: {value.format(key=KEY_PLACEHOLDER)}"'
           for name, value in adapter.reproduction_headers()),
         '  -H "Content-Type: application/json"',
     ]

@@ -54,6 +54,7 @@ import pytest
 
 from cmn.case_coverage import uncovered_members
 from cmn.credentials import credential_shaped_value
+from execution.adapters.base import KEY_PLACEHOLDER
 from execution.adapters.openai_protocol import OpenAICompatibleAdapter
 from execution.adapters.registry import (
     registered_engines,
@@ -198,11 +199,13 @@ class TestMQCReproduction:
             f"{adapter.engine_name} omits the prompt from its reproduction"
         )
 
-        # IT NAMES THE VARIABLE TO SET AND CARRIES NO CREDENTIAL. A ticket is
-        # published, so a key reaching one is disclosed.
-        assert adapter.API_KEY_ENV in snippet, (
-            f"{adapter.engine_name} does not say which variable to set, so the "
-            f"snippet cannot be run by whoever receives it"
+        # THE CLIENT TAKES THE PLACEHOLDER AND CARRIES NO CREDENTIAL. A ticket
+        # is published, so a key reaching one is disclosed, and a reader
+        # pastes their own key in place of `<key>` rather than setting a
+        # variable the snippet would read.
+        assert f'api_key="{KEY_PLACEHOLDER}"' in snippet and "os.environ" not in snippet, (
+            f"{adapter.engine_name}'s client does not take {KEY_PLACEHOLDER} where the "
+            f"key goes, so the snippet is not the call a reader can paste a key into"
         )
         for line in snippet.splitlines():
             assert not credential_shaped_value(line.strip()), (
@@ -441,16 +444,20 @@ class TestMQCReproduction:
             f"curl.exe {endpoint} "
         ), f"{adapter.engine_name}'s commands do not post to {endpoint}"
         credential = _CREDENTIAL_HEADER[engine]
-        assert f'"{credential.format(key="$" + adapter.API_KEY_ENV)}"' in bash and (
-            f'"{credential.format(key="$env:" + adapter.API_KEY_ENV)}"' in powershell
-        ), f"{adapter.engine_name}'s commands do not send {credential.split(':')[0]}"
+        assert f'"{credential.format(key=KEY_PLACEHOLDER)}"' in bash and (
+            f'"{credential.format(key=KEY_PLACEHOLDER)}"' in powershell
+        ), (
+            f"{adapter.engine_name}'s commands do not send {credential.split(':')[0]} "
+            f"with {KEY_PLACEHOLDER} where the key goes"
+        )
+        assert adapter.API_KEY_ENV not in bash + powershell, (
+            f"{adapter.engine_name}'s commands read {adapter.API_KEY_ENV}, so a reader "
+            f"must set a variable rather than paste a key in place of {KEY_PLACEHOLDER}"
+        )
         for name, value in adapter.reproduction_headers():
-            assert f'"{name}: {value.format(key="$" + adapter.API_KEY_ENV)}"' in bash, (
-                f"{adapter.engine_name}'s bash curl does not send {name}"
-            )
-            assert (
-                f'"{name}: {value.format(key="$env:" + adapter.API_KEY_ENV)}"' in powershell
-            ), f"{adapter.engine_name}'s PowerShell curl does not send {name}"
+            assert f'"{name}: {value.format(key=KEY_PLACEHOLDER)}"' in bash and (
+                f'"{name}: {value.format(key=KEY_PLACEHOLDER)}"' in powershell
+            ), f"{adapter.engine_name}'s commands do not send {name}"
         assert "--data-binary @request.json" in bash and (
             '--data-binary "@request.json"' in powershell
         ), f"{adapter.engine_name}'s commands do not read the body from request.json"
@@ -525,18 +532,18 @@ class TestMQCReproduction:
         monkeypatch: pytest.MonkeyPatch,
         tmp_path: Path,
     ) -> None:
-        """An OpenAI-protocol snippet builds a client holding its engine's key.
+        """An OpenAI-protocol snippet builds a client holding the key pasted for ``<key>``.
 
-        The setup lines run with only the engine's own variable set, and the
-        client they build carries that value and the engine's endpoint. The
-        OpenAI client reads ``OPENAI_API_KEY`` alone, so an engine on another
-        base URL must pass its variable by name.
+        The setup lines run with no credential variable set, after the
+        placeholder is replaced the way a reader pastes a key, and the client
+        they build carries that key and the engine's endpoint. Nothing is read
+        from the environment, so the copied snippet runs as it stands.
 
         Design: ``consumer_ci.md`` section 9.5.3.1.
 
         Args:
             engine (str): The registered engine whose adapter is checked.
-            monkeypatch (pytest.MonkeyPatch): Sets and clears the variables.
+            monkeypatch (pytest.MonkeyPatch): Clears the variables.
             tmp_path (Path): Where the setup lines are written to be run.
 
         Returns:
@@ -547,15 +554,18 @@ class TestMQCReproduction:
             assert adapter.engine_name, "an adapter with no engine name was registered"
             return
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        monkeypatch.setenv(adapter.API_KEY_ENV, "probe-not-a-credential")
+        monkeypatch.delenv(adapter.API_KEY_ENV, raising=False)
 
         setup = tmp_path / "setup.py"
-        setup.write_text("\n".join(adapter.reproduction_setup()) + "\n", encoding="utf-8")
+        pasted = "\n".join(adapter.reproduction_setup()).replace(
+            KEY_PLACEHOLDER, "probe-not-a-credential"
+        )
+        setup.write_text(pasted + "\n", encoding="utf-8")
         client = runpy.run_path(str(setup))["client"]
 
         assert client.api_key == "probe-not-a-credential", (
-            f"{adapter.engine_name}'s snippet builds a client that does not read "
-            f"{adapter.API_KEY_ENV}, so running it is refused for the wrong key"
+            f"{adapter.engine_name}'s snippet builds a client that does not hold the "
+            f"key pasted in place of {KEY_PLACEHOLDER}, so running it is refused"
         )
         assert str(client.base_url).rstrip("/") == (
             adapter.BASE_URL or "https://api.openai.com/v1"

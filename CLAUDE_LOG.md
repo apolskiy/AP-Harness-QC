@@ -15599,3 +15599,34 @@ repeat observations, `passw` against `pass` or against `fail` is inconsistent.
 * **Code Quality & Compliance Audit:** unit 1051 of 1051, exit 0; system 24 of
   24, exit 0; pylint 10.00/10, exit 0. `cmn/layers.py` audit re-declared at
   7657ac49, 0 survivors.
+
+### A reproduction carries `<key>`, and a precondition passes or fails, 2026-11-06
+
+**A reproduction is what a vendor copies, so it is the call itself.** The curl
+read `$VARIABLE` or `$env:VARIABLE` and the SDK clients read a variable the
+reader had to set. `KEY_PLACEHOLDER` in `execution/adapters/base.py` is
+`<key>`; `reproduction_curl` fills every header with it and the three SDK
+clients take `api_key="<key>"`. Nothing reads the environment, so no credential
+can reach a ticket (`EXE_0136`, `EXE_0137`). `113130` to `113133` and `113138`
+to `113145` failed first, nine assertion failures, once the constant existed.
+
+**A precondition has two outcomes.** passw describes a model that corrected
+itself; a precondition measures the instrument, and one reporting passw leaves
+the measurement in doubt. `cmn.passw.refuse_precondition_warnings` reads the
+passing reports at session end and, for each `UNI` or `SYS` report marked
+passw, logs `QC_HARNESS_PRECONDITION_WARNED` and sets exit 3, as the skip and
+failure refusals do. Graded passw is untouched. The code is registered in
+`cmn/registries.py` and taxonomy section 6; the design is section 5.1.2.1;
+`CMN_0245` traces `112442`. Both conftests call it, and `unwired_conftests`
+now names the call, so `112438` and `112442` read the wiring.
+
+* **Fail-first:** with a stub returning 0, `112442` failed, the session holding
+  a precondition passw exiting 0 where 3 was required, and `112438` failed on
+  the missing wiring. Both pass with the fix.
+* **Found while building, and fixed:** the index and README counts moved
+  (`112314`, `112323`): `cmn_verdict_and_cli.md` 482 to 483 cases, the README
+  1079 to 1080 cases and 413 to 414 requirements.
+* **Code Quality & Compliance Audit:** harness unit 1052 of 1052, exit 0;
+  system 24 of 24, exit 0; pylint 10.00/10, exit 0. Model Repository unit 220
+  of 220 against this harness, exit 0, none marked passw; pylint 10.00/10,
+  exit 0.

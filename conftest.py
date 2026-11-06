@@ -59,7 +59,7 @@ from cmn.case_steps import begin_case_steps, record_assertion, record_call
 from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
 from cmn.mutation_guard import imported_harness_root, refuse_if_mutating
-from cmn.passw import mark_passw, passw_count
+from cmn.passw import mark_passw, passw_count, refuse_precondition_warnings
 from cmn.run_context import adopt_run_context, publish_preconditions_record
 from cmn.selection import (
     deselect_unrequested_audits,
@@ -585,6 +585,8 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     # AND A FAILED PRECONDITION IS AN INSTRUMENT DEFECT, not a model finding,
     # so it exits 3 rather than pytest's 1 (taxonomy section 7.5.2).
     refuse_precondition_failures(session)
+    # AND A PRECONDITION PASSES OR FAILS, never with a warning (taxonomy 5.1.2.1).
+    refuse_precondition_warnings(session)
     # AND A CRASH MEASURED NOTHING EITHER (taxonomy section 5.1.1).
     refuse_broken(session)
     # LAST, after the refusals that raise the exit status: only a session that

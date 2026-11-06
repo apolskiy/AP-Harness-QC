@@ -3,7 +3,7 @@
 """Shared registries, the codes, conditions and families the harness looks up.
 
 Created: 2026-09-26
-Last updated: 2026-10-28
+Last updated: 2026-11-06
 
 This file contains the priority conditions (``priority_condition_level``,
 ``registered_priority_conditions``); the failure taxonomy codes by family
@@ -126,6 +126,9 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     # REGISTERED 2026-10-21, raised long before any registry held them, which
     # `unregistered_code_literals` now refuses (taxonomy section 6.2.1).
     "QC_HARNESS_PRECONDITION_SKIPPED",
+    # A PRECONDITION PASSES OR FAILS, so one marked passw exits 3
+    # (taxonomy section 5.1.2.1).
+    "QC_HARNESS_PRECONDITION_WARNED",
     "QC_HARNESS_PREREQUISITE_MISMATCH",
     "QC_HARNESS_UNMET_PREREQUISITE",
     "QC_HARNESS_REGISTER_REFUSED",

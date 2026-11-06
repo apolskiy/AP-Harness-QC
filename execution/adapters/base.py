@@ -39,13 +39,18 @@ import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Final, Optional
 
 from cmn.tokens import TokenUsage
 from cmn.registries import is_adapter_error_code, taxonomy_for_status
 from execution.normalize import NormalizedResponse, ToolCall
 
 logger = logging.getLogger(__name__)
+
+# WHERE A REPRODUCTION'S CREDENTIAL GOES. A ticket's curl and SDK call carry
+# this literal and the ticket says to replace it with the reader's own key, so
+# the copied command runs as it stands (`consumer_ci.md` section 9.5.3.1).
+KEY_PLACEHOLDER: Final[str] = "<key>"
 
 
 @dataclass(frozen=True)
@@ -366,9 +371,10 @@ class ConfiguredAdapter(ProviderAdapter):
         right to report.
 
         Returns:
-            tuple[str, ...]: Import and construction lines, naming the
-            environment variable in a comment and **never a credential**.
-            Empty where the adapter declares no reproduction.
+            tuple[str, ...]: Import and construction lines, the client taking
+            :data:`KEY_PLACEHOLDER` where the reader pastes their key and
+            **never a credential**. Empty where the adapter declares no
+            reproduction.
         """
         return ()
 
@@ -395,9 +401,8 @@ class ConfiguredAdapter(ProviderAdapter):
 
         Returns:
             tuple[tuple[str, str], ...]: Each header's name and value, where
-            ``{key}`` stands for the shell's reference to the engine's
-            credential variable, so **no credential appears**. Empty where no
-            ``curl`` is offered.
+            ``{key}`` is filled with :data:`KEY_PLACEHOLDER`, so **no
+            credential appears**. Empty where no ``curl`` is offered.
         """
         return ()
 

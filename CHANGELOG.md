@@ -29,6 +29,39 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A precondition passes or fails, and one marked passw exits 3, 2026-11-06
+
+**Why it was needed.** passw describes a model that corrected itself. A
+precondition measures the instrument, so one reporting passw leaves the
+measurement in doubt, and nothing stopped a `unit` or `system` case from being
+marked passw and the run exiting 0.
+
+**What changed.** `cmn.passw.refuse_precondition_warnings` reads the passing
+reports at session end and, for each precondition marked passw, logs
+`QC_HARNESS_PRECONDITION_WARNED` and sets exit 3, as a precondition skip or
+failure already does. A graded passw leaves the status alone. Both
+repositories' conftests call it (`harness_test_taxonomy.md` section 5.1.2.1,
+requirement `MQC_REQ_HAR_CMN_0245`). Case `112442` failed before the change,
+the precondition run exiting 0. The README's instrument suite moved from 1079
+to 1080 cases and its traced requirements from 413 to 414.
+
+### A reproduction carries `<key>` where the reader pastes their own key, 2026-11-06
+
+**Why it was needed.** A ticket's reproduction is what a vendor copies to see
+the problem for themselves. The curl read `$VARIABLE` in bash and
+`$env:VARIABLE` in PowerShell, and the SDK clients read a variable the reader
+had to know to set, so the copied command was not the call itself.
+
+**What changed.** `execution.adapters.base.KEY_PLACEHOLDER` is `<key>`. Every
+`reproduction_curl` header and every adapter's `reproduction_setup` client
+carries it: `x-api-key: <key>`, `Authorization: Bearer <key>`,
+`anthropic.Anthropic(api_key="<key>")`, `genai.Client(api_key="<key>")` and
+`openai.OpenAI(api_key="<key>")`, with the engine's base URL where it declares
+one. Nothing is read from the environment, and no credential appears
+(`consumer_ci.md` section 9.5.3.1, requirements `MQC_REQ_HAR_EXE_0136` and
+`0137`). Cases `113130` to `113133` and `113138` to `113145` failed before the
+change.
+
 ### An answer that corrects itself passes with a warning, counted as passw, 2026-11-06
 
 **Why it was needed.** An answer that stated the wrong comparison and then

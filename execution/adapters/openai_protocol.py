@@ -48,6 +48,7 @@ import openai
 
 from cmn.tokens import TokenUsage
 from execution.adapters.base import (
+    KEY_PLACEHOLDER,
     Capabilities,
     ConfiguredAdapter,
     ProviderFacts,
@@ -132,18 +133,16 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
         constants on two adapters was the duplication this replaces.
 
         Returns:
-            tuple[str, ...]: The import and the construction. Where the engine
-            declares a base URL the client takes it and the engine's variable by
-            name, because the OpenAI client reads ``OPENAI_API_KEY`` alone
-            (``consumer_ci.md`` section 9.5.3.1).
+            tuple[str, ...]: The import and the construction, the client taking
+            ``<key>`` where the reader pastes their key, and the engine's base
+            URL where it declares one (``consumer_ci.md`` section 9.5.3.1).
         """
         if not getattr(cls, "BASE_URL", ""):
-            return ("import openai", f"client = openai.OpenAI()  # reads {cls.API_KEY_ENV}")
+            return ("import openai", f'client = openai.OpenAI(api_key="{KEY_PLACEHOLDER}")')
         return (
-            "import os",
             "import openai",
             f'client = openai.OpenAI(base_url="{cls.BASE_URL}", '
-            f'api_key=os.environ["{cls.API_KEY_ENV}"])',
+            f'api_key="{KEY_PLACEHOLDER}")',
         )
 
     @classmethod
@@ -165,7 +164,7 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
 
         Returns:
             tuple[tuple[str, str], ...]: The ``Authorization`` header, its value
-            naming the credential variable through ``{key}``.
+            carrying the placeholder through ``{key}``.
         """
         return (("Authorization", "Bearer {key}"),)
 

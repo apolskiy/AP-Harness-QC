@@ -9,7 +9,8 @@ The cases here check ``cmn.passw`` and the ``passw`` row of
 ``cmn.band_summary.result_lines``. A passing case whose recorded observations
 include the outcome ``passw`` is marked on its report and counted under
 ``passw`` rather than ``passed``, both pass rates count it as a pass, and the
-exit status is the one a pass leaves.
+exit status is the one a pass leaves in a graded layer. A precondition marked
+``passw`` exits 3 with ``QC_HARNESS_PRECONDITION_WARNED``.
 
 A pass with a warning folded into ``passed`` is invisible, and the row is what
 asks a reader to examine it.
@@ -25,6 +26,7 @@ a model finding**, so the module carries no priority marker, per
 # TestMQCPassw
 #   112438  a_case_passing_with_a_warning_is_counted_as_passw
 #   112441  a_passw_case_carries_its_warning_code_in_junit
+#   112442  a_precondition_passing_with_a_warning_fails_the_run
 #   112439  a_passw_count_has_its_own_row_and_counts_as_a_pass
 #   112440  a_passw_observation_counts_toward_every_pass_floor
 # ------------------------------------------------------------ end of cases
@@ -97,6 +99,43 @@ def test_records_nothing() -> None:
     assert True
 '''
 
+# THE REFUSAL, wired as both conftests wire it at session end.
+_REFUSING_CONFTEST = _CONFTEST + '''
+
+from cmn.passw import refuse_precondition_warnings
+
+
+def pytest_sessionfinish(session: Any, exitstatus: int) -> None:
+    refuse_precondition_warnings(session)
+'''
+
+# ONE PRECONDITION AND ONE GRADED CASE, each recording a passw observation. The
+# layer is read from the name, as `cmn.environments.is_precondition` reads it.
+_WARNED = '''
+from cmn.emission import record_observation
+from cmn.observations import Observation
+
+
+def _warn() -> None:
+    record_observation(Observation(
+        case_id="warned", layer="EVAL", outcome="passw", priority=2,
+        taxonomy_code="QC_LLM_FACTUAL_ERROR",
+    ))
+
+
+def test_MQC_EVL_EVAL_134999_graded_warned() -> None:
+    _warn()
+'''
+
+_PRECONDITION_WARNED = _WARNED + '''
+
+def test_MQC_CMN_UNI_112999_precondition_warned() -> None:
+    _warn()
+'''
+
+# LIVE LOGGING, so the code the refusal logs at session end reaches the output.
+_LOG_CLI: tuple[str, ...] = ("-o", "log_cli=true", "--log-cli-level=ERROR")
+
 
 class TestMQCPassw:
     """A pass with a warning is counted apart, and it is a pass."""
@@ -161,6 +200,45 @@ class TestMQCPassw:
 
         step(2, "read the clean case's properties")
         assert properties.get("test_passes_clean") == [], properties
+
+    @story("A precondition passes or fails")
+    def MQC_CMN_UNI_112442_a_precondition_passing_with_a_warning_fails_the_run(
+        self, tmp_path: Path
+    ) -> None:
+        """A precondition marked passw exits 3 with its code; a graded passw leaves 0.
+
+        Design: ``harness_test_taxonomy.md`` section 5.1.2.1.
+
+        Args:
+            tmp_path (Path): Where the two wired sessions and their cases are written.
+
+        Returns:
+            None
+        """
+        step(1, "run a session where a precondition and a graded case each pass with a warning")
+        mixed = tmp_path / "mixed"
+        mixed.mkdir()
+        finished = run_wired_session(
+            mixed, _REFUSING_CONFTEST, _PRECONDITION_WARNED, extra=_LOG_CLI
+        )
+        output = finished.stdout + finished.stderr
+        refused = [line for line in output.splitlines()
+                   if "QC_HARNESS_PRECONDITION_WARNED" in line]
+        assert finished.returncode == 3 and len(refused) == 1 and (
+            "MQC_CMN_UNI_112999" in refused[0] and "MQC_EVL_EVAL_134999" not in refused[0]
+        ), f"exit {finished.returncode}, refused {refused}:\n{output}"
+
+        step(2, "run a session where only the graded case passes with a warning")
+        graded_only = tmp_path / "graded"
+        graded_only.mkdir()
+        finished = run_wired_session(graded_only, _REFUSING_CONFTEST, _WARNED, extra=_LOG_CLI)
+        assert finished.returncode == 0, (
+            f"a graded passw exited {finished.returncode}:\n{finished.stdout}{finished.stderr}"
+        )
+
+        step(3, "read both conftests for the refusal")
+        unwired = unwired_conftests()
+        assert not unwired, unwired
 
     @story("A pass with a warning has its own count")
     def MQC_CMN_UNI_112439_a_passw_count_has_its_own_row_and_counts_as_a_pass(self) -> None:
