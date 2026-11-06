@@ -3,7 +3,7 @@
 """The layer and outcome registries, what each test layer and result outcome means.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-06
 
 This file contains ``LayerProperties`` and ``OutcomeProperties``; ``layer_properties``,
 ``registered_layers``, ``register_layer`` and ``unregister_layer`` for layers;
@@ -105,7 +105,8 @@ class OutcomeProperties:
     pass rate is wrong for the skip rate.
 
     Attributes:
-        outcome (str): ``pass``, ``fail``, ``broken`` or ``skip``.
+        outcome (str): ``pass``, ``passw``, ``fail``, ``broken``, ``skip`` or
+            ``unattributed``.
         counts_in_pass_rate (bool): Whether it enters the V2 denominator.
         is_pass (bool): Whether it counts as a passing execution.
         counts_in_skip_rate (bool): Whether it enters the V3 and V4 numerator.
@@ -122,6 +123,10 @@ class OutcomeProperties:
 
 _OUTCOMES: Final[dict[str, OutcomeProperties]] = {
     "pass": OutcomeProperties("pass", True, True, False, True),
+    # A PASS WITH A WARNING: the answer corrected a wrong statement later in
+    # the same response. A pass in every rate, and counted apart so a reader
+    # examines it (`harness_test_taxonomy.md` section 5.1.2).
+    "passw": OutcomeProperties("passw", True, True, False, True),
     "fail": OutcomeProperties("fail", True, False, False, True),
     # BROKEN MEANS OUR INFRASTRUCTURE FAILED, so it is not a model finding and
     # it is OUT of the pass-rate denominator. Leaving it in made harness

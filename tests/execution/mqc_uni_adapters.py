@@ -43,6 +43,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113009  claude_sends_the_system_instruction_as_its_own_field
 #   113011  composed_request_states_effort_rather_than_inheriting_it
 #   113012  composed_request_carries_no_field_the_model_rejects
+#   113037  claude_constrains_a_judgement_through_the_response_format
 # TestMQCChatCompletionsAdapter
 #   113027  grok_maps_the_superseded_tool_call_finish_reason
 #   113028  grok_absent_tool_calls_field_yields_an_empty_list
@@ -307,6 +308,69 @@ class TestMQCClaudeAdapter:
 
         # Sampling parameters were removed from this model family.
         assert not {"temperature", "top_p", "top_k"} & set(composed)
+
+    def MQC_EXE_UNI_113037_claude_constrains_a_judgement_through_the_response_format(
+        self,
+    ) -> None:
+        """A judge request carries the reply schema as a response format and forces no tool.
+
+        The model rejects a forced tool call, judge request or not, so the
+        schema travels in ``output_config.format`` with every object closed,
+        and the reply is the JSON of the text block. A reply with no text
+        block, or text that is not JSON, is a parser error.
+
+        Design: ``tier2_execution.md`` section 7.8.5.
+
+        Returns:
+            None
+        """
+        adapter = ClaudeAdapter()
+        strict = compose_judge_request(
+            "MQC_TASK_probe::MQC_RULE_probe",
+            _rubric_with("C_ONE"),
+            UnauthoredMaterial(candidate_output="An answer.", task_instruction="Ask."),
+        ).reply_schema
+        composed = adapter.compose_judgement("Score it.", strict)
+
+        assert composed.get("tool_choice", {}).get("type") not in {"any", "tool"}, (
+            "the judge request forces a tool call, which this model rejects with 400"
+        )
+        assert not composed.get("tools"), "the judge request offers a tool to force"
+        response_format = composed.get("output_config", {}).get("format", {})
+        assert response_format.get("type") == "json_schema", composed
+
+        def open_objects(node: Any) -> list[str]:
+            """Return every object in a schema that is not closed.
+
+            Args:
+                node (Any): A schema node.
+
+            Returns:
+                list[str]: One entry per open object.
+            """
+            if isinstance(node, dict):
+                found = ([str(sorted(node.get("properties", {})))]
+                         if node.get("type") == "object"
+                         and node.get("additionalProperties") is not False else [])
+                return found + [entry for value in node.values()
+                                for entry in open_objects(value)]
+            if isinstance(node, list):
+                return [entry for value in node for entry in open_objects(value)]
+            return []
+
+        assert not open_objects(response_format.get("schema")), (
+            f"objects the format requires closed are open: "
+            f"{open_objects(response_format.get('schema'))}"
+        )
+        assert open_objects(strict), "the shared schema was changed in place"
+
+        reply = {"scores": {"C_ONE": {"score": 4, "rationale": "Mostly."}}}
+        parsed = adapter.parse_judgement(claude_response(text=json.dumps(reply)))
+        assert parsed == reply
+
+        for unusable in (claude_response(text="Not JSON."), claude_response(text="")):
+            with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+                adapter.parse_judgement(unusable)
 
 
 class TestMQCChatCompletionsAdapter:

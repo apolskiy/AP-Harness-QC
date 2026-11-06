@@ -906,6 +906,7 @@ Each observation resolves to exactly one outcome. Allure's statuses already enco
 | Outcome | Allure status | Meaning | Taxonomy |
 |---|---|---|---|
 | **Pass** | `passed` | The assertion held | - |
+| **Passw** | `passed` | The assertion held because the answer corrected a wrong statement later in the same response; a pass with a warning, examined like a skip | The assertion's `QC_LLM_*` code, as a warning |
 | **Fail** | `failed` | The assertion did not hold | `QC_LLM_*` or `QC_SEC_*` |
 | **Broken** | `broken` | An unexpected exception occurred | `QC_HARNESS_*` |
 | **Skip** | `skipped` | The case was never executed | `QC_HARNESS_*` |
@@ -942,6 +943,40 @@ measurement; an exception nobody raised on purpose is not.
 it is an alarm, and a row of zeroes would train a reader to skip it.
 
 `MQC_CMN_UNI_112385` asserts the classification, the line and the exit code.
+
+#### 5.1.2 A pass with a warning is its own outcome, and it is a pass
+
+Added 2026-11-06 at the project owner's ruling. **An answer that states
+something wrong and corrects it later in the same response has recovered**,
+which is designed behaviour and not a failure; it is also an error the vendor
+may choose to fix. `tier3_evaluation.md` section 5.3.2 says how an assertion
+reaches it.
+
+| Output | `passw` |
+|---|---|
+| The observation | Outcome `passw`, which counts as a pass in every pass rate |
+| The case | A passing report carrying the user property `mqc_outcome` `passw`, and one `mqc_warning_code` per distinct code the passw observations carry, so JUnit carries both and a filing tool can name the finding |
+| The result block | `passw: <n>`, always printed beside `passed`, and taken out of `passed` |
+| The exit code | Unchanged. A warning is not a failure |
+| Every pass floor | A pass: the verdict's 90% floor, the P0 and P1 gate, and a band's floor all count it |
+| A ticket | Filed as a warning, apart from the failures, for the vendor to decide |
+
+**It gets its own row for the reason a skip does**: the count is what asks for
+examination. Folded into `passed` it would be invisible, and folded into
+`failed` it would report a recovery as a defect.
+
+**A judge gives a score, never `passw`.** The outcome is set by the assertion
+that found the correction, and the judge grades the answer against the rubric.
+Two judges whose scores fall on opposite sides of the threshold for one
+observation disagree, and that is a question about the rubric, the case, the
+prompts or the judgements, examined before anything is filed.
+
+**Across repeat observations, `passw` against `pass` or against `fail` is
+inconsistent**: the observations did not come out the same.
+
+`MQC_CMN_UNI_112438` asserts the mark, the row and the exit code,
+`MQC_CMN_UNI_112440` the floors, and `MQC_CMN_UNI_112441` the two properties in
+the JUnit a run writes.
 
 ### 5.2 Adjudication is the reviewer's role (A7.1)
 
@@ -1304,6 +1339,7 @@ broken observation could have entered the pass rate and no case noticed.
 | Outcome | In the pass-rate denominator | Counts as a pass | In the skip-rate numerator | In the distribution denominator |
 |---|---|---|---|---|
 | `pass` | Yes | Yes | No | Yes |
+| `passw` | Yes | Yes | No | Yes |
 | `fail` | Yes | No | No | Yes |
 | `broken` | No | No | No | Yes |
 | `skip` | Yes, then filtered by the reason, section 7.4.1 | No | Yes | Yes |

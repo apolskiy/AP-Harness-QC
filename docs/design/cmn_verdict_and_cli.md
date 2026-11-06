@@ -803,6 +803,33 @@ same reason.
 calling it, which is the division above restated as two cases: a rule nothing
 calls and a loop that decides for itself are the two ways this could be wrong.
 
+##### 4.9.2.2.1 An observation nothing measured is not a failure, and earns nothing
+
+Found 2026-11-06, in a run judging gemini's recorded `134205` with claude. The
+judge rejected every request, so each of the three observations was an
+environmental skip carrying `QC_HARNESS_REQUEST_REJECTED`. **The loop passed
+`False` for each**, the result not having passed, and the rule read three
+failures and asked for two more. The fourth dispatch found no recording, and
+the case reported a missing recording instead of a judge that refused
+everything. In a live run the same fourth dispatch buys a candidate response no
+judge can score.
+
+**So the rule takes `None` for an observation nothing measured**, and counts
+only the measured ones. A failure is a measured observation that did not pass;
+an observation whose judgement was unavailable, or withheld on request, is not
+one, and it does not disagree with anything.
+
+| Outcomes | Further observations |
+|---|---|
+| `None, None, None` | 0: nothing was measured, so there is nothing to refine |
+| `True, None, None` | 0: one measurement cannot disagree with itself |
+| `True, None, False` | 2: a measured failure, as before |
+| `True, True, True` | 0, unchanged |
+
+`MQC_CMN_UNI_112036` asserts the boundary, and the consumer's loop passes
+`None` for an unmeasured observation (`AP-Model-QC` `consumer_ci.md` section
+6.4.5).
+
 #### 4.9.3 Consistency compares verdicts, never responses to each other
 
 Corrected 2026-09-26. **An earlier version of this section claimed the spread of
@@ -2882,6 +2909,35 @@ summary, which is what a reader sees without opening the log.
 `MQC_CMN_UNI_112332` asserts the arithmetic, including that nothing executed
 yields no rate and that a dependency skip stays out of the denominator.
 
+##### 7.11.5 A pass with a warning has its own row
+
+Added 2026-11-06 at the project owner's ruling (`harness_test_taxonomy.md`
+section 5.1.2). **A case that passed because the answer corrected itself is
+counted under `passw` and not under `passed`**, and the row is printed always,
+a zero included, beside the other five:
+
+```
+Test results for Band P2 on gemini
+total: 12
+executed: 12
+passed: 10
+passw: 1
+failed: 1
+skipped: 0
+execution pass: 91.7% (11 of 12)
+total pass: 91.7% (11 of 12)
+```
+
+**`executed` and both rates count it as a pass**, because it is one. The
+separate row is what asks a reader to look at it, as a skip's row does, and it
+is the row a filing tool reads to raise a warning ticket rather than a failure.
+
+**The heading's two values travel as one `Heading`**, the band and the engine,
+because they serve only the first line and the counts are what the function is
+about.
+
+`MQC_CMN_UNI_112439` asserts the row and the arithmetic.
+
 ### 7.12 The failure lister answers which cases went red
 
 Added 2026-10-29. Both runbooks had a section called "when you only want to
@@ -3168,6 +3224,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112383` | N | `an_audit_run_reads_no_standard_input` (taxonomy 15.5.1) |
 | `112384` | N | `a_control_that_raises_leaves_no_backup` (taxonomy 15.5.1) |
 | `112385` | N | `a_case_that_crashes_is_broken_and_the_run_exits_3` (taxonomy 5.1.1) |
+| `112438` | P | `a_case_passing_with_a_warning_is_counted_as_passw` (taxonomy 5.1.2) |
+| `112439` | P | `a_passw_count_has_its_own_row_and_counts_as_a_pass` (7.11.5) |
+| `112440` | B | `a_passw_observation_counts_toward_every_pass_floor` (taxonomy 5.1.2) |
+| `112441` | P | `a_passw_case_carries_its_warning_code_in_junit` (taxonomy 5.1.2) |
 | `112391` | N | `a_run_refuses_a_module_a_live_audit_holds_but_its_own` (taxonomy 15.12.1) |
 | `112392` | N | `an_abandoned_backup_is_restored_verified_and_the_run_refused` (taxonomy 15.12.2) |
 | `112393` | N | `a_failed_restore_keeps_the_backup_and_names_both_recoveries` (taxonomy 15.12.2) |
@@ -3573,7 +3633,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 478 cases, 283 negative, 144 positive, 51 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 482 cases, 283 negative, 147 positive, 52 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

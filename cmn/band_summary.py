@@ -3,10 +3,11 @@
 """Band result summary, what one priority band's run established, in its own terms.
 
 Created: 2026-10-06
-Last updated: 2026-10-21
+Last updated: 2026-11-06
 
 This file contains ``result_lines``, which renders a band's result as a header and one
-labelled fact per line, with the ``Alarms`` printed only when nonzero; ``pass_rate``,
+labelled fact per line, under a ``Heading`` naming the band and the engine, with
+the ``Alarms`` printed only when nonzero; ``pass_rate``,
 over the execution or the total denominator; ``band_label``; ``skipped_cases_from``,
 ``skip_reasons_from`` and ``skip_detail_lines``, which name each skip and its reason;
 and ``band_table``, a per-band Markdown table with totals.
@@ -211,14 +212,29 @@ class Alarms:
     broken: int = 0
 
 
+@dataclass(frozen=True)
+class Heading:
+    """What a result block names in its first line.
+
+    Attributes:
+        priority (str): The ``--priority`` value, empty when none was given.
+        engine (str): The engine measured. **Absent is ordinary**: a
+            precondition run measures no engine and the header says so by
+            leaving it out rather than by naming a default.
+    """
+
+    priority: str = ""
+    engine: str = ""
+
+
 def result_lines(
     *,
     passed: int,
     failed: int,
     skips: list[tuple[str, str]],
-    priority: str = "",
-    engine: str = "",
+    heading: Heading = Heading(),
     alarms: Alarms = Alarms(),
+    passw: int = 0,
 ) -> list[str]:
     """Return a band's result as a header and one labelled fact per line.
 
@@ -233,6 +249,7 @@ def result_lines(
     total: 11
     executed: 7
     passed: 7
+    passw: 0
     failed: 0
     skipped: 4
     skip 1 of 1: 4 QC_HARNESS_FIXTURE_MISSING, no recording for this engine, response or judgement
@@ -240,23 +257,23 @@ def result_lines(
     total pass: 63.6% (7 of 11)
     ```
 
-    **All five counts, always, a zero included.** pytest omits an empty
+    **All six counts, always, a zero included.** pytest omits an empty
     category, so its line cannot answer "how many were selected" or "were any
-    skipped"; this one always can.
+    skipped"; this one always can. ``passw`` is counted apart from ``passed``
+    and as a pass in ``executed`` and both rates.
 
-    Design: ``cmn_verdict_and_cli.md`` sections 7.11.2 and 7.11.3.
+    Design: ``cmn_verdict_and_cli.md`` sections 7.11.2, 7.11.3 and 7.11.5.
 
     Args:
-        passed (int): Cases that passed.
+        passed (int): Cases that passed with no warning.
         failed (int): Cases that failed.
         skips (list): One ``(case, reason)`` pair per skipped case, so each
             skip is reported on its own line against the case it belongs to.
-        priority (str): The ``--priority`` value, for the header.
-        engine (str): The engine measured, for the header. **Absent is
-            ordinary**: a precondition run measures no engine and the header
-            says so by leaving it out rather than by naming a default.
+        heading (Heading): The band and the engine the header names.
         alarms (Alarms): The precondition skips and the broken cases, each
             printed only when nonzero.
+        passw (int): Cases that passed with a warning
+            (``harness_test_taxonomy.md`` section 5.1.2).
 
     Returns:
         list[str]: The header and the facts. **An empty selection yields
@@ -264,25 +281,27 @@ def result_lines(
         result.
     """
     skipped = len(skips)
-    selected = passed + failed + alarms.broken + skipped
+    held = passed + passw
+    selected = held + failed + alarms.broken + skipped
     if not selected:
         return []
 
-    executed = passed + failed
+    executed = held + failed
     # LOWERCASED WHERE IT IS NOT A BAND NAME. "Band P1" is a name and keeps
     # its capital; "Whole selection" is a description and reads as prose here.
-    subject = band_label(priority)
+    subject = band_label(heading.priority)
     if not subject.startswith("Band"):
         subject = f"the {subject[0].lower()}{subject[1:]}"
-    heading = f"Test results for {subject}"
-    if engine:
-        heading += f" on {engine}"
+    title = f"Test results for {subject}"
+    if heading.engine:
+        title += f" on {heading.engine}"
 
     lines = [
-        heading,
+        title,
         f"total: {selected}",
         f"executed: {executed}",
         f"passed: {passed}",
+        f"passw: {passw}",
         f"failed: {failed}",
         f"skipped: {skipped}",
     ]
@@ -292,8 +311,8 @@ def result_lines(
     if required:
         lines.append(f"preconditions skipped: {required}, so the run exits 3")
     lines.extend(skip_detail_lines(skips))
-    lines.append(f"execution pass: {_stated(passed, executed)}")
-    lines.append(f"total pass: {_stated(passed, selected)}")
+    lines.append(f"execution pass: {_stated(held, executed)}")
+    lines.append(f"total pass: {_stated(held, selected)}")
     return lines
 
 

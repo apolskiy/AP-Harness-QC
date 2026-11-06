@@ -29,6 +29,58 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### An answer that corrects itself passes with a warning, counted as passw, 2026-11-06
+
+**Why it was needed.** An answer that stated the wrong comparison and then
+worked the figure and corrected itself in the same response failed its claim
+assertion, which reads a recovery as a defect. Folding it into a plain pass
+would hide an error a vendor may still want to fix. Separately, nothing pinned
+that a request for clarification giving no figures still reaches the judge.
+
+**What changed.**
+
+- A `claim` with `present: false` may declare `corrected_by`. A sentence
+  matching it after the last asserting sentence makes the assertion pass with a
+  warning: outcome `passw`, its code in `warning_code`, none in `taxonomy_code`.
+  A correction before the wrong statement still fails, and `corrected_by` on a
+  requiring claim is refused (`tier3_evaluation.md` section 5.3.2). The claim
+  kind moved to `evaluation/claims.py`.
+- `passw` is a registered outcome that counts as a pass in every rate and floor.
+  A passing case that recorded a `passw` observation is marked on its report,
+  with one `mqc_warning_code` property per code so a filing tool can name the
+  finding from JUnit alone, and the result block prints a `passw` row between `passed` and `failed`
+  (`harness_test_taxonomy.md` section 5.1.2, `cmn_verdict_and_cli.md` section
+  7.11.5). `result_lines` takes the band and engine as one `Heading`.
+- A clarification giving no figures fails its `violation` assertions and is
+  judged word for word; a declared injection case is not judged
+  (`tier3_evaluation.md` section 4.2.0.1).
+- Cases `114141` to `114145` and `112438` to `112441`. The instrument suite is
+  1079 cases and the matrix carries 413 requirements.
+
+### A claude judge is asked through a response format, and a judge that will not answer stops being asked, 2026-11-06
+
+**Why it was needed.** A run judged by claude got 400 on every judge request:
+the adapter forced a tool call, which `claude-opus-5-5` rejects. The judge
+channel had no breaker, so it sent the same rejected request for every
+observation. Each unjudged result was also counted as a failed observation,
+which drew two more dispatches per case. The first of those found no
+recording, so the run reported a missing fixture and hid the judge's own code.
+
+**What changed.**
+
+- The claude adapter constrains a judgement with `output_config.format` and a
+  JSON schema whose objects are closed. It reads the reply from the text
+  block (`tier2_execution.md` section 7.8.5).
+- The judge channel stops at the first failure whose code is not retryable,
+  or at the breaker threshold of consecutive retryable failures. Once stopped
+  it sends nothing for the rest of the run, and `stopped` names the code
+  (section 8.3.3).
+- `further_observations` reads an unmeasured observation as no outcome rather
+  than a failure (`cmn_verdict_and_cli.md` section 4.9.2.2.1).
+
+The instrument suite moved from 1067 to 1070 cases and the matrix from 406 to
+409 requirements.
+
 ### The injection screen reads "rejected" as a rejection, 2026-11-06
 
 **Why it was needed.** The screen aborted an answer to the case repository's

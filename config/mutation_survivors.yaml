@@ -68,7 +68,7 @@ survivors:
   cmn/threshold_domain.py:
     digest: d254883493eb1c34d3aca3fbc5897cc41b6c5aad2cb1e8448901df25e9645b50
   cmn/layers.py:
-    digest: 92f251267b12456eab51f94adfec5b6bd2db0b18bb312b59d5fb12f3fb7d0519
+    digest: 7657ac49a7fcab7c7400464b87f38635b3f0986d024e65819884477490def8cf
   cmn/environments.py:
     digest: ec4dbb18a4d0c08673bd4118e641e562eee9f0ebe3eb6eb2a1821efc282d1a39
     accepted:

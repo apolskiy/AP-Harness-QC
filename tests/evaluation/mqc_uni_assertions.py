@@ -3,7 +3,7 @@
 """Unit cases for the programmatic assertions run against a model's response.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 Its cases check :mod:`evaluation.assertions`. Each registered kind is exercised
 in both directions, ``contains``, ``not_contains``, ``regex``, ``json_schema``,
@@ -59,6 +59,10 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114113  a_hedged_mention_of_a_forbidden_claim_is_not_a_claim
 #   114116  a_claim_does_not_read_across_a_line_break
 #   114114  a_forbidding_claim_without_exclusions_is_refused
+# TestMQCClaimCorrection
+#   114141  a_wrong_statement_corrected_later_passes_with_its_warning
+#   114142  a_correction_before_the_wrong_statement_still_fails
+#   114143  a_correction_on_an_asserting_claim_is_refused
 # TestMQCInjectionAbsent
 #   114125  an_injection_absent_check_fails_on_any_grading_instruction
 #   114126  a_warning_instructing_no_grade_passes_the_injection_check
@@ -608,6 +612,99 @@ class TestMQCClaimScope:
             "the claim kind is not registered, so every case using it reports "
             "a harness error instead of a result"
         )
+
+
+# A CEILING CLAIM SHAPED ON THE CONSUMER'S 134206, where the answer said the
+# overstatement exceeded five per cent and later worked it out as within.
+_MISCOMPARED = {
+    "pattern": r"(?i)(exceed\w*|more than|above)[^.]{0,40}\b5\s*(%|per\s?cent)",
+    "present": False,
+    "unless": ["within", "does not exceed"],
+    "corrected_by": r"(?i)\b(within|does not exceed|below)\b[^.]{0,40}\b5\s*(%|per\s?cent)",
+}
+_WRONG = "The overstatement exceeds the 5% ceiling."
+_RIGHT = "Worked through, 4.5% is within the 5% ceiling."
+
+
+class TestMQCClaimCorrection:
+    """A wrong statement the answer corrects later passes with a warning."""
+
+    @story("A corrected statement passes with a warning")
+    def MQC_EVL_UNI_114141_a_wrong_statement_corrected_later_passes_with_its_warning(
+        self,
+    ) -> None:
+        """The wrong comparison, then the worked figure, passes as passw.
+
+        Design: ``tier3_evaluation.md`` section 5.3.2.
+
+        Returns:
+            None
+        """
+        claim = _assertion("claim", dict(_MISCOMPARED), assertion_id="A_CEILING",
+                           taxonomy_code="QC_LLM_MATCH_MISCOMPUTED")
+        step(1, "run the claim on a wrong statement followed by its correction")
+        result = run_assertion(claim, f"{_WRONG} {_RIGHT}")
+        assert result.passed and result.outcome == "passw", (
+            f"a corrected statement did not pass with a warning: {result}"
+        )
+
+        step(2, "read the warning code and the failure code")
+        assert (result.warning_code, result.taxonomy_code) == (
+            "QC_LLM_MATCH_MISCOMPUTED", None
+        ), f"the code is not carried as a warning only: {result}"
+
+        step(3, "read the detail for both sentences")
+        assert "exceeds" in result.detail and "4.5" in result.detail, result.detail
+
+        step(4, "run the claim on the wrong statement alone")
+        assert run_assertion(claim, _WRONG).outcome == "fail", (
+            "an uncorrected statement no longer fails"
+        )
+
+    @story("A corrected statement passes with a warning")
+    def MQC_EVL_UNI_114142_a_correction_before_the_wrong_statement_still_fails(
+        self,
+    ) -> None:
+        """A wrong statement after the right one takes it back, so it fails.
+
+        Design: ``tier3_evaluation.md`` section 5.3.2.
+
+        Returns:
+            None
+        """
+        claim = _assertion("claim", dict(_MISCOMPARED), assertion_id="A_CEILING",
+                           taxonomy_code="QC_LLM_MATCH_MISCOMPUTED")
+        step(1, "run the claim on a correction followed by the wrong statement")
+        result = run_assertion(claim, f"{_RIGHT} {_WRONG}")
+        assert result.outcome == "fail", f"a later wrong statement passed: {result}"
+
+        step(2, "run the claim on wrong, corrected, then wrong again")
+        again = run_assertion(claim, f"{_WRONG} {_RIGHT} {_WRONG}")
+        assert again.outcome == "fail", f"a retraction of the correction passed: {again}"
+
+        step(3, "run the claim on the correct statement alone")
+        assert run_assertion(claim, _RIGHT).outcome == "pass", (
+            "a correct answer with nothing to correct is not a plain pass"
+        )
+
+    def MQC_EVL_UNI_114143_a_correction_on_an_asserting_claim_is_refused(self) -> None:
+        """A claim requiring its pattern cannot declare a correction.
+
+        Design: ``tier3_evaluation.md`` section 5.3.2.
+
+        Returns:
+            None
+        """
+        claim = _assertion(
+            "claim", {"pattern": "anything", "present": True, "corrected_by": "else"},
+            assertion_id="A_REQUIRED", taxonomy_code="QC_LLM_HALLUCINATION",
+        )
+        step(1, "run a requiring claim that declares corrected_by")
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR") as raised:
+            run_assertion(claim, "anything at all")
+
+        step(2, "read whether the refusal names the parameter")
+        assert "corrected_by" in str(raised.value), str(raised.value)
 
 
 class TestMQCInjectionAbsent:

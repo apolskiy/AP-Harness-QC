@@ -3,12 +3,14 @@
 """Programmatic assertions, the deterministic part of evaluating a model's response.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains the assertion kinds a golden rule can declare, ``regex``,
 ``json_schema``, ``length``, ``contains``, ``not_contains``, ``claim``,
 ``injection_absent`` and ``source_phrase_absent``, and the functions that run a
-rule's assertions against one response and report whether they held.
+rule's assertions against one response and report whether they held. The
+``claim`` kind is implemented in ``evaluation.claims``, and a forbidding claim
+the response corrected later passes with a warning.
 
 **These assertions run first**, before any LLM judge reads the response, and a
 failure can keep the judge out of the evaluation altogether, for security or
@@ -44,6 +46,7 @@ from typing import Any, Callable, Final, Optional
 
 from cmn.markup import blank_punctuation, normalise_markup
 from cmn.vectors import match_named
+from evaluation.claims import check_claim, claim_correction
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +72,9 @@ class AssertionResult:
             assertion carries no code, because a blank taking its default is
             normal operation and recording one would corrupt every later count.
         detail (str): What was checked and what was found.
+        warning_code (Optional[str]): The assertion's code where it passed
+            only because the answer corrected itself later, design section
+            5.3.2; None otherwise.
     """
 
     assertion_id: str
@@ -77,6 +83,19 @@ class AssertionResult:
     severity: str
     detail: str
     taxonomy_code: Optional[str] = None
+    warning_code: Optional[str] = None
+
+    @property
+    def outcome(self) -> str:
+        """Return the assertion's outcome as the outcome registry names it.
+
+        Returns:
+            str: ``passw`` where it passed with a warning, otherwise ``pass``
+            or ``fail``.
+        """
+        if not self.passed:
+            return "fail"
+        return "passw" if self.warning_code is not None else "pass"
 
     @property
     def fatal(self) -> bool:
@@ -103,106 +122,6 @@ def _check_regex(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
     expected = bool(parameters.get("present", True))
     found = pattern.search(text) is not None
     return found == expected, f"pattern {'found' if found else 'absent'}"
-
-
-# WHAT ENDS A SENTENCE. A claim is scoped to one, because that is the unit
-# negation and hedging operate over. The pattern keeps the terminator out of
-# the split so an abbreviation inside a sentence does not end it: a following
-# space or line break is required. Design section 5.3.
-#
-# A SINGLE LINE BREAK ENDS ONE, since 2026-10-12. It required a blank line
-# before, so a markdown heading joined the sentence below it: "What the
-# function returns" carried a return verb and the next line carried the
-# prompt's own figures, and the assertion reported a correct answer as a
-# hallucination for the third time. A heading, a list item and a table row
-# have no full stop (design section 5.3.1).
-_SENTENCE_BREAK: Final[re.Pattern[str]] = re.compile(
-    r"(?<=[.!?;])\s+|\n+"
-)
-
-
-def _check_claim(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
-    """Check whether any sentence asserts a pattern.
-
-    A sentence asserts the pattern when the pattern matches within it and no
-    ``unless`` marker appears in that same sentence. With ``present`` false the
-    check holds when no sentence asserts it.
-
-    Args:
-        text (str): The candidate output.
-        parameters (dict): ``pattern``, optional ``present`` defaulting to
-            true, and ``unless``, a list of case-insensitive substrings whose
-            presence in a sentence means that sentence does not assert the
-            claim. ``unless`` is required when ``present`` is false.
-
-    Returns:
-        tuple: Whether the check held, and which sentence carried the claim.
-
-    Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when ``present`` is false
-            and no ``unless`` is declared, or when ``present`` is true and one
-            is. Either way the assertion means something other than what it
-            says, and a configuration error is ours rather than the model's.
-    """
-    pattern = re.compile(str(parameters["pattern"]), re.MULTILINE)
-    expected = bool(parameters.get("present", True))
-    markers = [str(marker).lower() for marker in parameters.get("unless") or ()]
-
-    if not expected and not markers:
-        raise ValueError(
-            "QC_HARNESS_PARSER_ERROR: a claim with present false and no "
-            "'unless' is a regex with present false, and the same rule "
-            "written two ways drifts. Declare the hedges this case has seen, "
-            "or use kind 'regex'"
-        )
-    if expected and markers:
-        raise ValueError(
-            "QC_HARNESS_PARSER_ERROR: a claim with present true declares "
-            "'unless', and what that would mean has never been decided. Use "
-            "kind 'regex' to ask whether a pattern appears at all"
-        )
-
-    # SPLIT ON THE RAW TEXT, MATCH ON A BLANKED READING OF EACH SENTENCE. A
-    # terminator delimits rather than decides, so the sentences are the raw
-    # ones; punctuation inside a sentence is formatting, so neither the pattern
-    # nor a hedge is decided by it. **The sentence reported is the raw one**,
-    # because a ticket quoting a blanked sentence would misquote the model
-    # (design section 5.1.1).
-    markers = [blank_punctuation(marker) for marker in markers]
-    asserted = None
-    for sentence in _SENTENCE_BREAK.split(text):
-        reading = blank_punctuation(sentence)
-        if not pattern.search(reading):
-            continue
-        if any(marker in reading.lower() for marker in markers):
-            continue
-        asserted = sentence.strip()
-        break
-
-    found = asserted is not None
-    if found:
-        # THE SENTENCE, NOT ONLY THAT ONE EXISTED. A reader deciding whether to
-        # file this has to see what was actually asserted.
-        detail = f"asserted in {_excerpt(asserted)}"
-    else:
-        detail = "not asserted in any sentence"
-    return found == expected, detail
-
-
-def _excerpt(sentence: str, limit: int = 160) -> str:
-    """Return a sentence short enough to read in a failure message.
-
-    Args:
-        sentence (str): The sentence to quote.
-        limit (int): How many characters to keep.
-
-    Returns:
-        str: The quoted sentence, elided when long.
-    """
-    collapsed = " ".join(sentence.split())
-    if len(collapsed) <= limit:
-        return repr(collapsed)
-    return repr(f"{collapsed[:limit]}...")
 
 
 def _check_json_schema(text: str, parameters: dict[str, Any]) -> tuple[bool, str]:
@@ -573,7 +492,7 @@ _ASSERTION_KINDS: Final[dict[str, Callable[[str, dict[str, Any]], tuple[bool, st
     "length": _check_length,
     "contains": _check_contains,
     "not_contains": _check_not_contains,
-    "claim": _check_claim,
+    "claim": check_claim,
     "injection_absent": _check_injection_absent,
     "source_phrase_absent": _check_source_phrase_absent,
 }
@@ -758,6 +677,24 @@ def run_assertion(assertion: Any, text: str) -> AssertionResult:
         reading = blank_punctuation(reading)
         parameters = _blanked_literals(assertion.kind, parameters)
     passed, detail = checker(reading, parameters)
+    # CORRECTED LATER IN THE SAME RESPONSE, so a pass with a warning: the code
+    # moves to `warning_code` and nothing collecting failure codes collects it.
+    # Per design section 5.3.2.
+    correction = None
+    if not passed and assertion.kind == "claim":
+        correction = claim_correction(reading, parameters)
+    if correction is not None:
+        detail = f"{detail}, corrected after it in {correction}"
+        logger.info("%s %s passed with a warning: %s", assertion.taxonomy_code,
+                    assertion.assertion_id, detail)
+        return AssertionResult(
+            assertion_id=assertion.assertion_id,
+            kind=assertion.kind,
+            passed=True,
+            severity=assertion.severity,
+            detail=detail,
+            warning_code=assertion.taxonomy_code,
+        )
     if not passed:
         logger.info(
             "%s %s failed: %s", assertion.taxonomy_code, assertion.assertion_id, detail

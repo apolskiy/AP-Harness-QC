@@ -3,7 +3,7 @@
 """The connection the LLM judge is called through, kept apart from the model under test.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-06
 
 This file contains :class:`JudgeChannel`, which owns one judge engine's
 adapter and connection, paces its own requests, and through ``invoke`` returns
@@ -15,9 +15,12 @@ judge engine the roster configures.
 **The consumer's graded suite builds a channel once and hands its ``invoke``
 to evaluation**, which calls it at the judging step for every response that
 clears the screen and the assertions. A judgement missing in replay raises,
-and the run records a skip rather than calling the judge live.
+and the run records a skip rather than calling the judge live. A judge that
+will not answer stops the channel for the rest of the run, and ``stopped``
+names the code, so a consumer can skip a judged case before buying its
+response.
 
-Specified by ``docs/design/tier2_execution.md`` section 7.7.3.
+Specified by ``docs/design/tier2_execution.md`` sections 7.7.3 and 8.3.3.
 
 **This module hands out a callable and nothing else.** Tier 3 holds the judge
 binding and knows only that ``invoke`` can be called with a composed request;
@@ -53,7 +56,7 @@ from execution.adapters.registry import (
     adapter_for,
     engines_for_role,
 )
-from execution.dispatch import DispatchSession
+from execution.dispatch import DispatchSession, is_retryable
 from execution.replay import (
     FixtureMissing,
     FixtureStale,
@@ -185,6 +188,10 @@ class JudgeChannel:
         # when it was recorded, not when it is read.
         self._usage = TokenUsage()
         self._plan = plan or JudgementPlan()
+        # THE CODE THE JUDGE STOPPED ON, held for the run (design section
+        # 8.3.3). The count of consecutive failures lives on the session,
+        # beside the threshold the candidate breaker reads.
+        self._stopped: Optional[str] = None
 
     @property
     def engine(self) -> str:
@@ -221,6 +228,18 @@ class JudgeChannel:
         """
         return self._plan
 
+    @property
+    def stopped(self) -> Optional[str]:
+        """Return the code the judge stopped on, or None while it answers.
+
+        Design: ``tier2_execution.md`` section 8.3.3.
+
+        Returns:
+            Optional[str]: The harness code of the failure that stopped the
+            channel. Once set it holds for the life of the channel.
+        """
+        return self._stopped
+
     def invoke(self, request: Any) -> dict[str, Any]:
         """Issue one judge request, paced on the judge's own interval.
 
@@ -241,7 +260,17 @@ class JudgeChannel:
             ``validate_judge_reply`` reads. **Parsed, not validated**: whether
             the scores are in range and whether the shape is evidence of hijack
             both belong to Tier 3.
+
+        Raises:
+            ValueError: Led by the mapped harness code, when the judge could
+                not be reached or the channel has stopped (design section
+                8.3.3). A stopped channel raises without sending anything.
         """
+        if self._stopped is not None:
+            raise ValueError(
+                f"{self._stopped}: the judge stopped answering earlier in this "
+                f"run, so {request.case_id} was not sent"
+            )
         composed = self._adapter.compose_judgement(
             request.rendered(), request.reply_schema
         )
@@ -323,6 +352,7 @@ class JudgeChannel:
             logger.warning(
                 "%s judging %s: %s", code, request.case_id, type(error).__name__
             )
+            self._count_failure(code)
             raise ValueError(
                 f"{code}: the judge could not be reached for {request.case_id}"
             ) from error
@@ -331,12 +361,35 @@ class JudgeChannel:
             if not self._keep_connection:
                 self._adapter.release()
 
+        self._session.consecutive_failures = 0
         if self._plan.record and self._plan.fixture_root is not None:
             record_judgement(
                 self._plan.fixture_root, key, request_hash,
                 self._adapter.requested_model, reply, prompt=request.rendered(),
             )
         return reply
+
+    def _count_failure(self, code: str) -> None:
+        """Stop the channel on a failure that will repeat, or at the threshold.
+
+        A code outside the retryable set stops it at once; a retryable code
+        stops it at the session's breaker threshold of consecutive failures.
+        Design: ``tier2_execution.md`` section 8.3.3.
+
+        Args:
+            code (str): The harness code the failure mapped to.
+
+        Returns:
+            None
+        """
+        self._session.consecutive_failures += 1
+        if (not is_retryable(code)
+                or self._session.consecutive_failures >= self._session.breaker_threshold):
+            self._stopped = code
+            logger.warning(
+                "%s: the judge is stopped for the rest of this run after %d "
+                "consecutive failures", code, self._session.consecutive_failures,
+            )
 
     def _stored_reply(self, key: JudgementKey, request_hash: str) -> dict[str, Any]:
         """Return a recorded judgement, refusing a stale one.

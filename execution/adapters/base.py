@@ -3,7 +3,7 @@
 """The interface every model provider adapter implements, and the code they share.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains :class:`ProviderAdapter`, the abstract interface an adapter
 fills in, composing a request from a case, dispatching it once, normalizing
@@ -709,10 +709,9 @@ def validate_mapped_error(adapter_name: str, taxonomy_code: str) -> str:
 def require_json_object(payload: str, engine: str) -> dict[str, Any]:
     """Parse a JSON object, refusing anything that is not one.
 
-    **Shared by every protocol that receives its judgement as text**, which is
-    all of them except Anthropic Messages, where a forced tool call arrives
-    already parsed. It lives here rather than in any one protocol module so
-    that a Google adapter does not import an OpenAI one to borrow it.
+    **Shared by every protocol, each of which receives its judgement as
+    text.** It lives here rather than in any one protocol module so that a
+    Google adapter does not import an OpenAI one to borrow it.
 
     Args:
         payload (str): The reply text.

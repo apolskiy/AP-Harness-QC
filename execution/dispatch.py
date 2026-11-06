@@ -95,6 +95,21 @@ _FIXTURE_ABSENT: Final[frozenset[str]] = frozenset(
 )
 
 
+def is_retryable(code: str) -> bool:
+    """Return whether a provider failure may answer differently if asked again.
+
+    Read by the candidate dispatcher and by the judge channel, so the two stop
+    on the same codes (design sections 8.3 and 8.3.3).
+
+    Args:
+        code (str): A harness taxonomy code.
+
+    Returns:
+        bool: True for the codes design section 8 names as retryable.
+    """
+    return code in _RETRYABLE_CODES
+
+
 class CircuitBreakerTripped(RuntimeError):
     """The run aborted because the provider stopped answering usefully.
 

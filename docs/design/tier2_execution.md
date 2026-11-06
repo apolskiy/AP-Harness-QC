@@ -1024,6 +1024,38 @@ JudgeBinding(invoke=channel.invoke, judge_engine=channel.engine,
 makes `shares_provider` a comparison rather than a guess, and under the
 zero-cost configuration the two are routinely equal (A3).
 
+#### 7.8.5 claude's judgement is constrained by a response format, not a forced tool call
+
+Found 2026-11-06, in the first run judging recorded responses with claude.
+**`claude-opus-5-5` rejects every judge request the adapter composed**, with
+400 and "tool_choice: type "tool" and "any" are not supported for this model."
+The adapter constrained the reply by offering the schema as a single tool and
+forcing it, and its docstring said the protocol had no response-format control.
+Both stopped being true; nothing compared the request with what the API
+accepts, because every unit case built the request and parsed a double.
+
+| | Before | Now |
+|---|---|---|
+| How the reply is constrained | A forced tool call, `tool_choice` naming it | `output_config.format`, `type: json_schema`, carrying the schema |
+| Where the reply is read | The forced call's input | The text block, parsed as JSON |
+| What the provider documents | Not supported for the current models | Supported on `claude-opus-5-5` and the models after it |
+
+**Every object in the sent schema is closed.** The format requires
+`additionalProperties: false` on each object, and the shared reply schema leaves
+it open on each criterion (`tier3_evaluation.md` section 5). **The adapter
+closes it rather than the shared schema changing**, because the judgement hash
+covers the composed request (section 7.9.2): changing the shared schema would
+make every recorded openai judgement stale, to fix an engine that has recorded
+none.
+
+**No text block, or text that is not JSON, is `QC_HARNESS_PARSER_ERROR`**, as a
+missing forced call was. The reply is still validated against the schema in Tier
+3, so the hijack detector section 7.8.2 protects is unchanged.
+
+`MQC_EXE_UNI_113037` asserts the request carries the format and no forced
+tool, every object closed, and the reply read from text, a missing or
+unparseable one reported.
+
 
 ### 7.9 The channel honours `--judge-mode`, or replay spends judge quota
 
@@ -1615,6 +1647,40 @@ budget stop did before section 8.3.1.
 cause, which is the remedy a reader needs: record again. Past the threshold
 they become broken cases naming an engine that stopped answering, the run
 exits 3 as though the instrument crashed, and the cause is hidden behind it.
+
+#### 8.3.3 A judge that will not answer stops being asked
+
+Found 2026-11-06, in the run section 7.8.5 records. **The candidate side has a
+breaker and the judge had none.** claude rejected the first judge request with
+400, and the channel sent the next one, and the next, for every observation of
+every judged case: the same request, the same rejection, and in a live run a
+candidate response bought for each that nothing could score.
+
+**A judge unavailable is environmental**, which the pipeline already records
+(`tier3_evaluation.md` section 6.5.1). What was missing is that the condition
+is a property of the run, not of one observation, so the channel holds it.
+
+| What the judge returned | The channel |
+|---|---|
+| A code outside the retryable set (section 8): a rejected request, a refusal, an auth error, an unavailable version | **Stops at once.** Asking again sends the same request to the same answer |
+| A retryable code: a rate limit, a timeout, a busy provider, a gateway failure | Counts, and **stops at the breaker's threshold** of consecutive failures (section 8.3) |
+| A reply | Resets the count |
+| A replayed judgement the store does not hold | Neither. No judge was asked (section 8.3.2) |
+
+**Stopped, every later call raises at once with the code it stopped on**, and
+sends nothing. `stopped` returns that code, or nothing while the judge answers,
+so a consumer can read it **before dispatching a candidate** whose rule the
+judge must score: a response no judge can score is not bought in a live run,
+and not read in a replay (`AP-Model-QC` `consumer_ci.md` section 6.4.5).
+
+**The stop is the channel's, so it lasts the run and no longer.** A judge
+rejected by one run is asked again by the next, which is what an operator who
+fixed the cause expects.
+
+`MQC_EXE_UNI_113306` asserts a non-retryable code stops the channel at the
+first failure and nothing further is sent, and `MQC_EXE_UNI_113307` that
+retryable codes stop it at the threshold and a reply in between resets the
+count.
 
 ---
 
@@ -2333,6 +2399,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113034` | P | `openai_reads_token_counts_under_the_responses_names` |
 | `113035` | P | `openai_constrains_a_judgement_through_the_text_format` |
 | `113036` | N | `openai_asks_the_provider_not_to_store_the_request` |
+| `113037` | N | `claude_constrains_a_judgement_through_the_response_format` (7.8.5) |
 | `113004` | P | `gemini_reads_the_resolved_version_from_its_own_field` |
 | `113005` | P | `gemini_reconciles_a_stop_reason_carrying_captured_calls` |
 | `113006` | N | `gemini_a_blocked_candidate_yields_empty_text_not_an_error` |
@@ -2434,6 +2501,8 @@ the twenty-first check and any fifth engine are in the partition
 | `113021` | N | `the_judgement_schema_drops_keywords_the_provider_rejects` |
 | `113304` | N | `each_observation_records_its_own_judgement` |
 | `113305` | N | `fill_gaps_judges_only_what_is_not_recorded` |
+| `113306` | N | `a_judge_rejecting_the_request_is_not_asked_again` (8.3.3) |
+| `113307` | B | `a_judge_failing_transiently_stops_at_the_breaker_threshold` (8.3.3) |
 | `113022` | P | `a_claude_refusal_is_recorded_as_a_block` |
 | `113217` | P | `an_outcome_carries_the_request_that_produced_it` |
 | ~~`113218`~~ | | ~~`a_recorded_fixture_stores_the_request_it_sent`~~. **Retired 2026-10-11 before implementation**, allocated from the dispatch neighbourhood for a fixture-store case. `113612` states it |
@@ -2531,7 +2600,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 228 cases, 103 negative, 115 positive, 10 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 231 cases, 105 negative, 115 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

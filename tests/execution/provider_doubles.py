@@ -679,9 +679,9 @@ def gemini_error(kind: str) -> Exception:
 def claude_judgement(payload: dict[str, Any]) -> _ClaudeResponse:
     """Build an Anthropic judgement double.
 
-    **A forced tool call**, because that is how this protocol constrains a
-    reply: the payload arrives as the call's already-parsed input rather than
-    as text.
+    The payload arrives as JSON text, which is what a reply constrained by a
+    JSON-schema response format looks like on this protocol
+    (``tier2_execution.md`` section 7.8.5).
 
     Args:
         payload (dict): The judgement the adapter should read back.
@@ -689,7 +689,7 @@ def claude_judgement(payload: dict[str, Any]) -> _ClaudeResponse:
     Returns:
         _ClaudeResponse: The double.
     """
-    return claude_response(text="", tool_calls=[("mqc_judgement", payload)])
+    return claude_response(text=json.dumps(payload))
 
 
 def openai_judgement(payload: dict[str, Any]) -> _OpenAIResponse:
@@ -728,8 +728,8 @@ class _AdapterDoubles:
         error (Callable): Builds a failure of a named kind.
         judgement (Callable): Builds a schema-constrained judgement carrying a
             given payload. **Per protocol rather than per vendor**, because
-            where the payload sits is a protocol property: JSON text on most,
-            a forced tool call's parsed input on Anthropic Messages.
+            where the payload sits is a protocol property: the response text
+            on each protocol, read from a different field.
     """
 
     response: Callable[..., Any]

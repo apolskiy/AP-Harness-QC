@@ -269,6 +269,30 @@ unjudged case: a judge that was never available must not turn a measured
 failure into something nothing measured. `114140` holds exactly that and
 reported it when this change first removed the reason outright.
 
+##### 4.2.0.1 A request for clarification that gives no figures is still judged
+
+Added 2026-11-06 at the project owner's ruling. **A model may answer a prompt
+by asking for clarification instead of giving the figures**, and a rule whose
+assertions require those figures fails them. Such a response is a measurement
+of the model, so it reaches the judge like any other answer the assertions
+rejected.
+
+| The response | Assertions | Judge | Result |
+|---|---|---|---|
+| A clarification with no figures, rule declares no `answer_list` | The figure assertions fail at `violation` | **Called**, with the response word for word, on the rule's own rubric | Fails, the assertions being conjunctive; the score is diagnostic |
+| The same, rule declares an `answer_list` | Fatal checks only | Called, on the clarification rubric (section 5.5) | Decided by that rubric |
+| The same, a figure assertion at `fatal` | Fails at `fatal` | **Not called** (`114504`) | Fails |
+| The same, case declares a payload | Run | **Not called**, `declared_adversarial` (A19) | Decided by its assertions |
+| The same, replay run | Run | **No provider call.** The stored judgement for the same request is read, and a missing one is a skip (`113300`, `112610`) | As recorded |
+
+**The result is expected to fail**, and that is correct: the prompt asked for
+figures and none were given. What the judge adds is whether the question named
+a real ambiguity, which separates a model that should be told the case is
+unclear from one that declined to work. A corpus asserting figures at `fatal`
+would withhold that reading, so a figure assertion is authored at `violation`.
+
+`114144` asserts the live path and `114145` the injection exclusion.
+
 ### 4.2.1 An errored response is not judged, and is not asserted against either
 
 Added 2026-09-23. **Error is error: output could not be produced, so there is nothing to judge.**
@@ -1731,6 +1755,60 @@ that fires wrongly is worse than one that misses, because a false finding is
 filed against a third party and a missed one costs a round trip. Eleven of
 twenty-three findings were withdrawn for firing wrongly, and none for missing.
 
+#### 5.3.2 A wrong statement the answer later corrects passes with a warning
+
+Added 2026-11-06 at the project owner's ruling, after the consumer's `134206`
+reported `gemini-4-argon` for a response that said the overstatement exceeded
+the five per cent ceiling and, later in the same response, worked the figure and
+said it was within it. **The model found its own error and recovered**, which
+is designed behaviour rather than a failure, and it is still an error a vendor
+may want to see.
+
+**So the assertion has a third outcome, `passw`, a pass with a warning.** It is
+not a failure and it is not a clean pass, and like a skip it asks for
+examination (`harness_test_taxonomy.md` section 5).
+
+```yaml
+- assertion_id: A_GND_CEILING_NOT_MISCOMPARED
+  kind: claim
+  parameters:
+    pattern: (?i)(exceed\w*|more than|above)[^.]{0,40}\b5\s*(%|per\s?cent)
+    present: false
+    unless: [within, does not exceed]
+    corrected_by: (?i)\b(within|does not exceed|below)\b[^.]{0,40}\b5\s*(%|per\s?cent)
+```
+
+**`corrected_by` is a regex, read per sentence like the pattern.** It is
+allowed only with `present: false`. On an asserting claim it is refused with
+`QC_HARNESS_PARSER_ERROR`, for the reason `unless` is refused there: a
+correction of a statement the rule requires has no meaning anybody has needed.
+
+| The response | Outcome |
+|---|---|
+| No sentence asserts the pattern | `pass` |
+| The pattern is asserted, and **a sentence matching `corrected_by` comes after the last asserting sentence** | `passw`, carrying the assertion's code as a warning |
+| The pattern is asserted and no correction follows it | `fail` |
+| A correction comes first and the wrong statement after it | `fail` |
+| Wrong, corrected, then wrong again | `fail` |
+
+**The correction must come after the last wrong statement.** A statement made
+after the correct one takes it back, so the response ends wrong and that is a
+failure. Measuring against the last asserting sentence covers both of the last
+two rows with one rule.
+
+**The warning carries the assertion's own code, not a new one.** A `passw`
+result holds the code in `warning_code` and leaves `taxonomy_code` empty, so
+nothing that collects failure codes collects it. The detail names the wrong
+sentence and the correcting one, so a reader sees both without opening the
+response.
+
+**A result with a warning passes.** `EvaluationResult.passed` is unchanged and
+`warning_codes` lists the codes of every `passw` assertion. A failed assertion
+beside a `passw` one still fails the result.
+
+`114141` asserts the corrected statement, `114142` the order rule and
+`114143` the refusal on an asserting claim.
+
 ### 5.4 An assertion may read one numbered item of the answer
 
 Added 2026-11-04. **A prompt that asks for a numbered list says where each
@@ -2866,6 +2944,11 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114138` | B | `a_withheld_result_report_passes_a_response_only_screen` (5.2.6) |
 | `114139` | P | `a_judged_result_carries_the_prompt_its_judge_received` (4C.6) |
 | `114140` | N | `a_withheld_judge_skips_a_rubric_and_never_passes_it` (5A.5.3) |
+| `114141` | P | `a_wrong_statement_corrected_later_passes_with_its_warning` (5.3.2) |
+| `114142` | B | `a_correction_before_the_wrong_statement_still_fails` (5.3.2) |
+| `114143` | N | `a_correction_on_an_asserting_claim_is_refused` (5.3.2) |
+| `114144` | P | `a_clarification_without_figures_reaches_the_judge_verbatim` (4.2.0.1) |
+| `114145` | N | `a_clarification_to_an_injection_case_reaches_no_judge` (4.2.0.1) |
 | ~~`114005`~~ | | ~~`a_strategy_is_deterministic_for_identical_input`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `114017`, `114018`, `114019`, `114020`, `114021`. One case per registered strategy |
 | `114017` | P | `the_all_must_pass_strategy_is_deterministic` |
 | `114018` | P | `the_min_strategy_is_deterministic` |
@@ -2931,7 +3014,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 234 cases, 103 negative, 83 positive, 48 boundary.**
+**Inventory: 239 cases, 105 negative, 85 positive, 49 boundary.**
 
 `114313` to `114315` were added on 2026-11-05 with section 3.1.2: the judge is
 shown the system instruction, isolated like every other field the case author

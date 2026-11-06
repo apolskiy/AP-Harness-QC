@@ -3,7 +3,7 @@
 """Unit tests for what a run publishes about each case and each priority band.
 
 Created: 2026-10-02
-Last updated: 2026-10-28
+Last updated: 2026-11-06
 
 Its cases check ``observation_parameters`` and ``vendor_report`` in
 ``cmn/reporting.py``, ``emit_result`` in ``cmn/metadata.py`` and the band summary
@@ -56,7 +56,7 @@ from cmn.metadata import emit_result
 from cmn.observations import Observation, RunContext
 from cmn.reporting import observation_parameters, vendor_report
 
-from cmn.band_summary import band_label, band_table, pass_rate, result_lines
+from cmn.band_summary import Heading, band_label, band_table, pass_rate, result_lines
 
 pytestmark = pytest.mark.unit
 
@@ -379,7 +379,7 @@ class TestMQCBandSummary:
             for index in range(3)
         ]
         reported = result_lines(
-            passed=9, failed=3, skips=blocked, priority="0", engine="gemini"
+            passed=9, failed=3, skips=blocked, heading=Heading("0", "gemini")
         )
         assert reported[0] == "Test results for Band P0 on gemini", reported[0]
 
@@ -412,7 +412,7 @@ class TestMQCBandSummary:
         # NOTHING MEASURED YIELDS NO RATE. A zero denominator means the
         # question is unanswerable, which is never a hundred per cent.
         only_skips = result_lines(
-            passed=0, failed=0, skips=blocked[:1], priority="1"
+            passed=0, failed=0, skips=blocked[:1], heading=Heading("1")
         )
         rates = dict(
             line.split(": ", 1) for line in only_skips if ": " in line
@@ -422,7 +422,7 @@ class TestMQCBandSummary:
         assert pass_rate(0, 0) is None, "a zero denominator returned a number"
 
         # AN EMPTY SELECTION SAYS NOTHING, because zeroes read as a clean run.
-        assert not result_lines(passed=0, failed=0, skips=[], priority="4"), (
+        assert not result_lines(passed=0, failed=0, skips=[], heading=Heading("4")), (
             "an empty selection printed a row of zeroes"
         )
 
@@ -460,7 +460,7 @@ class TestMQCBandSummary:
         ]
         named = [
             line for line in result_lines(
-                passed=6, failed=0, skips=skips, priority="1", engine="claude"
+                passed=6, failed=0, skips=skips, heading=Heading("1", "claude")
             )
             if line.startswith("skipped ")
         ]
@@ -497,7 +497,7 @@ class TestMQCBandSummary:
         odd = result_lines(
             passed=0, failed=0,
             skips=[("MQC_EVL_EVAL_134999_x", "QC_HARNESS_BRANCH_STALE: x")],
-            priority="2",
+            heading=Heading("2"),
         )
         assert any(
             "QC_HARNESS_BRANCH_STALE, cause not described here" in line
@@ -508,7 +508,7 @@ class TestMQCBandSummary:
         # is itself a defect rather than a blank.
         blank = result_lines(
             passed=0, failed=0, skips=[("MQC_EVL_EVAL_134998_x", "no idea")],
-            priority="2",
+            heading=Heading("2"),
         )
         assert any("no code, no cause recorded" in line for line in blank), blank
 

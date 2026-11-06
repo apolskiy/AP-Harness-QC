@@ -70,6 +70,7 @@ modules:
   tests/execution/mqc_uni_dispatch.py: Engine dispatch
   tests/execution/mqc_uni_dispatch_recording.py: Engine dispatch
   tests/execution/mqc_uni_judgement_replay.py: Engine dispatch
+  tests/execution/mqc_uni_judge_breaker.py: Engine dispatch
   tests/execution/mqc_uni_normalize.py: Engine dispatch
   tests/execution/mqc_uni_preflight.py: Engine dispatch
   tests/execution/mqc_uni_refusal.py: Engine dispatch
@@ -82,6 +83,7 @@ modules:
   tests/evaluation/mqc_uni_aggregation.py: Judging and scoring
   tests/evaluation/mqc_uni_assertions.py: Judging and scoring
   tests/evaluation/mqc_uni_calibration.py: Judging and scoring
+  tests/evaluation/mqc_uni_clarification_judging.py: Judging and scoring
   tests/evaluation/mqc_uni_combined_checks.py: Judging and scoring
   tests/evaluation/mqc_uni_isolation.py: Judging and scoring
   tests/evaluation/mqc_uni_judge.py: Judging and scoring
@@ -132,6 +134,7 @@ modules:
   tests/cmn/mqc_uni_frozen_records.py: The result record
   tests/cmn/mqc_uni_junit_outcomes.py: The result record
   tests/cmn/mqc_uni_metadata.py: The result record
+  tests/cmn/mqc_uni_passw.py: The result record
   tests/cmn/mqc_uni_pricing.py: The result record
   tests/cmn/mqc_uni_provenance.py: The result record
   tests/cmn/mqc_uni_reporting.py: The result record

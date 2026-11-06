@@ -3,7 +3,7 @@
 """Unit preconditions for repeat observations that disagree, and what a run does about it.
 
 Created: 2026-10-01
-Last updated: 2026-11-01
+Last updated: 2026-11-06
 
 The cases here check ``cmn.verdict`` and ``cmn.observations``:
 ``inconsistent_cases`` reports a case whose observations disagree,
@@ -273,7 +273,10 @@ class TestMQCObservationConsistency:
         outside this project weighs, where "always, on three attempts" and
         "five of five" are different claims.
 
-        Design: ``cmn_verdict_and_cli.md`` sections 4.9.2.1 and 4.9.2.2.
+        An observation nothing measured, given as ``None``, is not a failure
+        and earns nothing on its own.
+
+        Design: ``cmn_verdict_and_cli.md`` sections 4.9.2.1, 4.9.2.2 and 4.9.2.2.1.
 
         Returns:
             None
@@ -305,6 +308,20 @@ class TestMQCObservationConsistency:
         assert further_observations([True]) == 0
         assert further_observations([False]) == 0
         assert further_observations([]) == 0
+
+        # AN OBSERVATION NOTHING MEASURED IS NOT A FAILURE (section 4.9.2.2.1).
+        # Unjudged results counted as failures drew a fourth dispatch while the
+        # judge was down, and its skip hid the judge's own code.
+        assert further_observations([None, None, None]) == 0, (
+            "three unmeasured observations earned two more, so a judge outage "
+            "buys responses nobody can score"
+        )
+        assert further_observations([True, None, None]) == 0, (
+            "an unmeasured observation was counted as a failure"
+        )
+        assert further_observations([True, None, False]) == 2, (
+            "a measured failure beside an unmeasured observation earned nothing"
+        )
 
 
     def MQC_CMN_UNI_112335_a_case_whose_recordings_disagree_on_the_request_is_reported(

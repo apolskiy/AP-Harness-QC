@@ -3,7 +3,7 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
@@ -279,6 +279,21 @@ class EvaluationResult:
             # MQC_CAS_UNI_115010 reports a graded evaluation rule with no rubric.
             return True
         return bool(self.score is not None and self.score.passed)
+
+    @property
+    def warning_codes(self) -> list[str]:
+        """Return the code of every assertion that passed with a warning.
+
+        Design: ``tier3_evaluation.md`` section 5.3.2.
+
+        Returns:
+            list[str]: Each ``passw`` assertion's code, in declared order. A
+            result carrying one and passing is itself a pass with a warning.
+        """
+        return [
+            result.warning_code for result in self.assertion_results
+            if result.warning_code is not None
+        ]
 
 
 @dataclass

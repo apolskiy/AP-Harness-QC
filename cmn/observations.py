@@ -3,7 +3,7 @@
 """The observation record, one measured execution of one case, and the run's fields.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-06
 
 This file contains ``Observation``, what one execution of a case produced as the
 verdict reads it; ``RunContext``, the run-scoped fields every result repeats;
@@ -461,7 +461,7 @@ def escalation_size() -> int:
     return _ESCALATION
 
 
-def further_observations(outcomes: list[bool]) -> int:
+def further_observations(outcomes: list[Optional[bool]]) -> int:
     """Return how many more observations a pattern of outcomes earns.
 
     **Any failure earns two more, and agreement earns none.** Three runs to
@@ -484,9 +484,11 @@ def further_observations(outcomes: list[bool]) -> int:
     this function is not a loop.
 
     Args:
-        outcomes (list[bool]): Whether each observation so far passed, in the
-            order observed. **Outcomes only**, because the rule reads agreement
-            and nothing else about a result.
+        outcomes (list[Optional[bool]]): Whether each observation so far
+            passed, in the order observed, or ``None`` for one nothing
+            measured. **Outcomes only**, because the rule reads agreement and
+            nothing else about a result. An unmeasured observation is not a
+            failure, so it earns nothing (design section 4.9.2.2.1).
 
     Returns:
         int: How many further observations to dispatch. **Zero for fewer than
@@ -503,7 +505,7 @@ def further_observations(outcomes: list[bool]) -> int:
     # needs, and the verdict is binary and settled by the first disagreement.
     # The figure is read by somebody outside this project, where thirds are not
     # a rate anybody can weigh. Widened by the project owner on 2026-10-06.
-    failures = len(outcomes) - sum(outcomes)
+    failures = sum(1 for outcome in outcomes if outcome is False)
     if not failures:
         return 0
     # ONCE ONLY. Reached five, the rule has said what it has to say.

@@ -3,7 +3,7 @@
 """Unit preconditions for the counts and skip reasons a band summary prints.
 
 Created: 2026-10-15
-Last updated: 2026-10-21
+Last updated: 2026-11-06
 
 The cases here check ``cmn.band_summary``: that the totals row of
 ``band_table`` sums its bands and divides those sums, that
@@ -33,6 +33,7 @@ import pytest
 
 from cmn.band_summary import (
     Alarms,
+    Heading,
     band_table,
     result_lines,
     skip_reasons_from,
@@ -108,7 +109,8 @@ class TestMQCBandArithmetic:
         Returns:
             None
         """
-        plain = result_lines(passed=1, failed=0, skips=[("c", "r")], engine="gemini")
+        plain = result_lines(passed=1, failed=0, skips=[("c", "r")],
+                             heading=Heading(engine="gemini"))
         assert plain[0] == "Test results for the whole selection on gemini", plain[0]
         assert not any(line.startswith("preconditions skipped") for line in plain), (
             "a run that skipped no precondition says it exits 3"

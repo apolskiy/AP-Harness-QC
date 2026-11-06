@@ -3,13 +3,13 @@
 """The adapter that sends cases to Anthropic's Claude models and reads their replies.
 
 Created: 2026-09-24
-Last updated: 2026-11-05
+Last updated: 2026-11-06
 
 This file contains :class:`ClaudeAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Anthropic Messages API. It composes
 and dispatches the request, normalizes the response with any provider refusal
 and its token usage, captures tool calls, and composes and parses a judge
-request answered through a forced tool call.
+request constrained by a JSON-schema response format.
 
 **The registry enrols it under its engine name**, so dispatch and the judge
 channel reach it whenever a run names this engine, as the candidate or as the
@@ -39,6 +39,7 @@ from execution.adapters.base import (
     ConfiguredAdapter,
     ProviderFacts,
     declared_properties,
+    require_json_object,
 )
 from execution.normalize import NormalizedResponse, ToolCall
 
@@ -66,9 +67,8 @@ _ERROR_CLASSES: Final[tuple[tuple[type, str], ...]] = (
     (anthropic.APIConnectionError, "QC_HARNESS_ENGINE_UNREACHABLE"),
 )
 
-# The forced tool a judgement replies through, and the ceiling for that
-# reply. A rubric object is small; this is headroom, not a target.
-_JUDGE_TOOL: Final[str] = "mqc_judgement"
+# The ceiling for a judgement reply. A rubric object is small; this is
+# headroom, not a target.
 _JUDGE_MAX_TOKENS: Final[int] = 4096
 
 _ENGINE_NAME: Final[str] = "claude"
@@ -109,6 +109,28 @@ _FINISH_REASONS: Final[dict[str, str]] = {
     "refusal": "content_filter",
     "pause_turn": "unknown",
 }
+
+
+def _closed(schema: Any) -> Any:
+    """Return a copy of a JSON schema with every object closed to further properties.
+
+    Design: ``tier2_execution.md`` section 7.8.5.
+
+    Args:
+        schema (Any): A schema, or any value nested inside one.
+
+    Returns:
+        Any: The copy. Mappings declaring ``type: object`` carry
+        ``additionalProperties: false``; everything else is copied unchanged.
+    """
+    if isinstance(schema, list):
+        return [_closed(entry) for entry in schema]
+    if not isinstance(schema, dict):
+        return schema
+    copied = {name: _closed(value) for name, value in schema.items()}
+    if copied.get("type") == "object":
+        copied["additionalProperties"] = False
+    return copied
 
 
 class ClaudeAdapter(ConfiguredAdapter):
@@ -396,12 +418,10 @@ class ClaudeAdapter(ConfiguredAdapter):
     def compose_judgement(self, prompt: str, reply_schema: dict[str, Any]) -> Any:
         """Build a Messages request constrained to the reply schema.
 
-        **A forced tool call is how this protocol constrains a reply.** There
-        is no response-format control here, so the schema is offered as the
-        single tool and ``tool_choice`` requires it.
-
-        **The call is never executed**, which is the same rule Tier 2 applies
-        to a candidate: it is read as the reply rather than acted on.
+        The schema goes in ``output_config.format`` as a JSON schema, with
+        every object closed against further properties, which the response
+        format requires. The shared schema is not changed: the closing is a
+        copy made here. Design: ``tier2_execution.md`` section 7.8.5.
 
         Args:
             prompt (str): The rendered judge request, composed by Tier 3, which
@@ -416,22 +436,13 @@ class ClaudeAdapter(ConfiguredAdapter):
             "model": self._model,
             "max_tokens": _JUDGE_MAX_TOKENS,
             "messages": [{"role": "user", "content": prompt}],
-            "tools": [
-                {
-                    "name": _JUDGE_TOOL,
-                    "description": "Return the judgement in the required shape.",
-                    "input_schema": reply_schema,
-                }
-            ],
-            "tool_choice": {"type": "tool", "name": _JUDGE_TOOL},
+            "output_config": {
+                "format": {"type": "json_schema", "schema": _closed(reply_schema)},
+            },
         }
 
     def parse_judgement(self, response: Any) -> dict[str, Any]:
-        """Read the forced tool call's input as the reply.
-
-        **Already a mapping**, the provider having parsed it against the
-        schema, so unlike the other protocols this is an attribute read rather
-        than a JSON parse.
+        """Read the reply's JSON from its first text block.
 
         Args:
             response (Any): The provider-shaped reply.
@@ -440,16 +451,15 @@ class ClaudeAdapter(ConfiguredAdapter):
             dict[str, Any]: The reply as a mapping.
 
         Raises:
-            ValueError: With ``QC_HARNESS_PARSER_ERROR`` when no forced call
-                came back, which means the constraint was not honoured.
+            ValueError: With ``QC_HARNESS_PARSER_ERROR`` when no text came back,
+                or the text is not a JSON object.
         """
-        for block in response.content:
-            if getattr(block, "type", None) == "tool_use":
-                return dict(block.input)
-        raise ValueError(
-            f"QC_HARNESS_PARSER_ERROR: {self.ENGINE_NAME} returned no forced "
-            f"tool call, so the reply was not schema-constrained"
+        text = next(
+            (str(getattr(block, "text", "") or "") for block in response.content
+             if getattr(block, "type", None) == "text"),
+            "",
         )
+        return require_json_object(text, self.ENGINE_NAME)
 
     def declare_capabilities(self) -> Capabilities:
         """Return what this provider supports.

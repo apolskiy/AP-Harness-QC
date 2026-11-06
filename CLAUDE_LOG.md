@@ -15576,3 +15576,26 @@ vocabulary reads "rejected", "rejecting" and "reject". An unsourced override
 followed by "This has been rejected." still aborts. Replayed against the fix,
 the observation reached the judge; judged live on Argon, the case passed 2 of 2
 with its foundation.
+
+### A passw case carries its warning code in JUnit, 2026-11-06
+
+**Found by `MQC_CMN_UNI_112441`, which failed first.** A passw case's JUnit
+carried no properties. pytest's junitxml writer takes properties from the
+teardown report, which copies `item.user_properties`, and `mark_passw` only
+extended the call report. It now extends the item too, and it adds one
+`mqc_warning_code` property per distinct code beside `mqc_outcome` `passw`.
+Both conftests pass the item (`harness_test_taxonomy.md` section 5.1.2,
+`CMN_0243`).
+
+**A judge gives a score, never `passw`.** The taxonomy paragraph on judges is
+rewritten: an assertion that found a correction gives the outcome. Across
+repeat observations, `passw` against `pass` or against `fail` is inconsistent.
+
+* **Digressions the user spotted, and the fix:** the paragraph had said a
+  judge could return `passw`; it now says a judge returns a score.
+* **Found while building, and fixed:** the conftest-wiring helper sat in the
+  collected module `mqc_uni_passw.py` and `112328` reported it. It moved to
+  `tests/cmn/wired_session.py` as `unwired_conftests`.
+* **Code Quality & Compliance Audit:** unit 1051 of 1051, exit 0; system 24 of
+  24, exit 0; pylint 10.00/10, exit 0. `cmn/layers.py` audit re-declared at
+  7657ac49, 0 survivors.

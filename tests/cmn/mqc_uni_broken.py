@@ -3,7 +3,7 @@
 """Unit preconditions for telling a crash from a failure.
 
 Created: 2026-10-15
-Last updated: 2026-10-28
+Last updated: 2026-11-06
 
 The case here runs a nested pytest session wired to ``cmn.broken`` and
 ``cmn.band_summary`` the way both repositories wire theirs, and checks that a
@@ -25,17 +25,14 @@ is **not a model finding**, so the module carries no priority marker, per
 #   112385  a_case_that_crashes_is_broken_and_the_run_exits_3
 # ------------------------------------------------------------ end of cases
 
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
 from cmn.grouping import story
+from tests.cmn.wired_session import REPOSITORY_ROOT, run_wired_session
 
 pytestmark = pytest.mark.unit
-
-_ROOT = Path(__file__).resolve().parents[2]
 
 # A SESSION WIRED THE WAY BOTH REPOSITORIES WIRE THEIRS, so the case runs real
 # pytest reports through the real classification rather than imitations of them.
@@ -100,16 +97,6 @@ def test_setup_crashes(broken_setup: None) -> None:
 '''
 
 
-# A CONFIG FILE OF ITS OWN, carrying no discovery keys, so the wired session
-# takes pytest's defaults and collects the `test_` names above rather than this
-# repository's `MQC_` overrides. The flag it is passed to selects a *config
-# file*: it was once given `conftest.py`, which pytest 9.1 accepted as a file
-# holding no configuration and 9.2 refuses by extension, so a session that was
-# isolated by accident is now isolated by declaration.
-_SESSION_INI = """[pytest]
-"""
-
-
 class TestMQCBroken:
     """A crash is broken in every output, and the run says nothing was measured."""
 
@@ -127,15 +114,7 @@ class TestMQCBroken:
         Returns:
             None
         """
-        (tmp_path / "conftest.py").write_text(_CONFTEST, encoding="utf-8")
-        (tmp_path / "test_sample.py").write_text(_CASES, encoding="utf-8")
-        (tmp_path / "pytest.ini").write_text(_SESSION_INI, encoding="utf-8")
-        finished = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly", "-p", "no:cacheprovider",
-             "--rootdir", str(tmp_path), "-c", str(tmp_path / "pytest.ini"), str(tmp_path)],
-            cwd=_ROOT, capture_output=True, text=True, check=False, timeout=120,
-            stdin=subprocess.DEVNULL,
-        )
+        finished = run_wired_session(tmp_path, _CONFTEST, _CASES)
         output = finished.stdout + finished.stderr
 
         assert "failed: 2" in output and "broken: 2" in output, (
@@ -148,7 +127,8 @@ class TestMQCBroken:
             f"a run with a broken case exited {finished.returncode}, not 3:\n{output}"
         )
 
-        for conftest in (_ROOT / "conftest.py", _ROOT.parent / "AP-Model-QC" / "conftest.py"):
+        for conftest in (REPOSITORY_ROOT / "conftest.py",
+                         REPOSITORY_ROOT.parent / "AP-Model-QC" / "conftest.py"):
             if not conftest.is_file():
                 continue
             source = conftest.read_text(encoding="utf-8")
