@@ -15630,3 +15630,43 @@ now names the call, so `112438` and `112442` read the wiring.
   system 24 of 24, exit 0; pylint 10.00/10, exit 0. Model Repository unit 220
   of 220 against this harness, exit 0, none marked passw; pylint 10.00/10,
   exit 0.
+
+### The consumer regression compares outcomes across the change, 2026-11-09
+
+**The Waiting row asked whether the deterministic legs should carry
+attribution, and the ruling went further.** The deterministic gates keep
+failing on any failure: a precondition failure is never a consumer finding to
+review. The graded path was the gap. It failed on `QC_HARNESS_*` codes and
+errors and passed on `QC_LLM_*` ones, so a harness change that turned a
+passing case into a `QC_LLM_*` failure left the job green.
+
+**The ruling: an outcome that does not match the original is the harness's;
+one that matches is the consumer's**, the model's or the case's, decided by
+the consumer's review. A replay sends nothing to a model, so between two
+replays of one consumer commit only the harness changed.
+
+**The baseline is the candidate's first parent.** The consumer pins `main`,
+which by the time the job runs is the candidate, so its pin could not serve.
+The workflow checks out the harness at depth 2, names `HEAD^`, replays the
+consumer on it after the candidate's replay, and
+`tools/consumer_regression.py` compares the two reports. The code is part of
+the outcome, and a case on one side only is a change (`harness_ci_pipeline.md`
+section 3B.3.1, `CMN_0096` restated). `112523` is retired for `112529` to
+`112534`, in `mqc_uni_consumer_regression.py` with its templates in
+`consumer_regression_support.py`.
+
+* **Fail-first:** the six cases failed against the old tool, the five on the
+  tool by import and `112534` on the workflow's single-report gate step. They
+  pass with the change.
+* **On real reports:** the Model Repository's gemini replay compared with
+  itself exits 0; with 134206's passw removed from a copy it exits 1, naming
+  134206 `passw QC_LLM_MATCH_MISCOMPUTED before the change, passed after it`.
+* **Found while building, and fixed:** `112328` reported the report writer
+  defined in the case module, moved to the support module; `112314` and
+  `112323` reported the index and README counts, `cmn_verdict_and_cli.md` 483
+  to 488 cases and the README 1080 to 1085.
+* **Not changed:** the inventory sentence in `cmn_verdict_and_cli.md` section
+  10 says eight identifiers are retired, and the document strikes through 27
+  rows. It predates this change and is left for its own correction.
+* **Code Quality & Compliance Audit:** harness unit 1057 of 1057, exit 0;
+  system 24 of 24, exit 0; pylint 10.00/10, exit 0.

@@ -42,5 +42,4 @@ fixtures.
 
 | Item | Waiting on |
 |---|---|
-| `regress-consumers-on-merge` attributes an outcome on the graded path and not on the deterministic gates | A decision on whether the deterministic legs carry attribution at all, the gates being pass or fail rather than graded |
 | The quarantine trigger at `cmn/verdict.py` is unreachable | Nothing. The project owner ruled it is not to be fixed, and it is recorded here so it is not rediscovered as a finding |

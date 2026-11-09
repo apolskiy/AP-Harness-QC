@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The consumer regression fails on any outcome the harness change altered, 2026-11-09
+
+**Why it was needed.** The job read failure codes: `QC_HARNESS_*` codes and
+errors failed it, and `QC_LLM_*` and `QC_SEC_*` failures did not. A harness
+change that turned a passing case into a `QC_LLM_*` failure therefore left it
+green, a harness regression reported as a model finding.
+
+**What changed.** `regress-consumers-on-merge` replays the consumer's graded
+layers twice, against the candidate's first parent and against the candidate,
+and `tools/consumer_regression.py` compares the two reports case by case. An
+outcome (passed, passw, failed, skipped or error, with its codes) that differs,
+or a case present on one side only, fails the job; one that matches is the
+consumer's to review; a missing, unreadable or empty report refuses with exit
+4 (`harness_ci_pipeline.md` section 3B.3.1, requirement
+`MQC_REQ_HAR_CMN_0096` restated). Case `112523` is retired for `112529` to
+`112534`. The README's instrument suite moved from 1080 to 1085 cases.
+
 ### A precondition passes or fails, and one marked passw exits 3, 2026-11-06
 
 **Why it was needed.** passw describes a model that corrected itself. A

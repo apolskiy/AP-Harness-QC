@@ -107,11 +107,30 @@ jobs:
       matrix:
         consumer: ${{ fromJson(needs.enumerate.outputs.consumers) }}
     steps:
+      # TWO COMMITS, SO THE ONE BEFORE THE CHANGE CAN BE NAMED. The graded
+      # replay runs against both and only a difference fails this job
+      # (design section 3B.3.1).
       - name: Check out this harness candidate
         uses: actions/checkout@v5
         with:
           ref: ${{ needs.enumerate.outputs.harness_sha }}
           path: harness
+          fetch-depth: 2
+
+      # THE FIRST PARENT IS THE HARNESS BEFORE THE CHANGE. The consumer pins
+      # `main`, which by now is the candidate, so its pin cannot be the
+      # baseline. A candidate with no parent fails here, and the comparison
+      # refuses rather than passing.
+      - name: Name the harness before the change
+        id: parent
+        shell: bash
+        run: echo "sha=$(git -C harness rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the harness before the change
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.parent.outputs.sha }}
+          path: harness_baseline
 
       # A CONSUMER THAT CANNOT BE REACHED IS A HARNESS EVENT. A private
       # repository, a deleted branch or a rate-limited clone says nothing about
@@ -188,8 +207,8 @@ jobs:
       # takes under two seconds, so the argument for excluding it was never
       # cost. Design `harness_ci_pipeline.md` section 3B.3.
       #
-      # IT DOES NOT GATE. The consumer carries findings about the model, and
-      # this job asks only whether our change broke it.
+      # IT DOES NOT GATE BY ITSELF. The consumer carries findings about the
+      # model; the comparison below decides whether our change altered any.
       - name: Replay the consumer's graded layers
         if: steps.fetch.outcome == 'success'
         continue-on-error: true
@@ -202,11 +221,28 @@ jobs:
             --out-dir reports/ \
             --junitxml=reports/junit_consumer_graded.xml
 
-      # OUR CODES FAIL THIS JOB, NOT THE COUNT. A `QC_LLM_*` failure is a
-      # finding about the model and belongs to the consumer's own gate; a
-      # `QC_HARNESS_*` one means this change broke the consumer. Section 3B.3.1
-      # carries the table.
-      - name: Fail only on harness-attributable outcomes
+      # THE SAME REPLAY ON THE HARNESS BEFORE THE CHANGE. It replaces the
+      # installed harness, so it runs after every step that needs the
+      # candidate. A failed install leaves no report, and the comparison
+      # refuses.
+      - name: Replay the consumer's graded layers on the harness before the change
+        if: steps.fetch.outcome == 'success'
+        continue-on-error: true
+        working-directory: consumer
+        shell: bash
+        run: |
+          python -m pip install --quiet --editable "../harness_baseline[dev]"
+          pytest -m "evaluator or tool or sec" \
+            --engine gemini \
+            --mode replay \
+            --out-dir reports/baseline/ \
+            --junitxml=reports/baseline/junit_consumer_graded.xml
+
+      # A CHANGED OUTCOME FAILS THIS JOB, WHATEVER ITS CODE. A replay sends
+      # nothing to a model, so a case whose outcome differs across the change
+      # was changed by the harness; one that matches is the consumer's to
+      # review. Section 3B.3.1 carries the table.
+      - name: Fail on any outcome the change altered
         if: steps.fetch.outcome == 'success'
         # THE HARNESS IS CHECKED OUT TO `harness/`, so the tool is not at the
         # workspace root. Design section 3B.3.2: this step invoked the root
@@ -214,6 +250,7 @@ jobs:
         # while evaluating nothing.
         run: >-
           python harness/tools/consumer_regression.py
+          consumer/reports/baseline/junit_consumer_graded.xml
           consumer/reports/junit_consumer_graded.xml
 
       - uses: actions/upload-artifact@v6

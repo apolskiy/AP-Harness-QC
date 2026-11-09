@@ -485,7 +485,7 @@ about what the absence of work would be reported as.
 
 ---
 
-### 3B.3 The graded replay runs here too, and only our codes fail it
+### 3B.3 The graded replay runs here too, and only a changed outcome fails it
 
 Added 2026-10-01.
 
@@ -507,29 +507,58 @@ the harness change that caused it.
 **A graded replay costs nothing.** It contacts no provider, needs no credential
 and takes under two seconds, so the argument for excluding it was never cost.
 
-#### 3B.3.1 The taxonomy decides what turns it red
+#### 3B.3.1 An outcome the change altered is the harness's, whatever its code
 
-**A model finding must not fail this job.** The consumer currently carries two,
-and a harness regression that went red because `gemini-3.8-flash` overstates a
-figure would be reporting the wrong subject: it would be red permanently, for
-something no harness change can fix, which is how a signal stops being read.
+Rewritten 2026-11-09, at the project owner's ruling of that date.
 
-So the step runs and **the outcome is judged by the code, not by the count**:
+**A consumer finding must not fail this job, and a harness regression must.**
+A finding fails the consumer's replay whatever harness it runs against, so a
+job failing on it would be red permanently, for something no harness change
+can fix, which is how a signal stops being read.
 
-| Outcome in the graded replay | This job |
-|---|---|
-| `QC_HARNESS_*` anywhere | **Red.** Our change broke the consumer |
-| An `error` rather than a failure | **Red.** Same reason, reported differently |
-| `QC_LLM_*` or `QC_SEC_*` failures only | Green. The model underperformed, which is not this job's subject |
-| A skip under `QC_HARNESS_DEPENDENCY_UNMET` | Green. A dependent of a model finding, not a harness fault |
+**A replay sends nothing to a model.** It reads recorded responses and
+judgements, so between two replays of the same consumer commit the harness is
+the only thing that changed. The graded replay therefore runs twice, against
+the harness commit before the change and against the change, and **the job
+compares outcomes case by case**:
 
-That is `framework-rules.md` section 4 used as a gate rather than as a label:
-the families split by what the code asserts about, and this job asserts about
-the harness alone.
+| Outcome across the change | Whose | This job |
+|---|---|---|
+| Differs: passed, passw, failed, skipped or error, or a code within one | **The harness's.** The change altered it | **Red** |
+| A case present on one side only | **The harness's.** The change altered what runs | **Red** |
+| Matches | **The consumer's**: a model finding or a case defect, decided by the consumer's own review before anything is filed | Green |
+| Either report missing, unreadable or holding no case | Nothing was compared | **Refused**, exit 4 |
+
+**The code is part of the outcome.** A failure that moved from `QC_LLM_*` to
+`QC_HARNESS_FIXTURE_STALE` changed with the harness, and a passw that became a
+pass lost a warning the consumer reviews.
+
+**The baseline is the candidate's first parent, not the consumer's pin.** The
+consumer pins `main`, which by the time this job runs is the candidate. The
+first parent is the harness the merge changed, so a difference is what this
+change did. A candidate with no parent leaves no baseline report, and the
+comparison refuses.
+
+**Why the codes were not enough.** Until 2026-11-09 the job failed on
+`QC_HARNESS_*` codes and errors and passed on `QC_LLM_*` and `QC_SEC_*`
+failures. A harness change that turned a passing case into a `QC_LLM_*`
+failure therefore left the job green, which is a harness regression reported
+as a model finding, the false positive a filed ticket must never carry.
+
+**The deterministic gates keep failing on any failure.** A precondition
+failure is never a consumer finding to review, so it has nothing to compare.
 
 **The consumer's own gate keeps judging the model**, unchanged. Two jobs read
-the same run and ask different questions of it, which is the point of having
-the codes.
+the same cases and ask different questions of them.
+
+| Case | Asserts |
+|---|---|
+| `MQC_CMN_UNI_112529` | Matching outcomes, a model failure and a passw among them, leave the job green |
+| `MQC_CMN_UNI_112530` | A pass that became a model failure is reported |
+| `MQC_CMN_UNI_112531` | A passw that became a pass, and a failure whose code changed, are reported |
+| `MQC_CMN_UNI_112532` | A case skipped or absent on one side only is reported |
+| `MQC_CMN_UNI_112533` | A missing, empty or unreadable report refuses |
+| `MQC_CMN_UNI_112534` | The workflow replays on the first parent and compares both reports |
 
 ---
 
@@ -550,7 +579,7 @@ step that could fail was the one that could not run.
 
 | | Covered by | Before |
 |---|---|---|
-| The tool fails only on `QC_HARNESS_*` | `MQC_CMN_UNI_112523` | Yes |
+| The tool fails only on `QC_HARNESS_*` | `MQC_CMN_UNI_112523`, retired 2026-11-09 for `112529` to `112534` (section 3B.3.1) | Yes |
 | The workflow can reach the tool | **Nothing** | **No** |
 
 **This is the fifth instance of one shape in this project.** `--max-spend`

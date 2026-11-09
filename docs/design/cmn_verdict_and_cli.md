@@ -3634,7 +3634,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 483 cases, 284 negative, 147 positive, 52 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 488 cases, 288 negative, 148 positive, 52 boundary.** Eight identifiers are retired and listed struck through rather than removed, so a reader of stored history can resolve them: `112114` and `112115` with the `--case` flag (section 7.8.4), and `112006` through `112009`, `112019` and `112032` with the skip ceilings on 2026-10-08 (`harness_test_taxonomy.md` section 7.4.1.0). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -5376,7 +5376,13 @@ output count, and the judge path recorded nothing at all.
 | `112409` | P | `a_carried_foundation_is_not_run_again` |
 | `112410` | N | `a_record_whose_provenance_moved_is_refused` |
 | `112411` | B | `no_carry_file_named_changes_nothing` |
-| `112523` | N | `a_consumer_run_fails_this_job_only_on_our_codes` |
+| ~~`112523`~~ | | ~~`a_consumer_run_fails_this_job_only_on_our_codes`~~. **Retired 2026-11-09**, the consumer regression comparing outcomes across the change rather than reading codes (`harness_ci_pipeline.md` section 3B.3.1): `112529` to `112534` |
+| `112529` | P | `an_outcome_matching_the_one_before_the_change_is_not_ours` |
+| `112530` | N | `a_pass_turned_into_a_model_failure_is_reported` |
+| `112531` | N | `a_changed_warning_or_failure_code_is_reported` |
+| `112532` | N | `a_case_run_on_one_side_only_is_reported` |
+| `112533` | N | `a_missing_or_empty_report_refuses` |
+| `112534` | N | `the_workflow_replays_the_parent_and_compares_both` |
 
 ### 12.2 What was measured before any of this was built
 
