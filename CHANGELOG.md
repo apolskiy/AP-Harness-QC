@@ -29,6 +29,16 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The report publish runs on Node.js 24, without the deprecation warning, 2026-11-09
+
+**Why it was needed.** `actions/deploy-pages@v4` and
+`actions/upload-pages-artifact@v4` run on Node.js 20, which GitHub is retiring,
+so every publish carried a deprecation warning and would stop working when the
+runtime is removed.
+
+**What changed.** `gate-on-change.yml` uses `deploy-pages@v5` and
+`upload-pages-artifact@v5`, which run on Node.js 24, with the same inputs.
+
 ### A consumer regression run is named by its gate and its page says what was compared, 2026-11-09
 
 **Why it was needed.** A run started by a cancelled gate was listed against a

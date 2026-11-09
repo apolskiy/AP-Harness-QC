@@ -15730,3 +15730,19 @@ after, or a refusal and its reason (`harness_ci_pipeline.md` section 3B.3.3,
 * **On real reports:** the gemini replay summary reads 94 passed and 1 passw
   on both sides and "unchanged", exit 0; against the copy without 134206's
   passw it reads "changed" and names 134206, exit 1.
+
+### The Pages actions moved to v5, which run on Node.js 24, 2026-11-09
+
+**Every Pages publish carried a deprecation warning.** `actions/deploy-pages@v4`
+runs on Node.js 20, which GitHub is retiring, and
+`actions/upload-pages-artifact@v4` calls `actions/upload-artifact` v4.6.2 pinned
+by commit, also on Node.js 20. The runner forced both onto Node.js 24 and said
+so on each run, in this repository and the case repository alike.
+
+**`gate-on-change.yml` uses v5 of both now.** `deploy-pages` v5.0.1 declares
+`node24`, and `upload-pages-artifact` v5.0.0 calls `upload-artifact` v7.0.0.
+The inputs this workflow passes, `path` to the upload, are unchanged in v5. The
+three `deploy-pages@v4` strings in `tests/cmn/mqc_uni_grouping.py` are workflow
+text a case parses, not steps that run, and were left as they are.
+
+* **Verified:** unit 1061 of 1061, exit 0.

@@ -199,12 +199,14 @@ jobs:
         run: npm install -g allure-commandline@2.41.0
       - name: Generate the report
         run: allure generate reports/allure-results -o allure-report --clean
-      - uses: actions/upload-pages-artifact@v4
+      # V5 OF BOTH PAGES ACTIONS, since 2026-11-09: v4 ran on Node.js 20, which
+      # GitHub retires, and every publish carried the deprecation warning.
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: allure-report
       - name: Deploy it
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   # GATES 4 TO 7 ARE NOT HERE, AND THAT IS THE BOUNDARY RATHER THAN AN OMISSION.
   # They ran `pytest -m evaluator`, `-m tool` and `-m sec` and then computed a
