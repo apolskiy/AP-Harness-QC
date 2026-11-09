@@ -982,6 +982,26 @@ could never refuse a program flag, because deciding whether a given program was
 safe would mean parsing it. A rule the hook can enforce completely is a rule
 that holds on a machine where somebody is tired.
 
+#### 8.1.4 Measured again on 2026-11-09: two premises hold, one changed form
+
+Added 2026-11-09 at the project owner's request, to check whether a Claude Code
+update had made the four bans unnecessary. Measured live with commands the hook
+allows, since what is measured is the transport and the shell, not the shapes.
+
+| Premise | Measured | Ban |
+|---|---|---|
+| One level of backslash unescaping above the shell | **Holds.** A single-quoted `\\server\share` reached bash as `\server\share`; single backslashes arrived intact | Stands |
+| `sed` exits 0 when its pattern matches nothing | **Holds.** Exit 0, file unchanged. It is `sed`'s own behaviour | Stands |
+| A bare `python -` hangs | **Changed.** Standard input is `/dev/null`, so a read ends at once with exit 0. The interpreter runs an empty program and reports success | Stands: a program that never ran exits 0, which is the silent failure the rule is about |
+
+**The hook had a gap, and it was closed the same day.** The program-flag
+pattern required whitespace straight after `python`, so a virtual
+environment's `.venv/Scripts/python.exe -c ""` ran unrefused, as did the `py`
+launcher. The pattern now accepts `python.exe`, `py`, `py.exe` and a quoted
+path, and the hook is wired to the PowerShell tool as well as Bash. Refusal
+was confirmed live on both tools, for the program flag, a here-document and
+`sed -i`.
+
 
 ### 8.2 The encoding rule is enforced, not merely followed
 

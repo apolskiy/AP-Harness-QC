@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 
 Four shell shapes fail on Windows (Git Bash / PowerShell) in ways that produce
 **no error**: the call returns success having done something other than what was
-written, or it hangs. They are banned outright rather than discouraged, because
+written, or does nothing and still exits 0. They are banned outright rather than discouraged, because
 a shape that fails loudly can be retried and these cannot be noticed.
 
 **Each ban is flat, with no "unless the content is simple" clause.** Two of
@@ -27,7 +27,9 @@ file, so it survives review.
 
 ### 2. Never run bare `python -`.
 
-It hangs until the tool timeout rather than reading the program from stdin. Do
+Standard input is empty, so it runs nothing and exits 0, reporting success for a
+program that never ran. It hung until the tool timeout until 2026-11-09, when
+standard input was measured as `/dev/null` (`code-style.md` section 8.1.4). Do
 not use it even as a no-op or a connectivity check.
 
 ### 3. Never pass a program to the interpreter's command flag either.

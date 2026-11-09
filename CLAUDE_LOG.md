@@ -15670,3 +15670,26 @@ section 3B.3.1, `CMN_0096` restated). `112523` is retired for `112529` to
   rows. It predates this change and is left for its own correction.
 * **Code Quality & Compliance Audit:** harness unit 1057 of 1057, exit 0;
   system 24 of 24, exit 0; pylint 10.00/10, exit 0.
+
+### The four banned shell shapes were measured again, and a bare `python -` no longer hangs, 2026-11-09
+
+**The question was whether a Claude Code update had made the bans
+unnecessary. It has not.** Measured live with commands the hook allows: one
+level of backslash unescaping still happens above the shell (a single-quoted
+`\\server\share` reached bash as `\server\share`), and `sed` still exits 0
+when its pattern matches nothing. One premise changed form: standard input is
+now `/dev/null`, so a bare `python -` runs an empty program and exits 0
+rather than hanging. The ban stands, since a program that never ran reports
+success.
+
+**The hook let one shape through.** Its pattern required whitespace straight
+after `python`, so `.venv/Scripts/python.exe -c ""`, issued in this session,
+ran unrefused. The hook now matches `python.exe`, `py`, `py.exe` and a quoted
+path, and is wired to the PowerShell tool as well; refusal was confirmed live
+on both tools for the program flag, a here-document and `sed -i`. The hook
+and its settings live outside the repository.
+
+**What changed here:** `code-style.md` section 8.1.4 records the
+measurement; `CLAUDE.md` and `claude_code_rules_because_of_findings.md` no
+longer say a bare `python -` hangs, and `CLAUDE.md` names the tools and
+interpreter names the hook covers.
