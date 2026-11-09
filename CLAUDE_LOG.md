@@ -15693,3 +15693,12 @@ and its settings live outside the repository.
 measurement; `CLAUDE.md` and `claude_code_rules_because_of_findings.md` no
 longer say a bare `python -` hangs, and `CLAUDE.md` names the tools and
 interpreter names the hook covers.
+
+### The CMN inventory stopped counting its retired identifiers, 2026-11-09
+
+**The sentence under the inventory said eight identifiers were retired, and
+named them; the document strikes through 27 rows.** It was noted while
+retiring `112523` and left for its own change. Every struck row already
+carries its date and its reason, so the sentence now says how a retired
+identifier is listed and no longer counts or names them: a count restated
+apart from the rows is what went stale.
