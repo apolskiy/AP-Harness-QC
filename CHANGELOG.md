@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A consumer regression run is named by its gate and its page says what was compared, 2026-11-09
+
+**Why it was needed.** A run started by a cancelled gate was listed against a
+later commit, seconds after that commit's gate began, and read as a regression
+running ahead of its gate. And the run page said success without the commits,
+the counts or the verdict, which were in the step logs only.
+
+**What changed.** `regress-consumers-on-merge` carries a `run-name`: `regress
+after gate on <commit>: <conclusion>`. `tools/consumer_regression.py` takes
+`--summary`, `--baseline-commit` and `--candidate-commit` and appends to the
+run summary the verdict, each side's harness commit and its passed, passw,
+failed, skipped and error counts, and every changed case before and after, or
+the reason a comparison was refused (`harness_ci_pipeline.md` section 3B.3.3,
+requirement `MQC_REQ_HAR_CMN_0246`, cases `112535` to `112538`). The README's
+instrument suite moved from 1085 to 1089 cases and its traced requirements
+from 414 to 415.
+
 ### The consumer regression fails on any outcome the harness change altered, 2026-11-09
 
 **Why it was needed.** The job read failure codes: `QC_HARNESS_*` codes and

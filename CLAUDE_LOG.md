@@ -15702,3 +15702,31 @@ retiring `112523` and left for its own change. Every struck row already
 carries its date and its reason, so the sentence now says how a retired
 identifier is listed and no longer counts or names them: a count restated
 apart from the rows is what went stale.
+
+### A consumer regression run is named by its gate, and its page says what was compared, 2026-11-09
+
+**The run list showed a regression on `3fb6dfc` eight seconds after that
+commit's gate had started.** It was started by `c08be28`'s gate, cancelled by
+the push of `3fb6dfc`; a cancelled run completes, so it started this
+workflow, whose guard skipped every job. A `workflow_run` run carries the
+newest commit on the default branch, so it was listed against `3fb6dfc`. A
+rerun keeps its trigger and skipped again. Nothing ran out of order; the label
+misled. The run is now named `regress after gate on <commit>: <conclusion>`.
+
+**The first comparison run's page said success and nothing more.** Both
+commits, both replays' counts and the verdict were in the step logs only. The
+tool now appends them to the run summary, with every changed case before and
+after, or a refusal and its reason (`harness_ci_pipeline.md` section 3B.3.3,
+`CMN_0246`, `112535` to `112538`).
+
+* **Fail-first:** the four cases failed against the tool and workflow before
+  the change, and pass with it.
+* **Found while building, and fixed:** the commits were first passed as
+  expressions in the gate step's script, and `112524` skips a step whose
+  script holds an expression, so the one step it guards went unexamined and
+  it failed with "no workflow step invoked a literal script". They now arrive
+  through the step's environment. The README moved to 1089 cases and 415
+  requirements (`112323`).
+* **On real reports:** the gemini replay summary reads 94 passed and 1 passw
+  on both sides and "unchanged", exit 0; against the copy without 134206's
+  passw it reads "changed" and names 134206, exit 1.

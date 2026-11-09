@@ -593,6 +593,39 @@ nothing established that it was reachable.**
 the checkout layout that step executes in, so a path that cannot exist fails the
 unit gate rather than passing silently in a job that reports success.
 
+#### 3B.3.3 The run page says which gate started it and what was compared
+
+Added 2026-11-09, at the project owner's request, after reading the first run
+of section 3B.3.1's comparison.
+
+**A run was labelled with a commit it never tested.** A `workflow_run` run
+carries the newest commit on the default branch. A gate cancelled by a later
+push still completes, so it starts this workflow, whose guard skips every job;
+the skipped run was listed against the later commit, seconds after that
+commit's own gate had started, and read as a regression run ahead of its gate.
+**So the run is named by the gate run that started it**: `regress after gate on
+<commit>: <conclusion>`, and a manual dispatch `regress on <commit>
+(workflow_dispatch)`. A rerun keeps its trigger, so a rerun of a skipped run
+skips again and its name says why.
+
+**The page said success without saying what was compared.** The commits, the
+counts and the verdict were in the step logs only. **So the comparison step
+appends to the run summary:**
+
+| Part | Holds |
+|---|---|
+| Heading | `Outcomes across the harness change:` unchanged, changed or refused |
+| Table | Each side's harness commit and its passed, passw, failed, skipped and error counts |
+| Changed | Every changed case, its outcome before the change and after it |
+| Refused | The reason, and that nothing was compared |
+
+| Case | Asserts |
+|---|---|
+| `MQC_CMN_UNI_112535` | An unchanged comparison writes both commits, both sides' counts and the verdict |
+| `MQC_CMN_UNI_112536` | A changed comparison lists every changed case before and after |
+| `MQC_CMN_UNI_112537` | A refusal writes its reason, and appends rather than overwriting |
+| `MQC_CMN_UNI_112538` | The run name carries the gate's commit and conclusion, and the gate step writes the summary |
+
 
 ## 3C. Branch Topology, And Which Harness A Case Set Runs Against
 

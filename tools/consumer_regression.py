@@ -8,9 +8,16 @@ Last updated: 2026-11-09
 This file contains ``case_outcomes``, which reads a JUnit report and returns
 each case's outcome with its codes; ``changed_outcomes``, which lists every
 case whose outcome differs between a replay against the harness before the
-change and one against the change; and ``main``, the command line that exits
-0 when no outcome changed, 1 when one did, and 4 when either report is
-missing, will not parse or holds no case.
+change and one against the change; ``summary_lines``, which renders the
+comparison for the run page; and ``main``, the command line that exits 0
+when no outcome changed, 1 when one did, and 4 when either report is missing,
+will not parse or holds no case, and appends the summary to ``--summary``
+when given.
+
+**The summary says what was compared** (section 3B.3.3): the verdict in its
+heading, each side's harness commit and its passed, passw, failed, skipped
+and error counts, and every changed case before and after the change. A
+refusal gives its reason and says nothing was compared.
 
 **The ``regress-consumers-on-merge`` workflow runs it** after replaying the
 consumer's graded suite twice, against the harness commit before the change
@@ -25,7 +32,7 @@ followed by the sorted codes the case reported: a passw's warning codes, and
 the ``QC_*`` codes in a failure, skip or error message. A case present on one
 side only is ``absent`` on the other.
 
-Specified by ``docs/design/harness_ci_pipeline.md`` section 3B.3.1.
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 3B.3.1 and 3B.3.3.
 """
 
 import argparse
@@ -37,10 +44,13 @@ from xml.etree import ElementTree
 
 logger = logging.getLogger(__name__)
 
+_ENCODING: Final[str] = "utf-8"
 _CODE: Final[re.Pattern[str]] = re.compile(r"QC_[A-Z]+(?:_[A-Z]+)+")
 _PROBLEMS: Final[tuple[tuple[str, str], ...]] = (
     ("error", "error"), ("failure", "failed"), ("skipped", "skipped"))
 _ABSENT: Final[str] = "absent"
+_COUNTED: Final[tuple[str, ...]] = ("passed", "passw", "failed", "skipped", "error")
+_HEADING: Final[str] = "## Outcomes across the harness change: "
 
 _EXIT_UNCHANGED: Final[int] = 0
 _EXIT_CHANGED: Final[int] = 1
@@ -124,6 +134,59 @@ def changed_outcomes(baseline: Path, candidate: Path) -> list[str]:
     return changed
 
 
+def _count_row(label: str, commit: str, outcomes: dict[str, str]) -> str:
+    """Return one summary table row: a side, its commit and its outcome counts.
+
+    Args:
+        label (str): ``Before the change`` or ``After it``.
+        commit (str): The harness commit that side ran on.
+        outcomes (dict[str, str]): That side's outcomes, from :func:`case_outcomes`.
+
+    Returns:
+        str: A Markdown table row.
+    """
+    firsts = [outcome.split(" ", 1)[0] for outcome in outcomes.values()]
+    counts = " | ".join(str(firsts.count(kind)) for kind in _COUNTED)
+    return f"| {label} | `{commit}` | {counts} |"
+
+
+def summary_lines(baseline: Path, candidate: Path,
+                  baseline_commit: str, candidate_commit: str) -> list[str]:
+    """Render the comparison for the run page.
+
+    Args:
+        baseline (Path): The replay against the harness before the change.
+        candidate (Path): The replay against the change.
+        baseline_commit (str): The harness commit before the change.
+        candidate_commit (str): The harness commit under test.
+
+    Returns:
+        list[str]: Markdown lines: the verdict as a heading, both sides'
+        commits and counts, and every changed case; or the refusal and its
+        reason.
+    """
+    try:
+        before = case_outcomes(baseline)
+        after = case_outcomes(candidate)
+        changed = changed_outcomes(baseline, candidate)
+    except ValueError as error:
+        return [f"{_HEADING}refused", "", f"**Refused:** {error}. Nothing was compared.", ""]
+
+    lines = [f"{_HEADING}{'changed' if changed else 'unchanged'}", "",
+             "| | Harness commit | " + " | ".join(_COUNTED) + " |",
+             "|---|---|" + "---|" * len(_COUNTED),
+             _count_row("Before the change", baseline_commit, before),
+             _count_row("After it", candidate_commit, after), ""]
+    if changed:
+        lines += [f"**{len(changed)} outcome(s) changed with the harness**, so this change "
+                  "broke the consumer:", ""]
+        lines += [f"- `{name}`:{rest}" for name, rest in
+                  (line.split(":", 1) for line in changed)]
+    else:
+        lines.append("No outcome changed. Any failure above is the consumer's to review.")
+    return [*lines, ""]
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     """Report whether a harness change altered any outcome of a consumer's graded replay.
 
@@ -141,7 +204,19 @@ def main(argv: Optional[list[str]] = None) -> int:
                         help="The graded JUnit XML replayed on the harness before the change")
     parser.add_argument("candidate", type=Path,
                         help="The graded JUnit XML replayed on the change")
+    parser.add_argument("--summary", type=Path,
+                        help="A Markdown file to append the comparison to, the run page's")
+    parser.add_argument("--baseline-commit", default="before the change",
+                        help="The harness commit the baseline replay ran on")
+    parser.add_argument("--candidate-commit", default="the change",
+                        help="The harness commit under test")
     parsed = parser.parse_args(argv)
+
+    if parsed.summary is not None:
+        with parsed.summary.open("a", encoding=_ENCODING) as page:
+            page.write("\n".join(summary_lines(parsed.baseline, parsed.candidate,
+                                               parsed.baseline_commit,
+                                               parsed.candidate_commit)))
 
     try:
         changed = changed_outcomes(parsed.baseline, parsed.candidate)

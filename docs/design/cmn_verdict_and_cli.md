@@ -3634,7 +3634,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 488 cases, 288 negative, 148 positive, 52 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 492 cases, 291 negative, 149 positive, 52 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -5383,6 +5383,10 @@ output count, and the judge path recorded nothing at all.
 | `112532` | N | `a_case_run_on_one_side_only_is_reported` |
 | `112533` | N | `a_missing_or_empty_report_refuses` |
 | `112534` | N | `the_workflow_replays_the_parent_and_compares_both` |
+| `112535` | P | `the_summary_names_both_commits_counts_and_no_change` |
+| `112536` | N | `the_summary_lists_each_changed_case` |
+| `112537` | N | `a_refused_comparison_says_so_in_the_summary` |
+| `112538` | N | `the_run_is_named_by_its_gate_and_writes_its_summary` |
 
 ### 12.2 What was measured before any of this was built
 

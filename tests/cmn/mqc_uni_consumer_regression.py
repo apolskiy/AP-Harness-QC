@@ -11,9 +11,12 @@ replay against the harness before the change and against the change itself
 is compared case by case: an outcome that matches is the consumer's, whatever
 it is, and an outcome that differs, in its result or in its codes, is the
 harness's and fails the job. A missing, unreadable or empty report refuses,
-and the workflow replays against the harness commit before the change.
+and the workflow replays against the harness commit before the change. The
+run page names the gate run that started it, and its summary carries both
+commits, both replays' counts, the verdict and every changed case.
 
-Specified by ``docs/design/harness_ci_pipeline.md`` section 3B.3.1. A failure
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 3B.3.1 and
+3B.3.3. A failure
 here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3."""
 
@@ -27,6 +30,10 @@ here is **not a model finding**, so the module carries no priority marker, per
 #   112532  a_case_run_on_one_side_only_is_reported
 #   112533  a_missing_or_empty_report_refuses
 #   112534  the_workflow_replays_the_parent_and_compares_both
+#   112535  the_summary_names_both_commits_counts_and_no_change
+#   112536  the_summary_lists_each_changed_case
+#   112537  a_refused_comparison_says_so_in_the_summary
+#   112538  the_run_is_named_by_its_gate_and_writes_its_summary
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -207,7 +214,7 @@ class TestMQCConsumerRegression:
         gate = [run.split() for run in runs if "consumer_regression.py" in run]
 
         step(1, "find one gate step naming a baseline and a candidate report")
-        assert len(gate) == 1 and len(gate[0]) == 4, gate
+        assert len(gate) == 1 and len(gate[0]) >= 4, gate
 
         step(2, "find the baseline report written by a replay against the parent harness")
         assert any(f"--junitxml={gate[0][2].removeprefix('consumer/')}" in run
@@ -215,3 +222,124 @@ class TestMQCConsumerRegression:
 
         step(3, "find the parent harness checked out for that replay")
         assert any("HEAD^" in run for run in runs), runs
+
+    @story("The run page says what was compared")
+    def MQC_CMN_UNI_112535_the_summary_names_both_commits_counts_and_no_change(
+        self, tmp_path: Path
+    ) -> None:
+        """An unchanged comparison writes both commits, both sides' counts and the verdict.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.3.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        cases = (_PASSED.format(name="a"), _PASSW.format(name="b"),
+                 _FAILED.format(name="c", code="QC_LLM_SOURCE_ALTERATION"))
+        before = _report(tmp_path / "before.xml", *cases)
+        after = _report(tmp_path / "after.xml", *cases)
+        summary = tmp_path / "summary.md"
+
+        step(1, "exit 0 and write the summary")
+        assert main([str(before), str(after), "--summary", str(summary),
+                     "--baseline-commit", "aaa1111", "--candidate-commit", "bbb2222"]) == 0
+        text = summary.read_text(encoding="utf-8")
+
+        step(2, "read the verdict in the heading")
+        assert "## Outcomes across the harness change: unchanged" in text, text
+
+        step(3, "read each side's commit and counts")
+        assert ("| Before the change | `aaa1111` | 1 | 1 | 1 | 0 | 0 |" in text
+                and "| After it | `bbb2222` | 1 | 1 | 1 | 0 | 0 |" in text), text
+
+        step(4, "read that any failure is the consumer's to review")
+        assert "No outcome changed." in text, text
+
+    @story("The run page says what was compared")
+    def MQC_CMN_UNI_112536_the_summary_lists_each_changed_case(self, tmp_path: Path) -> None:
+        """A changed comparison writes the verdict and every changed case, before and after.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.3.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        before = _report(tmp_path / "before.xml", _PASSED.format(name="a"),
+                         _PASSW.format(name="b"))
+        after = _report(tmp_path / "after.xml",
+                        _FAILED.format(name="a", code="QC_LLM_SOURCE_ALTERATION"),
+                        _PASSED.format(name="b"))
+        summary = tmp_path / "summary.md"
+
+        step(1, "exit 1 and write the summary")
+        assert main([str(before), str(after), "--summary", str(summary),
+                     "--baseline-commit", "aaa1111", "--candidate-commit", "bbb2222"]) == 1
+        text = summary.read_text(encoding="utf-8")
+
+        step(2, "read the verdict and the count of changed cases")
+        assert ("## Outcomes across the harness change: changed" in text
+                and "**2 outcome(s) changed with the harness**" in text), text
+
+        step(3, "read each changed case before and after")
+        assert ("- `a`: passed before the change, failed QC_LLM_SOURCE_ALTERATION after it"
+                in text and "- `b`: passw QC_LLM_MATCH_MISCOMPUTED before the change, "
+                            "passed after it" in text), text
+
+    @story("The run page says what was compared")
+    def MQC_CMN_UNI_112537_a_refused_comparison_says_so_in_the_summary(
+        self, tmp_path: Path
+    ) -> None:
+        """A refusal writes its reason and that nothing was compared, and appends to the file.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.3.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        present = _report(tmp_path / "present.xml", _PASSED.format(name="a"))
+        summary = tmp_path / "summary.md"
+        summary.write_text("earlier step\n", encoding="utf-8")
+
+        step(1, "exit 4 on a baseline that was never written")
+        assert main([str(tmp_path / "absent.xml"), str(present), "--summary", str(summary),
+                     "--baseline-commit", "aaa1111", "--candidate-commit", "bbb2222"]) == 4
+        text = summary.read_text(encoding="utf-8")
+
+        step(2, "read the refusal, its reason and that nothing was compared")
+        assert ("## Outcomes across the harness change: refused" in text
+                and "QC_HARNESS_PARSER_ERROR: no consumer report" in text
+                and "Nothing was compared." in text), text
+
+        step(3, "keep what an earlier step wrote to the summary")
+        assert text.startswith("earlier step\n"), text
+
+    @story("The run page says what was compared")
+    def MQC_CMN_UNI_112538_the_run_is_named_by_its_gate_and_writes_its_summary(self) -> None:
+        """The run name carries the triggering gate's commit and conclusion; the gate step writes.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.3.
+
+        Returns:
+            None
+        """
+        workflow = yaml.safe_load(_WORKFLOW.read_text(encoding="utf-8"))
+        name = str(workflow.get("run-name", ""))
+        gate = [str(entry.get("run", "")) for entry in workflow["jobs"]["verify"]["steps"]
+                if "consumer_regression.py" in str(entry.get("run", ""))]
+
+        step(1, "find the triggering gate's commit and conclusion in the run name")
+        assert ("github.event.workflow_run.head_sha" in name
+                and "github.event.workflow_run.conclusion" in name), name
+
+        step(2, "find the gate step writing the summary with both commits")
+        assert (len(gate) == 1 and '--summary "$GITHUB_STEP_SUMMARY"' in gate[0]
+                and "--baseline-commit" in gate[0] and "--candidate-commit" in gate[0]), gate
