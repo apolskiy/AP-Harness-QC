@@ -168,11 +168,11 @@ jobs:
       # ONE PLATFORM'S RESULTS, DELIBERATELY. The two runners measure the same
       # cases and a report merging both would show every case twice. Ubuntu is
       # the platform the live suite also runs on.
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: mqc-reports-unit-none-replay-ubuntu-26.04
           path: downloaded/unit
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           name: mqc-reports-system-none-replay-ubuntu-26.04
           path: downloaded/system

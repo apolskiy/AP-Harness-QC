@@ -15746,3 +15746,22 @@ three `deploy-pages@v4` strings in `tests/cmn/mqc_uni_grouping.py` are workflow
 text a case parses, not steps that run, and were left as they are.
 
 * **Verified:** unit 1061 of 1061, exit 0.
+
+### download-artifact moved to v7, the last action on Node.js 20, 2026-11-09
+
+**The v5 bump left one warning.** Gate run 42722001683, the first on the Pages
+v5 actions, still warned for `actions/download-artifact@v6`, which declares
+`node20`. The bump had read only the warning on the case repository's publish
+run, which named the Pages actions and nothing else, and did not check every
+action the workflows use.
+
+**`gate-on-change.yml` uses `download-artifact@v7` for both downloads.** v7
+changes only the runtime. v8 also makes a digest mismatch fail the run by
+default, a change of behaviour nothing asked for, so it was not taken.
+
+**Every action both repositories use was then read at its declared runtime**:
+`checkout@v5`, `setup-python@v6`, `upload-artifact@v6`, `download-artifact@v7`
+and `deploy-pages@v5` declare `node24`; `upload-pages-artifact@v5` and
+`raven-actions/actionlint@v2` are composite, and the actions they call,
+`upload-artifact` v7.0.0, `github-script` v9.0.0 and `cache` v5.0.5, declare
+`node24` too.

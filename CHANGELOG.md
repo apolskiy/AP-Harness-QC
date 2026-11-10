@@ -29,6 +29,15 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The report job downloads its results on Node.js 24, 2026-11-09
+
+**Why it was needed.** With the Pages actions on v5, the publish job still
+carried the Node.js 20 deprecation warning, for `actions/download-artifact@v6`.
+
+**What changed.** `gate-on-change.yml` uses `download-artifact@v7`, which
+changes only the runtime from v6. Every action the workflows use now runs on
+Node.js 24, including those composite actions call.
+
 ### The report publish runs on Node.js 24, without the deprecation warning, 2026-11-09
 
 **Why it was needed.** `actions/deploy-pages@v4` and
