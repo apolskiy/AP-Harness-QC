@@ -118,6 +118,7 @@ modules:
   tests/cmn/mqc_uni_verdict_invariants.py: Verdict and bands
 
   # How a run is asked for, and what it is allowed to measure.
+  tests/cmn/mqc_uni_calibration_runs.py: Selection and invocation
   tests/cmn/mqc_uni_cli.py: Selection and invocation
   tests/cmn/mqc_uni_engine_roster.py: Selection and invocation
   tests/cmn/mqc_uni_environments.py: Selection and invocation

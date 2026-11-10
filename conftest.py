@@ -3,7 +3,7 @@
 """The harness's pytest configuration, which wires the run's hooks and shared fixtures.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-10
 
 This file contains the pytest hooks for this repository's suite, which declare
 the execution flags, record the invocation, label each case's Allure severity
@@ -55,6 +55,7 @@ from cmn.environments import (
 )
 from cmn.band_summary import Alarms, Heading, result_lines, skipped_cases_from
 from cmn.broken import broken_count, broken_detail_lines, mark_broken, refuse_broken
+from cmn.calibration_runs import deselect_unrequested_calibration
 from cmn.case_steps import begin_case_steps, record_assertion, record_call
 from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
@@ -207,6 +208,9 @@ def pytest_collection_modifyitems(
     # AN AUDIT RUNS ONLY WHEN ASKED FOR, and leaves the total otherwise
     # (`harness_test_taxonomy.md` 15.13.1).
     deselect_unrequested_audits(config, items)
+    # AND CALIBRATION ONLY WHEN ASKED FOR, under a live judge
+    # (`tier3_evaluation.md` section 9.2).
+    deselect_unrequested_calibration(config, items)
     label_priority_severity(items)
     # AND THE GROUPING A REPORT IS READ BY, from one declaration rather than
     # from a decorator on each of 239 classes (`harness_test_taxonomy.md` 16).

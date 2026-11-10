@@ -29,6 +29,21 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Calibration is collected only by a run that asks for it, under a live judge, 2026-11-10
+
+**Why it was needed.** A calibration case is graded, and the case repository's
+gates and every rung of its ladder select the graded layers. Selected by layer,
+it would be collected by a gate with no judgement to replay and run again by
+each step judging live, a judge call per exemplar every time.
+
+**What changed.** A calibration case carries the `calibration` marker, now
+registered in `pytest.ini`. `cmn.calibration_runs.deselect_unrequested_calibration`,
+called from `conftest.py`, deselects it from every run whose marker expression
+does not name the marker, and refuses a run naming it under a judge that is
+not live. `tier3_evaluation.md` section 9.2 specifies it, requirement
+`MQC_REQ_HAR_CMN_0248` traces it, and `MQC_CMN_UNI_112618` to `112620` assert
+it. The README counts 1097 cases and 418 requirements.
+
 ### Calibration sends each rubric exemplar to the judge, 2026-11-10
 
 **Why it was needed.** Calibration compared scores with the levels exemplars

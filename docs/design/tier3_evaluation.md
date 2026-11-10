@@ -2797,6 +2797,35 @@ than from the judge, which is what calibration exists to ask. The consumer's
 calibration channel is built with neither, `consumer_ci.md` section 7.4; this
 section is what holds when one is built with both.
 
+### 9.2 Calibration runs only when a run asks for it, under a live judge
+
+Added 2026-11-10. **A calibration case carries the `calibration` marker beside
+its layer marker**, and `cmn.calibration_runs.deselect_unrequested_calibration`
+deselects it from every run whose marker expression does not name
+`calibration`, the arrangement `harness_test_taxonomy.md` section 15.13.1
+gives a mutation audit.
+
+**Selection by layer would have run it everywhere.** The case is graded and
+carries the `evaluator` marker, and the case repository's gates and every rung
+of its ladder select `-m "evaluator or tool or sec"`:
+
+| Run | Judge | Calibration, selected by layer |
+|---|---|---|
+| A gate, rung 1 | Replayed | Collected, with no judgement to replay |
+| Rung 2's re-judging step, rung 3 | Live | **Run again**, a judge call per exemplar each time |
+| Rung 2's calibration step | Live | Run, which is the only place it belongs |
+
+**Deselected rather than skipped**, so a run that did not ask for calibration
+leaves it out of the total rather than reporting a non-outcome inside it.
+
+**A marker expression excluding it, `not calibration`, is not a request**, and
+the case is deselected under it.
+
+**A run that asks under a judge that is not live is refused**, with
+`QC_HARNESS_PARSER_ERROR`, at collection. Every exemplar would be judged by a
+stored reply or by none, so the run would measure nothing about the judge and
+could still report green.
+
 ---
 
 ## 10. Conformance Suite

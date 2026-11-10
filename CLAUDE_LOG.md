@@ -15860,3 +15860,34 @@ index moved to 243, the README to 1094 cases and 417 requirements.
 `an_exemplar_reaches_the_judge_on_its_own_criterion`; and the rubric, the
 material and the stand-in judge were written in the case module (`112328`),
 and moved to `tests/evaluation/calibration_support.py`.
+
+### Calibration is collected only when a run asks for it, 2026-11-10
+
+**Found while designing the case repository's calibration case.** The case is
+graded and carries `evaluator`, and every run that repository makes selects
+`-m "evaluator or tool or sec"`: the gates and rung 1 with the judge replayed,
+where there is no judgement to read, and rung 2's re-judging step and rung 3
+with the judge live, where it would have sent every exemplar again. Rung 2's
+calibration step selected it by `-k calibration`, so nothing would have kept
+it out of the others.
+
+**The mutation audit already had the answer.** An audit runs only when a
+marker expression names it (`harness_test_taxonomy.md` section 15.13.1), and
+calibration takes the same arrangement: a `calibration` marker beside the layer
+marker, and `cmn.calibration_runs.deselect_unrequested_calibration` deselecting
+it from any run whose expression does not name it. `not calibration` names it
+in order to exclude it, so the pattern ignores a name preceded by `not`. **A
+run asking for it under a judge that is not live is refused at collection**,
+because it would score every exemplar from a stored reply or from none and
+could still report green.
+
+**Its own module**, because `cmn/selection.py` sits at 868 lines against the
+900-line runway ceiling. The marker is registered in both repositories'
+`pytest.ini`, whose registries `MQC_CMN_UNI_112355` compares.
+
+**The cases failed first and both injections were caught.** `112618` to
+`112620` failed at import before the module existed. Matching `calibration`
+without the `not` guard failed `112618` on `evaluator and not calibration`,
+and dropping the live-judge refusal failed `112620`. Requirement
+`MQC_REQ_HAR_CMN_0248`; the `cmn_verdict_and_cli.md` inventory and DESIGN
+index moved to 496, the README to 1097 cases and 418 requirements.
