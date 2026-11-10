@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Calibration sends each rubric exemplar to the judge, 2026-11-10
+
+**Why it was needed.** Calibration compared scores with the levels exemplars
+were written for, and nothing sent an exemplar to a judge to obtain one. The
+case repository's rung 2 runs calibration, and the first evaluation ladders to
+reach it in CI selected no case and failed.
+
+**What changed.** `evaluation.calibration.calibrate` sends every exemplar of a
+rule's rubric to a judge, as the response, with the rule's own task material
+and on its own criterion alone, validates each reply as a graded one is
+validated, and returns a result per exemplar. A calibration request carries an
+identifier no graded judgement shares, so a recording judge cannot store an
+exemplar's score where a graded one is read. `tier3_evaluation.md` section 9.1
+specifies it, requirement `MQC_REQ_HAR_EVL_0087` traces it, and
+`MQC_EVL_UNI_114212` to `114215` assert it. The README counts 1094 cases and
+417 requirements.
+
 ### The quarantine window is recorded as a known limitation, 2026-11-09
 
 **Why it was needed.** The 21-day quarantine window assumes weekly

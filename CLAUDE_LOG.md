@@ -15811,3 +15811,52 @@ Quarantine is not in use: neither repository carries a file under
 normal cadence for this kind of job and cost more than a demonstration
 justifies. The README's known constraints and section 4.6.2 now state this.
 No code or case changed.
+
+## 2026-11-10: Calibration sends each exemplar to the judge
+
+**The first two evaluation ladders run in CI both failed at rung 2.** The case
+repository's calibration step runs `pytest -k calibration` under the live
+judge; it collected 348 cases, deselected all of them and exited 5. The step
+has stood in `evaluate-engine.yml` since that repository's first commit and no
+run had reached it, because the gates stop at rung 1.
+
+**The gap was on both sides.** Section 9 said "the calibration module sends
+each exemplar through the judge", and `evaluation/calibration.py` only compared
+scores handed to it; nothing obtained them, and no case in the case repository
+asked. Every exemplar was authored and checked, and none had ever reached a
+judge. This is the harness half; the case repository's calibration case
+follows.
+
+**Section 9.1 now specifies the request.** One request per exemplar, composed
+by `compose_judge_request` so isolation and the level guidance are the graded
+request's own: the exemplar as the candidate output, the rule's task
+instruction, system instruction and context documents unchanged, because a
+grounding exemplar can be scored only against the report it describes, and
+the exemplar's criterion alone, because scoring the other criteria on text
+never written to show them could pull the one measured. Replies are validated
+by `validate_judge_reply` against that criterion.
+
+**A calibration judgement had to be kept off the graded fixtures.** Rung 2
+records live judgements under `judgements/<candidate>/<judge>/<task>/<rule>/`
+and a request carrying the rule's own case identifier would have overwritten
+observation 0 of its graded judgement. The request's identifier is
+`calibration.<task>::<rule>.<criterion>` with the level as its observation
+index, so the task directory is one no graded judgement uses and a criterion
+recurring across rules, as `C_SEC_HIDDEN_DETECTED` does in eight, stays
+separate.
+
+**The cases failed first and the injections were caught.** `114212` to
+`114215` failed at import before `calibrate` and `calibration_requests`
+existed. Three defects were then injected and each reported: the identifier
+falling back to the graded one (`114213`, on distinctness), the identifier
+losing only its prefix (`114213`, on the graded task directory), the whole
+rubric sent in place of one criterion (`114212`), and `calibrate` recording
+the intended level rather than the judge's score (`114215`). Requirement
+`MQC_REQ_HAR_EVL_0087`; the `tier3_evaluation.md` inventory and the DESIGN
+index moved to 243, the README to 1094 cases and 417 requirements.
+
+**The governance checks corrected two things on the first full run.** The
+114212 name was 68 characters against a limit of 60 (`112305`), and is
+`an_exemplar_reaches_the_judge_on_its_own_criterion`; and the rubric, the
+material and the stand-in judge were written in the case module (`112328`),
+and moved to `tests/evaluation/calibration_support.py`.

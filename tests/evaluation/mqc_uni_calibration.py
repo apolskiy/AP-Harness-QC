@@ -3,14 +3,16 @@
 """Unit cases for checking a judge's scores against a rubric's anchored exemplars.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-10
 
 Its cases check :mod:`evaluation.calibration`. :func:`compare_to_anchor` passes
 a score within one level of the intended one and fails it at two, recording the
 deviation either way; :func:`calibrate_rubric` yields nothing for an anchor
-without an exemplar or an exemplar never judged; and
-:func:`observation_variance` reports the spread across observations, undefined
-below two.
+without an exemplar or an exemplar never judged; :func:`calibration_requests`
+sends each exemplar as the response on its own criterion, with the rule's
+material, under an identifier no graded judgement shares; :func:`calibrate`
+compares what a stand-in judge awarded; and :func:`observation_variance`
+reports the spread across observations, undefined below two.
 
 Calibration runs on the schedule and says whether a rubric's judge can still be
 trusted, so a defect here lets a drifted judge keep grading. Its cases are
@@ -41,24 +43,42 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCCalibrationOverARubric
 #   114204  an_anchor_without_an_exemplar_yields_no_result
 #   114205  an_unjudged_exemplar_yields_no_result
+# TestMQCCalibrationThroughTheJudge
+#   114212  an_exemplar_reaches_the_judge_on_its_own_criterion
+#   114213  a_calibration_judgement_never_addresses_a_graded_one
+#   114214  calibrate_compares_what_the_judge_awarded_each_exemplar
+#   114215  an_exemplar_the_judge_scores_two_levels_away_fails
 # TestMQCObservationVariance
 #   114206  variance_across_observations_is_reported
 #   114207  variance_is_undefined_below_two_observations
 # ------------------------------------------------------------ end of cases
 
+from pathlib import Path
+
 import pytest
 
 from evaluation.calibration import (
+    calibrate,
     calibrate_rubric,
+    calibration_requests,
     compare_to_anchor,
     observation_variance,
     tolerance,
 )
+from execution.replay import JudgementKey
 from ingestion.schemas import Rubric
+from tests.evaluation.calibration_support import (
+    EXEMPLARS,
+    StandInJudge,
+    calibration_rubric,
+    rule_material,
+)
 
 pytestmark = pytest.mark.unit
 
 _CRITERION = "MQC_CRT_grounding"
+
+_CASE_ID = "MQC_TASK_regions::MQC_RULE_regions_stay_in_source"
 
 
 class TestMQCCalibrationTolerance:
@@ -203,6 +223,118 @@ class TestMQCCalibrationOverARubric:
             None
         """
         assert not calibrate_rubric(sample_rubric_record, {})
+
+
+class TestMQCCalibrationThroughTheJudge:
+    """Sending each exemplar to a judge, and comparing what comes back."""
+
+    def MQC_EVL_UNI_114212_an_exemplar_reaches_the_judge_on_its_own_criterion(self) -> None:
+        """One request per exemplar, carrying the rule's material and one criterion.
+
+        Design: ``tier3_evaluation.md`` section 9.1.
+
+        Returns:
+            None
+        """
+        material = rule_material()
+        requests = calibration_requests(_CASE_ID, calibration_rubric(), material)
+
+        sent = {(item.criterion_id, item.intended_level) for item in requests}
+        expected = {
+            (criterion_id, level)
+            for criterion_id, exemplars in EXEMPLARS.items() for level in exemplars
+        }
+        assert sent == expected
+        for item in requests:
+            judged = item.judge_request
+            other = next(name for name in EXEMPLARS if name != item.criterion_id)
+            assert judged.data["candidate_output"] == (
+                EXEMPLARS[item.criterion_id][item.intended_level]
+            )
+            assert judged.data["task_instruction"] == material.task_instruction
+            assert judged.data["system_instruction"] == material.system_instruction
+            assert judged.data["context_document.report"] == (
+                material.context_documents["report"]
+            )
+            assert judged.instruction_contains(f"- {item.criterion_id}:")
+            assert not judged.instruction_contains(other)
+            assert judged.reply_schema["properties"]["scores"]["required"] == [
+                item.criterion_id
+            ]
+            assert judged.observation_index == item.intended_level
+
+    def MQC_EVL_UNI_114213_a_calibration_judgement_never_addresses_a_graded_one(
+        self, tmp_path: Path
+    ) -> None:
+        """A recording judge stores a calibration score where no graded one lives.
+
+        Design: ``tier3_evaluation.md`` section 9.1.1.
+
+        Args:
+            tmp_path (Path): A fixture root.
+
+        Returns:
+            None
+        """
+        requests = calibration_requests(_CASE_ID, calibration_rubric(), rule_material())
+
+        def stored_at(case_id: str, observation: int) -> Path:
+            """Return where a recording judge would store this judgement.
+
+            Args:
+                case_id (str): The request's case identifier.
+                observation (int): Its observation index.
+
+            Returns:
+                Path: The judgement file.
+            """
+            return JudgementKey(case_id, "grok", "gemini", observation).path(tmp_path)
+
+        graded = {stored_at(_CASE_ID, observation) for observation in range(6)}
+        graded_directory = stored_at(_CASE_ID, 0).parent.parent
+        calibration = [
+            stored_at(item.judge_request.case_id, item.judge_request.observation_index)
+            for item in requests
+        ]
+        assert len(set(calibration)) == len(requests)
+        assert not graded & set(calibration)
+        assert all(graded_directory not in path.parents for path in calibration)
+
+    def MQC_EVL_UNI_114214_calibrate_compares_what_the_judge_awarded_each_exemplar(
+        self,
+    ) -> None:
+        """A judge scoring each exemplar at its level calibrates exactly.
+
+        Design: ``tier3_evaluation.md`` section 9.1.
+
+        Returns:
+            None
+        """
+        judge = StandInJudge(lambda level: level)
+        results = calibrate(
+            _CASE_ID, calibration_rubric(), rule_material(), judge, judge_engine="gemini"
+        )
+
+        assert len(judge.calls) == 5
+        assert len(results) == 5
+        assert all(result.passed and result.exact for result in results)
+
+    def MQC_EVL_UNI_114215_an_exemplar_the_judge_scores_two_levels_away_fails(self) -> None:
+        """A judge awarding 5 to everything fails the exemplars at 1 and 3.
+
+        Design: ``tier3_evaluation.md`` section 9.1.
+
+        Returns:
+            None
+        """
+        results = calibrate(
+            _CASE_ID, calibration_rubric(), rule_material(),
+            StandInJudge(lambda level: 5), judge_engine="gemini",
+        )
+
+        failed = {(result.criterion_id, result.intended_level)
+                  for result in results if not result.passed}
+        assert failed == {("C_SOURCE", 1), ("C_SOURCE", 3), ("C_ARITHMETIC", 1)}
 
 
 class TestMQCObservationVariance:

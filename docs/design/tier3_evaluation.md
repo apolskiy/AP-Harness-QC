@@ -2734,6 +2734,69 @@ Two further drift signals need no new machinery: **variance across A4's three ob
 
 Calibration runs on the schedule, not on pull requests, since it requires live judge invocation.
 
+### 9.1 How an exemplar reaches the judge
+
+Added 2026-11-10. Until then the comparison existed and the sending did not:
+`calibrate_rubric` took scores somebody else had obtained, and nothing obtained
+them. The case repository's rung 2 runs calibration with `-k calibration`, and
+the first evaluation ladder to reach it in CI selected no case and failed on
+pytest's exit 5.
+
+**`calibration_requests` composes one judge request per exemplar, and
+`calibrate` sends each through a judge and compares the score.** The consumer
+supplies the rule's identity, its rubric, the material the graded request
+carries, and the judge's `invoke`; the harness does the rest.
+
+| Part of the request | Calibration sends |
+|---|---|
+| The candidate output | **The exemplar**, in the `candidate_output` data field, isolated like any response |
+| The task instruction, the system instruction, the context documents | **The rule's own**, as the graded request carries them. An exemplar is a response to that task: a grounding exemplar reading "the report covers five regions" can be scored only by a judge holding the report |
+| The rubric in the instruction text | **The exemplar's criterion alone**, with its anchors and the guidance on levels 2 and 4 |
+| The reply schema | That one criterion |
+
+**The request is composed by `compose_judge_request`**, so isolation, the data
+notice and the level guidance are the graded request's own and cannot drift
+from it. A request whose exemplar reached the instruction text is refused
+exactly as a graded one is.
+
+**One criterion per request, because an exemplar shows one level of one
+criterion.** Scored against the whole rubric, the judge would award every other
+criterion a score for text never written to show it, and those scores could
+pull the one being measured.
+
+**The reply is validated by `validate_judge_reply`** against that one-criterion
+rubric, so a reply off the scale or out of shape raises as a graded reply
+would, rather than being compared.
+
+#### 9.1.1 A calibration judgement never addresses a graded one
+
+**A recording judge channel stores every live judgement it obtains**, under
+`judgements/<candidate>/<judge>/<task>/<rule>/<observation>.json`, and rung 2
+records. A calibration request carrying the rule's own case identifier would be
+written over observation 0 of that rule's graded judgement, and the next replay
+would read an exemplar's score as the candidate's.
+
+**So a calibration request carries an identifier of its own.** For case
+`<task>::<rule>`, criterion `<criterion>` and level `<level>`:
+
+| Field | Value |
+|---|---|
+| `case_id` | `calibration.<task>::<rule>.<criterion>` |
+| `observation_index` | `<level>` |
+| Stored at, if recorded | `judgements/<candidate>/<judge>/calibration.<task>/<rule>.<criterion>/<level>.json` |
+
+**The task directory is prefixed**, so no graded judgement shares it, and the
+criterion is in the rule directory because one criterion identifier recurs
+across rules: `C_SEC_HIDDEN_DETECTED` is in eight of the case repository's.
+Every part is already a path segment a graded judgement uses, so the
+identifier is as safe on Windows as theirs.
+
+**Whether calibration records is the consumer's decision**, and a calibration
+judgement replayed under `--fill-gaps` would answer from the record rather
+than from the judge, which is what calibration exists to ask. The consumer's
+calibration channel is built with neither, `consumer_ci.md` section 7.4; this
+section is what holds when one is built with both.
+
 ---
 
 ## 10. Conformance Suite
@@ -2885,6 +2948,10 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114210` | N | `a_score_two_levels_below_fails_calibration` |
 | `114211` | N | `a_score_two_levels_above_fails_calibration` |
 | `114203` | P | `deviation_within_tolerance_is_recorded_for_trend` |
+| `114212` | P | `an_exemplar_reaches_the_judge_on_its_own_criterion` (9.1) |
+| `114213` | N | `a_calibration_judgement_never_addresses_a_graded_one` (9.1.1) |
+| `114214` | P | `calibrate_compares_what_the_judge_awarded_each_exemplar` (9.1) |
+| `114215` | N | `an_exemplar_the_judge_scores_two_levels_away_fails` (9.1) |
 | `114503` | P | `violation_failure_judged_under_flag` (4.2.0) |
 | `114504` | N | `fatal_failure_never_judged_even_under_flag` |
 | `114505` | P | `skipped_judgement_recorded_as_not_evaluated` |
@@ -3014,7 +3081,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 239 cases, 105 negative, 85 positive, 49 boundary.**
+**Inventory: 243 cases, 107 negative, 87 positive, 49 boundary.**
 
 `114313` to `114315` were added on 2026-11-05 with section 3.1.2: the judge is
 shown the system instruction, isolated like every other field the case author
