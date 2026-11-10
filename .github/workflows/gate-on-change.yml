@@ -18,13 +18,16 @@ on:
   # section 3.5 gives the reason that differs from a diagnostic run.
   workflow_dispatch:
 
-# Superseded pull request runs are cancelled. Safe here because nothing in this
-# workflow spends quota or writes anything a later run depends on. This is the
-# OPPOSITE of evaluate-live-weekly.yml, where a cancelled run has already spent
-# its quota and leaves a partial record.
+# Superseded runs are cancelled EXCEPT ON MAIN, since 2026-11-09. Elsewhere it
+# is safe: nothing spends quota, deploys or is pinned. On main two things depend
+# on a run finishing. The publish job deploys the site, and a Pages deployment
+# cancelled while syncing stalled the next one until it timed out. And the case
+# repository pins a commit by this run's conclusion, which a cancelled run
+# leaves never green. On main a new run waits; runs waiting collapse to the
+# newest. Design section 3.4, MQC_CMN_UNI_420010.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read

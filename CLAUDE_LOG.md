@@ -15765,3 +15765,35 @@ and `deploy-pages@v5` declare `node24`; `upload-pages-artifact@v5` and
 `raven-actions/actionlint@v2` are composite, and the actions they call,
 `upload-artifact` v7.0.0, `github-script` v9.0.0 and `cache` v5.0.5, declare
 `node24` too.
+
+### A gate run on main finishes rather than being cancelled, 2026-11-09
+
+**The case repository's publish stalled three times in four**, each after an
+earlier publish run was cancelled while its Pages deployment was syncing, and
+that repository's publish group stopped cancelling a run in progress the same
+evening. **This gate deploys under the same arrangement.** Its group
+`ci-${{ github.ref }}` cancelled superseded runs on every ref, so two pushes to
+`main` minutes apart could stop the first run's deploy midway. The owner
+decided to change the gate's concurrency to close it.
+
+**A cancelled main run also left its commit unpinnable.** The case
+repository's pairing resolver reads this workflow's conclusion on a commit,
+and a cancelled run concludes `cancelled`, never green. Section 3.4 had
+reasoned that nothing here writes anything a later run depends on; that
+stopped being true when the publish job and the pairing arrived, and the
+section was not revisited.
+
+**On `main` a run now finishes; elsewhere superseded runs still cancel.**
+`cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}`. Pull requests and
+branches deploy nothing and nobody pins them, so cancelling there still saves
+runner time. On `main` runs waiting behind the running one collapse to the
+newest. The cost is a superseded main run of a few minutes completing.
+
+**The case failed first.** `MQC_CMN_UNI_420010`, beside `420005`, reads every
+workflow that deploys Pages and accepts `cancel-in-progress` only as `false`
+or this exact condition, at the workflow or the deploying job. Run before the
+workflow changed, it named `gate-on-change.yml`. It reads the workflows
+directly rather than extending `cmn.workflow_standards.report_publication_gaps`,
+so no audited module changed. Requirement `MQC_REQ_HAR_CMN_0247`; the README
+moved to 1090 cases and 416 requirements, and the `cmn_verdict_and_cli.md`
+inventory and the DESIGN index to 493.

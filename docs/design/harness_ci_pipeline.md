@@ -334,10 +334,21 @@ The workflow therefore always runs and always reports. The selection step resolv
 ```
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 ```
 
-Superseded pull request runs are cancelled, which is safe here because nothing in `gate-on-change.yml` spends quota or writes anything a later run depends on. This is the opposite of the rule in `evaluate-live-weekly.yml`, for reasons given there.
+Superseded runs are cancelled on every ref but `main`. On a pull request or a branch that is safe: nothing in `gate-on-change.yml` spends quota there, deploys anything or is pinned by anybody.
+
+**On `main` a run finishes, since 2026-11-09**, because two things depend on it:
+
+| What depends on a main run | What a cancellation midway did |
+|---|---|
+| The `publish` job's Pages deployment (section 7.4) | A deployment cancelled while syncing left the next deploy at `syncing_files` until it timed out. Three of four publishes in the case repository failed that way on 2026-11-09, each following a cancelled run |
+| The case repository's pairing resolver, which reads this run's conclusion | A cancelled run concludes `cancelled`, so the commit it measured is never green and a consumer pinning it refuses |
+
+Until then this read `cancel-in-progress: true`, on the reasoning that nothing here writes anything a later run depends on. That stopped being true when the publish job and the pairing arrived, and the line was not revisited. A new run on `main` now waits for the one running; runs waiting behind it collapse to the newest, so the site and the pin still end on the last commit. **The cost is runner time**, a superseded main run of a few minutes completing rather than stopping.
+
+`MQC_CMN_UNI_420010` requires every workflow that deploys the site to carry `cancel-in-progress: false` or this expression, and `MQC_REQ_HAR_CMN_0247` traces it. This remains the opposite of the rule in `evaluate-live-weekly.yml`, which never cancels for reasons given there.
 
 ### 3.5 Running the full suite manually, before a merge
 

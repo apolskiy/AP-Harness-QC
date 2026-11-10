@@ -3,7 +3,7 @@
 """Unit preconditions for the grouping tree a readiness view is read from.
 
 Created: 2026-10-24
-Last updated: 2026-10-28
+Last updated: 2026-11-09
 
 The cases here check ``cmn/grouping.py``, the hooks that read it and the two
 other trees a report groups by. Three run against a planted repository and
@@ -12,8 +12,9 @@ vocabulary, an entry naming no module and an epic that is not the
 distribution's name are each reported. Two run one of this repository's own
 modules under a real Allure reporter and assert that every result carries
 exactly one epic, one capability and one scenario, a declared story standing in
-place of the derived one. One reads the workflows and asserts the report is
-generated and published from a job of its own. One asserts that a suite root is
+place of the derived one. Two read the workflows: one asserts the report is
+generated and published from a job of its own, and one that a workflow
+deploying the site never cancels a run in progress on main. One asserts that a suite root is
 the band a graded case carries and the preconditions root otherwise, and one
 that every registered failure code reaches exactly one category and that the
 classification is written where a report reads it.
@@ -41,6 +42,7 @@ Specified by ``docs/design/harness_test_taxonomy.md`` section 16 and
 #   420004  a_declared_story_is_kept_and_not_duplicated
 # TestMQCGroupingPublication
 #   420005  the_gate_publishes_the_report_from_a_job_of_its_own
+#   420010  a_pages_deploy_on_main_is_never_cancelled_midway
 # TestMQCGroupingWithoutReporter
 #   420006  the_suite_runs_where_no_reporter_is_installed
 #   420007  no_module_outside_the_boundary_imports_the_reporter
@@ -54,6 +56,7 @@ from pathlib import Path
 from typing import Final
 
 import pytest
+import yaml
 
 from cmn.case_steps import step
 from cmn.grouping import (
@@ -90,6 +93,10 @@ from tests.cmn.grouping_support import (
 pytestmark = pytest.mark.unit
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[2]
+
+# THE ONE CANCELLING CONDITION A DEPLOYING WORKFLOW MAY CARRY: true on every
+# other ref and false on main. Design `harness_ci_pipeline.md` section 3.4.
+_NOT_MAIN: Final[str] = "github.ref != 'refs/heads/main'"
 
 # THE MODULE THE REPORTER PROBE RUNS. Three cases in one class, no subprocess
 # and no fixture of its own, so the probe measures the labelling rather than
@@ -507,6 +514,53 @@ class TestMQCGroupingPublication:
             "a publisher conditioned on a run's conclusion was accepted, so an "
             "engine carrying findings would publish nothing and the site would "
             "read as though everything passed"
+        )
+
+    def MQC_CMN_UNI_420010_a_pages_deploy_on_main_is_never_cancelled_midway(
+        self,
+    ) -> None:
+        """A workflow that deploys the site never cancels a run in progress on main.
+
+        **A run cancelled midway on main costs two things.** A Pages deployment
+        cancelled while syncing left the next deploy waiting at
+        ``syncing_files`` until it timed out, three of four publishes in the
+        case repository on 2026-11-09, and a cancelled gate run concludes
+        ``cancelled``, so the commit it measured is never green to the case
+        repository's pairing resolver. Superseded runs on other refs still
+        cancel: they deploy nothing and nothing pins them.
+
+        A workflow's ``cancel-in-progress`` is accepted as ``false``, or as the
+        expression ``github.ref != 'refs/heads/main'``, which is false on main.
+
+        Design: ``harness_ci_pipeline.md`` section 3.4.
+
+        Returns:
+            None
+        """
+        allowed = (False, f"${{{{ {_NOT_MAIN} }}}}")
+        cancelling = []
+        for path in sorted((_ROOT / ".github" / "workflows").glob("*.yml")):
+            definition = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            deploying = [
+                job or {} for job in (definition.get("jobs") or {}).values()
+                if any("actions/deploy-pages" in str((each or {}).get("uses", ""))
+                       for each in (job or {}).get("steps") or [])
+            ]
+            levels = [definition.get("concurrency")] + [
+                job.get("concurrency") for job in deploying
+            ]
+            if deploying and any(
+                isinstance(level, dict)
+                and level.get("cancel-in-progress", False) not in allowed
+                for level in levels
+            ):
+                cancelling.append(path.name)
+
+        step(1, "find no workflow that deploys the site and cancels a run in progress on main")
+        assert not cancelling, (
+            f"these workflows deploy the site and can cancel a run in progress on "
+            f"main, so a deploy stopped midway stalls the next and a cancelled "
+            f"run leaves its commit never green: {cancelling}"
         )
 
 

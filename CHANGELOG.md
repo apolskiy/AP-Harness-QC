@@ -29,6 +29,22 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A gate run on main finishes rather than being cancelled by the next push, 2026-11-09
+
+**Why it was needed.** `gate-on-change.yml` cancelled a superseded run on
+every ref. On `main` two things depend on a run finishing: its publish job
+deploys the report site, and a Pages deployment cancelled while syncing left
+the case repository's next deploy stalled until it timed out; and the case
+repository pins a commit by this run's conclusion, which a cancelled run
+leaves never green.
+
+**What changed.** `cancel-in-progress` is `github.ref != 'refs/heads/main'`:
+superseded runs on pull requests and branches still cancel, and on `main` a
+new run waits for the one running. `harness_ci_pipeline.md` section 3.4
+records it, requirement `MQC_REQ_HAR_CMN_0247` traces it, and
+`MQC_CMN_UNI_420010` requires every workflow deploying the site to carry
+`false` or this condition. The README counts 1090 cases and 416 requirements.
+
 ### The report job downloads its results on Node.js 24, 2026-11-09
 
 **Why it was needed.** With the Pages actions on v5, the publish job still

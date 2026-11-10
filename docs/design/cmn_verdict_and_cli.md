@@ -3625,6 +3625,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `420007` | N | `no_module_outside_the_boundary_imports_the_reporter` (taxonomy 16.7) |
 | `420008` | P | `the_suite_root_is_the_band_or_the_precondition_root` (taxonomy 16.8) |
 | `420009` | P | `every_registered_code_reaches_exactly_one_category` (taxonomy 16.9) |
+| `420010` | N | `a_pages_deploy_on_main_is_never_cancelled_midway` (ci_pipeline 3.4) |
 | `112192` | N | `a_dispatching_job_reading_no_green_pairing_is_reported` (ci_pipeline 8.9) |
 | `450000` | P | `every_field_is_carried_whatever_the_run_knew` (5.6.1) |
 | `450001` | B | `an_absent_value_reads_unrecorded_not_empty` (5.6.1) |
@@ -3634,7 +3635,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 492 cases, 291 negative, 149 positive, 52 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 493 cases, 292 negative, 149 positive, 52 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
