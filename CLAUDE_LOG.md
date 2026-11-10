@@ -15797,3 +15797,17 @@ directly rather than extending `cmn.workflow_standards.report_publication_gaps`,
 so no audited module changed. Requirement `MQC_REQ_HAR_CMN_0247`; the README
 moved to 1090 cases and 416 requirements, and the `cmn_verdict_and_cli.md`
 inventory and the DESIGN index to 493.
+
+### The quarantine window is recorded as a known limitation, 2026-11-09
+
+**The window and the cadence disagree.** Section 4.6.2 sets 21 days as three
+weekly runs of grace. The case repository's scheduled evaluations run monthly,
+so an entry would expire before the next run. The case repository raised it
+when the monthly callers arrived and left it to the harness.
+
+**The owner decided to document it rather than change the window.**
+Quarantine is not in use: neither repository carries a file under
+`config/quarantine/`, so the window governs nothing. Weekly live runs are the
+normal cadence for this kind of job and cost more than a demonstration
+justifies. The README's known constraints and section 4.6.2 now state this.
+No code or case changed.

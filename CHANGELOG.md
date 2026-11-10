@@ -29,6 +29,18 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The quarantine window is recorded as a known limitation, 2026-11-09
+
+**Why it was needed.** The 21-day quarantine window assumes weekly
+evaluations, and the case repository evaluates each engine monthly, so an entry
+would expire before the next scheduled run. Neither the README nor the design
+said so.
+
+**What changed.** The README's known constraints and `cmn_verdict_and_cli.md`
+section 4.6.2 state that quarantine is implemented and not in use, with no
+engine carrying a quarantine file, and that the monthly cadence is set by the
+cost of weekly live runs for a demonstration. No code changed.
+
 ### A gate run on main finishes rather than being cancelled by the next push, 2026-11-09
 
 **Why it was needed.** `gate-on-change.yml` cancelled a superseded run on

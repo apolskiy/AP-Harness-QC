@@ -168,6 +168,13 @@ that instruction and changing them invalidates every recorded judgement for the
 rule. A criterion may carry all five where the distinction earns the re-judge.
 A deliberate decision, not an omission: `DESIGN.md` section 5.
 
+Quarantine is implemented and not in use: no engine carries a quarantine
+file, so every case runs. Its 21-day window assumes evaluations run weekly.
+The case repository evaluates each engine monthly, because weekly live runs
+cost more than a demonstration justifies, so an entry quarantined there would
+expire before the next scheduled run. Recorded in `cmn_verdict_and_cli.md`
+section 4.6.2.
+
 ## Where To Start
 
 Read in this order. Each step assumes the one before it.

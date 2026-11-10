@@ -181,6 +181,14 @@ quota or a holiday. It is a multiple of seven, so expiry never drifts relative
 to the run day; 30 is not, and an entry would lapse on a different weekday each
 cycle. Twenty-eight would be the same argument with four runs of grace.
 
+**Known limitation: the case repository evaluates monthly, not weekly.**
+Weekly live runs cost more than a demonstration justifies, so each engine is
+evaluated once a month. Against that cadence a 21-day entry expires before the
+next scheduled run and buys no grace. Quarantine is not in use: no engine
+carries a quarantine file, so the window governs nothing today. A deployment
+that quarantines on a monthly cadence would set `quarantine_window_days` to
+cover it.
+
 **Expired at the window, not after it.** `as_of - quarantined_on >= 21` makes
 day 21 the first failing day, so "valid for 21 days" reads literally. Named at
 the boundary exactly, per `testing-standards.md` section 3.2, by `112012`,
