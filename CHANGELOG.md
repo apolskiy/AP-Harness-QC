@@ -29,6 +29,21 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The version probe walks the harness's own roster, 2026-11-11
+
+**Why it was needed.** The case repository's probe asked no engine and
+reported no change on every run: its default roster was `config/engines.yaml`
+relative to the working directory, which a consumer does not carry, and an
+absent configuration file reads as an empty mapping.
+
+**What changed.** `execution.preflight` walks `packaged_roster_path()` when no
+`--roster` is given, from any working directory, and a roster that is absent
+or names no engine exits 3 with `QC_HARNESS_PREFLIGHT_FAILURE`, writing no
+baseline and no changed engines. `MQC_EXE_UNI_113514` and `113515` hold both;
+`MQC_REQ_HAR_EXE_0148` traces them; `tier2_execution.md` section 5.3.1
+specifies them. The README case count moved to 1108 and the requirement count
+to 424.
+
 ### A judged case rests on its family's calibration, 2026-11-11
 
 **Why it was needed.** A calibration failure exits 3, and the judged cases of

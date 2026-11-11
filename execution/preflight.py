@@ -3,7 +3,7 @@
 """Checks which model version each engine is serving, before a run and on a schedule.
 
 Created: 2026-09-26
-Last updated: 2026-10-29
+Last updated: 2026-11-11
 
 This file contains ``require_resolved_version``, which returns the version a
 provider reported or aborts when there is none; ``probe_engine`` and
@@ -45,7 +45,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final, Optional
 
-from cmn.config import EngineConfig, load_engines
+from cmn.config import EngineConfig, load_engines, packaged_roster_path
 from execution.adapters.registry import adapter_for
 
 logger = logging.getLogger(__name__)
@@ -70,8 +70,6 @@ _VERSION_FIELDS: Final[tuple[str, ...]] = ("version", "id", "name", "model")
 # model, and `framework-rules.md` section 3.1 reserves 3 for exactly the sense
 # that nothing trustworthy was measured (`cmn_verdict_and_cli.md` section 7.3).
 _DETECTOR_BROKEN: Final[int] = 3
-
-_DEFAULT_ROSTER: Final[str] = "config/engines.yaml"
 
 
 @dataclass(frozen=True)
@@ -411,7 +409,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     Returns:
         int: 0 whether or not an engine changed, a change being the finding
         this exists to produce rather than a failure. 3 where any engine could
-        not be read, which is a broken detector.
+        not be read, or where the roster is absent or names no engine, writing
+        nothing: either is a broken detector (``tier2_execution.md`` section
+        5.3.1).
     """
     parser = argparse.ArgumentParser(
         description="Report which engines are serving a different model than recorded."
@@ -423,11 +423,21 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--output", default="", help="A file to append changed_engines to, such as a step output."
     )
     parser.add_argument(
-        "--roster", default=_DEFAULT_ROSTER, help="The engine roster to walk."
+        "--roster", default="",
+        help="The engine roster to walk; the harness's own roster when absent.",
     )
     args = parser.parse_args(argv)
 
-    served = probe_roster(load_engines(Path(args.roster)))
+    roster_path = Path(args.roster) if args.roster else packaged_roster_path()
+    roster = load_engines(roster_path)
+    if not roster:
+        logger.error(
+            "QC_HARNESS_PREFLIGHT_FAILURE the roster at %s names no engine, so the "
+            "probe would ask nothing and report no change", roster_path,
+        )
+        return _DETECTOR_BROKEN
+
+    served = probe_roster(roster)
     outcomes = probe_all(
         {engine: served_digest(metadata) or None for engine, metadata in served.items()},
         Path(args.baseline),

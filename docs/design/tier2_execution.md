@@ -539,7 +539,7 @@ convenience.** `main` walks the roster in `config/engines.yaml`, calls
 |---|---|---|
 | `--baseline` | The file the previous digests were recorded in | **Exit 2.** There is nothing to compare against, and a probe with no baseline silently reporting no change is the defect section 4.3 of the CI design records |
 | `--output` | Where the changed engines are written | Written to standard output, which is what a person running it by hand wants |
-| `--roster` | The engine roster to walk | `config/engines.yaml`, the packaged default |
+| `--roster` | The engine roster to walk, an override for testing | The harness's own roster, `cmn.config.packaged_roster_path()`, wherever the command runs from |
 
 **`MQC_EXE_UNI_113513` asserts the entry point exists**, by running the module
 with no arguments and requiring exit 2. The assertion is on 2 rather than on
@@ -549,6 +549,38 @@ to call exits 0, and so does a successful run.
 **An engine whose probe failed leaves its baseline untouched**, which
 `probe_all` already implements: overwriting it with nothing would make the next
 run report a change that never happened.
+
+#### 5.3.1 The probe walks the harness's own roster, and refuses one naming no engine
+
+Added 2026-11-11, from the Model Repository's first probe runs.
+
+**What was wrong.** The probe asked no engine and reported no change. Every run
+of the Model Repository's `probe-model-version.yml` printed `changed_engines=`
+and nothing else, exited 0, and left its baseline `{}`. **Why it happens.** The
+default roster was the path `config/engines.yaml`, resolved against the working
+directory rather than the installed harness. It exists in this repository and
+not in a consumer. An absent configuration file reads as an empty mapping by
+design (`load_yaml_config`), so the roster held no engine, no engine could
+fail, and an empty set of outcomes reads as nothing changed.
+
+**The harness knows which engines it supports**, so the probe asks it:
+`packaged_roster_path()` returns the roster the installed harness carries,
+which is the one every other consumer tool already reads. A consumer supplies
+no list of its own.
+
+| Condition | Outcome |
+|---|---|
+| No `--roster` | The harness's roster, from any working directory |
+| A `--roster` that is absent, or names no engine | **Exit 3**, `QC_HARNESS_PREFLIGHT_FAILURE` naming the path; no baseline and no changed engines written |
+
+**Exit 3, because a detector that asked nothing measured nothing.** It is the
+code section 5.3 gives a probe that could not read an engine, for the same
+reason. An empty `changed_engines` would let a workflow read the refusal as a
+quiet week. This is section 5.3's defect again, a command reporting success
+having done nothing, through a roster with nothing in it rather than a module
+with nothing to call.
+
+`MQC_EXE_UNI_113514` and `113515`, `MQC_REQ_HAR_EXE_0148`.
 
 ---
 
@@ -2597,6 +2629,8 @@ the twenty-first check and any fifth engine are in the partition
 | ~~`113220`~~ | | ~~`a_fixture_carrying_a_credential_shaped_value_is_reported`~~. **Retired 2026-10-11**, as above. `113614` states it |
 | `113209` | N | `an_unregistered_mode_is_rejected_before_any_adapter` |
 | `113513` | P | `preflight_declares_a_command_line_entry_point` (5.3) |
+| `113514` | N | `a_roster_naming_no_engine_is_refused` (5.3.1) |
+| `113515` | P | `the_packaged_roster_is_walked_when_none_is_named` (5.3.1) |
 | `440000` | P | `claude_reports_what_its_provider_serves` (5.2) |
 | `440001` | P | `gemini_reports_what_its_provider_serves` (5.2) |
 | `440002` | P | `grok_reports_what_its_provider_serves` (5.2) |
@@ -2687,7 +2721,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 234 cases, 106 negative, 117 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 236 cases, 107 negative, 118 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

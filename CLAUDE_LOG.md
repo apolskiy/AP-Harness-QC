@@ -16032,3 +16032,28 @@ a stub; five injections were caught: no `base` mark, every case wired to every
 calibration, an unnamed calibration case passing, calibration cases wired to
 themselves, and nothing wired. Requirement `MQC_REQ_HAR_EVL_0089`;
 `tier3_evaluation.md` section 9.4.
+
+## 2026-11-11: The version probe walks the harness's own roster
+
+**What was wrong.** The case repository's probe asked no engine. Run
+43084353766 printed `changed_engines=` and nothing else, exited 0, and left the
+baseline `{}`, as every earlier run had. **Why.** `main` defaulted `--roster`
+to `config/engines.yaml` relative to the working directory, which exists here
+and not in a consumer, and `load_yaml_config` reads an absent file as an empty
+mapping by design. An empty roster has no engine that can fail, so the probe
+reported a quiet week.
+
+**The harness knows which engines it supports**, so the default is now
+`packaged_roster_path()`, the roster the installed harness carries. `--roster`
+stays as an override for testing. **And a roster naming no engine exits 3**
+with `QC_HARNESS_PREFLIGHT_FAILURE`, writing neither a baseline nor changed
+engines, so a wrong path cannot read as no change again. It is section 5.3's
+silent success a second time, through an empty list rather than a missing
+entry point.
+
+**Both cases failed first** on the defect itself: run from a directory with no
+`config`, the probe asked `[]`, and an absent roster exited 0. Two injections
+were caught: the relative default restored (`113515`) and the refusal removed
+(`113514`). The stand-in probe the two cases share lives in
+`provider_metadata_doubles.py`, since a case module holds no support code.
+Requirement `MQC_REQ_HAR_EXE_0148`; `tier2_execution.md` section 5.3.1.

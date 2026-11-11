@@ -3,13 +3,15 @@
 """Unit cases for resolving model versions and probing whether a model changed.
 
 Created: 2026-09-26
-Last updated: 2026-10-29
+Last updated: 2026-11-11
 
 Its cases check :mod:`execution.preflight`. :func:`require_resolved_version`
 fails when a provider reports no version, an empty one or a blank one. The probe
 records a first baseline rather than treating it as a change, dispatches only an
 engine whose version changed and only once, and on a failed probe records a
-harness event, dispatches nothing and leaves the baseline untouched.
+harness event, dispatches nothing and leaves the baseline untouched. Its command
+line walks the harness's own roster when none is named, and refuses a roster
+naming no engine with exit 3.
 
 What :func:`engines_to_dispatch` returns is which engines get a live run, so a
 defect here spends quota for nothing or misses a model change. Its cases are
@@ -44,6 +46,8 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113509  probe_outcomes_are_returned_in_a_reproducible_order
 # TestMQCProbeEntryPoint
 #   113513  preflight_declares_a_command_line_entry_point
+#   113514  a_roster_naming_no_engine_is_refused
+#   113515  the_packaged_roster_is_walked_when_none_is_named
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -54,6 +58,8 @@ import sys
 
 import pytest
 
+from cmn.config import load_engines, packaged_roster_path
+from execution import preflight
 from execution.preflight import (
     engines_to_dispatch,
     load_baseline,
@@ -61,6 +67,7 @@ from execution.preflight import (
     probe_engine,
     require_resolved_version,
 )
+from tests.execution.provider_metadata_doubles import recording_probe
 
 pytestmark = pytest.mark.unit
 
@@ -316,3 +323,67 @@ class TestMQCProbeEntryPoint:
         )
         assert completed.returncode == 2
         assert "baseline" in completed.stderr
+
+    def MQC_EXE_UNI_113514_a_roster_naming_no_engine_is_refused(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """A roster that is absent or names no engine exits 3 and writes nothing.
+
+        Design: ``tier2_execution.md`` section 5.3.1.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+            monkeypatch (pytest.MonkeyPatch): Stands in for the providers.
+            caplog (pytest.LogCaptureFixture): Captures the refusal.
+
+        Returns:
+            None
+        """
+        asked: list[str] = []
+        monkeypatch.setattr(preflight, "probe_roster", recording_probe(asked))
+        empty = tmp_path / "empty.yaml"
+        empty.write_text("engines: {}\n", encoding="utf-8")
+
+        for roster in (tmp_path / "absent.yaml", empty):
+            baseline = tmp_path / f"{roster.stem}_baseline.json"
+            output = tmp_path / f"{roster.stem}_output.txt"
+            caplog.clear()
+            code = preflight.main(["--baseline", str(baseline), "--output", str(output),
+                                   "--roster", str(roster)])
+
+            assert code == 3, f"{roster.name}: exit {code}"
+            assert "QC_HARNESS_PREFLIGHT_FAILURE" in caplog.text, caplog.text
+            assert not baseline.exists(), f"{roster.name}: a baseline was written"
+            assert not output.exists(), f"{roster.name}: changed engines were written"
+        assert not asked, asked
+
+    def MQC_EXE_UNI_113515_the_packaged_roster_is_walked_when_none_is_named(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """With no ``--roster``, every packaged engine is asked, from any working directory.
+
+        Design: ``tier2_execution.md`` section 5.3.1.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory, holding no ``config``.
+            monkeypatch (pytest.MonkeyPatch): Stands in for the providers.
+
+        Returns:
+            None
+        """
+        asked: list[str] = []
+        monkeypatch.setattr(preflight, "probe_roster", recording_probe(asked))
+        monkeypatch.chdir(tmp_path)
+        baseline = tmp_path / "baseline.json"
+
+        code = preflight.main(["--baseline", str(baseline)])
+
+        packaged = sorted(load_engines(packaged_roster_path()))
+        assert code == 0, code
+        assert packaged and asked == packaged, (asked, packaged)
+        assert sorted(load_baseline(baseline)) == packaged

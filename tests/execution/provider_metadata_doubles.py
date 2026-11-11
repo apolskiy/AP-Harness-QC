@@ -3,7 +3,7 @@
 """Fake model-metadata endpoints, shaped like each real SDK, for the conformance battery.
 
 Created: 2026-10-29
-Last updated: 2026-10-29
+Last updated: 2026-11-11
 
 This file contains one metadata builder per provider, :func:`claude_metadata`,
 :func:`gemini_metadata`, :func:`openai_metadata` and :func:`grok_metadata`;
@@ -11,7 +11,8 @@ This file contains one metadata builder per provider, :func:`claude_metadata`,
 what it was asked about; ``METADATA_DOUBLES``, which maps each registered
 engine to its builder and to the client factory its adapter calls; and
 :func:`install_metadata_double`, which puts that double in place of the factory
-for one test.
+for one test; and :func:`recording_probe`, which stands in for the probe's
+walk over a roster and records which engines it was given.
 
 The conformance battery feeds these to ``ProviderAdapter.served_metadata`` in
 place of a provider, so the check that every adapter reports what its provider
@@ -272,3 +273,19 @@ def install_metadata_double(monkeypatch: Any, engine: str) -> ModelsClientDouble
         entry.namespace, entry.factory, lambda **options: double
     )
     return double
+
+
+def recording_probe(asked: list[str]) -> Callable[[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Return a stand-in for ``execution.preflight.probe_roster`` that records its roster.
+
+    Args:
+        asked (list[str]): Filled with the engine names it was given, sorted.
+
+    Returns:
+        Callable: Answers every engine with a fixed declaration and sends no
+        request.
+    """
+    def probe(roster: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        asked.extend(sorted(roster))
+        return {engine: {"id": f"{engine}-model"} for engine in roster}
+    return probe
