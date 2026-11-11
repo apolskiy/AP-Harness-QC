@@ -29,6 +29,27 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Calibration is a layer of its own, and a judge off its anchors exits 3, 2026-11-10
+
+**Why it was needed.** A calibration case was graded at P1, so a judge scoring
+its exemplars off their levels exited 1, the status meaning a model
+underperformed, and named no registered code. Calibration measures the judge,
+not a model.
+
+**What changed.** `CAL` is a registered layer, block 171000-179999, marker
+`calibration`, ungraded and blocking. A calibration case that fails or skips
+exits 3 as a precondition does, and a mutation audit keeps its status.
+`QC_HARNESS_JUDGE_UNCALIBRATED` is registered and
+`evaluation.calibration.uncalibrated_message` leads with it. The gate markers
+and the identifier layer digit are read from the layer registry. The README
+now names the layer, and its case and requirement counts moved with three new
+cases and two requirements.
+
+**The DESIGN index's requirement count is checked.** It said the test plan held
+113 requirements against 420, a figure nothing read. It reads 420, and
+`MQC_CMN_UNI_400007` compares it with the requirements the plan states. The
+README case count moved to 1101 with that case.
+
 ### Calibration is collected only by a run that asks for it, under a live judge, 2026-11-10
 
 **Why it was needed.** A calibration case is graded, and the case repository's

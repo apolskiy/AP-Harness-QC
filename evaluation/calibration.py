@@ -3,7 +3,7 @@
 """Checks whether the LLM judge still scores each rubric exemplar at the level it shows.
 
 Created: 2026-09-26
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
 This file contains ``calibrate``, which sends every exemplar of a rule's
 rubric to a judge and returns a :class:`CalibrationResult` for each;
@@ -284,6 +284,26 @@ def calibrate(
             reply.scores[0].score
         )
     return calibrate_rubric(rubric, observed)
+
+
+def uncalibrated_message(family: str, failures: list[str]) -> str:
+    """Return the report for a family whose exemplars the judge placed off their levels.
+
+    Design: ``tier3_evaluation.md`` section 9.3.
+
+    Args:
+        family (str): The rubric family calibrated.
+        failures (list[str]): One line per exemplar that missed, naming its
+            case, criterion, level and score.
+
+    Returns:
+        str: The message, led by ``QC_HARNESS_JUDGE_UNCALIBRATED``.
+    """
+    return (
+        f"QC_HARNESS_JUDGE_UNCALIBRATED: the judge placed {len(failures)} {family} "
+        f"exemplar(s) more than one level from the level each was written for: "
+        + "; ".join(failures)
+    )
 
 
 def _criterion(rubric: Any, criterion_id: str) -> Any:

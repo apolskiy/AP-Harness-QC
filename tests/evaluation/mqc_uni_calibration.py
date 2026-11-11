@@ -3,7 +3,7 @@
 """Unit cases for checking a judge's scores against a rubric's anchored exemplars.
 
 Created: 2026-09-26
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
 Its cases check :mod:`evaluation.calibration`. :func:`compare_to_anchor` passes
 a score within one level of the intended one and fails it at two, recording the
@@ -48,6 +48,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   114213  a_calibration_judgement_never_addresses_a_graded_one
 #   114214  calibrate_compares_what_the_judge_awarded_each_exemplar
 #   114215  an_exemplar_the_judge_scores_two_levels_away_fails
+#   114216  an_uncalibrated_judge_is_reported_by_its_code
 # TestMQCObservationVariance
 #   114206  variance_across_observations_is_reported
 #   114207  variance_is_undefined_below_two_observations
@@ -64,6 +65,7 @@ from evaluation.calibration import (
     compare_to_anchor,
     observation_variance,
     tolerance,
+    uncalibrated_message,
 )
 from execution.replay import JudgementKey
 from ingestion.schemas import Rubric
@@ -335,6 +337,29 @@ class TestMQCCalibrationThroughTheJudge:
         failed = {(result.criterion_id, result.intended_level)
                   for result in results if not result.passed}
         assert failed == {("C_SOURCE", 1), ("C_SOURCE", 3), ("C_ARITHMETIC", 1)}
+
+    def MQC_EVL_UNI_114216_an_uncalibrated_judge_is_reported_by_its_code(self) -> None:
+        """The message leads with the registered code and names every misplaced exemplar.
+
+        Design: ``tier3_evaluation.md`` section 9.3.
+
+        Returns:
+            None
+        """
+        results = calibrate(
+            _CASE_ID, calibration_rubric(), rule_material(),
+            StandInJudge(lambda level: 5), judge_engine="gemini",
+        )
+        message = uncalibrated_message("source_fidelity", [
+            f"{_CASE_ID} {result.criterion_id} level {result.intended_level} "
+            f"scored {result.observed_score:g}"
+            for result in results if not result.passed
+        ])
+
+        assert message.startswith("QC_HARNESS_JUDGE_UNCALIBRATED: ")
+        assert "placed 3 source_fidelity exemplar(s)" in message
+        assert f"{_CASE_ID} C_ARITHMETIC level 1 scored 5" in message
+        assert f"{_CASE_ID} C_SOURCE level 3 scored 5" in message
 
 
 class TestMQCObservationVariance:

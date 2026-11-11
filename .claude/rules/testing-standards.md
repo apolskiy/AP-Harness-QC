@@ -32,6 +32,7 @@ Currently registered layers:
 | `MQC_TOOL_` | `tool` | 141000-149999, by module | Tool-use compliance: required tools invoked, forbidden tools avoided. |
 | `MQC_SEC_` | `sec` | 151000-159999, by module | Model security behaviour: injection resistance, prompt leakage, tool coercion. **Own suite; exempt from priority distribution ceilings.** |
 | `MQC_MUT_` | `mutation` | 161000-169999, by module | **Mutation audit of this suite.** One production operator or constant is changed and the suite runs: a change no case notices is a **survivor**, and a survivor names behaviour nothing asserts. Ungraded, **not blocking**, and **not run on a push**: a survivor is a to-do list entry rather than a result, so the audit is dispatched by hand at a module somebody just wrote and narrowed to the lines that changed. `harness_test_taxonomy.md` sections 15 and 15.6A. |
+| `MQC_CAL_` | `calibration` | 171000-179999, by module | **Calibration of the judge.** Each rubric exemplar is sent to a live judge and must score within one level of the level it was written for. Ungraded and **blocking**: a failure exits 3, because every judged score of the run is uninterpretable. Collected **only by a run whose marker expression names it**, under a live judge, which is rung 2 of the case repository's ladder. `tier3_evaluation.md` section 9.3. |
 
 `<MODULE>` is `ING`, `EXE`, `EVL` or `CMN`. Meanings, module and priority definitions, the outcome model and the failure taxonomy are normative in `docs/design/harness_test_taxonomy.md`. This file holds the machine-enforced patterns only.
 

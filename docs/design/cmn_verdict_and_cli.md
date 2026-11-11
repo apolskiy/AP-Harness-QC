@@ -3200,6 +3200,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112343` | P | `a_registered_family_round_trips_and_leaves_no_trace` |
 | `112344` | N | `a_precondition_that_skipped_fails_the_run` |
 | `400005` | N | `a_precondition_that_failed_fails_the_run_with_exit_3` (taxonomy 7.5.2) |
+| `400006` | N | `a_calibration_failure_or_skip_exits_3` (tier3 9.3) |
+| `400007` | N | `a_stale_index_requirement_count_is_reported` (section 10.12) |
 | `112345` | P | `a_case_whose_environment_scope_is_absent_is_deselected` |
 | `112355` | N | `a_marker_registry_disagreeing_with_the_code_is_reported` (taxonomy 7.5.1) |
 | `112356` | N | `an_unreadable_marker_registry_is_refused` (taxonomy 7.5.1) |
@@ -3602,6 +3604,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112804` | N | `a_declared_partition_absent_from_the_design_is_reported` (taxonomy 3.2.1.5) |
 | `112805` | N | `an_identifier_in_a_partition_is_read_from_the_record` (taxonomy 3.2.1.5) |
 | `112806` | B | `a_declared_partition_at_nine_tenths_is_warned_of` (taxonomy 3.2.1.5) |
+| `112807` | N | `a_layer_registered_later_is_read_from_its_block` (taxonomy 3.2.1) |
 | `112900` | P | `a_passing_assertion_is_recorded_as_a_verification_step` (taxonomy 8.2.4) |
 | `112901` | N | `a_failing_assertion_is_recorded_and_the_case_fails` (taxonomy 8.2.4) |
 | `112902` | P | `an_action_is_the_code_since_the_previous_verification` (taxonomy 8.2.4) |
@@ -3646,7 +3649,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 
-**Inventory: 496 cases, 294 negative, 150 positive, 52 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 499 cases, 297 negative, 150 positive, 52 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -4023,6 +4026,15 @@ stating a case count, then compares it to that design's own inventory line. It
 deliberately does not require every row to carry a count: a design with no
 inventory is not a defect, and demanding one would make the check fail on the
 registries rather than on the drift.
+
+**The test plan's row states a requirement count, and `400007` checks it.**
+The figure read 113 while the plan held 420, because `112314` reads case
+counts only and nothing read this one. `400007` reads the number before
+`harness requirements` in the row naming `docs/testing/harness_test_plan.md`
+and compares it with the requirement identifiers the plan states, read by
+`cmn.trace_sources.plan_requirements`, which `112312` already holds equal to
+the matrix's. A row stating no count is reported, because the drift it guards
+against is a figure nobody updates.
 
 
 ### 10.13 Resolving the judge engine

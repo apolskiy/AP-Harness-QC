@@ -3,7 +3,7 @@
 """Unit preconditions for what a run may leave out, and what it may not skip.
 
 Created: 2026-10-08
-Last updated: 2026-11-03
+Last updated: 2026-11-11
 
 The cases here check ``cmn.environments``: that ``refuse_precondition_skips``
 fails a run in which a precondition skipped, that
@@ -31,6 +31,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #
 # TestMQCPreconditionSkips
 #   112344  a_precondition_that_skipped_fails_the_run
+#   400006  a_calibration_failure_or_skip_exits_3
 #   400005  a_precondition_that_failed_fails_the_run_with_exit_3
 # TestMQCEnvironmentScope
 #   112345  a_case_whose_environment_scope_is_absent_is_deselected
@@ -130,6 +131,40 @@ class TestMQCPreconditionSkips:
         # NO REPORTER MEANS NOTHING TO READ, which must not raise: the hook runs
         # in every invocation, including ones that collected nothing.
         assert refuse_precondition_skips(Session(None)) == 0
+
+    def MQC_CMN_UNI_400006_a_calibration_failure_or_skip_exits_3(self) -> None:
+        """A ``CAL`` case that failed or skipped exits 3; an ``MUT`` failure does not.
+
+        A calibration case measures the judge, an ungraded and blocking layer,
+        so its failure leaves every judged score uninterpretable. It is still
+        not the precondition gate, which ``is_precondition`` names.
+        Design: ``tier3_evaluation.md`` section 9.3.
+
+        Returns:
+            None
+        """
+        calibration = "tests/cases/m.py::T::MQC_EVL_CAL_174600_x"
+        assert not is_precondition(calibration), (
+            "a calibration case was read as the precondition gate"
+        )
+
+        failed = Session(Reporter(failed=(calibration,)))
+        assert refuse_precondition_failures(failed) == 1
+        assert failed.exitstatus == 3, (
+            "a judge off its anchors reported exit 1, which reads as a model "
+            "that underperformed"
+        )
+
+        skipped = Session(Reporter(calibration))
+        assert refuse_precondition_skips(skipped) == 1
+        assert skipped.exitstatus == 3
+
+        audit = Session(
+            Reporter(failed=("tests/mutation/m.py::T::MQC_CMN_MUT_161000_x",)),
+            exitstatus=1,
+        )
+        assert refuse_precondition_failures(audit) == 0
+        assert audit.exitstatus == 1, "a non-blocking audit layer raised the status"
 
     def MQC_CMN_UNI_400005_a_precondition_that_failed_fails_the_run_with_exit_3(
         self,

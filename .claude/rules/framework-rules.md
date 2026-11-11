@@ -61,6 +61,7 @@ Four modules. Each exposes a stable interface; crossing a boundary means satisfy
 | `TOOL` | `tool` | Yes | As above |
 | `SEC` | `sec` | Yes | Own suite, exempt from distribution ceilings |
 | `MUT` | `mutation` | No, an audit of the suite | Every survivor declared; never blocks, and fails its own job (Gate 8) |
+| `CAL` | `calibration` | No, a measurement of the judge | Every exemplar within one level of its anchor; a failure exits 3. Live and on request only (`tier3_evaluation.md` section 9.3) |
 
 Preconditions test **the harness**; a failure there is **not a model
 finding**. Graded layers test **the model**; a failure there is a finding about

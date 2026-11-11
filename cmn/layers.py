@@ -3,7 +3,7 @@
 """The layer and outcome registries, what each test layer and result outcome means.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-11
 
 This file contains ``LayerProperties`` and ``OutcomeProperties``; ``layer_properties``,
 ``registered_layers``, ``register_layer`` and ``unregister_layer`` for layers;
@@ -93,6 +93,12 @@ _LAYERS: Final[dict[str, LayerProperties]] = {
     # measured. Taxonomy section 15.6.
     "MUT": LayerProperties("MUT", "mutation", False, True, False,
                            (161000, 169999)),
+    # MEASURES THE JUDGE, so ungraded, and blocking as a precondition is: a
+    # judge off its anchors leaves every judged score untrustworthy, which is
+    # exit 3 rather than a model finding. Selected only under `calibration`
+    # with a live judge. tier3_evaluation.md section 9.3.
+    "CAL": LayerProperties("CAL", "calibration", False, True, True,
+                           (171000, 179999)),
 }
 
 

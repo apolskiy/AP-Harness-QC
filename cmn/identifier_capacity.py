@@ -3,7 +3,7 @@
 """The identifier space: what a six-digit number means, and how much is spent.
 
 Created: 2026-10-18
-Last updated: 2026-10-29
+Last updated: 2026-11-11
 
 This file contains ``PARTITIONS`` and ``partition_of``, the ranges declared
 with a start and an end rather than derived from digit positions;
@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Final, Iterable, Optional
 
 from cmn.code_standards import walked_nodes
+from cmn.layers import layer_properties, registered_layers
 
 # AN INVENTORY ROW, LIVE OR STRUCK THROUGH. A retired identifier keeps its
 # slot, so unlike the binding checks this reader matches both.
@@ -181,9 +182,22 @@ def partition_of(identifier: str) -> Optional[Partition]:
 # THE POSITIONAL SCHEME, as `harness_test_taxonomy.md` section 3.2.1 states it.
 # Held here rather than in the document alone, because a scheme nothing reads is
 # the state the hundred-slot partition was in when it broke in three places.
-_LAYER_DIGIT: Final[dict[str, str]] = {
-    "UNI": "1", "SYS": "2", "EVAL": "3", "TOOL": "4", "SEC": "5", "MUT": "6",
-}
+# The layer digit is the second digit of the layer's registered block, read at
+# call time, so a layer registered later is checked against its own block.
+def _layer_digit(layer: str) -> Optional[str]:
+    """Return the digit a layer's identifiers carry, or None for an unregistered one.
+
+    Args:
+        layer (str): The layer token, such as ``UNI``.
+
+    Returns:
+        Optional[str]: The second digit of the layer's registered block.
+    """
+    if layer not in registered_layers():
+        return None
+    return str(layer_properties(layer).id_block[0])[1]
+
+
 _MODULE_DIGIT: Final[dict[str, str]] = {
     "ING": "1", "CMN": "2", "EXE": "3", "EVL": "4", "CAS": "5",
 }
@@ -260,7 +274,7 @@ def _token_disagreements(
             f"which holds {held.module} and {held.layer}"
         ]
     problems: list[str] = []
-    expected_layer = _LAYER_DIGIT.get(layer)
+    expected_layer = _layer_digit(layer)
     expected_module = _MODULE_DIGIT.get(module)
     if expected_layer is not None and digits[1] != expected_layer:
         problems.append(
@@ -316,7 +330,7 @@ def select_blocks(identifiers: Iterable[str], *, layers: str, modules: str) -> s
         # A DECLARED PARTITION CARRIES NEITHER DIGIT, so the record says whose
         # it is. Reading the digits here would drop every such identifier out
         # of both repositories' counts and leave the partition unwatched.
-        if (_LAYER_DIGIT.get(held.layer, "") in layers
+        if ((_layer_digit(held.layer) or "") in layers
                 and _MODULE_DIGIT.get(held.module, "") in modules):
             kept.add(identifier)
     return kept

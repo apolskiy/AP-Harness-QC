@@ -3,7 +3,7 @@
 """Environment scopes, which deselect a case where what it needs is absent.
 
 Created: 2026-10-08
-Last updated: 2026-11-03
+Last updated: 2026-11-11
 
 This file contains ``mark_environment`` and ``environment_marker``, which a case uses
 to declare a scope; ``registered_environment_scopes``, ``scope_available``,
@@ -39,6 +39,7 @@ from typing import Any, Final, Optional
 import pytest
 
 from cmn.config import ci_markers
+from cmn.layers import layer_properties, registered_layers
 
 logger = logging.getLogger(__name__)
 
@@ -188,7 +189,7 @@ def deselect_unavailable_environments(
 
 
 def refuse_precondition_skips(session: Any) -> int:
-    """Fail the run where an ungraded precondition skipped.
+    """Fail the run where an ungraded precondition or calibration case skipped.
 
     **Zero skips, enforced rather than stated.** A precondition measures our
     harness and every one is unconditionally blocking, so a skipped one measured
@@ -209,7 +210,7 @@ def refuse_precondition_skips(session: Any) -> int:
         return 0
     offenders = [
         report for report in reporter.stats.get("skipped", [])
-        if is_precondition(getattr(report, "nodeid", ""))
+        if is_blocking_check(getattr(report, "nodeid", ""))
     ]
     if not offenders:
         return 0
@@ -230,7 +231,7 @@ def refuse_precondition_skips(session: Any) -> int:
 
 
 def refuse_precondition_failures(session: Any) -> int:
-    """Fail the run with exit 3 where an ungraded precondition failed.
+    """Fail the run with exit 3 where an ungraded precondition or calibration case failed.
 
     **Exit 1 means a model underperformed, and a broken instrument is not
     that.** A precondition that failed leaves nothing trustworthy measured,
@@ -256,7 +257,7 @@ def refuse_precondition_failures(session: Any) -> int:
         return 0
     offenders = [
         report for report in reporter.stats.get("failed", [])
-        if is_precondition(getattr(report, "nodeid", ""))
+        if is_blocking_check(getattr(report, "nodeid", ""))
     ]
     if not offenders:
         return 0
@@ -296,6 +297,28 @@ def is_precondition(nodeid: str) -> bool:
         bool: True when the callable's layer token is ungraded.
     """
     return any(layer in nodeid for layer in _PRECONDITION_LAYERS)
+
+
+def is_blocking_check(nodeid: str) -> bool:
+    """Report whether a node identifier names an ungraded, blocking case.
+
+    The layers are read from the registry: a layer registered ungraded and
+    blocking qualifies, so the preconditions and calibration do and the
+    mutation audit, which is not blocking, does not. A failure or skip of
+    such a case exits 3. Design: ``tier3_evaluation.md`` section 9.3.
+
+    Args:
+        nodeid (str): The pytest node identifier.
+
+    Returns:
+        bool: True when the callable's layer token names an ungraded,
+        blocking layer.
+    """
+    tokens = [
+        f"_{layer}_" for layer in registered_layers()
+        if not layer_properties(layer).graded and layer_properties(layer).blocking
+    ]
+    return any(token in nodeid for token in tokens)
 
 
 def environment_marker() -> str:

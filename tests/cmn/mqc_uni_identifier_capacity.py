@@ -3,7 +3,7 @@
 """Unit tests for the warning that an identifier category or block is filling up.
 
 Created: 2026-10-18
-Last updated: 2026-10-22
+Last updated: 2026-11-11
 
 Its cases check ``cmn/identifier_capacity.py``, through ``assigned_identifiers``,
 ``select_blocks`` and ``capacity_warnings``. A category at ninety assigned is
@@ -33,6 +33,7 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112804  a_declared_partition_absent_from_the_design_is_reported
 #   112805  an_identifier_in_a_partition_is_read_from_the_record
 #   112806  a_declared_partition_at_nine_tenths_is_warned_of
+#   112807  a_layer_registered_later_is_read_from_its_block
 # ------------------------------------------------------------ end of cases
 
 import warnings
@@ -281,4 +282,40 @@ class TestMQCDeclaredPartitions:
         assert not any("xx holds" in entry for entry in reported), (
             f"a partition was reported as a category, whose threshold is a "
             f"hundredth of this one: {reported}"
+        )
+
+    def MQC_CMN_UNI_112807_a_layer_registered_later_is_read_from_its_block(
+        self, tmp_path: Path
+    ) -> None:
+        """A ``CAL`` identifier in its block passes, and one in another layer's is reported.
+
+        The layer digit is read from the block the layer registry declares, so
+        a layer registered after the scheme was written needs no second entry.
+        Design: ``harness_test_taxonomy.md`` section 3.2.1.
+
+        Args:
+            tmp_path (Path): Where the probe tree is written.
+
+        Returns:
+            None
+        """
+        probe = tmp_path / "tests"
+        probe.mkdir()
+        step(1, "collect a calibration case numbered in the calibration block")
+        (probe / "mqc_cal_probe.py").write_text(
+            "def MQC_EVL_CAL_174600_scores_at_its_level() -> None:\n    pass\n",
+            encoding="utf-8",
+        )
+        assert not identifier_block_problems(tmp_path), (
+            f"a CAL identifier in 1746xx was reported: "
+            f"{identifier_block_problems(tmp_path)}"
+        )
+
+        step(2, "and one numbered in the evaluator block")
+        (probe / "mqc_cal_probe.py").write_text(
+            "def MQC_EVL_CAL_134600_scores_at_its_level() -> None:\n    pass\n",
+            encoding="utf-8",
+        )
+        assert identifier_block_problems(tmp_path), (
+            "a CAL identifier numbered in the EVAL block was not reported"
         )

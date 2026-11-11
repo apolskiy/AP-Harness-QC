@@ -3,7 +3,7 @@
 """Test module layout checks, where support code may live and how subprocesses wait.
 
 Created: 2026-10-05
-Last updated: 2026-10-29
+Last updated: 2026-11-11
 
 This file contains ``inline_support``, which lists the module-level support
 definitions a collected test module carries; ``extraction_problems``, which
@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Final
 
 from cmn.declared_gaps import declared_entries, lapsed_problems
+from cmn.layers import layer_properties, registered_layers
 
 logger = logging.getLogger(__name__)
 
@@ -301,10 +302,15 @@ def _module_markers(tree: ast.Module) -> set[str]:
 # collected module naming none of them is reached by no gate. The rest of the
 # registry describes a case a gate already reaches: `base`, `depends_on`,
 # `priority`, `environment`, `inquest` and `allure_label` select nothing
-# (``harness_test_taxonomy.md`` section 13.6).
-_GATE_MARKERS: Final[frozenset[str]] = frozenset({
-    "unit", "system", "evaluator", "tool", "sec", "mutation",
-})
+# (``harness_test_taxonomy.md`` section 13.6). Read from the layer registry at
+# call time, so a layer registered later is a gate marker without an edit here.
+def _gate_markers() -> frozenset[str]:
+    """Return the marker of every registered layer.
+
+    Returns:
+        frozenset[str]: The markers a gate selects on.
+    """
+    return frozenset(layer_properties(layer).marker for layer in registered_layers())
 
 
 def _case_markers(tree: ast.Module) -> list[set[str]]:
@@ -378,16 +384,17 @@ def ungated_modules(root: Path) -> list[str]:
         if not per_case:
             continue
         declared = _module_markers(tree)
-        if declared & _GATE_MARKERS:
+        gate_markers = _gate_markers()
+        if declared & gate_markers:
             continue
-        if all(case & _GATE_MARKERS for case in per_case):
+        if all(case & gate_markers for case in per_case):
             continue
         carried = sorted(declared | set().union(*per_case)) or ["none"]
         problems.append(
             f"{module.relative_to(root).as_posix()} is collected and holds "
             f"{len(per_case)} case(s), and no gate selects it: it carries "
             f"{', '.join(carried)} and none of "
-            f"{', '.join(sorted(_GATE_MARKERS))}. Every gate runs -m <marker>, "
+            f"{', '.join(sorted(gate_markers))}. Every gate runs -m <marker>, "
             f"so these cases are collected, deselected and counted as nothing"
         )
     return problems

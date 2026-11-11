@@ -3,7 +3,7 @@
 """Unit preconditions for what a test module is: cases only, gated, and bounded.
 
 Created: 2026-10-29
-Last updated: 2026-10-30
+Last updated: 2026-11-11
 
 This file contains four cases on the shape of a collected test module, reading
 ``cmn.case_module_standards`` and ``cmn.module_size``.
@@ -185,6 +185,17 @@ class TestMQCCaseModuleContents:
         assert not ungated_modules(tmp_path), (
             "a module holding no case was reported, and it contributes nothing "
             "for a gate to miss"
+        )
+
+        step(8, "read a module marked only with a layer registered later, calibration")
+        (built / "mqc_uni_ungated.py").write_text(
+            f"import pytest\n\npytestmark = pytest.mark.calibration\n\n\n"
+            f"class TestMQCUngated:\n{case}",
+            encoding="utf-8",
+        )
+        assert not ungated_modules(tmp_path), (
+            "a module marked calibration was reported, and rung 2 selects "
+            "-m calibration; the gate markers are the layer registry's"
         )
 
 

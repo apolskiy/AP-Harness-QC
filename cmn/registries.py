@@ -3,7 +3,7 @@
 """Shared registries, the codes, conditions and families the harness looks up.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-11
 
 This file contains the priority conditions (``priority_condition_level``,
 ``registered_priority_conditions``); the failure taxonomy codes by family
@@ -115,6 +115,7 @@ _HARNESS_CODES: Final[frozenset[str]] = frozenset({
     "QC_HARNESS_PREFLIGHT_FAILURE",
     "QC_HARNESS_QUARANTINED",
     "QC_HARNESS_QUARANTINE_UNCONFIRMED",
+    "QC_HARNESS_JUDGE_UNCALIBRATED",
     "QC_HARNESS_JUDGE_WITHHELD",
     "QC_HARNESS_VERSION_UNAVAILABLE",
     "QC_HARNESS_FIXTURE_MISSING",

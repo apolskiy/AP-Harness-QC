@@ -3,7 +3,7 @@
 """Unit tests that check the test suite against its own design documents.
 
 Created: 2026-09-26
-Last updated: 2026-11-01
+Last updated: 2026-11-11
 
 Its cases check the suite through ``cmn/traceability.py``, ``cmn/layers.py`` and
 the parsed source of the test modules. They report a collected test missing from
@@ -43,6 +43,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCIndexAgainstDesigns
 #   112314  an_index_case_count_disagreeing_with_its_design_is_reported
 #   112323  a_readme_count_disagreeing_with_the_designs_is_reported
+#   400007  a_stale_index_requirement_count_is_reported
 #   112327  a_graded_case_defined_here_is_reported
 #   112325  an_inventory_row_without_an_implementation_is_reported
 # TestMQCCredentialFreeSuite
@@ -59,7 +60,7 @@ import pytest
 
 from cmn.config import forbidden_keys
 from cmn.layers import layer_properties, registered_layers
-from cmn.trace_sources import collected_test_names
+from cmn.trace_sources import collected_test_names, plan_requirements
 from cmn.traceability import MatrixRow, retirement_problems, untraced_tests
 
 pytestmark = pytest.mark.unit
@@ -221,6 +222,9 @@ _INDEX_ROW = re.compile(
     r"\|\s*`(?P<path>docs/design/[a-z0-9_]+\.md)`\s*\|.*?(?P<count>\d+)\s+cases"
 )
 _INVENTORY_TOTAL = re.compile(r"^\*\*Inventory:\s*(?P<count>\d+)\s+cases")
+_PLAN_ROW = re.compile(
+    r"\|\s*`docs/testing/harness_test_plan\.md`\s*\|\s*(?P<count>\d+)\s+harness requirements"
+)
 
 
 def _inventory_total(design: Path) -> Optional[int]:
@@ -652,6 +656,35 @@ class TestMQCIndexAgainstDesigns:
         assert not disagreements, (
             f"{len(disagreements)} README figure(s) disagree with what they "
             f"describe: {'; '.join(disagreements)}"
+        )
+
+    def MQC_CMN_UNI_400007_a_stale_index_requirement_count_is_reported(
+        self,
+    ) -> None:
+        """The index states how many requirements the test plan holds, and the plan agrees.
+
+        Reads the number before ``harness requirements`` in the DESIGN.md row
+        naming ``docs/testing/harness_test_plan.md`` and compares it with the
+        requirement identifiers the plan states. A row stating no count is
+        reported. Design: ``cmn_verdict_and_cli.md`` section 10.12.
+
+        Returns:
+            None
+        """
+        index = (_REPOSITORY_ROOT / "DESIGN.md").read_text(encoding="utf-8")
+        stated = [_PLAN_ROW.search(line) for line in index.splitlines()]
+        found = [match for match in stated if match is not None]
+        assert len(found) == 1, (
+            f"DESIGN.md states the test plan's requirement count {len(found)} "
+            f"time(s), and should state it once"
+        )
+        declared = plan_requirements(
+            _REPOSITORY_ROOT / "docs" / "testing" / "harness_test_plan.md",
+            scope="MQC_REQ_HAR_",
+        )
+        assert int(found[0].group("count")) == len(declared), (
+            f"DESIGN.md says the test plan holds {found[0].group('count')} "
+            f"harness requirements, and it states {len(declared)}"
         )
 
     def MQC_CMN_UNI_112327_a_graded_case_defined_here_is_reported(self) -> None:

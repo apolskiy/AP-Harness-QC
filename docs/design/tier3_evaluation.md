@@ -2805,8 +2805,8 @@ deselects it from every run whose marker expression does not name
 `calibration`, the arrangement `harness_test_taxonomy.md` section 15.13.1
 gives a mutation audit.
 
-**Selection by layer would have run it everywhere.** The case is graded and
-carries the `evaluator` marker, and the case repository's gates and every rung
+**Selection by layer would have run it everywhere.** The case was graded and
+carried the `evaluator` marker until section 9.3 gave it a layer of its own, and the case repository's gates and every rung
 of its ladder select `-m "evaluator or tool or sec"`:
 
 | Run | Judge | Calibration, selected by layer |
@@ -2825,6 +2825,43 @@ the case is deselected under it.
 `QC_HARNESS_PARSER_ERROR`, at collection. Every exemplar would be judged by a
 stored reply or by none, so the run would measure nothing about the judge and
 could still report green.
+
+### 9.3 Calibration is a layer of its own, and a judge off its anchors exits 3
+
+Added 2026-11-10. **A calibration case measures the judge, not the model**, so
+a judge scoring an exemplar away from its anchor is an instrument defect: every
+judged score of the run is uninterpretable. As a graded case it failed with
+exit 1, the status that means a model underperformed, and a red rung 2 would
+have pointed at the candidate engine.
+
+**So calibration is the `CAL` layer**, registered in `cmn/layers.py` and
+`harness_test_taxonomy.md` section 3, with its marker `calibration`.
+
+| Property | Value | Why |
+|---|---|---|
+| Graded | No | It measures the judge, so it carries no priority and sits in no band |
+| Distribution exempt | Yes | It holds no priority to count |
+| Blocking | Yes | A judge off its anchors leaves the judged scores uninterpretable |
+| ID block | `171000`-`179999`, by module per section 3.2.1 | The next free layer digit, 7 |
+| Selected | Only where a run names `calibration`, under a live judge | Section 9.2, unchanged |
+
+**A failure or a skip exits 3.** `cmn.environments.refuse_precondition_failures`
+and `refuse_precondition_skips` read a case as blocking when its identifier's
+layer token is registered ungraded and blocking: `UNI`, `SYS` and `CAL`. `MUT`
+is ungraded and not blocking, so an audit's failure stays its own.
+`is_precondition` still names the precondition gate alone, `UNI` and `SYS`,
+because the run context, the preconditions record and the report's suites
+read it as "this selection ran the gate", which a calibration run is not.
+
+**The failure carries `QC_HARNESS_JUDGE_UNCALIBRATED`.**
+`evaluation.calibration.uncalibrated_message` builds it, naming the family and
+each misplaced exemplar. A judge that could not be reached is a skip with its
+own code, since nothing about the judge was measured.
+
+**The layer's other registries read `cmn/layers.py`.** The gate markers a
+collected module must carry and the layer digit of the positional scheme were
+each restated by hand, so a new layer needed three edits and a forgotten one
+reported a correct case. Both are derived from the registry now.
 
 ---
 
@@ -2981,6 +3018,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114213` | N | `a_calibration_judgement_never_addresses_a_graded_one` (9.1.1) |
 | `114214` | P | `calibrate_compares_what_the_judge_awarded_each_exemplar` (9.1) |
 | `114215` | N | `an_exemplar_the_judge_scores_two_levels_away_fails` (9.1) |
+| `114216` | N | `an_uncalibrated_judge_is_reported_by_its_code` (9.3) |
 | `114503` | P | `violation_failure_judged_under_flag` (4.2.0) |
 | `114504` | N | `fatal_failure_never_judged_even_under_flag` |
 | `114505` | P | `skipped_judgement_recorded_as_not_evaluated` |
@@ -3110,7 +3148,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 243 cases, 107 negative, 87 positive, 49 boundary.**
+**Inventory: 244 cases, 108 negative, 87 positive, 49 boundary.**
 
 `114313` to `114315` were added on 2026-11-05 with section 3.1.2: the judge is
 shown the system instruction, isolated like every other field the case author

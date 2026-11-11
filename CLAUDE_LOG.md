@@ -15891,3 +15891,50 @@ without the `not` guard failed `112618` on `evaluator and not calibration`,
 and dropping the live-judge refusal failed `112620`. Requirement
 `MQC_REQ_HAR_CMN_0248`; the `cmn_verdict_and_cli.md` inventory and DESIGN
 index moved to 496, the README to 1097 cases and 418 requirements.
+
+### Calibration is a layer of its own, and a judge off its anchors exits 3, 2026-11-10
+
+**Graded at P1, a calibration failure exited 1**, the status reserved for a
+model that underperformed. Calibration measures the judge, so a failure there
+is an instrument fault, and the case repository's seven families reported it
+as a finding about a model with no registered code naming why.
+
+**A registered layer rather than a flag on the evaluator layer.** `CAL` takes
+block 171000-179999 and the marker `calibration`, ungraded, distribution
+exempt and blocking, which is the precondition's arrangement. Three
+alternatives were set aside: keeping it graded misreports the cause, a skip
+hides it, and marking the evaluator cases ungraded would leave graded and
+ungraded cases sharing one layer token.
+
+**The exit-3 refusals read the registry, and `is_precondition` stays the
+`UNI` and `SYS` gate.** `cmn.environments.is_blocking_check` matches a layer
+registered ungraded and blocking, so calibration exits 3 and a mutation audit,
+which is ungraded and not blocking, keeps its status. Two hand-written copies
+of the registry went with it: the gate markers in `cmn/case_module_standards.py`
+and the layer digit in `cmn/identifier_capacity.py` are now read from it, so a
+layer registered later is a gate marker and is checked against its own block.
+`QC_HARNESS_JUDGE_UNCALIBRATED` is registered, and
+`evaluation.calibration.uncalibrated_message` leads with it.
+
+**The cases failed first and eight injections were caught.** `400006`,
+`112807`, `112527` step 8 and `114216` failed before the code existed. The
+injections: the layer unregistered, each refusal keeping the precondition
+predicate, the blocking flag ignored, the digit read from the wrong position,
+calibration left out of the gate markers, the message naming another code, and
+the code unregistered. `114216` was itself wrong when written, expecting a
+count with no family between, and the assertion was corrected to the message's
+wording. `cmn/layers.py` and `cmn/environments.py` are audited; their changed
+lines were audited and re-declared, and the environments survivor moved from
+line 114 to 115 with the added import. The first audit refused at its control
+run, because the case blocks and the README count had not yet been
+regenerated; an audit measures the finished tree, so it runs after the refresh.
+Requirements `MQC_REQ_HAR_EVL_0088` and `MQC_REQ_HAR_CMN_0249`.
+
+**The DESIGN index said the test plan held 113 requirements, and it holds
+420.** The figure had not moved since the plan was first written, because
+`112314` reads the index's case counts and nothing read this one. It now reads
+420, the unique identifiers the plan and the RTM share; the plan lists two of
+them, `CMN_0001` and `CMN_0060`, a second time in its traceability table.
+`MQC_CMN_UNI_400007` compares the figure with `plan_requirements` and reports a
+row stating none; injecting 419 and removing the figure were both caught.
+Requirement `MQC_REQ_HAR_CMN_0042` was extended to cover it.

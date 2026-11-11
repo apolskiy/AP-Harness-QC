@@ -141,6 +141,7 @@ Enforced by `module-rgx` in `.pylintrc`, which also refuses `mqc_<component>.py`
 | `MQC_TOOL_` | `tool` | 141000 to 149999, by module per 3.2.1 | Yes | No | No | Tool-use compliance: required tools invoked, forbidden tools avoided (A9) | The model is deficient |
 | `MQC_SEC_` | `sec` | 151000 to 159999, by module per 3.2.1 | Yes | Yes | No | **Model security behaviour**: injection resistance, prompt leakage, tool coercion. **Own suite, exempt from distribution ceilings.** | The model is unsafe |
 | `MQC_MUT_` | `mutation` | 161000 to 169999, by module per 3.2.1 | No | Yes | No | **The suite itself**: a production change no case notices. Section 15 | A behaviour nothing asserts |
+| `MQC_CAL_` | `calibration` | 171000 to 179999, by module per 3.2.1 | No | Yes | Yes | **The judge**: whether it scores each rubric exemplar at the level it was written for. Live, on request only. `tier3_evaluation.md` section 9.3 | The judge no longer means what the anchors say, so judged scores are uninterpretable |
 
 **This table is the registry, and `cmn/layers.py` mirrors it.** Revised
 2026-10-15, when the mutation audit of `cmn/layers.py` found every value in the
@@ -270,6 +271,7 @@ Within domain `1`:
 | `EVAL` | 131000-131999 | 132000-132999 | 133000-133999 | 134000-134999 | 135000-135999 |
 | `TOOL` | 141000-141999 | 142000-142999 | 143000-143999 | 144000-144999 | 145000-145999 |
 | `SEC` | 151000-151999 | 152000-152999 | 153000-153999 | 154000-154999 | 155000-155999 |
+| `CAL` | 171000-171999 | 172000-172999 | 173000-173999 | 174000-174999 | 175000-175999 |
 
 **Requirements remain four digits**, so the two registers stay distinguishable
 by width alone as section "Requirements And Test Cases Are Two Registers" in
@@ -1105,6 +1107,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_QUARANTINED` | The case is quarantined, so it was skipped before a request was formed. **Never red and never a pass**: quarantine accepts a finding and saves the cost of measuring it again, and the blocking band counts the skip against the band it was selected into (`cmn_verdict_and_cli.md` section 4.6.12) |
 | `QC_HARNESS_QUARANTINE_UNCONFIRMED` | A quarantine entry carries no `quarantined_on` or no `observed_model`, so its expiry cannot be evaluated. **Never red**: the quarantine mechanism failed, not the model, and the entry is still honoured while unconfirmed (`cmn_verdict_and_cli.md` section 4.6.4) |
 | `QC_HARNESS_VERSION_UNAVAILABLE` | Resolved model version could not be obtained (A8) |
+| `QC_HARNESS_JUDGE_UNCALIBRATED` | The judge scored a rubric exemplar more than one level from the level it was written for, in a `CAL` case. **The judge is not under test by a graded case and is under test here**, so the calibration case fails and the run exits 3: every judged score of the run is uninterpretable, which is an instrument defect rather than a finding about the model (`tier3_evaluation.md` section 9.3) |
 | `QC_HARNESS_JUDGE_WITHHELD` | The run asked for no judge, `--judge-mode off`, so an observation whose screen and assertions held and whose rule carries a rubric was skipped `unjudged` rather than judged. **Never a pass**, since its judged criteria were not checked, and allowed only in an on-demand debug run (`tier3_evaluation.md` section 5A.5.3) |
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
@@ -2891,6 +2894,7 @@ and `EVL`, and the case repository counts `CAS` and the graded blocks.
 | `112804` | The partitions this code declares are the partitions section 3.2.1.5 tabulates |
 | `112805` | An identifier inside a declared partition takes its layer and module from the record: a callable whose tokens disagree is reported, and the block selector keeps it for the repository the record names rather than the one its digits would. **The selector half was unasserted until an injection found it**, no identifier in a partition existing yet for the repository callers to read |
 | `112806` | A declared partition is warned of at nine tenths of its own width and not one below it |
+| `112807` | A layer's digit is read from the block the layer registry declares, so a `CAL` identifier in `1746xx` passes and one in `1346xx` is reported |
 
 ## 12. The Document Register
 

@@ -68,11 +68,11 @@ survivors:
   cmn/threshold_domain.py:
     digest: d254883493eb1c34d3aca3fbc5897cc41b6c5aad2cb1e8448901df25e9645b50
   cmn/layers.py:
-    digest: 7657ac49a7fcab7c7400464b87f38635b3f0986d024e65819884477490def8cf
+    digest: d866842446e9bf1d8a168d3a4c8f9f0dbdc3515de36e3a6b2485adb98f7d6dfb
   cmn/environments.py:
-    digest: ec4dbb18a4d0c08673bd4118e641e562eee9f0ebe3eb6eb2a1821efc282d1a39
+    digest: 9d335ee4091409ea83da1e2a5c075a2a20c7f45f72b6bd243d96f9c12d97e4d9
     accepted:
-      - mutation: "line 114: 1 to 2"
+      - mutation: "line 115: 1 to 2"
         kind: unobservable
         reason: >-
           The default root of a sibling lookup moves one directory up. Telling
