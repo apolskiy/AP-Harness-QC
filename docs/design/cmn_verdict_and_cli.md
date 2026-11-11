@@ -1369,6 +1369,45 @@ names no model today.
 instance of the opposite: one field reached the artifact while the section
 claimed all of them did, which is what a second source of truth produces.
 
+#### 5.6.4 What a run spent, by role, in the same two artifacts
+
+Added 2026-11-11. **A run's spend was a single figure in memory**: the
+session's `spent` summed the candidate and the judge, and nothing wrote it
+anywhere, so a published run said nothing about what it cost or which role
+cost it. Where both roles share a provider key, the provider's bill cannot
+separate them either.
+
+**Five fields, written after the last case**, when the totals are final:
+
+| Field | Holds |
+|---|---|
+| `candidate_spend_usd` | What the candidate's responses cost |
+| `judge_spend_usd` | What the live judgements cost |
+| `total_spend_usd` | The two together, which is what `--max-spend` is held against |
+| `max_spend_usd` | The ceiling, or `none` where the run set none |
+| `unpriced_models` | Models a response reported that the price table does not price, or `none` |
+
+**Priced with `cmn.pricing.cost_of`, at the session's date**, from the tokens
+each response reported and the model it reported serving. The three spend
+fields read `unpriced` where the run loaded no price table, which is a run with
+no ceiling: it priced nothing, and zero would read as a run that cost nothing.
+Values carry four decimal places, finer than any one request's cost.
+
+**The same two renderings as provenance.** `cmn.pricing.spend_fields` builds the
+mapping; `cmn.pytest_support.publish_run_spend` records it as JUnit properties
+under the root element with the `mqc.` prefix, and rewrites
+`environment.properties` with the provenance fields followed by these, so the
+Allure environment block shows both. **Session scope again**, for the reason
+section 5.6.2 gives; the consumer's session fixture calls it after its yield,
+which pytest runs before the JUnit report is written.
+
+**Only artifacts carry it.** No tracked file records a run's spend: the figures
+belong to one run, and a committed total would be history in a file that
+describes the current state.
+
+`MQC_CMN_UNI_450007` and `450008`, `MQC_REQ_HAR_CMN_0250`. The split by role is
+`tier2_execution.md` section 7.7.3.
+
 ---
 
 ## 6. RTM Integrity
@@ -3650,8 +3689,10 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450004` | P | `the_junit_properties_carry_the_same_mapping` (5.6.2) |
 | `450005` | N | `a_run_that_is_not_live_asks_no_provider` (5.6.2) |
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
+| `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
+| `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 501 cases, 298 negative, 151 positive, 52 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 503 cases, 298 negative, 152 positive, 53 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

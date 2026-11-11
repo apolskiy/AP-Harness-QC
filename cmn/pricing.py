@@ -45,6 +45,12 @@ logger = logging.getLogger(__name__)
 
 _PER_MILLION: Final[int] = 1_000_000
 
+# WHAT A SPEND FIELD READS WHERE NOTHING PRICED IT, and what an unset ceiling
+# or an empty model list reads. Never an empty string (design
+# `cmn_verdict_and_cli.md` section 5.6.4).
+_UNPRICED: Final[str] = "unpriced"
+_NONE: Final[str] = "none"
+
 
 @dataclass(frozen=True)
 class ModelPrice:
@@ -267,6 +273,38 @@ def stale_prices(table: PriceTable, as_of: date) -> list[str]:
         for model in table.tiers
         if table.price_for(model, as_of) is None
     )
+
+
+def spend_fields(
+    *, candidate: float, judge: float, max_spend: float, priced: bool, unpriced: set[str]
+) -> dict[str, str]:
+    """Return what a run spent, by role, as the ordered fields its artifacts carry.
+
+    Design: ``cmn_verdict_and_cli.md`` section 5.6.4.
+
+    Args:
+        candidate (float): The candidate's spend.
+        judge (float): The judge's spend.
+        max_spend (float): The run's ceiling, zero for none.
+        priced (bool): Whether the run loaded a price table.
+        unpriced (set[str]): Models a response reported that the table does not price.
+
+    Returns:
+        dict[str, str]: Every field, always present. The three spend fields
+        read ``unpriced`` where no price table was loaded, since zero would read
+        as a run that cost nothing; the ceiling reads ``none`` where unset.
+    """
+    def amount(value: float) -> str:
+        return f"{value:.4f}" if priced else _UNPRICED
+
+    return {
+        "candidate_spend_usd": amount(candidate),
+        "judge_spend_usd": amount(judge),
+        "total_spend_usd": amount(candidate + judge),
+        "max_spend_usd": f"{max_spend:.4f}" if max_spend > 0 else _NONE,
+        "unpriced_models": ",".join(sorted(unpriced)) or _NONE,
+    }
+
 
 @dataclass(frozen=True)
 class CostLine:

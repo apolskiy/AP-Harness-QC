@@ -16057,3 +16057,38 @@ were caught: the relative default restored (`113515`) and the refusal removed
 (`113514`). The stand-in probe the two cases share lives in
 `provider_metadata_doubles.py`, since a case module holds no support code.
 Requirement `MQC_REQ_HAR_EXE_0148`; `tier2_execution.md` section 5.3.1.
+
+## 2026-11-11: A run publishes what it spent, by role
+
+**What was wrong.** Nothing a run published said what it cost. **Why.** The
+session's `spent` summed both roles once the judge started charging it, and no
+code wrote it to an artifact; the judge's tokens were logged per call, never
+priced or totalled.
+
+**The split lives on the session.** `charge_judgement` prices a live judgement
+through `charge` and adds the difference to `judge_spent`, so the candidate's
+share is `spent` less `judge_spent` and the two always sum to what the ceiling
+read. The judge channel calls it in place of `charge`.
+
+**Five fields, rendered once for both artifacts**: candidate, judge and total
+spend in USD, the ceiling, and any unpriced model. Without a price table the
+spend fields read `unpriced` rather than zero, and an unset ceiling reads
+`none`. `publish_run_spend` records them as JUnit properties and rewrites
+`environment.properties` with the provenance followed by the spend, since
+Allure reads one file. A consumer calls it after the yield in its session
+fixture, which pytest runs before writing the JUnit report.
+
+**`execution/dispatch.py` went to 934 lines** with the split, past the 900-line
+runway, and the runway list only shrinks. Spending is a subject apart from
+pacing and the breaker, so it moved to `execution/run_spend.py` as `RunSpend`,
+which `DispatchSession` inherits; no caller built a session positionally, so
+the change of field order reaches nobody. `dispatch.py` is 803 lines.
+`RunSpend` is an accumulator and joined `_MUTABLE_BY_DESIGN`.
+
+**The three cases failed first**, against stubs, on assertions; `450008` first
+failed by raising on the missing file and was given an assertion that the file
+exists. Six injections were caught: the judge share not counted, the candidate
+share including the judge, the channel charging as a candidate (`113311`); an
+unpriced run reading zero (`450007`); the Allure file unwritten, the JUnit
+properties unrecorded (`450008`). Requirements `MQC_REQ_HAR_EXE_0149` and
+`MQC_REQ_HAR_CMN_0250`.

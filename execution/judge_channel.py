@@ -405,7 +405,7 @@ class JudgeChannel:
             billed.thinking_tokens, billed.cached_input_tokens,
         )
         if self._budget is not None:
-            self._budget.charge(billed, self._served_model(raw))
+            self._budget.charge_judgement(billed, self._served_model(raw))
         if self._plan.record and self._plan.fixture_root is not None:
             record_judgement(
                 self._plan.fixture_root, key, request_hash,

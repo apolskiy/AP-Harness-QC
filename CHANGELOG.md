@@ -29,6 +29,26 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A run publishes what it spent, by role, 2026-11-11
+
+**Why it was needed.** A run's spend was one figure in memory: the session's
+`spent` summed the candidate and the judge, and no artifact carried it, so a
+published run said nothing about what it cost or which role cost it.
+
+**What changed.** The run's session counts a live judgement in `judge_spent`
+as well as `spent`, through `charge_judgement`, which the judge channel now
+calls; `spend_summary` renders the split with `cmn.pricing.spend_fields`.
+`cmn.pytest_support.publish_run_spend` records the five fields as JUnit
+properties with the `mqc.` prefix and adds them to `environment.properties`
+after the provenance, for a consumer to call after its last case. The spending
+half of `DispatchSession` moved to `execution/run_spend.py` as `RunSpend`,
+which the session inherits, keeping `execution/dispatch.py` under its runway.
+`MQC_EXE_UNI_113311`, `MQC_CMN_UNI_450007` and `450008` hold it;
+`MQC_REQ_HAR_EXE_0149` and `MQC_REQ_HAR_CMN_0250` trace it;
+`tier2_execution.md` section 7.7.3 and `cmn_verdict_and_cli.md` section 5.6.4
+specify it. The README case count moved to 1111 and the requirement count to
+426.
+
 ### The version probe walks the harness's own roster, 2026-11-11
 
 **Why it was needed.** The case repository's probe asked no engine and

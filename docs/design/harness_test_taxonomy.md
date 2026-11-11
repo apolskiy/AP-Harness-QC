@@ -3900,9 +3900,9 @@ the count:
 | `not population.skippable` | Whether that branch is reachable independently of the two above it |
 | `rate is None` returning a V2 breach | A spurious rule in `breached_rules` on a run that is already red |
 
-**Seventy-eight of eighty-one production records are frozen** and the three
-that are not are accumulators by design: `DispatchSession`, `_AttemptTally` and
-`_Progress`. That makes the rule checkable rather than a matter of review, so
+**Seventy-eight of eighty-two production records are frozen** and the four
+that are not are accumulators by design: `DispatchSession`, the `RunSpend` it
+inherits, `_AttemptTally` and `_Progress`. That makes the rule checkable rather than a matter of review, so
 it is checked as a `UNI` case and not left to this suite.
 
 **None of the eleven changed a suite rule, and the audit is not for that.**

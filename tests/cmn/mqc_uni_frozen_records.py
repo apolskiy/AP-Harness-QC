@@ -85,7 +85,7 @@ class TestMQCFrozenRecords:
             "frozen in name only"
         )
 
-        # AND THE SCAN IS NOT VACUOUS, proved against the three records that
+        # AND THE SCAN IS NOT VACUOUS, proved against the four records that
         # are mutable on purpose: each is genuinely unfrozen, so the scan
         # passing above is the declaration working rather than the walk
         # finding nothing. A declaration naming a frozen record would mean

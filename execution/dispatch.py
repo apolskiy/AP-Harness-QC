@@ -10,8 +10,9 @@ replays the recorded observation or issues the request live, and returns a
 ``DispatchOutcome`` holding either a normalized response or a skip with its
 reason; ``DispatchPlan``, the run's fixed settings such as its mode, model,
 fixture root and whether to record; ``DispatchSession``, the run-level state
-that spaces requests, tallies spend and trips ``CircuitBreakerTripped`` when
-the provider stops answering; and ``attributed_refusal``, which decides
+that spaces requests and trips ``CircuitBreakerTripped`` when the provider
+stops answering, inheriting its spending from ``execution.run_spend``; and
+``attributed_refusal``, which decides
 whether a provider refusal is a harness code or an over-refusal finding.
 
 **This is the step between ingestion and evaluation.** The consumer's graded
@@ -36,13 +37,10 @@ deterministic gates run identically on a pull request and on a schedule.
 
 import logging
 import time
-from datetime import date
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Final, Optional
 
-from cmn.pricing import PriceTable, cost_of
-from cmn.tokens import TokenUsage
 from execution.adapters.base import ProviderAdapter
 from execution.adapters.registry import adapter_for
 from execution.normalize import NormalizedResponse
@@ -54,6 +52,7 @@ from execution.replay import (
     load_fixture,
     record_fixture,
 )
+from execution.run_spend import RunSpend
 
 logger = logging.getLogger(__name__)
 
@@ -280,12 +279,13 @@ def attributed_refusal(case: Any, session: Any, code: str) -> str:
 
 
 @dataclass
-class DispatchSession:
+class DispatchSession(RunSpend):
     """Run-level pacing state, which no single case can hold.
 
     Spacing is an interval **between** requests and the circuit breaker counts a
     streak **across** cases, so both need somewhere to live that outlasts one
-    dispatch.
+    dispatch. The spending half, the ceiling and what each role spent, is
+    inherited from :class:`execution.run_spend.RunSpend`.
 
     Attributes:
         spacing_sec (float): Minimum interval between live requests, per engine
@@ -301,24 +301,7 @@ class DispatchSession:
         last_request_at (Optional[float]): When the previous live request went.
         slept_intervals (list): Every interval actually waited, so a test can
             assert the spacing decision without spending the wall-clock.
-        max_spend (float): The run's ceiling in the price table's currency.
-            **Zero means no ceiling**, which is the default and what every
-            replay run uses: replay spends nothing, so a ceiling there would
-            only be a number to get wrong.
-        spent (float): What the run has been billed so far, accumulated from
-            each measured response rather than estimated.
-        usage (TokenUsage): Every token the run has consumed, kept so a run can
-            report its own cost without re-reading the corpus.
-        prices (Optional[PriceTable]): The rates, or ``None`` for a run that
-            prices nothing. **A replay run leaves this unset**, because a
-            replayed response was paid for when it was recorded.
-        priced_on (Optional[date]): The date rates are read against, injected
-            for the reason the verdict injects its date: a cost that changes
-            between two readings of one corpus is not a measurement.
-        unpriced (set): Models this run met that the table does not price.
-            **A ceiling cannot be honoured against these**, so their presence
-            stops a budgeted run rather than being noted: a cap that cannot be
-            enforced must not look enforced.
+        served (set): Every model a response reported, in either mode.
     """
 
     spacing_sec: float = 0.0
@@ -332,16 +315,10 @@ class DispatchSession:
     measured_outcomes: int = 0
     last_request_at: Optional[float] = None
     slept_intervals: list[float] = field(default_factory=list)
-    max_spend: float = 0.0
-    spent: float = 0.0
-    usage: TokenUsage = field(default_factory=TokenUsage)
-    prices: Optional[PriceTable] = None
-    priced_on: Optional[date] = None
     # EVERY MODEL A RESPONSE REPORTED. `record_spend` already receives it
     # for pricing and dropped it; `unpriced` kept only what it could not
     # price. Two entries mean a mixed corpus. Design section 8.6.6.
     served: set[str] = field(default_factory=set)
-    unpriced: set[str] = field(default_factory=set)
 
     def wait_for_slot(self) -> None:
         """Pause until the configured spacing has elapsed since the last request.
@@ -355,78 +332,6 @@ class DispatchSession:
         if remaining > 0:
             self.slept_intervals.append(remaining)
             self.delay(remaining)
-
-    def ceiling_reached(self) -> bool:
-        """Report whether the run has already spent its ceiling.
-
-        **Asked before each request, and it overshoots by at most one.** The
-        alternative is to compare the ceiling against an estimate of the request
-        about to be sent, which means inventing token counts for a prompt the
-        provider has not answered: an estimate that is too low defeats the
-        ceiling while appearing to enforce it. Stopping one request late is
-        cheaper than a guess that can be wrong in the unsafe direction, and at
-        the measured rates one request is a small fraction of a cent.
-
-        Returns:
-            bool: True where a ceiling is set and spending has reached it.
-            **False when no ceiling is set**, so an unconfigured run behaves
-            exactly as it did before this existed, and every replay run is
-            unaffected because replay spends nothing.
-        """
-        if self.max_spend <= 0:
-            return False
-        # AN UNPRICED MODEL STOPS A BUDGETED RUN. Its responses cost `None`, so
-        # `spent` never grows and the ceiling would never engage: the run would
-        # spend without limit while reporting a cap. `claude-opus-5-5` is exactly
-        # that case, deliberately unpriced and with thinking it cannot disable.
-        if self.unpriced:
-            return True
-        return self.spent >= self.max_spend
-
-    def record_spend(self, usage: TokenUsage, model: str) -> None:
-        """Add one response's tokens, and its cost where the model is priced.
-
-        **The session prices this, not the caller.** The dispatch path should not
-        have to hold a price table to report a measurement, and keeping the
-        lookup here means the ceiling and the total are computed from one place.
-
-        Args:
-            usage (TokenUsage): What the response consumed.
-            model (str): The model the provider reported serving, which is what
-                is priced. **Resolved, never requested**: an alias that floated
-                would otherwise be billed at the price of a model nobody served.
-
-        Returns:
-            None: **An unpriced model still contributes its tokens.** A run
-            against something the table does not know reports usage it cannot
-            price, rather than reporting nothing and reading as free.
-        """
-        self.usage = self.usage + usage
-        self.charge(usage, model)
-
-    def charge(self, usage: TokenUsage, model: str) -> None:
-        """Add one response's cost to ``spent``, without counting its tokens in ``usage``.
-
-        The pricing half of :meth:`record_spend`, and all a judge channel does
-        to the run's session, so ``spent`` covers both roles and ``usage`` stays
-        the candidate's. Design: ``tier2_execution.md`` section 7.7.3.
-
-        Args:
-            usage (TokenUsage): What the response consumed.
-            model (str): The model the provider reported serving.
-
-        Returns:
-            None: Nothing without a price table; an unpriced model is added to
-            ``unpriced``, so a budgeted run stops and names it.
-        """
-        if self.prices is None or self.priced_on is None:
-            return
-        cost = cost_of(usage, model, self.prices, self.priced_on)
-        if cost is None:
-            if model:
-                self.unpriced.add(model)
-            return
-        self.spent += cost
 
     def record_request(self) -> None:
         """Note that a request has just been issued.

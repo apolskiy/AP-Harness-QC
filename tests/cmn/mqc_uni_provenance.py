@@ -40,6 +40,9 @@ marker, per ``framework-rules.md`` section 3.3.
 # TestMQCProvenanceAdoption
 #   450005  a_run_that_is_not_live_asks_no_provider
 #   450006  a_run_writing_no_allure_results_writes_no_file
+# TestMQCRunSpend
+#   450007  the_spend_fields_carry_each_role_whatever_the_run_priced
+#   450008  the_spend_reaches_both_artifacts_beside_the_provenance
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -53,7 +56,8 @@ from cmn.provenance import (
     testsuite_properties,
     write_provenance,
 )
-from cmn.pytest_support import adopt_provenance, asks_the_provider
+from cmn.pricing import spend_fields
+from cmn.pytest_support import adopt_provenance, asks_the_provider, publish_run_spend
 from tests.cmn.provenance_support import Config, Reader
 
 pytestmark = pytest.mark.unit
@@ -65,6 +69,10 @@ pytestmark = pytest.mark.unit
 # again and pylint reports the pair as duplicated.
 _FIELDS: tuple[str, ...] = tuple(
     "engine mode requested_model served_version served_digest".split()
+)
+
+_SPEND_FIELDS: tuple[str, ...] = tuple(
+    "candidate_spend_usd judge_spend_usd total_spend_usd max_spend_usd unpriced_models".split()
 )
 
 _SERVED: dict[str, str] = {
@@ -261,3 +269,69 @@ class TestMQCProvenanceAdoption:
         ):
             fields = adopt_provenance(config, Reader({}))
             assert tuple(fields) == _FIELDS
+
+
+class TestMQCRunSpend:
+    """What a run spent, by role, rendered beside its provenance."""
+
+    def MQC_CMN_UNI_450007_the_spend_fields_carry_each_role_whatever_the_run_priced(
+        self,
+    ) -> None:
+        """Every field is present; a run with no price table reads ``unpriced``.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.6.4.
+
+        Returns:
+            None
+        """
+        priced = spend_fields(candidate=0.0123456, judge=0.002, max_spend=7.25,
+                              priced=True, unpriced=set())
+        unpriced = spend_fields(candidate=0.0, judge=0.0, max_spend=0.0,
+                                priced=False, unpriced={"model-b", "model-a"})
+
+        assert tuple(priced) == _SPEND_FIELDS and tuple(unpriced) == _SPEND_FIELDS
+        assert priced == {
+            "candidate_spend_usd": "0.0123", "judge_spend_usd": "0.0020",
+            "total_spend_usd": "0.0143", "max_spend_usd": "7.2500",
+            "unpriced_models": "none",
+        }, priced
+        assert unpriced == {
+            "candidate_spend_usd": "unpriced", "judge_spend_usd": "unpriced",
+            "total_spend_usd": "unpriced", "max_spend_usd": "none",
+            "unpriced_models": "model-a,model-b",
+        }, unpriced
+
+    def MQC_CMN_UNI_450008_the_spend_reaches_both_artifacts_beside_the_provenance(
+        self, tmp_path: Path,
+    ) -> None:
+        """JUnit gets the spend as prefixed properties; the Allure file gets both mappings.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.6.4.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        provenance = provenance_fields(engine="gemini", mode="live",
+                                       requested_model="gemini-4-argon", served=_SERVED)
+        spend = spend_fields(candidate=0.5, judge=0.25, max_spend=7.25,
+                             priced=True, unpriced=set())
+        results = tmp_path / "allure-results"
+        recorded: list[tuple[str, str]] = []
+
+        publish_run_spend(lambda name, value: recorded.append((name, value)),
+                          Config(allure_report_dir=str(results)), provenance, spend)
+
+        assert recorded == [(f"{PROVENANCE_PREFIX}{name}", value)
+                            for name, value in spend.items()], recorded
+        assert (results / PROVENANCE_FILE).is_file(), "no environment.properties was written"
+        lines = (results / PROVENANCE_FILE).read_text(encoding="utf-8").splitlines()
+        assert lines == [f"{name}={value}" for name, value in
+                         [*provenance.items(), *spend.items()]], lines
+
+        unwritten: list[tuple[str, str]] = []
+        publish_run_spend(lambda name, value: unwritten.append((name, value)),
+                          Config(allure_report_dir=""), provenance, spend)
+        assert unwritten == recorded

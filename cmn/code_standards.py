@@ -635,12 +635,13 @@ def flag_coverage_problems(
     return problems
 
 
-# THE RECORDS THAT ACCUMULATE, and are therefore mutable on purpose. Three of
-# eighty-one, each one a tally a caller adds to as a run proceeds rather than a
+# THE RECORDS THAT ACCUMULATE, and are therefore mutable on purpose. Four of
+# eighty-two, each one a tally a caller adds to as a run proceeds rather than a
 # value somebody computed once. Named here with a reason, which is what makes
 # the rule checkable instead of a matter of review.
 _MUTABLE_BY_DESIGN: Final[dict[str, str]] = {
     "DispatchSession": "accumulates the outcomes a run measured, per engine",
+    "RunSpend": "accumulates what a run spent, by role, against its ceiling",
     "_AttemptTally": "counts attempts and failures as dispatch proceeds",
     "_Progress": "counts cases as the evaluation pipeline advances",
 }

@@ -31,6 +31,7 @@ Specified by ``docs/design/tier2_execution.md`` section 7.7.3.
 #   113308  each_live_judgement_logs_the_tokens_it_billed
 #   113309  a_judge_at_the_run_ceiling_is_not_asked
 #   113310  a_live_judgement_spends_against_the_run_ceiling
+#   113311  a_live_judgement_is_counted_as_the_judge_share
 # ------------------------------------------------------------ end of cases
 
 import logging
@@ -181,3 +182,36 @@ class TestMQCJudgeUsage:
         with pytest.raises(ValueError, match=_BUDGET_STOP):
             channel.invoke(JudgeRequestDouble())
         assert provider.sent == 2
+
+    def MQC_EXE_UNI_113311_a_live_judgement_is_counted_as_the_judge_share(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A judgement's cost is the judge's share; a candidate response's is not.
+
+        Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+
+        Returns:
+            None
+        """
+        budget = run_budget(10.0)
+        provider = ScriptedJudge([priced_judgement()])
+        channel = scripted_channel(monkeypatch, provider, budget)
+        table = load_price_table(PRICING)
+        judged = cost_of(channel.adapter.read_usage(priced_judgement()), MODEL, table, PRICED_ON)
+        candidate = TokenUsage(input_tokens=200_000, output_tokens=40_000)
+        answered = cost_of(candidate, MODEL, table, PRICED_ON)
+        assert judged and answered, f"unpriced on {PRICED_ON}, so nothing is checked"
+
+        channel.invoke(JudgeRequestDouble())
+        budget.record_spend(candidate, MODEL)
+
+        assert budget.judge_spent == pytest.approx(judged), budget.judge_spent
+        assert budget.spent == pytest.approx(judged + answered), budget.spent
+
+        summary = budget.spend_summary()
+        assert float(summary["judge_spend_usd"]) == pytest.approx(judged, abs=5e-5)
+        assert float(summary["candidate_spend_usd"]) == pytest.approx(answered, abs=5e-5)
+        assert float(summary["total_spend_usd"]) == pytest.approx(budget.spent, abs=5e-5)

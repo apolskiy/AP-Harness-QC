@@ -410,6 +410,26 @@ def publish_run_provenance(recorder: Any, fields: dict[str, str]) -> None:
         recorder(name, value)
 
 
+def publish_run_spend(
+    recorder: Any, config: Any, provenance: dict[str, str], spend: dict[str, str]
+) -> None:
+    """Record what the run spent in both artifacts, after its last case.
+
+    Design: ``cmn_verdict_and_cli.md`` section 5.6.4.
+
+    Args:
+        recorder (Any): pytest's ``record_testsuite_property`` fixture.
+        config (Any): pytest's configuration.
+        provenance (dict): The run's provenance, written first in the Allure file.
+        spend (dict): As ``cmn.pricing.spend_fields`` returns.
+
+    Returns:
+        None
+    """
+    publish_run_provenance(recorder, spend)
+    _write_provenance_beside_results(config, {**provenance, **spend})
+
+
 def rostered_model(engine: str) -> str:
     """Return the model the roster asks for, or empty where it cannot be read.
 

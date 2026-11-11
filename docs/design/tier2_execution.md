@@ -1028,7 +1028,7 @@ two things the candidate path already does:
 | When | What the channel does |
 |---|---|
 | Before a live judge request | Asks `budget.ceiling_reached()`. Where it is reached, raises `QC_HARNESS_BUDGET_EXHAUSTED` and sends nothing |
-| After a live judgement returns | Calls `budget.charge` with the tokens it billed and the model the reply reports serving |
+| After a live judgement returns | Calls `budget.charge_judgement` with the tokens it billed and the model the reply reports serving |
 
 **Only the spend is shared, never the pacing.** The channel keeps its own
 session for spacing and for its breaker, for the reasons this section gives
@@ -1066,6 +1066,29 @@ and every caller that sets no ceiling. `MQC_EXE_UNI_113309` asserts that a
 judge at the ceiling is not asked, and `MQC_EXE_UNI_113310` that a live
 judgement's cost reaches the run's `spent` while the run's `usage` keeps the
 candidate's tokens only.
+
+##### The run's session keeps the judge's share apart
+
+Added 2026-11-11. **`spent` is the total the ceiling is held against, and it
+said nothing about which role spent it.** `charge_judgement` prices a live
+judgement as `charge` does, adds the cost to `spent`, and adds it to
+`judge_spent` as well, so the candidate's share is `spent` less `judge_spent`
+and the two always sum to what the ceiling read. The candidate path is
+unchanged: `record_spend` counts the tokens and calls `charge`.
+
+**The spending half of the session is its own module**, `execution/run_spend.py`,
+whose `RunSpend` holds the ceiling, the totals, the candidate's tokens, the
+price table and the unpriced models, and every method above. `DispatchSession`
+inherits it, so each is reached on the session as before. It was extracted
+when this split would have taken `execution/dispatch.py` past its 900-line
+runway (`code-style.md` section 5.1), spending being a subject apart from
+pacing and the breaker.
+
+**`spend_summary` renders the split** as the fields `cmn.pricing.spend_fields`
+builds, which a run publishes after its last case (`cmn_verdict_and_cli.md`
+section 5.6.4). `MQC_EXE_UNI_113311` asserts that a live judgement reaches
+`judge_spent` and a candidate response does not, and that the summary's
+candidate and judge figures sum to `spent`. Requirement `MQC_REQ_HAR_EXE_0149`.
 
 ### 7.8 The adapter dispatches a judgement, because nothing else could
 
@@ -2622,6 +2645,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113308` | P | `each_live_judgement_logs_the_tokens_it_billed` (7.7.3) |
 | `113309` | N | `a_judge_at_the_run_ceiling_is_not_asked` (7.7.3) |
 | `113310` | P | `a_live_judgement_spends_against_the_run_ceiling` (7.7.3) |
+| `113311` | P | `a_live_judgement_is_counted_as_the_judge_share` (7.7.3) |
 | `113022` | P | `a_claude_refusal_is_recorded_as_a_block` |
 | `113217` | P | `an_outcome_carries_the_request_that_produced_it` |
 | ~~`113218`~~ | | ~~`a_recorded_fixture_stores_the_request_it_sent`~~. **Retired 2026-10-11 before implementation**, allocated from the dispatch neighbourhood for a fixture-store case. `113612` states it |
@@ -2721,7 +2745,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 236 cases, 107 negative, 118 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 237 cases, 107 negative, 119 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 
