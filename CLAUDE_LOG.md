@@ -16001,3 +16001,34 @@ ceiling, and never charging. Requirement `MQC_REQ_HAR_EXE_0147`.
 **The case repository passes nothing yet**, so a consumer run is unchanged
 until its judgement plan carries `budget`; that is its own change, with
 the per-role totals in its artifacts.
+
+### A judged case rests on its family's calibration, 2026-11-11
+
+**A calibration failure stopped the exit status claiming a model finding and
+left the scores standing.** The family's judged cases ran beside it and each
+reported a pass or a fail from the judge that had just placed its exemplars
+two levels away. The agreed remedy was the foundational cascade: each family's
+calibration case is the base of that family's judged cases.
+
+**The dependency cannot be declared on a case.** Calibration is collected only
+by a run that names it, and `arrange_dependencies` refuses a `depends_on`
+naming a case the run did not collect, so a declared dependency would refuse
+every gate and every rung that does not calibrate. So
+`cmn.calibration_runs.rest_judged_cases_on_calibration` adds it at collection,
+marking each collected calibration case `base` and adding `depends_on` to each
+case of its family. The family of each case is corpus knowledge and comes from
+the case repository, which names only judged cases: a case graded by
+assertion alone runs whatever calibration found. A collected calibration case
+the mapping does not name refuses the run, since nothing could rest on it.
+
+**It sits in the harness rather than the case repository** because the case
+repository's `conftest.py` delegates every hook body, and the wiring is the
+cascade's own mechanism applied to a layer. `112621` runs the real cascade on
+doubles carrying pytest marks: the wiring, the order `arrange_dependencies`
+gives, a skip naming the failed calibration's identifier, and the other
+family judged. `112622` asserts nothing is wired where no calibration case is
+collected and that an unnamed calibration case is refused. Both failed against
+a stub; five injections were caught: no `base` mark, every case wired to every
+calibration, an unnamed calibration case passing, calibration cases wired to
+themselves, and nothing wired. Requirement `MQC_REQ_HAR_EVL_0089`;
+`tier3_evaluation.md` section 9.4.

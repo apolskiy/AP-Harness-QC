@@ -3,18 +3,20 @@
 """Unit cases for which runs collect a calibration case.
 
 Created: 2026-11-10
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
-Its cases check ``deselect_unrequested_calibration`` in
-``cmn/calibration_runs.py``: a calibration case is deselected from a run whose
-marker expression does not name ``calibration``, kept where one does under a
-live judge, and a run asking for it under a judge that is not live is refused.
+Its cases check ``cmn/calibration_runs.py``. ``deselect_unrequested_calibration``
+deselects a calibration case from a run whose marker expression does not name
+``calibration``, keeps it where one does under a live judge, and refuses a run
+asking for it under a judge that is not live. ``rest_judged_cases_on_calibration``
+makes each judged case depend on its family's calibration case where the run
+collects both, so a failed calibration skips its family's judged cases.
 
 Calibration spends a judge call per exemplar, so a defect here either runs it
-in every gate and rung or lets the run that asks for it measure nothing. Its
-cases are listed in the block below, inventoried in
-``docs/design/cmn_verdict_and_cli.md`` and specified by
-``docs/design/tier3_evaluation.md`` section 9.2.
+in every gate and rung, lets the run that asks for it measure nothing, or
+reports judged scores from a judge that failed it. Its cases are listed in the
+block below, inventoried in ``docs/design/cmn_verdict_and_cli.md`` and
+specified by ``docs/design/tier3_evaluation.md`` sections 9.2 and 9.4.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
@@ -27,20 +29,38 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112618  a_calibration_case_the_run_did_not_ask_for_is_deselected
 #   112619  a_calibration_case_asked_for_under_a_live_judge_is_kept
 #   112620  calibration_asked_for_without_a_live_judge_is_refused
+#   112621  a_judged_case_rests_on_its_family_calibration
+#   112622  nothing_rests_on_a_calibration_the_run_did_not_collect
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
 
 import pytest
 
-from cmn.calibration_runs import deselect_unrequested_calibration
-from tests.cmn.calibration_runs_support import MarkedItem
+from cmn.calibration_runs import (
+    deselect_unrequested_calibration,
+    rest_judged_cases_on_calibration,
+)
+from cmn.dependencies import (
+    arrange_dependencies,
+    declared_dependencies,
+    enforce_dependencies,
+    record_base_outcome,
+    reset_dependency_state,
+)
+from tests.cmn.calibration_runs_support import CollectedCase, MarkedItem
 from tests.cmn.mutation_tool_support import AuditConfig
 
 pytestmark = pytest.mark.unit
 
 _CALIBRATION = "MQC_CAS_EVAL_134900_exemplars_score_at_their_level"
 _GRADED = "MQC_CAS_EVAL_134000_a_graded_case"
+
+_CAL_FIDELITY = "MQC_EVL_CAL_174906_source_fidelity_exemplars_score_at_their_levels"
+_CAL_SHAPE = "MQC_EVL_CAL_174903_output_shape_exemplars_score_at_their_levels"
+_JUDGED_FIDELITY = "MQC_CAS_EVAL_134910_a_source_fidelity_case"
+_JUDGED_SHAPE = "MQC_CAS_EVAL_134911_an_output_shape_case"
+_UNJUDGED = "MQC_CAS_EVAL_134912_a_case_graded_by_assertion_alone"
 
 
 class TestMQCCalibrationRuns:
@@ -120,3 +140,77 @@ class TestMQCCalibrationRuns:
             config = AuditConfig(tmp_path, [], options)
             with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
                 deselect_unrequested_calibration(config, [calibration])
+
+    def MQC_CMN_UNI_112621_a_judged_case_rests_on_its_family_calibration(self) -> None:
+        """A failed calibration skips its family's judged cases and no other family's.
+
+        Design: ``tier3_evaluation.md`` section 9.4.
+
+        Returns:
+            None
+        """
+        fidelity_calibration = CollectedCase(_CAL_FIDELITY, "calibration")
+        shape_calibration = CollectedCase(_CAL_SHAPE, "calibration")
+        fidelity = CollectedCase(_JUDGED_FIDELITY, "evaluator")
+        shape = CollectedCase(_JUDGED_SHAPE, "evaluator")
+        unjudged = CollectedCase(_UNJUDGED, "evaluator")
+        families = {
+            _CAL_FIDELITY: "source_fidelity", _CAL_SHAPE: "output_shape",
+            _JUDGED_FIDELITY: "source_fidelity", _JUDGED_SHAPE: "output_shape",
+        }
+        # DEPENDENTS FIRST, so the order below is the cascade's and not the input's.
+        items = [fidelity, unjudged, shape, fidelity_calibration, shape_calibration]
+        reset_dependency_state()
+        try:
+            assert rest_judged_cases_on_calibration(items, families) == 2
+            assert declared_dependencies(fidelity) == ["174906"]
+            assert declared_dependencies(shape) == ["174903"]
+            assert not declared_dependencies(unjudged), "a case the mapping omits was wired"
+            assert fidelity_calibration.get_closest_marker("base") is not None
+            assert shape_calibration.get_closest_marker("base") is not None
+
+            arrange_dependencies(items)
+            assert items.index(fidelity_calibration) < items.index(fidelity)
+            assert items.index(shape_calibration) < items.index(shape)
+
+            record_base_outcome(fidelity_calibration, False)
+            record_base_outcome(shape_calibration, True)
+            with pytest.raises(
+                pytest.skip.Exception,
+                match="QC_HARNESS_DEPENDENCY_UNMET: foundational case 174906",
+            ):
+                enforce_dependencies(fidelity)
+            # THE OTHER FAMILY IS JUDGED, and a case no judge reads runs.
+            enforce_dependencies(shape)
+            enforce_dependencies(unjudged)
+        finally:
+            reset_dependency_state()
+
+    def MQC_CMN_UNI_112622_nothing_rests_on_a_calibration_the_run_did_not_collect(
+        self,
+    ) -> None:
+        """No calibration collected wires nothing, and one naming no family is refused.
+
+        Design: ``tier3_evaluation.md`` section 9.4.
+
+        Returns:
+            None
+        """
+        judged = CollectedCase(_JUDGED_FIDELITY, "evaluator")
+        families = {_JUDGED_FIDELITY: "source_fidelity", _CAL_FIDELITY: "source_fidelity"}
+        items = [judged]
+        reset_dependency_state()
+        try:
+            assert rest_judged_cases_on_calibration(items, families) == 0
+            assert not declared_dependencies(judged)
+            # A GATE OR A RUNG THAT DOES NOT CALIBRATE STILL RESOLVES.
+            arrange_dependencies(items)
+
+            orphan = CollectedCase(_CAL_FIDELITY, "calibration")
+            with pytest.raises(ValueError, match="QC_HARNESS_DEPENDENCY_UNMET"):
+                rest_judged_cases_on_calibration(
+                    [orphan, CollectedCase(_JUDGED_SHAPE, "evaluator")],
+                    {_JUDGED_SHAPE: "output_shape"},
+                )
+        finally:
+            reset_dependency_state()

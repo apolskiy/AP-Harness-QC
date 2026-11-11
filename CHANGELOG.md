@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A judged case rests on its family's calibration, 2026-11-11
+
+**Why it was needed.** A calibration failure exits 3, and the judged cases of
+the same family still reported a pass or a fail scored by the judge that had
+just failed it, so a run carried scores nobody could interpret beside the
+instrument defect that made them so.
+
+**What changed.** `cmn.calibration_runs.rest_judged_cases_on_calibration`
+marks each collected calibration case `base` and makes each judged case of its
+family depend on it, through the existing foundational cascade, so a failed
+calibration skips that family's judged cases with `QC_HARNESS_DEPENDENCY_UNMET`
+and a family whose calibration held is judged. The dependency is added at
+collection and only where the run collects the calibration case, so gates and
+rungs that do not calibrate are unchanged. A calibration case naming no family
+refuses the run. The case repository supplies the family of each judged case.
+The README case count moved to 1106 and the requirement count to 423.
+
 ### `--max-spend` bounds the judge as well as the candidate, 2026-11-10
 
 **Why it was needed.** The ceiling counted the candidate half of a run only, so

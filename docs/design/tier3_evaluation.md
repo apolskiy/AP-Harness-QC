@@ -2863,6 +2863,52 @@ collected module must carry and the layer digit of the positional scheme were
 each restated by hand, so a new layer needed three edits and a forgotten one
 reported a correct case. Both are derived from the registry now.
 
+### 9.4 A judged case rests on its family's calibration, where the run collects both
+
+Added 2026-11-11. **A judged score from a judge that just failed calibration
+is uninterpretable**, and section 9.3 stops the run's exit status claiming
+otherwise. It does not stop the score being reported: a family's judged cases
+ran beside its failed calibration case and each reported a pass or a fail
+that nobody could read.
+
+**So each judged case depends on its family's calibration case**, through the
+foundational cascade `cmn_verdict_and_cli.md` section 10.28 already runs. A
+calibration case that does not hold skips its family's judged cases with
+`QC_HARNESS_DEPENDENCY_UNMET`, and a family whose calibration held is judged
+and reported. One case per family is what makes this exact: a judge drifting
+on one family says nothing about another.
+
+**The dependency is added at collection, never declared on the case.**
+Calibration is collected only by a run asking for it (section 9.2), and a
+`depends_on` naming a case the run did not collect is refused by
+`arrange_dependencies` as unresolvable. A declared dependency would refuse
+every gate and every rung that does not calibrate.
+
+`cmn.calibration_runs.rest_judged_cases_on_calibration` takes the collected
+items and a mapping from case name to family, which the case repository
+builds from its corpus because the harness owns no case data.
+
+| Collected | What it does |
+|---|---|
+| A calibration case whose family the mapping names | Marks it `base` |
+| A case that is not a calibration case, whose family has a collected calibration case | Adds `depends_on` naming that calibration case's identifier |
+| A case the mapping does not name, or whose family has no collected calibration case | Nothing |
+| A calibration case the mapping does not name | Refuses the run with `QC_HARNESS_DEPENDENCY_UNMET` at collection: a calibration nothing can rest on protects no judged score |
+
+**The mapping names judged cases only.** A case whose rule carries no rubric
+is graded by assertion alone, so a judge's calibration says nothing about it
+and it runs whatever calibration found. Which cases are judged is a fact
+about the corpus, so the caller decides it.
+
+**It runs before `arrange_dependencies`**, which orders each calibration case
+ahead of the cases resting on it, and after every selector, so a dependent
+the run dropped is not wired. A calibration case carries no priority, so the
+rule that a foundation is at least as blocking as its dependents has nothing
+to compare, and a calibration case is blocking by its layer anyway.
+`MQC_CMN_UNI_112621` asserts the wiring, the order and the skip, and
+`MQC_CMN_UNI_112622` that nothing is wired where the run collected no
+calibration case and that a calibration case naming no family is refused.
+
 ---
 
 ## 10. Conformance Suite
