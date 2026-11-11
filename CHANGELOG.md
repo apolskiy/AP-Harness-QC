@@ -29,6 +29,19 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The judge channel logs the tokens each live judgement billed, 2026-11-10
+
+**Why it was needed.** Judge spend was held only as an in-memory total read at
+the end of a run, so a run that stopped part way, or a log read on its own,
+said nothing about what the judge had cost, and where the judge shares the
+candidate's provider key the bill cannot separate the two.
+
+**What changed.** After every live judgement that returns, `JudgeChannel`
+logs one `judge usage:` line at INFO naming the judge engine, the model, the
+case, the observation and the input, output, thinking and cached tokens of
+that call. A replayed judgement and a call that raised log none. The README
+case count moved to 1102 and the requirement count to 421.
+
 ### Calibration is a layer of its own, and a judge off its anchors exits 3, 2026-11-10
 
 **Why it was needed.** A calibration case was graded at P1, so a judge scoring

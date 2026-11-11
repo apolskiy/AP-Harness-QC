@@ -71,6 +71,7 @@ modules:
   tests/execution/mqc_uni_dispatch_recording.py: Engine dispatch
   tests/execution/mqc_uni_judgement_replay.py: Engine dispatch
   tests/execution/mqc_uni_judge_breaker.py: Engine dispatch
+  tests/execution/mqc_uni_judge_usage.py: Engine dispatch
   tests/execution/mqc_uni_normalize.py: Engine dispatch
   tests/execution/mqc_uni_preflight.py: Engine dispatch
   tests/execution/mqc_uni_refusal.py: Engine dispatch

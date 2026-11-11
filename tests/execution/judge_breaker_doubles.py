@@ -3,15 +3,17 @@
 """Doubles for driving a live judge channel through a scripted provider.
 
 Created: 2026-11-06
-Last updated: 2026-11-06
+Last updated: 2026-11-11
 
 This file contains a judge request double, a provider that answers from a
 script and counts what reached it, a builder for a live gemini channel wired
 to that provider, and the two provider failures the breaker cases raise.
 
 **Used by** ``tests/execution/mqc_uni_judge_breaker.py``, whose cases check
-when a judge channel stops asking a judge that will not answer. Kept out of the
-case module because collection reads only cases there.
+when a judge channel stops asking a judge that will not answer, and
+``tests/execution/mqc_uni_judge_usage.py``, whose case checks the usage line
+each live judgement logs. Kept out of the case modules because collection reads
+only cases there.
 
 Specified by ``docs/design/tier2_execution.md`` section 8.3.3.
 """

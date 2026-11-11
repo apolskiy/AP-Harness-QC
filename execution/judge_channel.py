@@ -3,7 +3,7 @@
 """The connection the LLM judge is called through, kept apart from the model under test.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-11
 
 This file contains :class:`JudgeChannel`, which owns one judge engine's
 adapter and connection, paces its own requests, and through ``invoke`` returns
@@ -36,6 +36,9 @@ the judge's request on the socket that has just carried adversarial content.
 
 **And it paces itself.** Judge calls were previously unpaced while candidate
 calls waited out a configured interval, both against the same quota.
+
+**Each live judgement that returns logs one ``judge usage:`` line** naming the
+engine, model, case, observation and token counts of that call.
 """
 
 import logging
@@ -325,7 +328,8 @@ class JudgeChannel:
             # judge is the expensive half of a graded case: its input carries the
             # rubric, the anchors and the candidate's response.
             raw = self._adapter.dispatch(composed)
-            self._usage = self._usage + self._adapter.read_usage(raw)
+            billed = self._adapter.read_usage(raw)
+            self._usage = self._usage + billed
             reply = self._adapter.parse_judgement(raw)
         except ValueError:
             # ALREADY OURS AND ALREADY SHAPED. `parse_judgement` raises this
@@ -362,6 +366,15 @@ class JudgeChannel:
                 self._adapter.release()
 
         self._session.consecutive_failures = 0
+        # ONE LINE PER LIVE JUDGEMENT THAT RETURNED, tokens only (design
+        # section 7.7.3). A replayed or recorded judgement returned above.
+        logger.info(
+            "judge usage: engine=%s model=%s case=%s observation=%d input=%d "
+            "output=%d thinking=%d cached=%d",
+            self.engine, self._adapter.requested_model, request.case_id,
+            request.observation_index, billed.input_tokens, billed.output_tokens,
+            billed.thinking_tokens, billed.cached_input_tokens,
+        )
         if self._plan.record and self._plan.fixture_root is not None:
             record_judgement(
                 self._plan.fixture_root, key, request_hash,

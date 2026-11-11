@@ -15938,3 +15938,27 @@ them, `CMN_0001` and `CMN_0060`, a second time in its traceability table.
 `MQC_CMN_UNI_400007` compares the figure with `plan_requirements` and reports a
 row stating none; injecting 419 and removing the figure were both caught.
 Requirement `MQC_REQ_HAR_CMN_0042` was extended to cover it.
+
+### The judge channel logs the tokens each live judgement billed, 2026-11-10
+
+**Judge spend was an in-memory total and nothing else.** `JudgeChannel.usage`
+accumulated every live call and was read once, at the end; a run that stopped
+part way left no record, and the case repository's ladder runs the judge and
+the candidate against one provider key, whose bill cannot say which spent
+what. This is the first of three steps toward per-role spend: the line here,
+then `--max-spend` covering the judge, then the case repository's artifacts
+carrying a total per role.
+
+**One `judge usage:` line per live judgement that returns**, at INFO, in
+key=value form so a log can be summed without a parser of its own: engine,
+model requested, case, observation, and the four token counts `read_usage`
+returned for that call. **Tokens, not money**: a price is `pricing.yaml` as
+of a date, `cmn.pricing.cost_of` computes it, and the channel loads no price
+table. A replayed or already recorded judgement returns before the dispatch
+and logs nothing, and so does a call that raised.
+
+**The case judges twice**, because on one call the running total and the
+call's own counts are equal, and a line logging the total would have passed.
+`113308` failed before the line existed; logging the running total, naming the
+candidate engine and dropping the line to DEBUG were each caught. Requirement
+`MQC_REQ_HAR_EXE_0146`; `tier2_execution.md` section 7.7.3.

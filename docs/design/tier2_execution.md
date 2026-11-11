@@ -951,6 +951,32 @@ and the judge request against nothing, **into the same free-tier quota**. That
 is a rate limit waiting for the first run long enough to reach it, and it is
 why this is a precondition for any live recording rather than a refinement.
 
+##### The judge logs what each call billed
+
+**A run's judge spend was readable only as one total at the end**, held in
+memory by `usage`, so a run that stopped part way, or a log read on its own,
+said nothing about what the judge had cost. Where the judge and the candidate
+share a provider key, the provider's bill cannot separate the two either.
+
+**After every live judgement that returns, the channel logs one line at INFO**:
+
+```
+judge usage: engine=gemini model=gemini-4-argon case=<case id> observation=0 input=1200 output=80 thinking=40 cached=0
+```
+
+| Field | Holds |
+|---|---|
+| `engine`, `model` | The judge engine and the model requested of it |
+| `case`, `observation` | Which judgement the tokens belong to |
+| `input`, `output`, `thinking`, `cached` | The counts the adapter's `read_usage` returned for that call |
+
+**Nothing else logs one.** A judgement replayed or already recorded was paid
+for when it was recorded, and a call that raised returned no counts to read.
+**The line carries tokens, not money**: a price is `pricing.yaml` read as of
+a date, which `cmn.pricing.cost_of` computes from these counts, and the
+channel loads no price table. `MQC_EXE_UNI_113308`
+asserts the line and its counts, and that a call that raised logs none.
+
 ### 7.8 The adapter dispatches a judgement, because nothing else could
 
 Added 2026-09-25, wiring the first production judge.
@@ -2503,6 +2529,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113305` | N | `fill_gaps_judges_only_what_is_not_recorded` |
 | `113306` | N | `a_judge_rejecting_the_request_is_not_asked_again` (8.3.3) |
 | `113307` | B | `a_judge_failing_transiently_stops_at_the_breaker_threshold` (8.3.3) |
+| `113308` | P | `each_live_judgement_logs_the_tokens_it_billed` (7.7.3) |
 | `113022` | P | `a_claude_refusal_is_recorded_as_a_block` |
 | `113217` | P | `an_outcome_carries_the_request_that_produced_it` |
 | ~~`113218`~~ | | ~~`a_recorded_fixture_stores_the_request_it_sent`~~. **Retired 2026-10-11 before implementation**, allocated from the dispatch neighbourhood for a fixture-store case. `113612` states it |
@@ -2600,7 +2627,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 231 cases, 105 negative, 115 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 232 cases, 105 negative, 116 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 
