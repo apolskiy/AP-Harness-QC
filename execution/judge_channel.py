@@ -39,10 +39,15 @@ calls waited out a configured interval, both against the same quota.
 
 **Each live judgement that returns logs one ``judge usage:`` line** naming the
 engine, model, case, observation and token counts of that call.
+
+**A channel whose plan carries the run's session as ``budget`` spends against
+``--max-spend``.** It asks the run's ceiling before each live request and
+raises ``QC_HARNESS_BUDGET_EXHAUSTED`` once it is reached, sending nothing, and
+charges the run's ``spent`` with each live judgement's cost.
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Optional
@@ -59,7 +64,7 @@ from execution.adapters.registry import (
     adapter_for,
     engines_for_role,
 )
-from execution.dispatch import DispatchSession, is_retryable
+from execution.dispatch import BUDGET_STOP, DispatchSession, is_retryable
 from execution.replay import (
     FixtureMissing,
     FixtureStale,
@@ -99,6 +104,11 @@ class JudgementPlan:
             `DispatchPlan.fill_gaps`**, which the candidate path has had
             since recording was a multi-day activity; without it here, a
             run needing two judgements re-judged all ninety-two.
+        budget (Optional[DispatchSession]): The run's own session, holding
+            ``--max-spend``. Read for the ceiling before each live request and
+            charged after each live judgement; its pacing is not used. Absent
+            means the judge spends against no ceiling. **Excluded from
+            comparison and hashing**, being state rather than a choice.
     """
 
     mode: str = "live"
@@ -106,6 +116,7 @@ class JudgementPlan:
     candidate_engine: Optional[str] = None
     fill_gaps: bool = False
     record: bool = False
+    budget: Optional[DispatchSession] = field(default=None, compare=False, hash=False)
 
     def __post_init__(self) -> None:
         """Refuse a plan that cannot do what it says.
@@ -177,7 +188,7 @@ class JudgeChannel:
                 judgements. Default false, matching the candidate rule in
                 design section 7.7.2.
             plan (Optional[JudgementPlan]): How judgements are obtained.
-                Absent means live with no recording.
+                Absent means live with no recording, against no ceiling.
 
         Returns:
             None
@@ -191,6 +202,7 @@ class JudgeChannel:
         # when it was recorded, not when it is read.
         self._usage = TokenUsage()
         self._plan = plan or JudgementPlan()
+        self._budget = self._plan.budget
         # THE CODE THE JUDGE STOPPED ON, held for the run (design section
         # 8.3.3). The count of consecutive failures lives on the session,
         # beside the threshold the candidate breaker reads.
@@ -267,7 +279,9 @@ class JudgeChannel:
         Raises:
             ValueError: Led by the mapped harness code, when the judge could
                 not be reached or the channel has stopped (design section
-                8.3.3). A stopped channel raises without sending anything.
+                8.3.3), or by ``QC_HARNESS_BUDGET_EXHAUSTED`` when the run's
+                ceiling is reached (section 7.7.3). Both raise without
+                sending anything.
         """
         if self._stopped is not None:
             raise ValueError(
@@ -319,6 +333,21 @@ class JudgeChannel:
                     key.case_id, key.observation_index,
                 )
                 return dict(stored.reply)
+
+        # THE RUN'S CEILING, ASKED BEFORE SPENDING, as the candidate path asks
+        # it. Not a judge failure: the judge was not asked, so the breaker does
+        # not count it (design section 7.7.3).
+        if self._budget is not None and self._budget.ceiling_reached():
+            logger.warning(
+                "%s: the run has spent %.4f against a ceiling of %.4f, so %s "
+                "observation %d was not judged",
+                BUDGET_STOP, self._budget.spent, self._budget.max_spend,
+                request.case_id, request.observation_index,
+            )
+            raise ValueError(
+                f"{BUDGET_STOP}: the run reached its spend ceiling, so "
+                f"{request.case_id} was not sent to the judge"
+            )
 
         self._session.wait_for_slot()
         try:
@@ -375,12 +404,31 @@ class JudgeChannel:
             request.observation_index, billed.input_tokens, billed.output_tokens,
             billed.thinking_tokens, billed.cached_input_tokens,
         )
+        if self._budget is not None:
+            self._budget.charge(billed, self._served_model(raw))
         if self._plan.record and self._plan.fixture_root is not None:
             record_judgement(
                 self._plan.fixture_root, key, request_hash,
                 self._adapter.requested_model, reply, prompt=request.rendered(),
             )
         return reply
+
+    def _served_model(self, raw: Any) -> str:
+        """Return the model a judge reply reports serving, or the one requested.
+
+        Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            raw (Any): The provider's judgement response.
+
+        Returns:
+            str: The resolved model, or the requested model where the reply
+            names none.
+        """
+        try:
+            return self._adapter.resolve_model_version(raw)
+        except ValueError:
+            return str(self._adapter.requested_model)
 
     def _count_failure(self, code: str) -> None:
         """Stop the channel on a failure that will repeat, or at the threshold.

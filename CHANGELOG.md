@@ -29,6 +29,22 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### `--max-spend` bounds the judge as well as the candidate, 2026-11-10
+
+**Why it was needed.** The ceiling counted the candidate half of a run only, so
+a run passed the figure it was given by the whole judge bill, between 5% and
+26% of a run's total by engine, and the warning a stopped run printed reported
+a total the judge was absent from.
+
+**What changed.** A `JudgeChannel` whose `JudgementPlan` carries `budget`, the
+run's own dispatch session, asks the run's ceiling before each live judge request and raises
+`QC_HARNESS_BUDGET_EXHAUSTED` without sending once it is reached, and charges
+the run's spend with each live judgement's cost, priced at the model the reply
+reports serving. A refusal at the ceiling does not count toward the judge's
+breaker. `DispatchSession.charge` prices a response without counting its tokens,
+so the run's `usage` stays the candidate's. Open question 2.7 is settled. The
+README case count moved to 1104 and the requirement count to 422.
+
 ### The judge channel logs the tokens each live judgement billed, 2026-11-10
 
 **Why it was needed.** Judge spend was held only as an in-memory total read at

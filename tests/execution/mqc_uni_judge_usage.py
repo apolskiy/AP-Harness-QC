@@ -1,18 +1,22 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit case for the usage line a judge channel logs after each live judgement.
+"""Unit cases for what a judge channel reports and spends for each live judgement.
 
 Created: 2026-11-10
-Last updated: 2026-11-10
+Last updated: 2026-11-11
 
-This file contains ``TestMQCJudgeUsage``, one case on
-:class:`execution.judge_channel.JudgeChannel`. It checks that a live
+This file contains ``TestMQCJudgeUsage``, three cases on
+:class:`execution.judge_channel.JudgeChannel`. The first checks that a live
 judgement that returns logs one line naming the judge engine, the model, the
 case, the observation and the token counts read for that call, and that a call
-that raised logs none.
+that raised logs none. The other two check the channel against the run's
+``--max-spend`` ceiling: a judge at the ceiling is not asked, and a live
+judgement's cost reaches the run's spend while the run's token usage stays the
+candidate's.
 
-**The line is what a run's log says the judge cost**, call by call, where the
-channel's ``usage`` total is held only in memory until the run ends.
+**The line is what a run's log says the judge cost**, call by call, and the
+ceiling is what stops a run spending more than it was given, the judge
+included.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
@@ -25,18 +29,26 @@ Specified by ``docs/design/tier2_execution.md`` section 7.7.3.
 #
 # TestMQCJudgeUsage
 #   113308  each_live_judgement_logs_the_tokens_it_billed
+#   113309  a_judge_at_the_run_ceiling_is_not_asked
+#   113310  a_live_judgement_spends_against_the_run_ceiling
 # ------------------------------------------------------------ end of cases
 
 import logging
 
 import pytest
 
+from cmn.pricing import cost_of, load_price_table
+from cmn.tokens import TokenUsage
 from tests.execution.judge_breaker_doubles import (
     AWARDED,
     MODEL,
+    PRICED_ON,
+    PRICING,
     JudgeRequestDouble,
     ScriptedJudge,
     busy,
+    priced_judgement,
+    run_budget,
     scripted_channel,
 )
 from tests.execution.provider_doubles import gemini_judgement
@@ -44,6 +56,7 @@ from tests.execution.provider_doubles import gemini_judgement
 pytestmark = pytest.mark.unit
 
 _PREFIX = "judge usage:"
+_BUDGET_STOP = "QC_HARNESS_BUDGET_EXHAUSTED"
 
 
 class TestMQCJudgeUsage:
@@ -96,3 +109,75 @@ class TestMQCJudgeUsage:
             if record.getMessage().startswith(_PREFIX)
         ]
         assert not raised, f"a judgement that raised logged usage: {raised}"
+
+    def MQC_EXE_UNI_113309_a_judge_at_the_run_ceiling_is_not_asked(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A run at its ceiling sends no judge request, and the judge is not stopped.
+
+        Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+
+        Returns:
+            None
+        """
+        budget = run_budget(1.0)
+        budget.spent = 1.0
+        provider = ScriptedJudge([priced_judgement()])
+        channel = scripted_channel(monkeypatch, provider, budget)
+        assert channel.plan.budget is budget
+
+        # MORE REFUSALS THAN THE BREAKER'S THRESHOLD, so a refusal counted as a
+        # judge failure would stop the channel.
+        for _attempt in range(budget.breaker_threshold + 1):
+            with pytest.raises(ValueError, match=_BUDGET_STOP):
+                channel.invoke(JudgeRequestDouble())
+        assert provider.sent == 0, f"{provider.sent} judge request(s) sent past the ceiling"
+        assert channel.stopped is None, (
+            f"the ceiling stopped the judge as a failure: {channel.stopped}"
+        )
+
+        # THE CEILING LIFTED, the same channel judges again.
+        budget.max_spend = 0.0
+        channel.invoke(JudgeRequestDouble())
+        assert provider.sent == 1
+
+    def MQC_EXE_UNI_113310_a_live_judgement_spends_against_the_run_ceiling(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A live judgement's cost reaches the run's spend and not its token usage.
+
+        Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+
+        Returns:
+            None
+        """
+        budget = run_budget(10.0)
+        # PRICED, THEN A REPLY NAMING A MODEL THE TABLE DOES NOT PRICE.
+        provider = ScriptedJudge([priced_judgement(), gemini_judgement(AWARDED)])
+        channel = scripted_channel(monkeypatch, provider, budget)
+        per_call = channel.adapter.read_usage(priced_judgement())
+        expected = cost_of(per_call, MODEL, load_price_table(PRICING), PRICED_ON)
+        assert expected, f"the judge model is unpriced on {PRICED_ON}, so nothing is checked"
+
+        channel.invoke(JudgeRequestDouble())
+        assert budget.spent == pytest.approx(expected), (
+            f"the run's spend is {budget.spent}, and the judgement cost {expected}"
+        )
+        assert budget.usage == TokenUsage(), (
+            f"the judge's tokens reached the candidate's usage: {budget.usage}"
+        )
+        assert channel.usage == per_call
+
+        # AN UNPRICED JUDGE MODEL STOPS THE RUN before its next request.
+        served = channel.adapter.resolve_model_version(gemini_judgement(AWARDED))
+        channel.invoke(JudgeRequestDouble())
+        assert budget.unpriced == {served}
+        with pytest.raises(ValueError, match=_BUDGET_STOP):
+            channel.invoke(JudgeRequestDouble())
+        assert provider.sent == 2

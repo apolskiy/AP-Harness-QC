@@ -3,7 +3,7 @@
 """Sends one case to one engine, live or from a recorded fixture, and returns what came back.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-11
 
 This file contains ``dispatch_case``, which composes the request for a case,
 replays the recorded observation or issues the request live, and returns a
@@ -84,9 +84,10 @@ _REFUSALS: Final[frozenset[str]] = frozenset(
     {"QC_HARNESS_REQUEST_REFUSED", "QC_LLM_OVER_REFUSAL"}
 )
 
-# THE CODE FOR US DECLINING TO SPEND, named once because two readers act on it:
-# the guard that sets it and the breaker that must not count it.
-_BUDGET_STOP: Final[str] = "QC_HARNESS_BUDGET_EXHAUSTED"
+# THE CODE FOR US DECLINING TO SPEND, named once because three readers act on
+# it: the guard that sets it, the breaker that must not count it, and the judge
+# channel, which raises it at the same ceiling.
+BUDGET_STOP: Final[str] = "QC_HARNESS_BUDGET_EXHAUSTED"
 
 # A REPLAY THE STORE COULD NOT SERVE, under either cause. The breaker must not
 # count either, since no engine was asked (design section 8.3.2).
@@ -401,13 +402,27 @@ class DispatchSession:
             price, rather than reporting nothing and reading as free.
         """
         self.usage = self.usage + usage
+        self.charge(usage, model)
+
+    def charge(self, usage: TokenUsage, model: str) -> None:
+        """Add one response's cost to ``spent``, without counting its tokens in ``usage``.
+
+        The pricing half of :meth:`record_spend`, and all a judge channel does
+        to the run's session, so ``spent`` covers both roles and ``usage`` stays
+        the candidate's. Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            usage (TokenUsage): What the response consumed.
+            model (str): The model the provider reported serving.
+
+        Returns:
+            None: Nothing without a price table; an unpriced model is added to
+            ``unpriced``, so a budgeted run stops and names it.
+        """
         if self.prices is None or self.priced_on is None:
             return
         cost = cost_of(usage, model, self.prices, self.priced_on)
         if cost is None:
-            # RECORDED, so a budgeted run can stop and say which model it could
-            # not price. An unbudgeted run carries on and reports usage it cannot
-            # price, which is the honest answer when nobody asked for a cap.
             if model:
                 self.unpriced.add(model)
             return
@@ -476,7 +491,7 @@ class DispatchSession:
         # either. Counting it aborted a run whose remaining cases were never
         # going to be dispatched, and took 61 measured cases with it on
         # 2026-10-30 (design section 8.3.1).
-        if outcome.taxonomy_code == _BUDGET_STOP:
+        if outcome.taxonomy_code == BUDGET_STOP:
             return
 
         # A REPLAY WITH NOTHING TO REPLAY ASKED NO ENGINE ANYTHING, and spent
@@ -725,7 +740,7 @@ def _dispatch_live(context: _CaseContext, session: DispatchSession) -> DispatchO
         # own code: this is us declining, not the provider, and the remedy is a
         # decision about the budget rather than about pacing.
         if session.ceiling_reached():
-            tally.code = _BUDGET_STOP
+            tally.code = BUDGET_STOP
             if session.unpriced:
                 logger.error(
                     "%s: a ceiling of %.4f was set and %s is unpriced, so the "

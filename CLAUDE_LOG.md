@@ -15962,3 +15962,42 @@ call's own counts are equal, and a line logging the total would have passed.
 `113308` failed before the line existed; logging the running total, naming the
 candidate engine and dropping the line to DEBUG were each caught. Requirement
 `MQC_REQ_HAR_EXE_0146`; `tier2_execution.md` section 7.7.3.
+
+### `--max-spend` bounds the judge as well as the candidate, 2026-11-10
+
+**The ceiling was the candidate's, and a run passed it by the judge's bill.**
+`DispatchSession` held `--max-spend` and was charged once per candidate
+response; the judge channel built a session of its own for pacing and charged
+nothing to the run's. Open question 2.7 had held this as a decision because
+joining the halves makes the same ceiling stop sooner; joining them was the
+second of the three steps toward per-role spend, and the question is settled
+in section 2A.
+
+**The channel reads the run's session from its plan's `budget`** and uses it
+for the ceiling only, never for pacing or the breaker. It went on
+`JudgementPlan`, excluded from comparison and hashing, after a seventh
+constructor argument failed pylint's argument limit; the plan already holds the
+run's choices for the judge and is what a consumer reads back. Before a live request it asks
+`ceiling_reached` and raises `QC_HARNESS_BUDGET_EXHAUSTED` with nothing sent;
+after a live judgement it calls the new `DispatchSession.charge`, the pricing
+half of `record_spend`, so `spent` is the run's total across both roles and
+`usage` stays the candidate's tokens. The judge's tokens stay on the channel.
+**The model priced is the one the reply reports serving**, falling back to the
+requested model where a reply names none, and an unpriced judge model stops a
+budgeted run as an unpriced candidate model does. The budget code became
+`BUDGET_STOP`, public, since a third reader imports it rather than repeating
+the string.
+
+**The ceiling refusal does not count toward the judge's breaker**: the judge
+was not asked. `113309` refuses more times than the threshold and asserts the
+channel is not stopped and the same channel judges once the ceiling lifts.
+`113310` asserts the run's `spent` equals the judgement's cost at the served
+model, the run's `usage` is empty, and an unpriced reply stops the next
+request. Both failed against a channel that accepted `budget` and ignored it.
+Five injections were caught: charging tokens into the run's usage, counting
+the refusal toward the breaker, pricing the requested model, never asking the
+ceiling, and never charging. Requirement `MQC_REQ_HAR_EXE_0147`.
+
+**The case repository passes nothing yet**, so a consumer run is unchanged
+until its judgement plan carries `budget`; that is its own change, with
+the per-role totals in its artifacts.

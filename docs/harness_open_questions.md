@@ -114,42 +114,6 @@ and `QC_HARNESS_JUDGEMENT_STALE` should exist, and whether
 decision rather than an omission, and overturning one costs every stored row
 that carries the old code.
 
-### 2.7 Should `--max-spend` bound the judge's bill as well as the candidate's?
-
-Opened 2026-11-03. **The ceiling counts the candidate half only.** Spend is
-accumulated on the `DispatchSession` `execution/dispatch.py` holds, where
-`record_spend` is called once per candidate response, and `ceiling_reached` is
-asked before each candidate request. The judge runs through
-`execution/judge_channel.py`, which builds a session of its own for request
-spacing, adds every judge response's usage to `self._usage`, and exposes it as a
-`usage` property. **Nothing reads that property**, so no judge token reaches the
-ceiling and the warning a stopped run prints reports a total the judge is absent
-from.
-
-**Measured, over the completed store of 2026-11-04.** The judge was about 17% of
-the gemini run, 0.1271 estimated against 0.6100 measured, and between 0.13 and
-0.16 on each engine because gemini judges every run. A claude run that reported
-reaching a ceiling of 2.00 therefore spent 2.00 of candidate plus an unmeasured
-judge bill. **The judge's share is largest where the candidate is cheapest**:
-0.1498 against openai's 0.4170 is 26%, while 0.1647 against claude's 3.1538 is
-5%, so a ceiling that counted both halves would bind unevenly across the roster.
-The figures moved when two repaired assertions forced a re-record on all four
-engines, and the shape they describe did not.
-
-**Why it is a question rather than a repair.** Joining the two changes what the
-flag means: the same corpus and the same ceiling would stop sooner, so a figure
-somebody chose from a measured run stops being the figure they chose. The
-alternative is to leave the ceiling as a candidate ceiling and say so, which is
-what the case repository's README now does. Either way the judge's usage is
-measured already and reported nowhere, and that part is an implementation gap
-rather than a decision.
-
-**A second gap sits beside it and needs no ruling.** A judgement record stores
-the prompt, the reply and the request hash, and no token counts, so the judge
-half of a past run cannot be priced from the store at all: the figures above are
-estimated from character length. Storing the counts the channel already reads
-would make them measurable.
-
 ## 2A. Settled, and where the reasoning now lives
 
 Removed from section 2 once the decision was recorded. The question is here so a
@@ -173,6 +137,7 @@ because a second copy drifts.
 | Which engines are recorded, and what clears the rest? | 2026-10-04 and 2026-10-05, all four | `config/findings/`, and `CLAUDE_LOG.md` for each recording |
 | Where do the credentials live, and which secret is where? | 2026-10-05, **deliberately not recorded in a tracked document** | Nowhere. The properties are asserted by code, per section 1 |
 | Is `--max-spend` wired into anything? | 2026-10-04, into every leg that can dispatch | `harness_ci_pipeline.md`, and the `max_spend` input on each |
+| Should `--max-spend` bound the judge's bill as well as the candidate's? Opened 2026-11-03 as question 2.7 | 2026-11-10, yes: the ceiling is the run's, and a judge channel given the run's session asks it before each live request and charges it after each live judgement. The same ceiling now stops a judged run sooner, which is the point | `tier2_execution.md` section 7.7.3, and `MQC_EXE_UNI_113309` and `113310`. Measured over the store of 2026-11-04, the judge was 0.1647 against claude's 3.1538, 5% of the run, and 0.1498 against openai's 0.4170, 26% |
 | What is the known-good state to compare against? | 2026-10-05, the README figures, which are recomputed and checked | `README.md`, by `MQC_CMN_UNI_112323` |
 | What is the activity that measures a dependent of a failed foundation called? | 2026-10-11, an inquest, and `unattributed` is what it returns | `cmn_verdict_and_cli.md` section 10.28.2.4 |
 | Should a fixture store the request or only its hash? | 2026-10-11, store it; re-record rather than derive | `tier2_execution.md` sections 7.13 and 7.13.2 |
@@ -200,6 +165,7 @@ Recorded so the absence is on the record. None needs a decision.
 | Nothing checks that a module, path or callable a document names is one that exists | A survey on 2026-10-22 read every backticked `module.callable` and every backticked path in both repositories' documents and found **eight the tree does not hold, of which one was a defect**: a design cited `cmn.code_standards.file_date_problems` after the function moved to `cmn.file_dates`, so a reader was sent to the wrong module. **The other seven are deliberate**, naming a file that was renamed, split, deleted or refused, and a check admitting them reports seven false positives for one real one. Section 7.3's lesson applies: a pattern burying its signal trains a reader to ignore it. **The missing half is the one the citation checker has**, a way to mark a reference as historical |
 | A composite graded case depends on its control and not on its single-axis siblings | Every hidden-passage case declares `depends_on` the control `154500` alone, so a four-axis case reports a finding although the one-axis case beneath it already failed, and the composite result is attributed to interaction when the cause is the component. That is the duplicate-reporting `harness_test_taxonomy.md` section 4.1.3 exists to prevent, unwired for this family. Found 2026-10-28 while pricing the measurement ceiling, where the project owner's axis-count proposal named the composite problem correctly and attached it to priority rather than to the dependency relation (section 4.1.2.2). **Wiring it changes which cases run**, so it is a rerun decision rather than an edit |
 | A precondition failure carries no taxonomy code, so a report classifies it as nothing | Found 2026-10-28 by the Categories tab the same change added. A merged report of the case repository's preconditions and its P0 and P1 bands filed its one precondition failure under `Carrying no registered code`, that case's assertion message naming none: the category is doing what it exists for and what it surfaces is that an instrument defect reaches no heading of its own. A precondition failure is already defined as an instrument defect (`framework-rules.md` section 3.1), so the code exists and the assertion messages do not carry it. **Whether they should is a taxonomy decision**, section 6 having registered `QC_HARNESS_*` for a defect the harness detects rather than for one of its own cases failing, and it touches every precondition assertion in both repositories |
+| A judgement record stores no token counts, so the judge half of a past run cannot be priced from the store | A record holds the prompt, the reply and the request hash. Since 2026-11-10 each live judgement logs its counts (`tier2_execution.md` section 7.7.3), so a run's log prices its judge and the store still does not; a past run's judge share is estimated from character length. Found beside question 2.7, now settled in section 2A |
 | Nothing reports a workflow step whose program lives in the YAML rather than in a file | The two programs this project moved are covered by `MQC_CMN_UNI_112435`, **written by hand because nothing would have reported their absence**, in the way `MQC_CMN_UNI_112303` reports a collected case with no inventory row. A step added later with its program inline, or a program moved into a file and left uncovered, passes every check here. `harness_ci_pipeline.md` section 8.10 |
 
 ## 2C. Gaps since closed, and where the closure is recorded

@@ -977,6 +977,64 @@ a date, which `cmn.pricing.cost_of` computes from these counts, and the
 channel loads no price table. `MQC_EXE_UNI_113308`
 asserts the line and its counts, and that a call that raised logs none.
 
+##### The judge spends against the run's ceiling
+
+Added 2026-11-10, settling `harness_open_questions.md` question 2.7.
+
+**`--max-spend` bounded the candidate half of a run only.** The ceiling lives on
+the run's `DispatchSession`, which the candidate path consults before each
+request and charges after each response. The judge channel held a session of
+its own for pacing and charged nothing to the run's, so a run passed its stated
+ceiling by the whole judge bill, measured at between 5% and 26% of a run's
+total depending on the engine, and the warning a stopped run printed reported a
+total the judge was absent from.
+
+**The ceiling is now the run's, and both roles spend against it.** A channel
+whose `JudgementPlan` carries `budget`, the run's own `DispatchSession`, does
+two things the candidate path already does:
+
+| When | What the channel does |
+|---|---|
+| Before a live judge request | Asks `budget.ceiling_reached()`. Where it is reached, raises `QC_HARNESS_BUDGET_EXHAUSTED` and sends nothing |
+| After a live judgement returns | Calls `budget.charge` with the tokens it billed and the model the reply reports serving |
+
+**Only the spend is shared, never the pacing.** The channel keeps its own
+session for spacing and for its breaker, for the reasons this section gives
+above; `budget` is read for the ceiling and charged, and nothing else on it is
+touched.
+
+**It travels on the plan rather than as a seventh argument**, because the plan
+already holds the run's choices for the judge and `plan` is how a consumer
+reads back what it configured. The field is excluded from comparison and
+hashing, being state rather than a choice, so a plan stays hashable.
+
+**`charge` prices and does not count tokens.** `record_spend` adds a
+response's tokens to the session's `usage`, which reports the candidate's
+tokens, and then prices them. `charge` is the pricing half alone, adding the
+cost to `spent` or the model to `unpriced`, and `record_spend` calls it. So
+`spent` is the run's total across both roles, `usage` stays the candidate's,
+and the judge's tokens stay on the channel's own `usage`.
+
+**The model priced is the one the reply reports serving**, read with the
+adapter's `resolve_model_version`, which is the rule the candidate path keeps.
+A judge model the price table does not know is recorded in `unpriced`, which
+stops a budgeted run before its next request of either role: a ceiling that
+cannot be computed must not look enforced. A reply naming no model is priced
+at the model requested, which is the judge's configured model.
+
+**A judgement the ceiling refused is not a judge failure.** It does not count
+toward the channel's breaker and does not stop the channel, because the judge
+was not asked; the pipeline records the observation as a skip carrying the
+code, as it does any `QC_HARNESS_*` event on the judge path. A replayed or
+already recorded judgement is returned before the ceiling is consulted, since
+it spends nothing.
+
+**A channel whose plan carries no `budget` is unchanged**, which is every replay run
+and every caller that sets no ceiling. `MQC_EXE_UNI_113309` asserts that a
+judge at the ceiling is not asked, and `MQC_EXE_UNI_113310` that a live
+judgement's cost reaches the run's `spent` while the run's `usage` keeps the
+candidate's tokens only.
+
 ### 7.8 The adapter dispatches a judgement, because nothing else could
 
 Added 2026-09-25, wiring the first production judge.
@@ -2530,6 +2588,8 @@ the twenty-first check and any fifth engine are in the partition
 | `113306` | N | `a_judge_rejecting_the_request_is_not_asked_again` (8.3.3) |
 | `113307` | B | `a_judge_failing_transiently_stops_at_the_breaker_threshold` (8.3.3) |
 | `113308` | P | `each_live_judgement_logs_the_tokens_it_billed` (7.7.3) |
+| `113309` | N | `a_judge_at_the_run_ceiling_is_not_asked` (7.7.3) |
+| `113310` | P | `a_live_judgement_spends_against_the_run_ceiling` (7.7.3) |
 | `113022` | P | `a_claude_refusal_is_recorded_as_a_block` |
 | `113217` | P | `an_outcome_carries_the_request_that_produced_it` |
 | ~~`113218`~~ | | ~~`a_recorded_fixture_stores_the_request_it_sent`~~. **Retired 2026-10-11 before implementation**, allocated from the dispatch neighbourhood for a fixture-store case. `113612` states it |
@@ -2627,7 +2687,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 232 cases, 105 negative, 116 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 234 cases, 106 negative, 117 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 
