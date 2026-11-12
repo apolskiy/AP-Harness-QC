@@ -16136,3 +16136,38 @@ one assertion. An injection accepting a fatal failure as judged was missed by
 `evaluation/calibration.py` were each caught. Thirteen exemplar cases were retired.
 Requirements `MQC_REQ_HAR_EVL_0012`, `0087`, `0088` rewritten, `0090` and
 `0091` added; `tier3_evaluation.md` section 9.
+
+## 2026-11-12: A consumer regression whose baseline did not run skips
+
+**What was wrong.** Run 43300514829 failed the consumer regression for a
+change that altered no outcome. **Why.** The Model Repository took the
+calibration redesign before the regression ran, so its replay against the
+harness before the change could not import `CalibrationOutcome`. pytest wrote
+two `collection failure` testcases and an `internal error` and ran nothing.
+The tool compared that report with the candidate's 95 outcomes, read every
+case as changed, and reported that the change broke the consumer. The
+baseline is always the first parent, so every rerun failed the same way.
+
+**The ruling: a baseline that did not run is an unmet prerequisite, whatever
+the cause.** The job skips with `QC_HARNESS_DEPENDENCY_UNMET`, as a dependent
+case does and as this workflow's unreachable-consumer step already did. The
+rule reads the report, not the cause: a missing report, one that will not
+parse, one holding no case, or one carrying pytest's `collection failure` or
+`internal error` testcase. A case that raised writes its own message and is
+still compared.
+
+**The candidate is read first and never skipped**, being the change under
+test: a candidate report that cannot be read still refuses, exit 4, whatever
+the baseline did, and a candidate that stopped at collection against a
+baseline that ran is reported as changed.
+
+**The skip exits 0 and says so on the run page**: heading `skipped`, the code,
+why the baseline did not run, that nothing was compared, and the candidate's
+commit and counts. Replayed on the run's own reports, the tool exits 0 and
+names both uncollected modules.
+
+**Five cases**, `112539`-`112543`; `112540` and `112541` failed before the
+change, `112541` on the shape the run's baseline carried. Nine injections
+into `tools/consumer_regression.py` were each caught. `112533` and `112537`
+were retired, their refusal resting on an absent baseline. Requirement
+`MQC_REQ_HAR_CMN_0251` added; `harness_ci_pipeline.md` section 3B.3.4.

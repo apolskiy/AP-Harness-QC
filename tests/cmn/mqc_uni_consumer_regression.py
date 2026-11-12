@@ -3,20 +3,22 @@
 """Unit preconditions for the consumer regression, which compares outcomes across a harness change.
 
 Created: 2026-11-09
-Last updated: 2026-11-09
+Last updated: 2026-11-12
 
 The cases here check ``tools/consumer_regression.py`` and the
 ``regress-consumers-on-merge`` workflow that runs it. A consumer's graded
 replay against the harness before the change and against the change itself
 is compared case by case: an outcome that matches is the consumer's, whatever
 it is, and an outcome that differs, in its result or in its codes, is the
-harness's and fails the job. A missing, unreadable or empty report refuses,
-and the workflow replays against the harness commit before the change. The
-run page names the gate run that started it, and its summary carries both
-commits, both replays' counts, the verdict and every changed case.
+harness's and fails the job. A missing, unreadable or empty candidate report
+refuses; a baseline replay that did not run skips with
+``QC_HARNESS_DEPENDENCY_UNMET``; and the workflow replays against the harness
+commit before the change. The run page names the gate run that started it,
+and its summary carries both commits, both replays' counts, the verdict and
+every changed case.
 
-Specified by ``docs/design/harness_ci_pipeline.md`` sections 3B.3.1 and
-3B.3.3. A failure
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 3B.3.1, 3B.3.3
+and 3B.3.4. A failure
 here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3."""
 
@@ -28,12 +30,15 @@ here is **not a model finding**, so the module carries no priority marker, per
 #   112530  a_pass_turned_into_a_model_failure_is_reported
 #   112531  a_changed_warning_or_failure_code_is_reported
 #   112532  a_case_run_on_one_side_only_is_reported
-#   112533  a_missing_or_empty_report_refuses
 #   112534  the_workflow_replays_the_parent_and_compares_both
 #   112535  the_summary_names_both_commits_counts_and_no_change
 #   112536  the_summary_lists_each_changed_case
-#   112537  a_refused_comparison_says_so_in_the_summary
 #   112538  the_run_is_named_by_its_gate_and_writes_its_summary
+#   112539  a_missing_empty_or_unreadable_candidate_refuses
+#   112540  a_baseline_that_did_not_run_skips
+#   112541  a_skipped_comparison_says_so_in_the_summary
+#   112542  a_refused_candidate_says_so_in_the_summary
+#   112543  a_candidate_that_stopped_at_collection_is_reported
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -43,7 +48,9 @@ import yaml
 
 from cmn.case_steps import step
 from cmn.grouping import story
+from tests.cmn.consumer_regression_support import COLLECTION_FAILURE as _COLLECTION_FAILURE
 from tests.cmn.consumer_regression_support import FAILED as _FAILED
+from tests.cmn.consumer_regression_support import INTERNAL_ERROR as _INTERNAL_ERROR
 from tests.cmn.consumer_regression_support import PASSED as _PASSED
 from tests.cmn.consumer_regression_support import PASSW as _PASSW
 from tests.cmn.consumer_regression_support import SKIPPED as _SKIPPED
@@ -173,33 +180,6 @@ class TestMQCConsumerRegression:
         assert ("b: passed before the change, absent after it" in changed
                 and "c: absent before the change, passed after it" in changed), changed
 
-    @story("A comparison with nothing to compare refuses")
-    def MQC_CMN_UNI_112533_a_missing_or_empty_report_refuses(self, tmp_path: Path) -> None:
-        """A report absent, unreadable or holding no case verified nothing, and exits 4.
-
-        Design: ``harness_ci_pipeline.md`` section 3B.3.1.
-
-        Args:
-            tmp_path (Path): pytest's temporary directory.
-
-        Returns:
-            None
-        """
-        present = _report(tmp_path / "present.xml", _PASSED.format(name="a"))
-        empty = _report(tmp_path / "empty.xml")
-        broken = tmp_path / "broken.xml"
-        broken.write_text("<testsuites><testsuite>", encoding="utf-8")
-
-        step(1, "refuse a baseline that was never written")
-        assert main([str(tmp_path / "absent.xml"), str(present)]) == 4
-
-        step(2, "refuse a candidate holding no case")
-        assert main([str(present), str(empty)]) == 4
-
-        step(3, "refuse a report that will not parse")
-        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
-            case_outcomes(broken)
-
     @story("The workflow compares against the harness before the change")
     def MQC_CMN_UNI_112534_the_workflow_replays_the_parent_and_compares_both(self) -> None:
         """The gate step reads two reports, and the first is replayed on the parent commit.
@@ -292,37 +272,6 @@ class TestMQCConsumerRegression:
                             "passed after it" in text), text
 
     @story("The run page says what was compared")
-    def MQC_CMN_UNI_112537_a_refused_comparison_says_so_in_the_summary(
-        self, tmp_path: Path
-    ) -> None:
-        """A refusal writes its reason and that nothing was compared, and appends to the file.
-
-        Design: ``harness_ci_pipeline.md`` section 3B.3.3.
-
-        Args:
-            tmp_path (Path): pytest's temporary directory.
-
-        Returns:
-            None
-        """
-        present = _report(tmp_path / "present.xml", _PASSED.format(name="a"))
-        summary = tmp_path / "summary.md"
-        summary.write_text("earlier step\n", encoding="utf-8")
-
-        step(1, "exit 4 on a baseline that was never written")
-        assert main([str(tmp_path / "absent.xml"), str(present), "--summary", str(summary),
-                     "--baseline-commit", "aaa1111", "--candidate-commit", "bbb2222"]) == 4
-        text = summary.read_text(encoding="utf-8")
-
-        step(2, "read the refusal, its reason and that nothing was compared")
-        assert ("## Outcomes across the harness change: refused" in text
-                and "QC_HARNESS_PARSER_ERROR: no consumer report" in text
-                and "Nothing was compared." in text), text
-
-        step(3, "keep what an earlier step wrote to the summary")
-        assert text.startswith("earlier step\n"), text
-
-    @story("The run page says what was compared")
     def MQC_CMN_UNI_112538_the_run_is_named_by_its_gate_and_writes_its_summary(self) -> None:
         """The run name carries the triggering gate's commit and conclusion; the gate step writes.
 
@@ -343,3 +292,173 @@ class TestMQCConsumerRegression:
         step(2, "find the gate step writing the summary with both commits")
         assert (len(gate) == 1 and '--summary "$GITHUB_STEP_SUMMARY"' in gate[0]
                 and "--baseline-commit" in gate[0] and "--candidate-commit" in gate[0]), gate
+
+    @story("The change under test must have run")
+    def MQC_CMN_UNI_112539_a_missing_empty_or_unreadable_candidate_refuses(
+        self, tmp_path: Path
+    ) -> None:
+        """A candidate report absent, unreadable or holding no case exits 4, whatever the baseline.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.4.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        ran = _report(tmp_path / "ran.xml", _PASSED.format(name="a"))
+        empty = _report(tmp_path / "empty.xml")
+        broken = tmp_path / "broken.xml"
+        broken.write_text("<testsuites><testsuite>", encoding="utf-8")
+        absent = tmp_path / "absent.xml"
+
+        step(1, "refuse a candidate that was never written")
+        assert main([str(ran), str(absent)]) == 4
+
+        step(2, "refuse a candidate holding no case")
+        assert main([str(ran), str(empty)]) == 4
+
+        step(3, "refuse a candidate that will not parse")
+        assert main([str(ran), str(broken)]) == 4
+
+        step(4, "refuse an absent candidate against a baseline that did not run either")
+        assert main([str(absent), str(absent)]) == 4
+
+    @story("A baseline that did not run is an unmet prerequisite")
+    def MQC_CMN_UNI_112540_a_baseline_that_did_not_run_skips(self, tmp_path: Path) -> None:
+        """A baseline absent, unreadable, empty or stopped by pytest skips the job, exit 0.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.4.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        ran = _report(tmp_path / "ran.xml", _PASSED.format(name="a"))
+        empty = _report(tmp_path / "empty.xml")
+        broken = tmp_path / "broken.xml"
+        broken.write_text("<testsuites><testsuite>", encoding="utf-8")
+        uncollected = _report(tmp_path / "uncollected.xml",
+                              _COLLECTION_FAILURE.format(name="tests.cases.mqc_a"))
+        internal = _report(tmp_path / "internal.xml", _INTERNAL_ERROR)
+
+        step(1, "skip on a baseline that was never written")
+        assert main([str(tmp_path / "absent.xml"), str(ran)]) == 0
+
+        step(2, "skip on a baseline holding no case")
+        assert main([str(empty), str(ran)]) == 0
+
+        step(3, "skip on a baseline that will not parse")
+        assert main([str(broken), str(ran)]) == 0
+
+        step(4, "skip on a baseline that stopped at collection")
+        assert main([str(uncollected), str(ran)]) == 0
+
+        step(5, "skip on a baseline that stopped on an internal error")
+        assert main([str(internal), str(ran)]) == 0
+
+    @story("The run page says what was compared")
+    def MQC_CMN_UNI_112541_a_skipped_comparison_says_so_in_the_summary(
+        self, tmp_path: Path
+    ) -> None:
+        """A skip names its code and reason, says nothing was compared, and gives the candidate.
+
+        The baseline carries the shape run 43300514829's did: two collection
+        failures and an internal error.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.4.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        baseline = _report(tmp_path / "baseline.xml",
+                           _COLLECTION_FAILURE.format(name="tests.cases.mqc_cal_calibration"),
+                           _COLLECTION_FAILURE.format(name="tests.cases.mqc_uni_calibration"),
+                           _INTERNAL_ERROR)
+        candidate = _report(tmp_path / "candidate.xml", _PASSED.format(name="a"),
+                            _PASSED.format(name="b"))
+        summary = tmp_path / "summary.md"
+        summary.write_text("earlier step\n", encoding="utf-8")
+
+        step(1, "exit 0 and write the summary")
+        assert main([str(baseline), str(candidate), "--summary", str(summary),
+                     "--baseline-commit", "aaa1111", "--candidate-commit", "bbb2222"]) == 0
+        text = summary.read_text(encoding="utf-8")
+
+        step(2, "read the verdict in the heading")
+        assert "## Outcomes across the harness change: skipped" in text, text
+
+        step(3, "read the code and the module pytest could not collect")
+        assert ("QC_HARNESS_DEPENDENCY_UNMET" in text
+                and "collection failure in tests.cases.mqc_cal_calibration" in text), text
+
+        step(4, "read that nothing was compared")
+        assert "Nothing was compared" in text, text
+
+        step(5, "read the candidate's commit and counts")
+        assert "| After it | `bbb2222` | 2 | 0 | 0 | 0 | 0 |" in text, text
+
+        step(6, "keep what an earlier step wrote to the summary")
+        assert text.startswith("earlier step\n"), text
+
+    @story("The run page says what was compared")
+    def MQC_CMN_UNI_112542_a_refused_candidate_says_so_in_the_summary(
+        self, tmp_path: Path
+    ) -> None:
+        """A refusal writes its reason and that nothing was compared, and appends to the file.
+
+        Design: ``harness_ci_pipeline.md`` sections 3B.3.3 and 3B.3.4.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        ran = _report(tmp_path / "ran.xml", _PASSED.format(name="a"))
+        summary = tmp_path / "summary.md"
+        summary.write_text("earlier step\n", encoding="utf-8")
+
+        step(1, "exit 4 on a candidate that was never written")
+        assert main([str(ran), str(tmp_path / "absent.xml"), "--summary", str(summary),
+                     "--baseline-commit", "aaa1111", "--candidate-commit", "bbb2222"]) == 4
+        text = summary.read_text(encoding="utf-8")
+
+        step(2, "read the refusal, its reason and that nothing was compared")
+        assert ("## Outcomes across the harness change: refused" in text
+                and "QC_HARNESS_PARSER_ERROR: no consumer report" in text
+                and "Nothing was compared." in text), text
+
+        step(3, "keep what an earlier step wrote to the summary")
+        assert text.startswith("earlier step\n"), text
+
+    @story("The change under test must have run")
+    def MQC_CMN_UNI_112543_a_candidate_that_stopped_at_collection_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A candidate that collected nothing, against a baseline that ran, changed every case.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.4.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        baseline = _report(tmp_path / "baseline.xml", _PASSED.format(name="a"))
+        candidate = _report(tmp_path / "candidate.xml",
+                            _COLLECTION_FAILURE.format(name="tests.cases.mqc_a"))
+
+        step(1, "exit 1 on a candidate that stopped at collection")
+        assert main([str(baseline), str(candidate)]) == 1
+
+        step(2, "report the case the candidate did not run")
+        assert ("a: passed before the change, absent after it"
+                in changed_outcomes(baseline, candidate)), changed_outcomes(baseline, candidate)

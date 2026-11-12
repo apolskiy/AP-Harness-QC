@@ -29,6 +29,25 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A consumer regression whose baseline replay did not run skips, 2026-11-12
+
+**Why.** The comparison read a baseline replay that had stopped at collection
+as 95 changed outcomes and failed the job for a change that altered none. The
+consumer had moved ahead of the harness before the change, which is an
+environmental condition and not a harness regression, and since the baseline
+is always the first parent every rerun failed the same way.
+
+**What changed.** The candidate report is read first and still refuses, exit
+4, when it cannot be read. A baseline report that is missing, will not parse,
+holds no case, or carries pytest's `collection failure` or `internal error`
+testcase did not run, whatever the cause, and the comparison skips with
+`QC_HARNESS_DEPENDENCY_UNMET`, exit 0. The run summary is headed `skipped`,
+gives the reason, says nothing was compared, and shows the candidate's commit
+and counts. `harness_ci_pipeline.md` section 3B.3.4; requirement
+`MQC_REQ_HAR_CMN_0251`; cases `112539` to `112543` added, `112533` and
+`112537` retired. The README's instrument suite moved from 1117 to 1120 cases
+and its requirements from 428 to 429.
+
 ### Calibration redesign: the judge is calibrated against authored samples, 2026-11-12
 
 **Why it was redesigned.** Calibration sent each rubric exemplar to the judge

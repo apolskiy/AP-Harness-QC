@@ -538,7 +538,8 @@ compares outcomes case by case**:
 | Differs: passed, passw, failed, skipped or error, or a code within one | **The harness's.** The change altered it | **Red** |
 | A case present on one side only | **The harness's.** The change altered what runs | **Red** |
 | Matches | **The consumer's**: a model finding or a case defect, decided by the consumer's own review before anything is filed | Green |
-| Either report missing, unreadable or holding no case | Nothing was compared | **Refused**, exit 4 |
+| The candidate's report missing, unreadable or holding no case | Nothing was compared | **Refused**, exit 4 |
+| The baseline replay did not run, whatever the cause | **Nobody's.** An unmet prerequisite, section 3B.3.4 | **Skipped**, exit 0, `QC_HARNESS_DEPENDENCY_UNMET` |
 
 **The code is part of the outcome.** A failure that moved from `QC_LLM_*` to
 `QC_HARNESS_FIXTURE_STALE` changed with the harness, and a passw that became a
@@ -548,7 +549,7 @@ pass lost a warning the consumer reviews.
 consumer pins `main`, which by the time this job runs is the candidate. The
 first parent is the harness the merge changed, so a difference is what this
 change did. A candidate with no parent leaves no baseline report, and the
-comparison refuses.
+comparison skips, section 3B.3.4.
 
 **Why the codes were not enough.** Until 2026-11-09 the job failed on
 `QC_HARNESS_*` codes and errors and passed on `QC_LLM_*` and `QC_SEC_*`
@@ -568,7 +569,7 @@ the same cases and ask different questions of them.
 | `MQC_CMN_UNI_112530` | A pass that became a model failure is reported |
 | `MQC_CMN_UNI_112531` | A passw that became a pass, and a failure whose code changed, are reported |
 | `MQC_CMN_UNI_112532` | A case skipped or absent on one side only is reported |
-| `MQC_CMN_UNI_112533` | A missing, empty or unreadable report refuses |
+| ~~`MQC_CMN_UNI_112533`~~ | ~~A missing, empty or unreadable report refuses~~. **Retired 2026-11-12**: a baseline that did not run skips, section 3B.3.4; `112539` |
 | `MQC_CMN_UNI_112534` | The workflow replays on the first parent and compares both reports |
 
 ---
@@ -625,17 +626,74 @@ appends to the run summary:**
 
 | Part | Holds |
 |---|---|
-| Heading | `Outcomes across the harness change:` unchanged, changed or refused |
+| Heading | `Outcomes across the harness change:` unchanged, changed, skipped or refused |
 | Table | Each side's harness commit and its passed, passw, failed, skipped and error counts |
 | Changed | Every changed case, its outcome before the change and after it |
+| Skipped | `QC_HARNESS_DEPENDENCY_UNMET`, why the baseline did not run, that nothing was compared, and the candidate's commit and counts (section 3B.3.4) |
 | Refused | The reason, and that nothing was compared |
 
 | Case | Asserts |
 |---|---|
 | `MQC_CMN_UNI_112535` | An unchanged comparison writes both commits, both sides' counts and the verdict |
 | `MQC_CMN_UNI_112536` | A changed comparison lists every changed case before and after |
-| `MQC_CMN_UNI_112537` | A refusal writes its reason, and appends rather than overwriting |
+| ~~`MQC_CMN_UNI_112537`~~ | ~~A refusal writes its reason, and appends rather than overwriting~~. **Retired 2026-11-12**: its refusal came from an absent baseline, which now skips, section 3B.3.4; `112542` |
 | `MQC_CMN_UNI_112538` | The run name carries the gate's commit and conclusion, and the gate step writes the summary |
+
+#### 3B.3.4 A baseline replay that did not run skips the comparison
+
+Added 2026-11-12, at the project owner's ruling of that date.
+
+**When the baseline replay produced no outcomes, the job must skip, not fail.**
+The baseline is a prerequisite of the comparison, as a foundational case is of
+the cases depending on it, and an unmet prerequisite skips with
+`QC_HARNESS_DEPENDENCY_UNMET`. The "unreachable consumer" step of this workflow
+already ends the same way.
+
+**Why it failed.** Run 43300514829 compared a baseline that never ran a case.
+The consumer had moved to the calibration redesign before the regression ran,
+so the harness before the change could not import what its support code
+named. pytest reported two collection failures and an internal error and ran
+nothing. Every one of the 95 cases then read as changed, error to passed or
+absent to passed, and the job reported that the change broke the consumer.
+**The baseline is always the first parent**, so a rerun stays red.
+
+**The rule follows the report, not the cause.** A baseline fails to run for
+many reasons: an install that failed, an import the older harness lacks, a
+plugin error, a runner fault. The comparison does not try to tell them apart.
+**It reads the report for whether a case ran.** The baseline did not run when
+any of these holds:
+
+| Baseline report | Reads as |
+|---|---|
+| Missing | The replay wrote nothing |
+| Will not parse | The replay was cut off |
+| Holds no testcase | The replay collected nothing |
+| Holds a testcase with `<error message="collection failure">` | pytest stopped at collection and ran no case |
+| Holds a testcase with `<error message="internal error">` | pytest stopped on an internal error, so no outcome is complete |
+
+The two messages are pytest's own, written for a session that ended early.
+A case that raised writes an `error` with its own message, so it is still an
+outcome and still compared.
+
+**The candidate is read first, and is never skipped.** It is the change under
+test. A candidate report that is missing, will not parse or holds no case
+still refuses, exit 4, whatever the baseline did. A candidate that stopped at
+collection, against a baseline that ran, is reported as changed, exit 1: its
+cases are absent after the change.
+
+**The summary says what was skipped.** Its heading reads `skipped`, and it
+names `QC_HARNESS_DEPENDENCY_UNMET` with the reason the baseline did not run.
+It says that nothing was compared and that the skip is not a finding about the
+change. The candidate's commit and counts follow, so a candidate that also
+failed to run is visible on the run page.
+
+| Case | Asserts |
+|---|---|
+| `MQC_CMN_UNI_112539` | A candidate report that is missing, empty or will not parse refuses, exit 4, against a baseline that ran or one that did not |
+| `MQC_CMN_UNI_112540` | A baseline report that is missing, empty or will not parse, or holds a collection failure or an internal error, skips, exit 0 |
+| `MQC_CMN_UNI_112541` | A skipped comparison's summary names `QC_HARNESS_DEPENDENCY_UNMET`, its reason, that nothing was compared, and the candidate's counts, and appends rather than overwriting |
+| `MQC_CMN_UNI_112542` | A refused comparison's summary gives its reason and that nothing was compared, and appends rather than overwriting |
+| `MQC_CMN_UNI_112543` | A candidate that stopped at collection, against a baseline that ran, is reported as changed |
 
 
 ## 3C. Branch Topology, And Which Harness A Case Set Runs Against

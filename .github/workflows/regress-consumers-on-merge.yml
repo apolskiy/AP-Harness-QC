@@ -233,8 +233,9 @@ jobs:
 
       # THE SAME REPLAY ON THE HARNESS BEFORE THE CHANGE. It replaces the
       # installed harness, so it runs after every step that needs the
-      # candidate. A failed install leaves no report, and the comparison
-      # refuses.
+      # candidate. A replay here that did not run, from a failed install, a
+      # collection failure or any other cause, is an unmet prerequisite: the
+      # comparison skips with QC_HARNESS_DEPENDENCY_UNMET (section 3B.3.4).
       - name: Replay the consumer's graded layers on the harness before the change
         if: steps.fetch.outcome == 'success'
         continue-on-error: true

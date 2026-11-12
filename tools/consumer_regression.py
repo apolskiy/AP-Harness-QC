@@ -3,16 +3,25 @@
 """Compares a consumer's graded replay before and after a harness change, case by case.
 
 Created: 2026-10-01
-Last updated: 2026-11-09
+Last updated: 2026-11-12
 
 This file contains ``case_outcomes``, which reads a JUnit report and returns
-each case's outcome with its codes; ``changed_outcomes``, which lists every
-case whose outcome differs between a replay against the harness before the
-change and one against the change; ``summary_lines``, which renders the
-comparison for the run page; and ``main``, the command line that exits 0
-when no outcome changed, 1 when one did, and 4 when either report is missing,
-will not parse or holds no case, and appends the summary to ``--summary``
-when given.
+each case's outcome with its codes; ``baseline_not_run``, which says why the
+replay against the harness before the change did not run, or nothing when it
+ran; ``changed_outcomes``, which lists every case whose outcome differs
+between a replay against the harness before the change and one against the
+change; ``summary_lines``, which renders the comparison for the run page; and
+``main``, the command line that exits 0 when no outcome changed, 1 when one
+did, 0 with ``QC_HARNESS_DEPENDENCY_UNMET`` when the baseline did not run,
+and 4 when the candidate report is missing, will not parse or holds no case,
+and appends the summary to ``--summary`` when given.
+
+**The candidate is read first** (section 3B.3.4): it is the change under
+test, so a candidate report that cannot be read refuses whatever the
+baseline did. **A baseline that did not run skips**: its report is missing,
+will not parse or holds no case, or pytest wrote a ``collection failure`` or
+``internal error`` testcase, the two it writes for a session that stopped
+early. Nothing was compared, so the skip is not a finding about the change.
 
 **The summary says what was compared** (section 3B.3.3): the verdict in its
 heading, each side's harness commit and its passed, passw, failed, skipped
@@ -32,7 +41,7 @@ followed by the sorted codes the case reported: a passw's warning codes, and
 the ``QC_*`` codes in a failure, skip or error message. A case present on one
 side only is ``absent`` on the other.
 
-Specified by ``docs/design/harness_ci_pipeline.md`` sections 3B.3.1 and 3B.3.3.
+Specified by ``docs/design/harness_ci_pipeline.md`` sections 3B.3.1, 3B.3.3 and 3B.3.4.
 """
 
 import argparse
@@ -51,9 +60,15 @@ _PROBLEMS: Final[tuple[tuple[str, str], ...]] = (
 _ABSENT: Final[str] = "absent"
 _COUNTED: Final[tuple[str, ...]] = ("passed", "passw", "failed", "skipped", "error")
 _HEADING: Final[str] = "## Outcomes across the harness change: "
+_PARSER_ERROR: Final[str] = "QC_HARNESS_PARSER_ERROR"
+_UNMET: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
+_SESSION_ERRORS: Final[tuple[str, ...]] = ("collection failure", "internal error")
+_TABLE_HEAD: Final[tuple[str, str]] = (
+    "| | Harness commit | " + " | ".join(_COUNTED) + " |", "|---|---|" + "---|" * len(_COUNTED))
 
 _EXIT_UNCHANGED: Final[int] = 0
 _EXIT_CHANGED: Final[int] = 1
+_EXIT_SKIPPED: Final[int] = 0
 _EXIT_REFUSED: Final[int] = 4
 
 
@@ -95,18 +110,43 @@ def case_outcomes(report: Path) -> dict[str, str]:
             no change.
     """
     if not report.is_file():
-        raise ValueError(f"QC_HARNESS_PARSER_ERROR: no consumer report at {report}")
+        raise ValueError(f"{_PARSER_ERROR}: no consumer report at {report}")
     try:
         tree = ElementTree.parse(report)
     except ElementTree.ParseError as error:
         raise ValueError(
-            f"QC_HARNESS_PARSER_ERROR: consumer report at {report} will not parse"
+            f"{_PARSER_ERROR}: consumer report at {report} will not parse"
         ) from error
     outcomes = {f"{case.get('classname', '')}::{case.get('name', '(unnamed)')}": _outcome(case)
                 for case in tree.iter("testcase")}
     if not outcomes:
-        raise ValueError(f"QC_HARNESS_PARSER_ERROR: consumer report at {report} holds no case")
+        raise ValueError(f"{_PARSER_ERROR}: consumer report at {report} holds no case")
     return outcomes
+
+
+def baseline_not_run(report: Path) -> Optional[str]:
+    """Return why the baseline replay did not run, or ``None`` when it ran.
+
+    Args:
+        report (Path): The graded JUnit XML replayed on the harness before the change.
+
+    Returns:
+        Optional[str]: The reason, without a code, when the report is
+        missing, will not parse or holds no case, or holds a testcase whose
+        error pytest wrote as ``collection failure`` or ``internal error``;
+        otherwise ``None``.
+    """
+    try:
+        case_outcomes(report)
+    except ValueError as error:
+        return str(error).removeprefix(f"{_PARSER_ERROR}: ")
+    stopped = [f"{problem.get('message')} in {case.get('name', '(unnamed)')}"
+               for case in ElementTree.parse(report).iter("testcase")
+               for problem in case.findall("error")
+               if problem.get("message") in _SESSION_ERRORS]
+    if stopped:
+        return f"pytest stopped before running a case, reporting {', '.join(stopped)}"
+    return None
 
 
 def changed_outcomes(baseline: Path, candidate: Path) -> list[str]:
@@ -162,19 +202,24 @@ def summary_lines(baseline: Path, candidate: Path,
 
     Returns:
         list[str]: Markdown lines: the verdict as a heading, both sides'
-        commits and counts, and every changed case; or the refusal and its
-        reason.
+        commits and counts, and every changed case; the skip, its reason and
+        the candidate's commit and counts; or the refusal and its reason.
     """
     try:
-        before = case_outcomes(baseline)
         after = case_outcomes(candidate)
-        changed = changed_outcomes(baseline, candidate)
     except ValueError as error:
         return [f"{_HEADING}refused", "", f"**Refused:** {error}. Nothing was compared.", ""]
+    reason = baseline_not_run(baseline)
+    if reason is not None:
+        return [f"{_HEADING}skipped", "",
+                f"**Skipped, {_UNMET}:** the replay against the harness before the change "
+                f"did not run: {reason}. Nothing was compared, so this is not a finding "
+                "about the change.", "", *_TABLE_HEAD,
+                _count_row("After it", candidate_commit, after), ""]
 
-    lines = [f"{_HEADING}{'changed' if changed else 'unchanged'}", "",
-             "| | Harness commit | " + " | ".join(_COUNTED) + " |",
-             "|---|---|" + "---|" * len(_COUNTED),
+    before = case_outcomes(baseline)
+    changed = changed_outcomes(baseline, candidate)
+    lines = [f"{_HEADING}{'changed' if changed else 'unchanged'}", "", *_TABLE_HEAD,
              _count_row("Before the change", baseline_commit, before),
              _count_row("After it", candidate_commit, after), ""]
     if changed:
@@ -194,7 +239,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         argv (Optional[list]): Arguments, for calling in-process from a case.
 
     Returns:
-        int: ``0`` unchanged, ``1`` changed, ``4`` refused.
+        int: ``0`` unchanged or skipped, ``1`` changed, ``4`` refused.
     """
     parser = argparse.ArgumentParser(
         prog="consumer-regression",
@@ -219,11 +264,17 @@ def main(argv: Optional[list[str]] = None) -> int:
                                                parsed.candidate_commit)))
 
     try:
-        changed = changed_outcomes(parsed.baseline, parsed.candidate)
+        case_outcomes(parsed.candidate)
     except ValueError as error:
         logger.error("%s", error)
         return _EXIT_REFUSED
+    reason = baseline_not_run(parsed.baseline)
+    if reason is not None:
+        logger.warning("%s: the replay against the harness before the change did not run: "
+                       "%s; nothing was compared", _UNMET, reason)
+        return _EXIT_SKIPPED
 
+    changed = changed_outcomes(parsed.baseline, parsed.candidate)
     if changed:
         for line in changed:
             logger.error("%s", line)
