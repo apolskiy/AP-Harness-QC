@@ -2992,6 +2992,46 @@ to compare, and a calibration case is blocking by its layer anyway.
 `MQC_CMN_UNI_112622` that nothing is wired where the run collected no
 calibration case and that a calibration case naming no family is refused.
 
+#### 9.4.1 A band session rests on the calibration an earlier job carried
+
+Added 2026-11-12, at the project owner's ruling of that date.
+
+**A live rung is banded as the gate is**, one session per band, so a
+foundation that fails skips what rests on it before anything is dispatched
+for it (`cmn_verdict_and_cli.md` section 10.28). A band selects by priority
+and a calibration case carries none, so no band session collects one, and the
+wiring above wired nothing in any of them. **A family whose calibration failed
+would have been judged and reported in every band.**
+
+**So calibration runs in a job of its own, before the first band, and its
+outcomes travel in the carried record** the bands already read
+(`cmn_verdict_and_cli.md` section 7.6). A calibration case is marked `base`
+wherever it is collected, so the calibration job publishes each family's
+outcome, and each band republishes what it carried, so the last band reads
+the calibration job's outcomes too.
+
+**A carried outcome is a calibration outcome only where its identifier is in
+the calibration layer's block** (section 9.3, 171000 to 179999). The carried
+record also holds every foundation an earlier band established, and a P0
+judged foundation sharing a family with a P2 case is not that family's
+calibration.
+
+| In the session | What it does |
+|---|---|
+| A collected calibration case | As section 9.4: marked `base`, and its family's judged cases depend on it |
+| A calibration case the mapping names, not collected, whose identifier was carried | Its family's judged cases depend on that identifier, and the cascade reads the carried outcome |
+| A carried identifier outside the calibration block | Nothing: it is a band's foundation, not a calibration |
+| A family with a collected and a carried calibration case | Both, and the collected outcome wins, as any measured outcome wins over a carried one |
+| No calibration case collected and none carried | Nothing, as section 9.4 |
+
+A carried calibration case's name is read from the mapping, which names every
+calibration case of the corpus, since the session never collected the case.
+
+| Case | Asserts |
+|---|---|
+| `MQC_CMN_UNI_112623` | A family whose carried calibration failed has its judged case skipped with `QC_HARNESS_DEPENDENCY_UNMET`, and one whose carried calibration held is judged |
+| `MQC_CMN_UNI_112624` | A carried identifier outside the calibration block wires nothing, though the mapping names it with a family |
+
 ### 9.5 What calibration does not cover
 
 Added 2026-11-12. **Calibration measures the judge on what the judge sees.**

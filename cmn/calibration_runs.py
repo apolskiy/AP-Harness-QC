@@ -3,13 +3,14 @@
 """Decides which runs collect a calibration case, and what rests on it.
 
 Created: 2026-11-10
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 
 This file contains ``deselect_unrequested_calibration``, which deselects every
 case carrying the ``calibration`` marker from a run whose marker expression
 does not name it, and refuses a run that names it under a judge that is not
 live; ``rest_judged_cases_on_calibration``, which makes each judged case depend
-on its family's calibration case where the run collects both; and
+on its family's calibration case where the run collects both, or where an
+earlier job carried that case's outcome to a band session; and
 ``calibration_marker``, the marker's name.
 
 Both repositories' ``conftest.py`` call the deselection at collection, beside
@@ -21,7 +22,7 @@ The case repository calls the dependency wiring after its selectors, with the
 family of each judged case, so a family whose calibration failed is skipped
 with ``QC_HARNESS_DEPENDENCY_UNMET`` rather than reported.
 
-Specified by ``docs/design/tier3_evaluation.md`` sections 9.2 and 9.4.
+Specified by ``docs/design/tier3_evaluation.md`` sections 9.2, 9.4 and 9.4.1.
 """
 
 import logging
@@ -30,6 +31,8 @@ from typing import Any, Final, Mapping
 
 import pytest
 
+from cmn.dependencies import carried_identifiers
+from cmn.layers import layer_properties
 from cmn.options import resolve_judge_mode
 from cmn.pytest_support import case_identifier
 
@@ -96,13 +99,15 @@ def deselect_unrequested_calibration(config: Any, items: list[Any]) -> int:
 
 
 def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, str]) -> int:
-    """Make each judged case depend on its family's calibration case, where both are collected.
+    """Make each judged case depend on its family's calibration case, collected or carried.
 
-    Design: ``tier3_evaluation.md`` section 9.4. Each collected calibration
-    case is marked ``base``, and each other collected case whose family has
-    one gains a ``depends_on`` naming it, so the cascade skips the judged
-    cases of a family whose calibration did not hold. Called after every
-    selector and before ``arrange_dependencies``.
+    Design: ``tier3_evaluation.md`` sections 9.4 and 9.4.1. Each collected
+    calibration case is marked ``base``, and each other collected case whose
+    family has one, or whose family's calibration case an earlier job carried
+    in the calibration layer's identifier block, gains a ``depends_on`` naming
+    it, so the cascade skips the judged cases of a family whose calibration
+    did not hold. Called after every selector and before
+    ``arrange_dependencies``, and after the carried record is adopted.
 
     Args:
         items (list): The collected items, marked in place.
@@ -130,6 +135,9 @@ def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, st
             )
         item.add_marker(pytest.mark.base)
         foundations.setdefault(family, []).append(identifier)
+    for identifier, family in _carried_calibration(families).items():
+        if identifier not in foundations.get(family, []):
+            foundations.setdefault(family, []).append(identifier)
 
     wired = 0
     for item in items:
@@ -144,6 +152,30 @@ def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, st
             "%d judged case(s) rest on the calibration of %s", wired, ", ".join(sorted(foundations))
         )
     return wired
+
+
+def _carried_calibration(families: Mapping[str, str]) -> dict[str, str]:
+    """Return each carried calibration identifier with its family.
+
+    Design: ``tier3_evaluation.md`` section 9.4.1. Only an identifier in the
+    calibration layer's block is a calibration: the carried record also holds
+    every foundation an earlier band established.
+
+    Args:
+        families (Mapping[str, str]): Case name to family, naming every
+            calibration case of the corpus.
+
+    Returns:
+        dict[str, str]: Carried calibration identifier to its family.
+    """
+    low, high = layer_properties("CAL").id_block
+    carried = carried_identifiers()
+    found: dict[str, str] = {}
+    for name, family in families.items():
+        identifier = case_identifier(name)
+        if identifier in carried and identifier.isdigit() and low <= int(identifier) <= high:
+            found[identifier] = family
+    return found
 
 
 def _case_name(item: Any) -> str:

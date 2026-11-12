@@ -29,6 +29,24 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A band session rests on the calibration an earlier job carried, 2026-11-12
+
+**Why.** A live rung is to be banded as the replay gate is, one session per
+band, so that a foundation that fails skips what rests on it before anything
+is dispatched for it. A band selects by priority and a calibration case
+carries none, so no band session collected one, and a family whose judge
+failed calibration would have been judged and reported in every band.
+
+**What changed.** Calibration runs in a job of its own and its outcomes travel
+in the carried record the bands already read. Where a session collects no
+calibration case of a family but carries one's outcome, identified by the
+calibration layer's identifier block, that family's judged cases depend on
+it, so a failed calibration skips them with `QC_HARNESS_DEPENDENCY_UNMET`. A
+carried band foundation outside that block is never taken for a calibration.
+`tier3_evaluation.md` section 9.4.1; requirement `MQC_REQ_HAR_EVL_0092`;
+cases `112623` and `112624`. The README's instrument suite moved from 1120 to
+1122 cases and its requirements from 429 to 430.
+
 ### A consumer regression whose baseline replay did not run skips, 2026-11-12
 
 **Why.** The comparison read a baseline replay that had stopped at collection

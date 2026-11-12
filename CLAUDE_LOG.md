@@ -16171,3 +16171,38 @@ change, `112541` on the shape the run's baseline carried. Nine injections
 into `tools/consumer_regression.py` were each caught. `112533` and `112537`
 were retired, their refusal resting on an absent baseline. Requirement
 `MQC_REQ_HAR_CMN_0251` added; `harness_ci_pipeline.md` section 3B.3.4.
+
+## 2026-11-12: A band session rests on carried calibration
+
+**What was wrong.** The Model Repository's live ladder ran rungs 2 and 3 as
+one unbanded pytest session each, although the band design names no job type
+and binds every graded run. So the grok rung 3 run was red on a P2 phrasing
+match beside a P1 security failure, with nothing to tell a release blocker
+from a bug to open, and a failed foundation could not skip what rested on it
+before anything was dispatched for it, which is what the bands save live.
+**Why.** The ladder was built after the gate's bands and did not reuse them.
+The ruling: the live rungs take the gate's band jobs.
+
+**What the harness needed.** Banding moves calibration out of the bands'
+sessions, since a band selects by priority and a calibration case has none.
+`rest_judged_cases_on_calibration` wired a family only to a calibration case
+the same session collected, so it would have wired nothing in any band. It now
+also wires a family to a calibration case the carried record holds, taking
+only identifiers in the calibration layer's block: the record also holds the
+foundations earlier bands established, and a P0 judged foundation is not its
+family's calibration. The cascade already resolved a dependency on a carried
+foundation, so nothing else changed.
+
+**Two cases**, `112623` and `112624`; `112623` failed before the change. Four
+injections into `cmn/calibration_runs.py` were each caught. Requirement
+`MQC_REQ_HAR_EVL_0092`; `tier3_evaluation.md` section 9.4.1. The Model
+Repository's banded ladder follows.
+
+### Digressions the user spotted, and the fix
+
+- The live ladder ran unbanded, against the band design: fixed by banding it,
+  this entry and the Model Repository's that follows.
+- The ladder's spend input promised a ceiling for the run, and each rung
+  received the whole of it, so one openai dispatch spent $5.86 against $4.00:
+  fixed in the Model Repository by splitting one ceiling across every live
+  session.

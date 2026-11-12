@@ -3568,6 +3568,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112620` | N | `calibration_asked_for_without_a_live_judge_is_refused` (`tier3_evaluation.md` 9.2) |
 | `112621` | P | `a_judged_case_rests_on_its_family_calibration` (`tier3_evaluation.md` 9.4) |
 | `112622` | N | `nothing_rests_on_a_calibration_the_run_did_not_collect` (`tier3_evaluation.md` 9.4) |
+| `112623` | P | `a_band_rests_on_the_calibration_carried_to_it` (`tier3_evaluation.md` 9.4.1) |
+| `112624` | N | `a_carried_band_foundation_is_not_a_calibration` (`tier3_evaluation.md` 9.4.1) |
 | `112504` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
 | `112505` | N | `a_branch_name_outside_the_grammar_is_reported` |
 | `112506` | N | `a_referent_of_no_registered_kind_is_reported` |
@@ -3692,7 +3694,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 506 cases, 301 negative, 152 positive, 53 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 508 cases, 302 negative, 153 positive, 53 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

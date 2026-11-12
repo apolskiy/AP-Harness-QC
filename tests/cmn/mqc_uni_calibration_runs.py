@@ -3,20 +3,21 @@
 """Unit cases for which runs collect a calibration case.
 
 Created: 2026-11-10
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 
 Its cases check ``cmn/calibration_runs.py``. ``deselect_unrequested_calibration``
 deselects a calibration case from a run whose marker expression does not name
 ``calibration``, keeps it where one does under a live judge, and refuses a run
 asking for it under a judge that is not live. ``rest_judged_cases_on_calibration``
 makes each judged case depend on its family's calibration case where the run
-collects both, so a failed calibration skips its family's judged cases.
+collects both, or where an earlier job carried that case's outcome to a band
+session, so a failed calibration skips its family's judged cases.
 
 Calibration spends a judge call per sample, so a defect here either runs it
 in every gate and rung, lets the run that asks for it measure nothing, or
 reports judged scores from a judge that failed it. Its cases are listed in the
 block below, inventoried in ``docs/design/cmn_verdict_and_cli.md`` and
-specified by ``docs/design/tier3_evaluation.md`` sections 9.2 and 9.4.
+specified by ``docs/design/tier3_evaluation.md`` sections 9.2, 9.4 and 9.4.1.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
@@ -31,6 +32,8 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112620  calibration_asked_for_without_a_live_judge_is_refused
 #   112621  a_judged_case_rests_on_its_family_calibration
 #   112622  nothing_rests_on_a_calibration_the_run_did_not_collect
+#   112623  a_band_rests_on_the_calibration_carried_to_it
+#   112624  a_carried_band_foundation_is_not_a_calibration
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -41,12 +44,15 @@ from cmn.calibration_runs import (
     deselect_unrequested_calibration,
     rest_judged_cases_on_calibration,
 )
+from cmn.case_steps import step
 from cmn.dependencies import (
+    adopt_carried_outcomes,
     arrange_dependencies,
     declared_dependencies,
     enforce_dependencies,
     record_base_outcome,
     reset_dependency_state,
+    unknown_dependencies,
 )
 from tests.cmn.calibration_runs_support import CollectedCase, MarkedItem
 from tests.cmn.mutation_tool_support import AuditConfig
@@ -61,6 +67,7 @@ _CAL_SHAPE = "MQC_EVL_CAL_174903_output_shape_exemplars_score_at_their_levels"
 _JUDGED_FIDELITY = "MQC_CAS_EVAL_134910_a_source_fidelity_case"
 _JUDGED_SHAPE = "MQC_CAS_EVAL_134911_an_output_shape_case"
 _UNJUDGED = "MQC_CAS_EVAL_134912_a_case_graded_by_assertion_alone"
+_BAND_FOUNDATION = "MQC_EVL_SEC_154500_a_p0_judged_foundation"
 
 
 class TestMQCCalibrationRuns:
@@ -212,5 +219,69 @@ class TestMQCCalibrationRuns:
                     [orphan, CollectedCase(_JUDGED_SHAPE, "evaluator")],
                     {_JUDGED_SHAPE: "output_shape"},
                 )
+        finally:
+            reset_dependency_state()
+
+    def MQC_CMN_UNI_112623_a_band_rests_on_the_calibration_carried_to_it(self) -> None:
+        """A carried failed calibration skips its family's judged case; a held one judges it.
+
+        Design: ``tier3_evaluation.md`` section 9.4.1.
+
+        Returns:
+            None
+        """
+        fidelity = CollectedCase(_JUDGED_FIDELITY, "evaluator")
+        shape = CollectedCase(_JUDGED_SHAPE, "evaluator")
+        unjudged = CollectedCase(_UNJUDGED, "evaluator")
+        families = {
+            _CAL_FIDELITY: "source_fidelity", _CAL_SHAPE: "output_shape",
+            _JUDGED_FIDELITY: "source_fidelity", _JUDGED_SHAPE: "output_shape",
+        }
+        items = [fidelity, unjudged, shape]
+        reset_dependency_state()
+        try:
+            adopt_carried_outcomes({"174906": False, "174903": True})
+
+            step(1, "wire both judged cases to the calibration the calibration job carried")
+            assert rest_judged_cases_on_calibration(items, families) == 2
+
+            step(2, "rest the source fidelity case on its family's carried calibration")
+            assert declared_dependencies(fidelity) == ["174906"], declared_dependencies(fidelity)
+
+            arrange_dependencies(items)
+
+            step(3, "resolve every dependency from the carried record")
+            assert not unknown_dependencies(items), unknown_dependencies(items)
+
+            step(4, "skip the judged case whose family's carried calibration failed")
+            with pytest.raises(pytest.skip.Exception,
+                               match="QC_HARNESS_DEPENDENCY_UNMET: foundational case 174906"):
+                enforce_dependencies(fidelity)
+
+            step(5, "judge the case whose family's carried calibration held")
+            assert enforce_dependencies(shape) is None
+        finally:
+            reset_dependency_state()
+
+    def MQC_CMN_UNI_112624_a_carried_band_foundation_is_not_a_calibration(self) -> None:
+        """A carried identifier outside the calibration block wires nothing, though named.
+
+        Design: ``tier3_evaluation.md`` section 9.4.1.
+
+        Returns:
+            None
+        """
+        judged = CollectedCase(_JUDGED_FIDELITY, "evaluator")
+        families = {_JUDGED_FIDELITY: "source_fidelity", _BAND_FOUNDATION: "source_fidelity"}
+        items = [judged]
+        reset_dependency_state()
+        try:
+            adopt_carried_outcomes({"154500": False})
+
+            step(1, "wire nothing to a carried P0 foundation of the same family")
+            assert rest_judged_cases_on_calibration(items, families) == 0
+
+            step(2, "leave the judged case without a dependency")
+            assert not declared_dependencies(judged), declared_dependencies(judged)
         finally:
             reset_dependency_state()
