@@ -16092,3 +16092,47 @@ share including the judge, the channel charging as a candidate (`113311`); an
 unpriced run reading zero (`450007`); the Allure file unwritten, the JUnit
 properties unrecorded (`450008`). Requirements `MQC_REQ_HAR_EXE_0149` and
 `MQC_REQ_HAR_CMN_0250`.
+
+## 2026-11-12: Calibration redesign
+
+**Calibration was redesigned as per the project owner's review and
+instruction.** The first live calibration run, OpenAI and Grok each judged by
+Claude, failed four exemplars. Reviewed one by one, all four were rubric
+defects and the judge's scores were defensible: the `C_INS_PROHIBITION_NATURAL`
+level 1 exemplar broke no prohibition, the `C_COD_WHO_IS_AFFECTED` level 1
+exemplar fit level 3, the `C_GND_CEILING_ARITHMETIC` level 3 exemplar matched
+the level 1 description, and the `C_MAT_STATED_REWRITE_QUALITY` level 5
+exemplar copied its source. The owner's ruling: calibrating a judge needs
+well-defined artificial input, responses that break no constraint and
+responses that break one or two at a time, each naming exactly the mistake it
+carries, judged as a graded response is; rubrics name no constraint, and the
+sample does; judgement-only mistakes are what the judge is for, so they are
+calibrated too; injection and forbidden tools are not calibrated, since our
+deterministic checks decide them first. Only calibration changed: the graded
+path, replay and live judgement were left as they are.
+
+**One path, no second judge request.** `calibrate_sample` calls
+`evaluate_observation` with `judge_on_failure=True`, so a sample reaches the
+judge exactly as a candidate response would, with its case's system
+instruction, prompt and documents. The judge half re-validates the stored
+reply and reads it through the `min` aggregate, because a rubric aggregating
+by weighted mean could clear a flawed sample whose mistake one criterion
+caught. Where the response asks for clarification the clarification rubric is
+read, as the pipeline does.
+
+**Our checks are compared first.** A failing check the sample does not name, or
+a named one that holds, is a defective sample, found without a judge. A sample
+the judge would never be asked about, a fatal check or a declared adversarial
+case, is reported as unable to calibrate rather than counted as agreeing.
+
+**Defects found on the way, and the fix.** A stand-in check
+`not_contains "--"` matched every response, because checks blank punctuation
+before matching; it became the word "about". Two cases first asserted several
+things per step and raised `QC_HARNESS_STEP_MISNUMBERED`; each step now holds
+one assertion. An injection accepting a fatal failure as judged was missed by
+`114228`; it and `114229` now assert on `deterministic_disagreement`.
+
+**Nineteen cases**, `114217`-`114235`, pass; nine injections into
+`evaluation/calibration.py` were each caught. Thirteen exemplar cases were retired.
+Requirements `MQC_REQ_HAR_EVL_0012`, `0087`, `0088` rewritten, `0090` and
+`0091` added; `tier3_evaluation.md` section 9.

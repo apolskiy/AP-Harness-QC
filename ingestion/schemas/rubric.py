@@ -13,8 +13,9 @@ of a criterion's scale means, with an optional exemplar. Each is built through
 
 **A rule set carries at most one rubric, and the judge is what reads it.** The
 criteria and anchors become the judge's instruction text, aggregation turns
-the scores into one result against the threshold, and calibration sends the
-exemplars back through the judge to check it still scores them at their level.
+the scores into one result against the threshold. An exemplar shows a level
+and is printed by the case repository's ticket report; calibration does not
+read it (``tier3_evaluation.md`` section 9).
 
 Design: ``docs/design/tier1_ingestion.md`` sections 3.0 and 3.6 to 3.8.
 """
@@ -47,8 +48,8 @@ class Anchor:
 
     Attributes:
         description (str): What a response scoring at this level looks like.
-        exemplar (Optional[str]): A response that should score here, used by
-            calibration to detect judge drift.
+        exemplar (Optional[str]): A response that should score here, shown
+            to a reader as what the level looks like.
     """
 
     description: str

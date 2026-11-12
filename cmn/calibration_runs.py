@@ -13,8 +13,9 @@ on its family's calibration case where the run collects both; and
 ``calibration_marker``, the marker's name.
 
 Both repositories' ``conftest.py`` call the deselection at collection, beside
-the environment and audit deselection. A calibration case sends every exemplar
-of a rule to a live judge (``evaluation.calibration.calibrate``), so it belongs
+the environment and audit deselection. A calibration case sends every
+calibration sample of its family to a live judge
+(``evaluation.calibration.calibrate_sample``), so it belongs
 in the one run that asks for it and in no gate or rung that selects by layer.
 The case repository calls the dependency wiring after its selectors, with the
 family of each judged case, so a family whose calibration failed is skipped
@@ -70,7 +71,7 @@ def deselect_unrequested_calibration(config: Any, items: list[Any]) -> int:
 
     Raises:
         ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the run asks for
-            calibration and its judge is not live, since every exemplar would
+            calibration and its judge is not live, since every sample would
             be scored by a stored reply or by none.
     """
     if _ASKED.search(str(config.getoption("markexpr", "") or "")):
@@ -81,7 +82,7 @@ def deselect_unrequested_calibration(config: Any, items: list[Any]) -> int:
         if judge != _LIVE:
             raise ValueError(
                 f"QC_HARNESS_PARSER_ERROR: calibration was asked for with the judge "
-                f"{judge or 'unset'}; it sends every exemplar to a live judge, so it "
+                f"{judge or 'unset'}; it sends every calibration sample to a live judge, so it "
                 f"needs --judge-mode live"
             )
         return 0

@@ -2720,53 +2720,111 @@ a per-family decision belongs.
 
 ## 9. Calibration
 
-An anchor states what a level means; an exemplar shows it. The calibration module sends each exemplar through the judge and compares the returned score to the intended anchor.
+Redesigned 2026-11-12. **Calibration asks one question: does the judge catch a
+well-defined mistake in a response we wrote?** The consumer authors calibration
+samples, each a response to one of its cases: a clean one that breaks nothing,
+and flawed ones that each carry one or two named mistakes. No engine produces
+them. Each is evaluated by the graded path unchanged, our deterministic checks
+first and the live judge second, and both must agree with what the sample
+declares.
 
-| Deviation | Outcome |
+**What it replaced.** Until 2026-11-12 calibration sent each rubric exemplar to
+the judge and failed one scored more than one level from the level it was
+labelled with. The first live run of it, Claude judging, failed four families
+on four exemplars, and every miss was the label's fault: a level 1 exemplar
+describing level 3, a level 3 exemplar matching the level 1 description word
+for word, a level 5 exemplar that copied the source and rewrote nothing, and a
+level 1 exemplar for "the dash was not avoided" that could not carry the dash.
+**A level is an opinion about prose, and a judge disagreeing with an opinion
+measures nothing.** A seeded mistake is a fact, and a judge either catches it or
+does not.
+
+| Removed | Why |
 |---|---|
-| Exact | Pass |
-| One level | Pass, **deviation recorded** |
-| More than one level | Fail, rubric or judge has drifted |
+| `calibrate`, `calibration_requests`, `calibrate_rubric`, `compare_to_anchor`, `tolerance`, `CalibrationResult`, `CalibrationRequest` | Exemplar placement, which measured the labels as much as the judge |
+| One judge request per criterion | A sample is judged as a graded response is, on the whole rubric, since the judge judges most |
 
-Recording deviation even within tolerance is what makes trend visible. A rubric drifting steadily by one level looks healthy on any single run and obvious across twenty.
-
-Two further drift signals need no new machinery: **variance across A4's three observations**, where high variance on identical input means the anchors are not discriminating, and **distribution shift over history**, derivable from the record the collector already keeps.
-
-Calibration runs on the schedule, not on pull requests, since it requires live judge invocation.
-
-### 9.1 How an exemplar reaches the judge
-
-Added 2026-11-10. Until then the comparison existed and the sending did not:
-`calibrate_rubric` took scores somebody else had obtained, and nothing obtained
-them. The case repository's rung 2 runs calibration with `-k calibration`, and
-the first evaluation ladder to reach it in CI selected no case and failed on
-pytest's exit 5.
-
-**`calibration_requests` composes one judge request per exemplar, and
-`calibrate` sends each through a judge and compares the score.** The consumer
-supplies the rule's identity, its rubric, the material the graded request
-carries, and the judge's `invoke`; the harness does the rest.
-
-| Part of the request | Calibration sends |
+| Kept | Why |
 |---|---|
-| The candidate output | **The exemplar**, in the `candidate_output` data field, isolated like any response |
-| The task instruction, the system instruction, the context documents | **The rule's own**, as the graded request carries them. An exemplar is a response to that task: a grounding exemplar reading "the report covers five regions" can be scored only by a judge holding the report |
-| The rubric in the instruction text | **The exemplar's criterion alone**, with its anchors and the guidance on levels 2 and 4 |
-| The reply schema | That one criterion |
+| Each anchor's `exemplar` | **The case repository's ticket report prints the top one** as a response that meets the criterion (its `consumer_ci.md` section 9.5.5); calibration no longer reads it |
+| `observation_variance` | The spread across A4's repeat observations, which no exemplar enters |
+| Sections 9.2 to 9.4 | Selection, the `CAL` layer and the resting of judged cases on calibration are unchanged |
 
-**The request is composed by `compose_judge_request`**, so isolation, the data
-notice and the level guidance are the graded request's own and cannot drift
-from it. A request whose exemplar reached the instruction text is refused
-exactly as a graded one is.
+Calibration runs on the schedule, not on pull requests, since it requires live
+judge invocation. **Its deterministic half needs no judge**, and the consumer
+runs it in its unit gate (section 9.1.2).
 
-**One criterion per request, because an exemplar shows one level of one
-criterion.** Scored against the whole rubric, the judge would award every other
-criterion a score for text never written to show it, and those scores could
-pull the one being measured.
+### 9.1 A calibration sample, and how it reaches the judge
 
-**The reply is validated by `validate_judge_reply`** against that one-criterion
-rubric, so a reply off the scale or out of shape raises as a graded reply
-would, rather than being compared.
+**`CalibrationSample` is one authored response to one case.**
+`CalibrationSample.from_dict` builds it and refuses an unknown key or a
+missing field with `QC_DATA_MALFORMED_SOURCE`, and a sample breaking the rules
+below with `QC_DATA_INVARIANT_VIOLATION`.
+
+| Field | Holds |
+|---|---|
+| `sample_id` | Its identifier, unique within the consumer's samples |
+| `task_id`, `rule_id` | The case it answers, `<task>::<rule>` |
+| `response` | The text the judge is shown as the candidate output |
+| `violates` | What its mistake breaks that a deterministic check reads: a `constraint_id`, or the check's own identifier for a check naming no constraint, such as `ANSWER_LIST`. Empty where the mistake is one only the judge can see |
+| `mistake` | What is wrong, in one plain statement. Empty for a clean sample |
+
+| Kind | `violates` | `mistake` |
+|---|---|---|
+| Clean | Empty | Empty |
+| Flawed, checkable | One or two constraints | States the mistake |
+| Flawed, judgement only | Empty | States the mistake, such as "explains the defect and never says the seller goes unpaid" |
+
+**One or two mistakes, never more.** A sample with two names both, and a
+judge missing it is reported against both: two independent mistakes, such as
+a sentence over the limit and a fourth bullet, keep the report readable. A
+`violates` naming a constraint without a `mistake` is refused, since the
+report states what the judge missed and a constraint identifier alone says it
+to nobody.
+
+**The rubric names no constraint, and the sample does.** A response can break
+several constraints at once and the judge grades the whole of it, so the link
+between a mistake and what should catch it belongs to the test, not to the
+rubric.
+
+**The sample travels the graded path, which is not changed for it.**
+`calibrate_sample` builds an `ObservationContext` from the case and the sample
+with `calibration_context` and passes it to `evaluate_observation` with
+`judge_on_failure` set, so a sample failing a `violation` assertion is still
+judged.
+
+| Part of the observation | Calibration supplies |
+|---|---|
+| The candidate output | **The sample's `response`** |
+| The system instruction, the task instruction, the context documents | **The case's own**, so a sample ignoring the system instruction is judged by a judge holding it |
+| The rules | The case's rule set: its assertions, its tool expectation and its whole rubric |
+| Declared adversarial, offered tools | The task's own |
+| `case_id` | `calibration.<task>::<rule>.<sample_id>` (section 9.1.1) |
+
+**The result carries the rendered judge prompt and the judge's reply**, as a
+graded result does (section 4C.6), so a calibration failure is reviewed from
+the request as sent and the reply as returned.
+
+**A sample agrees when both halves do:**
+
+| Half | A clean sample | A flawed sample |
+|---|---|---|
+| Our checks | Every assertion and tool check passes | The constraints of the failed assertions are exactly `violates`: none for a judgement-only mistake |
+| The judge | Every criterion at or above the rubric's threshold | **At least one criterion below it** |
+
+**The judge half reads each criterion, not the rubric's verdict.** A rubric
+aggregates by weighted mean unless it names another strategy, so a flawed
+response scoring 5, 5 and 1 averages 3.67 and clears a threshold of 3.0: the
+judge caught the mistake and the verdict hides it. `judge_disagreement`
+validates the reply the result carries with `validate_judge_reply` and
+aggregates it with the registered `min` strategy at the rubric's threshold,
+both unchanged, so no new scoring is written for calibration. Where the
+response takes the clarification route, the clarification rubric is the one
+read (section 5.5).
+
+**A judge that could not be reached raises**, a `ValueError` led by the
+harness code the channel carried, so the consumer skips with that code: nothing
+about the judge was measured.
 
 #### 9.1.1 A calibration judgement never addresses a graded one
 
@@ -2774,20 +2832,19 @@ would, rather than being compared.
 `judgements/<candidate>/<judge>/<task>/<rule>/<observation>.json`, and rung 2
 records. A calibration request carrying the rule's own case identifier would be
 written over observation 0 of that rule's graded judgement, and the next replay
-would read an exemplar's score as the candidate's.
+would read a sample's score as the candidate's.
 
-**So a calibration request carries an identifier of its own.** For case
-`<task>::<rule>`, criterion `<criterion>` and level `<level>`:
+**So a calibration observation carries an identifier of its own.** For case
+`<task>::<rule>` and sample `<sample>`:
 
 | Field | Value |
 |---|---|
-| `case_id` | `calibration.<task>::<rule>.<criterion>` |
-| `observation_index` | `<level>` |
-| Stored at, if recorded | `judgements/<candidate>/<judge>/calibration.<task>/<rule>.<criterion>/<level>.json` |
+| `case_id` | `calibration.<task>::<rule>.<sample>` |
+| `observation_index` | `0` |
+| Stored at, if recorded | `judgements/<candidate>/<judge>/calibration.<task>/<rule>.<sample>/0.json` |
 
 **The task directory is prefixed**, so no graded judgement shares it, and the
-criterion is in the rule directory because one criterion identifier recurs
-across rules: `C_SEC_HIDDEN_DETECTED` is in eight of the case repository's.
+sample is in the rule directory because one case carries several samples.
 Every part is already a path segment a graded judgement uses, so the
 identifier is as safe on Windows as theirs.
 
@@ -2796,6 +2853,31 @@ judgement replayed under `--fill-gaps` would answer from the record rather
 than from the judge, which is what calibration exists to ask. The consumer's
 calibration channel is built with neither, `consumer_ci.md` section 7.4; this
 section is what holds when one is built with both.
+
+#### 9.1.2 Our checks are compared first, and that needs no judge
+
+**A sample our own checks disagree with cannot calibrate anything.** A clean
+sample that fails an assertion, or a flawed one whose checks fail a constraint
+it does not name, is a defect in the sample or in the check, and a judge asked
+about it would be measured against a wrong answer.
+
+**`deterministic_disagreement` compares the result's assertions with the
+sample**, and it reads nothing the judge produced, so the consumer runs it with
+a withheld binding (section 5A.5.3) in its unit gate, every sample on every
+push, at no cost. The live run compares it again before the judge half, so a
+sample edited after the gate is still caught.
+
+| What the result shows | Reported |
+|---|---|
+| The failed checks, each read as its constraint or, naming none, as its own identifier, equal `violates` | Nothing: our checks agree |
+| A failed check `violates` does not name | The sample, with what failed |
+| An entry of `violates` that no failed check carries | The sample, with what held |
+| **The judge would not be asked**: a fatal failure, a screen abort, a declared adversarial case, a rule with no rubric | The sample, with the reason, since it cannot calibrate a judge that never sees it |
+
+**The last row is why a fatal mistake is not a calibration sample.** The
+graded path never judges a response failing a `fatal` assertion (section
+4.2.0), so a sample built on one would measure our checks twice and the judge
+not at all.
 
 ### 9.2 Calibration runs only when a run asks for it, under a live judge
 
@@ -2812,7 +2894,7 @@ of its ladder select `-m "evaluator or tool or sec"`:
 | Run | Judge | Calibration, selected by layer |
 |---|---|---|
 | A gate, rung 1 | Replayed | Collected, with no judgement to replay |
-| Rung 2's re-judging step, rung 3 | Live | **Run again**, a judge call per exemplar each time |
+| Rung 2's re-judging step, rung 3 | Live | **Run again**, a judge call per sample each time |
 | Rung 2's calibration step | Live | Run, which is the only place it belongs |
 
 **Deselected rather than skipped**, so a run that did not ask for calibration
@@ -2822,7 +2904,7 @@ leaves it out of the total rather than reporting a non-outcome inside it.
 the case is deselected under it.
 
 **A run that asks under a judge that is not live is refused**, with
-`QC_HARNESS_PARSER_ERROR`, at collection. Every exemplar would be judged by a
+`QC_HARNESS_PARSER_ERROR`, at collection. Every sample would be judged by a
 stored reply or by none, so the run would measure nothing about the judge and
 could still report green.
 
@@ -2854,8 +2936,9 @@ because the run context, the preconditions record and the report's suites
 read it as "this selection ran the gate", which a calibration run is not.
 
 **The failure carries `QC_HARNESS_JUDGE_UNCALIBRATED`.**
-`evaluation.calibration.uncalibrated_message` builds it, naming the family and
-each misplaced exemplar. A judge that could not be reached is a skip with its
+`evaluation.calibration.uncalibrated_message` builds it, naming the family and,
+since 2026-11-12, each sample the judge or our checks disagreed with, with its
+mistake, its constraints and the lowest criterion score (section 9.1). A judge that could not be reached is a skip with its
 own code, since nothing about the judge was measured.
 
 **The layer's other registries read `cmn/layers.py`.** The gate markers a
@@ -2908,6 +2991,20 @@ to compare, and a calibration case is blocking by its layer anyway.
 `MQC_CMN_UNI_112621` asserts the wiring, the order and the skip, and
 `MQC_CMN_UNI_112622` that nothing is wired where the run collected no
 calibration case and that a calibration case naming no family is refused.
+
+### 9.5 What calibration does not cover
+
+Added 2026-11-12. **Calibration measures the judge on what the judge sees.**
+Two kinds of mistake never reach it, so a sample of either measures nothing:
+
+| Mistake | Why the judge cannot be calibrated on it | What catches it |
+|---|---|---|
+| A call to a forbidden tool | Tool calls never enter a judge request (section 5B.3), and a tool rule authors no rubric | The tool compliance check, deterministic |
+| Following an injected instruction | A declared adversarial case is graded by assertion and never judged (A19), and a rule judged on its answer alone is judged only after the screen | The screen and the canary assertions first; the judge second, where the rule asks for it |
+
+**An injection case is checked deterministically first and judged second, and
+a conflict between the two is reviewed**: the rubric, then the case or the
+harness, is corrected, rather than calibrating the judge to agree with either.
 
 ---
 
@@ -3052,19 +3149,38 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114030` | B | `the_unweighted_mean_strategy_handles_nothing_after_filtering` |
 | `114031` | B | `the_weighted_mean_strategy_handles_nothing_after_filtering` |
 | `114032` | P | `every_strategy_has_its_battery_cases` |
-| `114200` | P | `calibration_exact_match_passes` |
+| ~~`114200`~~ | | ~~`calibration_exact_match_passes`~~. **Retired 2026-11-12** with exemplar placement (section 9): `114220` to `114235` |
 | ~~`114201`~~ | | ~~`calibration_one_level_deviation_passes_and_records`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `114208`, `114209`. One case per direction |
-| `114208` | B | `a_score_one_level_below_passes_and_records` |
-| `114209` | B | `a_score_one_level_above_passes_and_records` |
+| ~~`114208`~~ | | ~~`a_score_one_level_below_passes_and_records`~~. **Retired 2026-11-12** with exemplar placement (section 9) |
+| ~~`114209`~~ | | ~~`a_score_one_level_above_passes_and_records`~~. **Retired 2026-11-12** with exemplar placement (section 9) |
 | ~~`114202`~~ | | ~~`calibration_two_level_deviation_fails`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `114210`, `114211`. One case per direction |
-| `114210` | N | `a_score_two_levels_below_fails_calibration` |
-| `114211` | N | `a_score_two_levels_above_fails_calibration` |
-| `114203` | P | `deviation_within_tolerance_is_recorded_for_trend` |
-| `114212` | P | `an_exemplar_reaches_the_judge_on_its_own_criterion` (9.1) |
-| `114213` | N | `a_calibration_judgement_never_addresses_a_graded_one` (9.1.1) |
-| `114214` | P | `calibrate_compares_what_the_judge_awarded_each_exemplar` (9.1) |
-| `114215` | N | `an_exemplar_the_judge_scores_two_levels_away_fails` (9.1) |
-| `114216` | N | `an_uncalibrated_judge_is_reported_by_its_code` (9.3) |
+| ~~`114210`~~ | | ~~`a_score_two_levels_below_fails_calibration`~~. **Retired 2026-11-12** with exemplar placement (section 9) |
+| ~~`114211`~~ | | ~~`a_score_two_levels_above_fails_calibration`~~. **Retired 2026-11-12** with exemplar placement (section 9) |
+| ~~`114203`~~ | | ~~`deviation_within_tolerance_is_recorded_for_trend`~~. **Retired 2026-11-12** with exemplar placement (section 9) |
+| ~~`114212`~~ | | ~~`an_exemplar_reaches_the_judge_on_its_own_criterion`~~. **Retired 2026-11-12**: `114232` |
+| ~~`114213`~~ | | ~~`a_calibration_judgement_never_addresses_a_graded_one`~~. **Retired 2026-11-12**: `114233` |
+| ~~`114214`~~ | | ~~`calibrate_compares_what_the_judge_awarded_each_exemplar`~~. **Retired 2026-11-12**: `114220`, `114221` |
+| ~~`114215`~~ | | ~~`an_exemplar_the_judge_scores_two_levels_away_fails`~~. **Retired 2026-11-12**: `114226`, `114227` |
+| ~~`114216`~~ | | ~~`an_uncalibrated_judge_is_reported_by_its_code`~~. **Retired 2026-11-12**: `114235` |
+| `114217` | N | `a_sample_naming_a_constraint_without_its_mistake_is_refused` (9.1) |
+| `114218` | B | `a_sample_naming_three_constraints_is_refused` (9.1) |
+| `114219` | N | `a_sample_carrying_an_unknown_field_is_refused` (9.1) |
+| `114220` | P | `a_clean_sample_agrees_when_checks_hold_and_criteria_clear` (9.1) |
+| `114221` | P | `a_flawed_sample_agrees_when_a_check_fails_and_a_score_drops` (9.1) |
+| `114222` | B | `one_criterion_below_threshold_counts_though_the_mean_clears` (9.1) |
+| `114223` | P | `a_judgement_only_mistake_agrees_with_every_check_holding` (9.1) |
+| `114224` | N | `a_failing_check_the_sample_does_not_name_is_reported` (9.1.2) |
+| `114225` | N | `a_named_constraint_whose_check_holds_is_reported` (9.1.2) |
+| `114226` | N | `a_judge_clearing_a_flawed_sample_is_reported` (9.1) |
+| `114227` | N | `a_judge_dropping_a_criterion_of_a_clean_sample_is_reported` (9.1) |
+| `114228` | N | `a_sample_failing_a_fatal_check_cannot_calibrate` (9.1.2) |
+| `114229` | N | `a_sample_for_a_declared_adversarial_case_cannot_calibrate` (9.1.2, 9.5) |
+| `114230` | P | `our_checks_are_compared_without_a_judge` (9.1.2) |
+| `114231` | B | `a_clarifying_sample_is_read_on_the_clarification_rubric` (9.1) |
+| `114232` | P | `a_sample_reaches_the_judge_with_its_case_material` (9.1) |
+| `114233` | N | `a_calibration_observation_never_addresses_a_graded_one` (9.1.1) |
+| `114234` | N | `an_unreachable_judge_raises_its_harness_code` (9.1) |
+| `114235` | P | `an_uncalibrated_family_is_reported_naming_each_sample` (9.3) |
 | `114503` | P | `violation_failure_judged_under_flag` (4.2.0) |
 | `114504` | N | `fatal_failure_never_judged_even_under_flag` |
 | `114505` | P | `skipped_judgement_recorded_as_not_evaluated` |
@@ -3141,8 +3257,8 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114009` | B | `all_weights_zero_falls_back_rather_than_dividing` |
 | `114412` | P | `a_valid_reply_yields_one_score_per_criterion` |
 | `114413` | B | `a_clean_rationale_records_no_format_violation` |
-| `114204` | B | `an_anchor_without_an_exemplar_yields_no_result` |
-| `114205` | B | `an_unjudged_exemplar_yields_no_result` |
+| ~~`114204`~~ | | ~~`an_anchor_without_an_exemplar_yields_no_result`~~. **Retired 2026-11-12** with exemplar placement (section 9) |
+| ~~`114205`~~ | | ~~`an_unjudged_exemplar_yields_no_result`~~. **Retired 2026-11-12** with exemplar placement (section 9) |
 | `114206` | P | `variance_across_observations_is_reported` |
 | `114207` | B | `variance_is_undefined_below_two_observations` |
 | `114509` | P | `a_declared_case_is_still_graded_by_assertion` |
@@ -3194,7 +3310,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 244 cases, 108 negative, 87 positive, 49 boundary.**
+**Inventory: 250 cases, 113 negative, 89 positive, 48 boundary.**
 
 `114313` to `114315` were added on 2026-11-05 with section 3.1.2: the judge is
 shown the system instruction, isolated like every other field the case author

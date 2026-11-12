@@ -856,8 +856,8 @@ def judgements_for_observations(replies: list[JudgeReply]) -> int:
     **One judgement per candidate observation** (design section 6.3). A4 gives
     three responses and the judge scores each once. Sampling the judge
     repeatedly against one response would confound judge variance with candidate
-    variance in a single number; judge consistency is measured separately,
-    against fixed calibration exemplars.
+    variance in a single number; the judge is measured separately, against
+    authored calibration samples (``tier3_evaluation.md`` section 9).
 
     Args:
         replies (list): The judge replies collected for one case.

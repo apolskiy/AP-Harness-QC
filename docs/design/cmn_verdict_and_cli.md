@@ -915,7 +915,7 @@ Repeat observations of **one** prompt are what A4.1 decided. Repeating a
 |---|---|
 | Conversation state | Seeded, advanced and compared across observations |
 | A rubric for a dialogue | A turn is judged in the light of the turns before it |
-| Recalibration | Exemplars are single responses, so the known-correct anchor does not transfer |
+| Recalibration | Calibration samples are single responses, so a stated mistake does not transfer to a turn read in the light of the turns before it |
 
 **So it is an expansion and not a setting.** The test plan section 9.6.1 states
 the present boundary where it is most likely to be misread: the clarification
@@ -930,7 +930,7 @@ expansion is the harness's, not the corpus's.**
 
 So nothing here is missing. A multi-prompt suite would need conversation state
 seeded and compared, a rubric judging a turn in the light of the turns before
-it, and recalibration because exemplars are single responses. Those are harness
+it, and recalibration because calibration samples are single responses. Those are harness
 capabilities, and until they exist a multi-prompt case would have nothing to run
 on.
 

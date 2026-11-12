@@ -368,8 +368,8 @@ class TestMQCJudgeObservations:
         """Sampling one response repeatedly would confound two variances.
 
         Judge variance and candidate variance would arrive in a single number
-        with no way to separate them. Judge consistency is measured separately,
-        against fixed calibration exemplars.
+        with no way to separate them. The judge is measured separately,
+        against authored calibration samples.
 
         Returns:
             None

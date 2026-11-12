@@ -29,6 +29,38 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Calibration redesign: the judge is calibrated against authored samples, 2026-11-12
+
+**Why it was redesigned.** Calibration sent each rubric exemplar to the judge
+on its own criterion and failed a family whose exemplar the judge placed two
+levels from the level it was written for. A level is an opinion about prose,
+and every miss in the first live calibration run was a mislabeled exemplar
+rather than a judge fault: an exemplar for a prohibition that broke none, one
+written for level 1 that fit level 3, two anchors that overlapped, and a level 5
+rewrite that copied its source. The method measured how well exemplars were
+labeled, and could not say which mistake a judge failed to see.
+
+**What changed.** A calibration sample is a written response, clean or
+carrying one or two stated mistakes, and is evaluated by the graded path
+unchanged: deterministic checks first, then the judge on the whole rubric. A
+clean sample agrees when every check holds and every criterion is at or above
+the threshold; a flawed one when the checks that failed equal the constraints
+it names and at least one criterion falls below the threshold, however the
+rubric aggregates. A mistake no check can see is judgement-only and names no
+constraint. Our checks' half needs no judge, so a defective sample is found in
+a unit gate. A declared adversarial case and a forbidden tool are not
+calibrated, since neither reaches a judge. `evaluation/calibration.py` holds
+`CalibrationSample` and `calibrate_sample`; exemplar placement, its one-level
+tolerance and the per-criterion request were removed. Exemplars stay in the
+rubrics, which the case repository's ticket report prints. Cases `114200`,
+`114203`-`114205` and `114208`-`114216` were retired and `114217`-`114235`
+added; `MQC_REQ_HAR_EVL_0012`, `0087` and `0088` were rewritten and `0090` and
+`0091` added; `tier3_evaluation.md` section 9 specifies it, and
+`tier1_ingestion.md` section 9, the taxonomy's `CAL` layer row and
+`QC_HARNESS_JUDGE_UNCALIBRATED` description, and `cmn_verdict_and_cli.md`'s
+multi-prompt boundary now describe samples. The README case count moved to
+1117 and the requirement count to 428.
+
 ### A run publishes what it spent, by role, 2026-11-11
 
 **Why it was needed.** A run's spend was one figure in memory: the session's

@@ -797,9 +797,9 @@ name; it does not close the set.
 
 An anchor states what a level means; an exemplar shows it. Authoring both is one task.
 
-`Anchor.exemplar` carries a short response that *should* score at that level. The calibration module sends each exemplar through the judge and asserts the returned score matches the intended anchor within tolerance. Divergence is rubric or judge drift, detected automatically on a scheduled run.
+`Anchor.exemplar` carries a short response that *should* score at that level. It documents the scale for the author and for a reader, and a consumer may print it: the case repository's ticket report shows the top exemplar as what a correct response reads like.
 
-Human input is bounded, three short texts per rubric, and produces three artefacts at once: the anchor definition, the drift detector, and documentation of the scale.
+**Calibration does not read exemplars** since its redesign of 2026-11-12. A level is an opinion about prose, and every miss of the first live calibration run was a mislabeled exemplar, so placing exemplars measured the labels. The judge is calibrated against authored samples that state their mistakes, evaluated through the graded path: `tier3_evaluation.md` section 9.
 
 Two further drift signals need no new machinery: **variance across A4's three observations** (high variance on identical input means the anchors are not discriminating), and **distribution shift over history** (derivable from the record the collector already keeps).
 

@@ -12,7 +12,7 @@ asking for it under a judge that is not live. ``rest_judged_cases_on_calibration
 makes each judged case depend on its family's calibration case where the run
 collects both, so a failed calibration skips its family's judged cases.
 
-Calibration spends a judge call per exemplar, so a defect here either runs it
+Calibration spends a judge call per sample, so a defect here either runs it
 in every gate and rung, lets the run that asks for it measure nothing, or
 reports judged scores from a judge that failed it. Its cases are listed in the
 block below, inventoried in ``docs/design/cmn_verdict_and_cli.md`` and
