@@ -3,7 +3,7 @@
 """The option registry, every command line flag a run accepts, declared once.
 
 Created: 2026-09-24
-Last updated: 2026-10-21
+Last updated: 2026-11-12
 
 This file contains ``Option``, one declared flag; ``registered_options``,
 ``option`` and ``defaults``, which read the registry; ``validate_value``, which
@@ -190,6 +190,21 @@ _OPTIONS: Final[tuple[Option, ...]] = (
             "File holding base outcomes carried between the band executions of "
             "one job, read at start and rewritten at finish"
         ),
+    ),
+    # THE JUDGE'S CALIBRATION, recorded once per judge and read by every
+    # ladder that judges live (tier3_evaluation.md section 9.4.2).
+    Option(
+        name="calibration-record",
+        default="",
+        help_text=(
+            "Calibration record of the judge, read at start under a live judge; "
+            "judged cases skip where it is absent or invalid"
+        ),
+    ),
+    Option(
+        name="record-calibration",
+        default="",
+        help_text="File a calibration session writes its judge's calibration record to",
     ),
     Option(
         name="preconditions-record",

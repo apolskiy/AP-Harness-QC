@@ -30,6 +30,8 @@ flags:
   "--with-prerequisites": {owner: harness}
   "--carry-outcomes": {owner: harness}
   "--preconditions-record": {owner: harness}
+  "--calibration-record": {owner: harness}
+  "--record-calibration": {owner: harness}
 
   # --- exercised by consumer cases ----------------------------------------
   # `--case` WAS RETIRED 2026-10-03, section 7.8.4. It claimed a consumer

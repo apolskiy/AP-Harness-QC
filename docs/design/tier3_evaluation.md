@@ -3032,6 +3032,84 @@ calibration case of the corpus, since the session never collected the case.
 | `MQC_CMN_UNI_112623` | A family whose carried calibration failed has its judged case skipped with `QC_HARNESS_DEPENDENCY_UNMET`, and one whose carried calibration held is judged |
 | `MQC_CMN_UNI_112624` | A carried identifier outside the calibration block wires nothing, though the mapping names it with a family |
 
+#### 9.4.2 Calibration is the judge's, so it is recorded once and read by every ladder
+
+Added 2026-11-12, at the project owner's ruling of that date.
+
+**Calibration measures the judge, not the candidate.** Its samples go to the
+same judge model whichever engine a ladder evaluates, so calibrating inside
+each ladder measured the same thing once per candidate engine, on the
+candidate's schedule rather than the judge's. The plan approved on 2026-10-21
+already said calibration runs only when the judge model changed; it was built
+to run on every rung 2, because a family's judged cases could rest on its
+calibration only within one session.
+
+**So a calibration run writes a record, and a ladder reads it.** The case
+repository runs calibration in a workflow of its own per judge, on a judge
+model change, monthly or by dispatch (its `consumer_ci.md` carries the
+workflow). A session given `--record-calibration PATH` that collected
+calibration cases writes:
+
+| Field | Holds |
+|---|---|
+| `judge_engine`, `judge_model` | The judge the samples were sent to, as the run named it |
+| `judge_served_version`, `judge_served_digest` | What the judge's provider declared it served, read by `execution.preflight.served_facts` |
+| `samples_digest` | A digest of the calibration samples, which the case repository supplies because the harness owns no case data |
+| `code_ref`, `case_ref`, `recorded` | The harness and case commits, and the UTC date |
+| `families` | Each family to its calibration case's identifier and whether it held |
+
+A calibration case that did not run, skipped or erred, is recorded as not
+held, since it measured nothing.
+
+**A session given `--calibration-record PATH` under a live judge reads it at
+session start**, before collection, and decides once whether it is valid:
+
+| The record | Valid? | Reason given |
+|---|---|---|
+| Absent | No | No calibration record for the judge at the path |
+| Will not parse, or lacks a field | **Refused**, `QC_HARNESS_PARSER_ERROR` | A committed record that cannot be read is our defect, not an unmet prerequisite |
+| Names another judge engine | No | The record calibrated another judge |
+| Its samples digest differs from the samples now | No | The samples changed since it was recorded |
+| The judge's served identity cannot be read now | No | Nothing establishes that the judge is the one calibrated |
+| The judge's served digest differs | No | The judge now serves another model: the version now and the version recorded |
+| Otherwise | **Yes** | |
+
+**Age never invalidates a record.** A record is valid while the judge serves
+the model it names and the samples are unchanged, so a month without a model
+change costs no calibration.
+
+**A valid record's families are adopted as carried calibration outcomes**, and
+section 9.4.1 wires them: a family that held is judged, and one that did not
+has its judged cases skipped, the skip naming the family's failure and the
+date it was recorded.
+
+**An invalid record skips every judged case before its judge is called.** At
+collection each calibration case the mapping names is taken as carried and not
+held, with the record's reason, so section 9.4.1 wires every judged case to it
+and the cascade skips them with `QC_HARNESS_DEPENDENCY_UNMET` and that reason.
+A case graded by our checks alone rests on no calibration and runs. Nothing is
+spent on a score nobody could interpret.
+
+**A session not given `--calibration-record`, or whose judge is not live,
+reads nothing**: a replayed judgement was calibrated when it was recorded, and
+the gate and rung 1 replay every judgement.
+
+**A skip names its reason.** `cmn.dependencies.enforce_dependencies` reported
+only that a foundational case did not hold, which for a record that was never
+written names a case that never ran. A carried outcome may now carry a reason,
+and the skip message appends it.
+
+| Case | Asserts |
+|---|---|
+| `MQC_CMN_UNI_112625` | A record written by a calibration session reads back valid under the same judge identity and samples, and its families are adopted |
+| `MQC_CMN_UNI_112626` | A record whose judge now serves another digest is invalid, and a judged case skips naming both versions |
+| `MQC_CMN_UNI_112627` | A record whose samples digest differs, or that names another judge engine, is invalid |
+| `MQC_CMN_UNI_112628` | No record skips every judged case, and a case the mapping does not name runs |
+| `MQC_CMN_UNI_112629` | A valid record whose family failed skips that family's judged case only, naming the failure |
+| `MQC_CMN_UNI_112630` | A record that will not parse, or lacks a field, refuses with `QC_HARNESS_PARSER_ERROR` |
+| `MQC_CMN_UNI_112631` | A session not given the option, or under a judge that is not live, reads no record and wires nothing |
+| `MQC_CMN_UNI_112632` | A judge whose served identity cannot be read invalidates the record |
+
 ### 9.5 What calibration does not cover
 
 Added 2026-11-12. **Calibration measures the judge on what the judge sees.**

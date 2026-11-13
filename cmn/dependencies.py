@@ -3,7 +3,7 @@
 """Case dependencies, which run foundational cases first and skip what rests on a failure.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-12
 
 This file contains the dependency cascade. ``arrange_dependencies`` orders the
 collected cases so every ``base`` case runs ahead of its dependents and refuses
@@ -38,7 +38,7 @@ import logging
 import os
 import platform
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Optional
 
 import pytest
 
@@ -61,6 +61,11 @@ _BASE_OUTCOMES: dict[str, bool] = {}
 # one it is entitled to assume. Design section 7.6.
 _CARRIED: set[str] = set()
 
+# WHY A CARRIED FOUNDATION DID NOT HOLD, where whoever carried it said. A
+# calibration record that was never written names a case that never ran, so
+# the skip says why (tier3_evaluation.md section 9.4.2).
+_REASONS: dict[str, str] = {}
+
 def reset_dependency_state() -> None:
     """Forget every recorded base outcome.
 
@@ -70,8 +75,10 @@ def reset_dependency_state() -> None:
     """
     _BASE_OUTCOMES.clear()
     _CARRIED.clear()
+    _REASONS.clear()
 
-def adopt_carried_outcomes(carried: dict[str, bool]) -> None:
+def adopt_carried_outcomes(carried: dict[str, bool],
+                           reasons: Optional[dict[str, str]] = None) -> None:
     """Seed the cascade with foundations an earlier band established.
 
     **Seeded, not merged over.** An outcome this execution records itself wins,
@@ -79,6 +86,8 @@ def adopt_carried_outcomes(carried: dict[str, bool]) -> None:
 
     Args:
         carried (dict): Identifier to whether that foundation held.
+        reasons (Optional[dict]): Identifier to why it did not hold, appended
+            to its dependents' skip.
 
     Returns:
         None
@@ -86,6 +95,8 @@ def adopt_carried_outcomes(carried: dict[str, bool]) -> None:
     for identifier, held in carried.items():
         _BASE_OUTCOMES.setdefault(str(identifier), bool(held))
     _CARRIED.update(str(identifier) for identifier in carried)
+    for identifier, reason in (reasons or {}).items():
+        _REASONS.setdefault(str(identifier), reason)
 
 def carried_identifiers() -> frozenset[str]:
     """Return the identifiers admitted from an earlier band.
@@ -193,6 +204,8 @@ def record_base_outcome(item: pytest.Item, passed: bool) -> None:
         )
         return
     _BASE_OUTCOMES[identifier] = passed
+    # MEASURED HERE, so a reason carried for it no longer describes it.
+    _REASONS.pop(identifier, None)
 
 def record_from_report(item: pytest.Item, report: Any) -> None:
     """Record a foundational outcome from whichever phase reported it.
@@ -556,4 +569,8 @@ def enforce_dependencies(item: pytest.Item) -> None:
             "%s %s did not hold, so %s was not executed",
             _UNMET, identifier, item.name,
         )
-        pytest.skip(f"{_UNMET}: foundational case {identifier} did not hold")
+        reason = _REASONS.get(identifier)
+        pytest.skip(
+            f"{_UNMET}: foundational case {identifier} did not hold"
+            + (f": {reason}" if reason else "")
+        )

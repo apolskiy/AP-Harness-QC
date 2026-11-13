@@ -231,7 +231,7 @@ Read these before any other document; the rest assume them.
 | Document | Covers | Status |
 |---|---|---|
 | `docs/design/tier1_ingestion.md` | Schemas, both loaders, validation policy, referential integrity, ingest-time injection screening, calibration, aggregation strategies. 127 cases | **Implemented** |
-| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 508 cases | **Implemented** |
+| `docs/design/cmn_verdict_and_cli.md` | Verdict computation, the two CLI surfaces, exit codes, configuration, metadata emission, RTM integrity, diagnostic runs, subset selection. 516 cases | **Implemented** |
 | `docs/design/harness_ci_pipeline.md` | The eight workflows, their triggers, the branch topology and pairing rule, the credential boundary, artifact naming, secrets, exit code mapping. Probe cases live in the Tier 2 inventory | **Implemented** |
 | `docs/design/tier2_execution.md` | Adapter interface, canonical response and tool-call shapes, model version resolution, replay integrity, rate limiting, conformance suite. 237 cases | **Implemented** |
 | `docs/design/tier3_evaluation.md` | Ingress screening and isolation, dual-pass evaluation, judge invocation and reply validation, aggregation, calibration. 250 cases | **Implemented** |
@@ -243,7 +243,7 @@ Read these before any other document; the rest assume them.
 
 | Document | Covers | Status |
 |---|---|---|
-| `docs/testing/harness_test_plan.md` | 430 harness requirements, traced to the precondition cases in the module designs | **Implemented, traced both ways** |
+| `docs/testing/harness_test_plan.md` | 431 harness requirements, traced to the precondition cases in the module designs | **Implemented, traced both ways** |
 | `model_evaluation_test_plan.md` **in `AP-Model-QC`** | 73 evaluation requirements and 69 graded cases across `EVAL`, `TOOL` and `SEC` | Written, and all 69 cases built |
 | `docs/testing/rtm_harness.csv` | Harness requirements mapped to precondition cases | Written |
 | `rtm_model.csv` **in `AP-Model-QC`** | Evaluation requirements mapped to graded cases | Written |

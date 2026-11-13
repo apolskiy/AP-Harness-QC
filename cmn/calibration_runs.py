@@ -9,9 +9,10 @@ This file contains ``deselect_unrequested_calibration``, which deselects every
 case carrying the ``calibration`` marker from a run whose marker expression
 does not name it, and refuses a run that names it under a judge that is not
 live; ``rest_judged_cases_on_calibration``, which makes each judged case depend
-on its family's calibration case where the run collects both, or where an
-earlier job carried that case's outcome to a band session; and
-``calibration_marker``, the marker's name.
+on its family's calibration case where the run collects both, where an
+earlier job carried that case's outcome to a band session, or where a
+calibration record was read, carrying every calibration case as not held when
+that record is invalid; and ``calibration_marker``, the marker's name.
 
 Both repositories' ``conftest.py`` call the deselection at collection, beside
 the environment and audit deselection. A calibration case sends every
@@ -22,7 +23,8 @@ The case repository calls the dependency wiring after its selectors, with the
 family of each judged case, so a family whose calibration failed is skipped
 with ``QC_HARNESS_DEPENDENCY_UNMET`` rather than reported.
 
-Specified by ``docs/design/tier3_evaluation.md`` sections 9.2, 9.4 and 9.4.1.
+Specified by ``docs/design/tier3_evaluation.md`` sections 9.2, 9.4, 9.4.1
+and 9.4.2.
 """
 
 import logging
@@ -31,8 +33,8 @@ from typing import Any, Final, Mapping
 
 import pytest
 
-from cmn.dependencies import carried_identifiers
-from cmn.layers import layer_properties
+from cmn.calibration_record import calibration_identifiers, invalid_record_reason
+from cmn.dependencies import adopt_carried_outcomes, carried_identifiers
 from cmn.options import resolve_judge_mode
 from cmn.pytest_support import case_identifier
 
@@ -101,13 +103,16 @@ def deselect_unrequested_calibration(config: Any, items: list[Any]) -> int:
 def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, str]) -> int:
     """Make each judged case depend on its family's calibration case, collected or carried.
 
-    Design: ``tier3_evaluation.md`` sections 9.4 and 9.4.1. Each collected
-    calibration case is marked ``base``, and each other collected case whose
-    family has one, or whose family's calibration case an earlier job carried
-    in the calibration layer's identifier block, gains a ``depends_on`` naming
-    it, so the cascade skips the judged cases of a family whose calibration
-    did not hold. Called after every selector and before
-    ``arrange_dependencies``, and after the carried record is adopted.
+    Design: ``tier3_evaluation.md`` sections 9.4, 9.4.1 and 9.4.2. Each
+    collected calibration case is marked ``base``, and each other collected
+    case whose family has one, or whose family's calibration case an earlier
+    job carried in the calibration layer's identifier block, gains a
+    ``depends_on`` naming it, so the cascade skips the judged cases of a
+    family whose calibration did not hold. Where the session read an invalid
+    calibration record, every calibration case the mapping names is first
+    carried as not held, with the record's reason. Called after every selector
+    and before ``arrange_dependencies``, and after the carried outcomes and
+    the calibration record are adopted.
 
     Args:
         items (list): The collected items, marked in place.
@@ -135,6 +140,7 @@ def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, st
             )
         item.add_marker(pytest.mark.base)
         foundations.setdefault(family, []).append(identifier)
+    _carry_invalid_record(families)
     for identifier, family in _carried_calibration(families).items():
         if identifier not in foundations.get(family, []):
             foundations.setdefault(family, []).append(identifier)
@@ -154,6 +160,30 @@ def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, st
     return wired
 
 
+def _carry_invalid_record(families: Mapping[str, str]) -> None:
+    """Carry every calibration case as not held where the session's record is invalid.
+
+    Design: ``tier3_evaluation.md`` section 9.4.2. The reason the record was
+    read as invalid goes with each, so every judged case skips naming it
+    before its judge is called.
+
+    Args:
+        families (Mapping[str, str]): Case name to family, naming every
+            calibration case of the corpus.
+
+    Returns:
+        None
+    """
+    reason = invalid_record_reason()
+    if reason is None:
+        return
+    calibrations = calibration_identifiers(families)
+    adopt_carried_outcomes(
+        {identifier: False for identifier in calibrations},
+        {identifier: reason for identifier in calibrations},
+    )
+
+
 def _carried_calibration(families: Mapping[str, str]) -> dict[str, str]:
     """Return each carried calibration identifier with its family.
 
@@ -168,14 +198,12 @@ def _carried_calibration(families: Mapping[str, str]) -> dict[str, str]:
     Returns:
         dict[str, str]: Carried calibration identifier to its family.
     """
-    low, high = layer_properties("CAL").id_block
     carried = carried_identifiers()
-    found: dict[str, str] = {}
-    for name, family in families.items():
-        identifier = case_identifier(name)
-        if identifier in carried and identifier.isdigit() and low <= int(identifier) <= high:
-            found[identifier] = family
-    return found
+    return {
+        identifier: family
+        for identifier, family in calibration_identifiers(families).items()
+        if identifier in carried
+    }
 
 
 def _case_name(item: Any) -> str:

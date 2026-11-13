@@ -29,6 +29,30 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A judge is calibrated once and every live-judged ladder reads its record, 2026-11-12
+
+**Why.** Calibration measures the judge, not the candidate: its samples go to
+the same judge model whichever engine a ladder evaluates. Rung 2 calibrated on
+every run, so each candidate's ladder paid to measure the same judge again,
+on the candidate's schedule rather than the judge's. The plan of 2026-10-21
+said calibration runs only when the judge model changed, and nothing let one
+session's calibration stand for another's.
+
+**What changed.** A calibration session given `--record-calibration` writes a
+record of its judge: engine, model, what the provider served, the samples
+digest, the commits, the UTC date and each family's outcome. A session given
+`--calibration-record` under a live judge reads it at start and adopts its
+families as carried calibration outcomes while it names the judge in use, the
+samples are unchanged and the judge serves the digest recorded. Age never
+invalidates it. An absent or invalid record skips every judged case with
+`QC_HARNESS_DEPENDENCY_UNMET` and the reason before the judge is called; a
+case graded by our checks alone still runs. A record that will not parse
+refuses the run with `QC_HARNESS_PARSER_ERROR`. A dependency skip now appends
+the reason a carried foundation did not hold. `tier3_evaluation.md` section
+9.4.2; requirement `MQC_REQ_HAR_EVL_0093`; cases `112625` to `112632`. The
+README's instrument suite moved from 1122 to 1130 cases, its requirements from
+430 to 431, and its calibration row states the record.
+
 ### A band session rests on the calibration an earlier job carried, 2026-11-12
 
 **Why.** A live rung is to be banded as the replay gate is, one session per

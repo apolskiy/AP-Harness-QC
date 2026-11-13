@@ -16206,3 +16206,40 @@ Repository's banded ladder follows.
   received the whole of it, so one openai dispatch spent $5.86 against $4.00:
   fixed in the Model Repository by splitting one ceiling across every live
   session.
+
+## 2026-11-12: A judge is calibrated once, and ladders read its record
+
+**What was wrong.** Rung 2 calibrated the judge on every ladder run, once per
+candidate engine. **Why.** Calibration measures the judge, whose samples are
+the same whatever the candidate, and the plan of 2026-10-21 said it runs only
+when the judge model changed. That decision was never implemented, because a
+family's judged cases could rest on its calibration only within one session.
+The ruling: calibration runs per judge, on one OS, on a judge model change,
+monthly or by dispatch, and a ladder reads the record it writes.
+
+**What the harness does now.** `cmn/calibration_record.py` writes the record
+from a session given `--record-calibration` and reads it in a session given
+`--calibration-record` under a live judge. A record is valid while it names
+the judge engine in use, the samples digest is unchanged and the judge's
+provider serves the digest recorded; age never invalidates it. A valid
+record's families are adopted as carried calibration outcomes, which section
+9.4.1 already wires. An absent or invalid record keeps its reason until
+collection, where every calibration case the mapping names is carried as not
+held, so every judged case skips before its judge is called and a check-only
+case runs. `enforce_dependencies` now appends a carried foundation's reason
+to the skip, since "foundational case 174906 did not hold" names a case that
+never ran when the record was never written. A record that will not parse
+refuses the run: a committed record we cannot read is our defect.
+
+**`cmn` still imports nothing from `execution` at load.** The default reader
+of the judge's served identity imports `execution.preflight` when called;
+the cases pass a reader instead.
+
+**Eight cases**, `112625` to `112632`, failed at collection before the module
+existed. Twelve injections across `cmn/calibration_record.py`,
+`cmn/calibration_runs.py` and `cmn/dependencies.py` were each caught. One
+first attempt, dropping the absent-record guard in the adoption, survived and
+was equivalent: `record_invalidity` already gives an absent record its reason,
+and the guard narrows the type. It was replaced by removing that reason, which
+was caught. Requirement `MQC_REQ_HAR_EVL_0093`; `tier3_evaluation.md` section
+9.4.2. The Model Repository's calibration workflows and conftest wiring follow.
