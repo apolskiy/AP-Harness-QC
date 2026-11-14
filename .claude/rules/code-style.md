@@ -356,8 +356,15 @@ concepts keep to the same vocabulary."
 |---|---|---|
 | The mode that reads a recording | **`replay`** | `fixture`, `frozen`. `--mode replay` is the flag and `testing-standards.md` says replay |
 | The file a replay run reads | **`fixture`** | Anything else. A fixture is a file; replay is what a run does with it |
-| A step of the attribution ladder | **`rung`** | `Job 1`. A CI job is also a job, and one rung is three jobs in the gate's shape |
-| A CI job | **`job`** | `rung`, `step`. A step is a step of a job |
+| A graded run, by what it replays | **`<candidate mode> -> <judge mode>`**: `replay -> replay`, `replay -> live`, `live -> live` | `rung 1` to `rung 3`, `Job 1`, `our code`, `the judge`, `the model`. The pair is what the run does, so it cannot be read two ways |
+| The banded run of `evaluate-engine.yml`, the three pairs in sequence | **`regression run`** | `ladder`, `attribution ladder`, `live ladder` |
+| One pair inside a regression run | **`stage`**, named by its pair | `rung`. One stage is three jobs in the gate's shape |
+| `replay -> live` over the calibration samples, in its own workflow | **`judge calibration`** | `calibration` for any other pair. `replay -> replay` verifies the harness and the cases, and is not called calibration |
+| A CI job | **`job`** | `stage`, `step`. A step is a step of a job |
+
+**`live -> replay` is refused at argument parsing.** A recorded judgement
+scores a recorded response, so it says nothing about a live candidate's new
+one (`tier3_evaluation.md` section 5A.5.1).
 | The repository under test by a graded case | **`engine`**, then the model | `provider` where the engine is meant: a provider serves several |
 
 **`consumer` and `the case repository` are both correct and mean different

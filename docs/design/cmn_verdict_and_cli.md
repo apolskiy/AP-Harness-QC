@@ -1347,7 +1347,7 @@ model it requested, and the version the provider served.
 
 **So per-case provenance in JUnit would cost a format downgrade, and buys
 nothing here.** Every run in the shipped topology names one engine and one
-mode: `--engine` takes a single value and the ladder is one call per engine. A
+mode: `--engine` takes a single value and the regression run is one call per engine. A
 run that somehow served two models publishes `resolved_models` already, which
 is the unsound-run condition section 4.9.6 gates on rather than a case to
 report per test.
@@ -2075,7 +2075,7 @@ counts the preconditions as executed.
 **It is guarded by the harness commit, the corpus commit and the platform, and
 not by engine or mode.** A precondition measures the instrument, which is the
 same whichever engine is graded and whether the candidate is replayed, so
-preconditions run once in replay vouch for rung 3's live run. A carried outcome
+preconditions run once in replay vouch for `live -> live`'s live run. A carried outcome
 is guarded by both, because a foundation's outcome is a measurement of one
 engine (section 7.6); that difference is why this is a record of its own rather
 than a field in the carried outcomes.
@@ -2100,7 +2100,7 @@ context was `ci`.
 repository selected 4 graded cases of 250 and recorded `selection_mode: full`,
 `gated` false only because a terminal run is `local`.
 
-**A real run was already carrying it.** `evaluate-engine.yml`'s rung 2 runs its
+**A real run was already carrying it.** `evaluate-engine.yml`'s `replay -> live` runs its
 calibration step with `-k calibration`, in a workflow whose context is `ci`, so
 those rows claimed a verdict over a selection somebody typed. Calibration asks
 whether the judge still means what the anchors say, which is not the question a

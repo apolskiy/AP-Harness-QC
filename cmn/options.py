@@ -3,7 +3,7 @@
 """The option registry, every command line flag a run accepts, declared once.
 
 Created: 2026-09-24
-Last updated: 2026-11-12
+Last updated: 2026-11-13
 
 This file contains ``Option``, one declared flag; ``registered_options``,
 ``option`` and ``defaults``, which read the registry; ``validate_value``, which
@@ -192,7 +192,7 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         ),
     ),
     # THE JUDGE'S CALIBRATION, recorded once per judge and read by every
-    # ladder that judges live (tier3_evaluation.md section 9.4.2).
+    # regression run that judges live (tier3_evaluation.md section 9.4.2).
     Option(
         name="calibration-record",
         default="",

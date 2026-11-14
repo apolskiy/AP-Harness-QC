@@ -3,7 +3,7 @@
 """Decides which runs collect a calibration case, and what rests on it.
 
 Created: 2026-11-10
-Last updated: 2026-11-12
+Last updated: 2026-11-13
 
 This file contains ``deselect_unrequested_calibration``, which deselects every
 case carrying the ``calibration`` marker from a run whose marker expression
@@ -18,7 +18,7 @@ Both repositories' ``conftest.py`` call the deselection at collection, beside
 the environment and audit deselection. A calibration case sends every
 calibration sample of its family to a live judge
 (``evaluation.calibration.calibrate_sample``), so it belongs
-in the one run that asks for it and in no gate or rung that selects by layer.
+in the one run that asks for it and in no gate or stage that selects by layer.
 The case repository calls the dependency wiring after its selectors, with the
 family of each judged case, so a family whose calibration failed is skipped
 with ``QC_HARNESS_DEPENDENCY_UNMET`` rather than reported.

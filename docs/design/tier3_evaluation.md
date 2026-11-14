@@ -2140,12 +2140,17 @@ Added 2026-09-24. `--mode` says whether the **candidate** is dispatched or
 replayed. With judge fixtures in place the judge has the same choice, and the
 two are not always the same answer.
 
-| `--mode` | `--judge-mode` | Answers |
-|---|---|---|
-| replay | replay | Did **our code** change the outcome |
-| replay | live | Did the **judge** change |
-| live | live | What is true today |
-| live | replay | **Incoherent, and refused** |
+| `--mode` | `--judge-mode` | Named | Answers | Run as |
+|---|---|---|---|---|
+| replay | replay | `replay -> replay` | Did **our code** change the outcome | Every gate, verifying the harness and the cases; the first stage of a regression run |
+| replay | live | `replay -> live` | Did the **judge** change | Judge calibration, over the calibration samples; the second stage of a regression run, over the suite |
+| live | live | `live -> live` | What is true today | The regression itself, the third stage of a regression run, and the only source of a finding |
+| live | replay | `live -> replay` | **Incoherent, and refused** | Never |
+
+**A graded run is named by its pair, candidate mode first**, in documents,
+job names and logs (`code-style.md`, the vocabulary table). A **regression
+run** is the case repository's banded run of all three permitted pairs in
+sequence, and each pair inside it is a **stage**.
 
 **`--judge-mode` defaults to whatever `--mode` is**, so nothing has to change to
 keep working and the common cases need no flag. The middle row is the one that
@@ -2829,7 +2834,7 @@ about the judge was measured.
 #### 9.1.1 A calibration judgement never addresses a graded one
 
 **A recording judge channel stores every live judgement it obtains**, under
-`judgements/<candidate>/<judge>/<task>/<rule>/<observation>.json`, and rung 2
+`judgements/<candidate>/<judge>/<task>/<rule>/<observation>.json`, and `replay -> live`
 records. A calibration request carrying the rule's own case identifier would be
 written over observation 0 of that rule's graded judgement, and the next replay
 would read a sample's score as the candidate's.
@@ -2888,14 +2893,14 @@ deselects it from every run whose marker expression does not name
 gives a mutation audit.
 
 **Selection by layer would have run it everywhere.** The case was graded and
-carried the `evaluator` marker until section 9.3 gave it a layer of its own, and the case repository's gates and every rung
-of its ladder select `-m "evaluator or tool or sec"`:
+carried the `evaluator` marker until section 9.3 gave it a layer of its own, and the case repository's gates and every stage
+of its regression run select `-m "evaluator or tool or sec"`:
 
 | Run | Judge | Calibration, selected by layer |
 |---|---|---|
-| A gate, rung 1 | Replayed | Collected, with no judgement to replay |
-| Rung 2's re-judging step, rung 3 | Live | **Run again**, a judge call per sample each time |
-| Rung 2's calibration step | Live | Run, which is the only place it belongs |
+| A gate, `replay -> replay` | Replayed | Collected, with no judgement to replay |
+| `replay -> live`'s re-judging step, `live -> live` | Live | **Run again**, a judge call per sample each time |
+| `replay -> live`'s calibration step | Live | Run, which is the only place it belongs |
 
 **Deselected rather than skipped**, so a run that did not ask for calibration
 leaves it out of the total rather than reporting a non-outcome inside it.
@@ -2913,7 +2918,7 @@ could still report green.
 Added 2026-11-10. **A calibration case measures the judge, not the model**, so
 a judge scoring an exemplar away from its anchor is an instrument defect: every
 judged score of the run is uninterpretable. As a graded case it failed with
-exit 1, the status that means a model underperformed, and a red rung 2 would
+exit 1, the status that means a model underperformed, and a red `replay -> live` would
 have pointed at the candidate engine.
 
 **So calibration is the `CAL` layer**, registered in `cmn/layers.py` and
@@ -2965,7 +2970,7 @@ on one family says nothing about another.
 Calibration is collected only by a run asking for it (section 9.2), and a
 `depends_on` naming a case the run did not collect is refused by
 `arrange_dependencies` as unresolvable. A declared dependency would refuse
-every gate and every rung that does not calibrate.
+every gate and every stage that does not calibrate.
 
 `cmn.calibration_runs.rest_judged_cases_on_calibration` takes the collected
 items and a mapping from case name to family, which the case repository
@@ -2996,7 +3001,7 @@ calibration case and that a calibration case naming no family is refused.
 
 Added 2026-11-12, at the project owner's ruling of that date.
 
-**A live rung is banded as the gate is**, one session per band, so a
+**A live stage is banded as the gate is**, one session per band, so a
 foundation that fails skips what rests on it before anything is dispatched
 for it (`cmn_verdict_and_cli.md` section 10.28). A band selects by priority
 and a calibration case carries none, so no band session collects one, and the
@@ -3032,19 +3037,19 @@ calibration case of the corpus, since the session never collected the case.
 | `MQC_CMN_UNI_112623` | A family whose carried calibration failed has its judged case skipped with `QC_HARNESS_DEPENDENCY_UNMET`, and one whose carried calibration held is judged |
 | `MQC_CMN_UNI_112624` | A carried identifier outside the calibration block wires nothing, though the mapping names it with a family |
 
-#### 9.4.2 Calibration is the judge's, so it is recorded once and read by every ladder
+#### 9.4.2 Calibration is the judge's, so it is recorded once and read by every regression run
 
 Added 2026-11-12, at the project owner's ruling of that date.
 
 **Calibration measures the judge, not the candidate.** Its samples go to the
-same judge model whichever engine a ladder evaluates, so calibrating inside
-each ladder measured the same thing once per candidate engine, on the
+same judge model whichever engine a regression run evaluates, so calibrating inside
+each regression run measured the same thing once per candidate engine, on the
 candidate's schedule rather than the judge's. The plan approved on 2026-10-21
 already said calibration runs only when the judge model changed; it was built
-to run on every rung 2, because a family's judged cases could rest on its
+to run on every `replay -> live`, because a family's judged cases could rest on its
 calibration only within one session.
 
-**So a calibration run writes a record, and a ladder reads it.** The case
+**So a calibration run writes a record, and a regression run reads it.** The case
 repository runs calibration in a workflow of its own per judge, on a judge
 model change, monthly or by dispatch (its `consumer_ci.md` carries the
 workflow). A session given `--record-calibration PATH` that collected
@@ -3092,7 +3097,7 @@ spent on a score nobody could interpret.
 
 **A session not given `--calibration-record`, or whose judge is not live,
 reads nothing**: a replayed judgement was calibrated when it was recorded, and
-the gate and rung 1 replay every judgement.
+the gate and `replay -> replay` replay every judgement.
 
 **A skip names its reason.** `cmn.dependencies.enforce_dependencies` reported
 only that a foundational case did not hold, which for a record that was never

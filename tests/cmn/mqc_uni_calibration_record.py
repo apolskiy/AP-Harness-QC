@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit cases for the calibration record a ladder reads in place of calibrating.
+"""Unit cases for the calibration record a regression run reads in place of calibrating.
 
 Created: 2026-11-12
-Last updated: 2026-11-12
+Last updated: 2026-11-13
 
 Its cases check ``cmn/calibration_record.py``. A calibration session writes a
 record naming the judge, what it served, the samples' digest and each family's
@@ -63,7 +63,7 @@ pytestmark = pytest.mark.unit
 
 
 class TestMQCCalibrationRecord:
-    """A ladder reads its judge's calibration record rather than calibrating."""
+    """A regression run reads its judge's calibration record rather than calibrating."""
 
     def MQC_CMN_UNI_112625_a_record_reads_back_valid_under_the_same_judge(
         self, tmp_path: Path

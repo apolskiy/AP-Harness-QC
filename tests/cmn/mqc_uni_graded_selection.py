@@ -3,7 +3,7 @@
 """Unit preconditions for a graded invocation in CI, what it selects and what gates it.
 
 Created: 2026-10-21
-Last updated: 2026-10-29
+Last updated: 2026-11-13
 
 This file contains three cases over what a CI invocation selects and what
 stands in front of it. ``cmn.code_standards.partial_graded_selection_gaps``:
@@ -320,7 +320,7 @@ class TestMQCDispatchGating:
         **The retired probe held the instance.**
         ``probe-model-version-nightly.yml``'s dispatch job needed ``probe``
         alone and read ``changed_engines``, so it would have dispatched a live
-        ladder on the strength of a version comparison and nothing else. The
+        regression run on the strength of a version comparison and nothing else. The
         third shape below is that arrangement.
 
         **Nothing is reported against this root, and that is expected.** The

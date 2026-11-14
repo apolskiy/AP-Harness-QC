@@ -29,6 +29,24 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A graded run is named by its candidate and judge modes, 2026-11-13
+
+**Why.** "Ladder" and "rung 1" to "rung 3" named the case repository's banded
+run and its parts by position, and a reader had to recall which rung replayed
+what. The case repository calls that run a regression run, and "calibration"
+was read as covering `replay -> replay` too.
+
+**What changed.** The vocabulary table in `code-style.md` names a graded run
+by its pair, candidate mode first: `replay -> replay`, `replay -> live`,
+`live -> live`. The case repository's banded run of the three is a regression
+run, one pair inside it is a stage, and `replay -> live` over the calibration
+samples is judge calibration. `tier3_evaluation.md` section 5A.5 states what
+each pair is run as, and `live -> replay` stays refused. Every design,
+requirement and comment that said ladder or rung now uses those names. The
+`MQC_CAL_` row in `testing-standards.md` described the retired exemplar
+method and now describes the sample agreement and the per-judge workflow.
+No behaviour changed.
+
 ### A judge is calibrated once and every live-judged ladder reads its record, 2026-11-12
 
 **Why.** Calibration measures the judge, not the candidate: its samples go to

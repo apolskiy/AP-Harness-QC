@@ -3,7 +3,7 @@
 """Unit preconditions for what a test module is: cases only, gated, and bounded.
 
 Created: 2026-10-29
-Last updated: 2026-11-11
+Last updated: 2026-11-13
 
 This file contains four cases on the shape of a collected test module, reading
 ``cmn.case_module_standards`` and ``cmn.module_size``.
@@ -194,7 +194,7 @@ class TestMQCCaseModuleContents:
             encoding="utf-8",
         )
         assert not ungated_modules(tmp_path), (
-            "a module marked calibration was reported, and rung 2 selects "
+            "a module marked calibration was reported, and `replay -> live` selects "
             "-m calibration; the gate markers are the layer registry's"
         )
 

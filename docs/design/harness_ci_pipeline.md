@@ -116,7 +116,7 @@ already states what gates their return.
 Decided 2026-10-01 by the project owner, settling what section 2.0.1 withdrew.
 
 **The live run measures what the replay run measures.** That is the answer to
-what it is for: the same ladder against the same corpus, dispatched rather than
+what it is for: the same regression run against the same corpus, dispatched rather than
 replayed. What it additionally buys is the recordings themselves, because a
 newer engine or model version has no fixtures until something live produces
 them, and a replay suite cannot characterise a version it has never met.
@@ -156,7 +156,7 @@ not move, measured in `tier2_execution.md` section 5.1, so what changed is
 compared as a digest of everything the provider declares about the model.
 
 **Why a floor and not a cap on cost.** A provider can serve a new version twice
-in a week, and the cost of a live ladder is the corpus times the observation
+in a week, and the cost of a live regression run is the corpus times the observation
 count, which section 4.9.2.1 has just raised. The floor bounds spend by
 construction; a budget ceiling bounds it by refusing mid-run, which is worse
 when the run exists to produce fixtures.
@@ -221,7 +221,7 @@ Each declares `needs` on its predecessor, so a precondition failure leaves the n
 
 **What this repository owes instead is proof that the instrument works**, and that is `MQC_CMN_SYS_122000` to `122002` inside Gate 3: the whole chain on a synthetic corpus, from the ingestion join through replay dispatch and the dual pass to a computed verdict, asserting it reaches **both** a green and a red. A harness that cannot report red about a failing model cannot be trusted when it reports green.
 
-**`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and and what a harness-only live run should measure was settled on 2026-10-01: the same ladder, fired weekly or on a version change, specified in section 2.0.2 below.
+**`regress-harness-on-branch.yml` carried the same four steps** and they are removed for the same reason. `evaluate-live-weekly.yml` still carries them and and what a harness-only live run should measure was settled on 2026-10-01: the same regression run, fired weekly or on a version change, specified in section 2.0.2 below.
 
 **Section 3.1.1 below describes the three-step graded job as the consumer runs it**, and its requirement of three separate JUnit files is a requirement on that pipeline.
 
@@ -1167,7 +1167,7 @@ a scheduled retirement is not a reason to leave a defect in place; this is that
 retirement arriving.
 
 **The spending workflow is the case repository's**, one per engine, calling the
-three-rung ladder in `evaluate-engine.yml`. Its design is `consumer_ci.md`
+three-stage regression run in `evaluate-engine.yml`. Its design is `consumer_ci.md`
 sections 4.18 and 7.
 
 **The subsections below keep their numbers and remain the record of what they
@@ -1726,7 +1726,7 @@ Added 2026-10-09, before the band jobs were collapsed into a composite action.
 
 **`pylint_invocations` and the checks beside it read `run:` lines out of a
 job.** Eight call sites in the case repository depend on seeing the pytest
-invocation there: the attribution-ladder check, the engine-naming checks, the
+invocation there: the regression-run check, the engine-naming checks, the
 green-gate check.
 
 **Factor that invocation anywhere and those checks go quiet rather than red.**
@@ -1872,7 +1872,7 @@ that no task sends, so the join failed referential integrity and
 `MQC_CAS_UNI_115000` reported `QC_DATA_INVARIANT_VIOLATION`. **Four graded
 sweeps ran over it**, one per engine, and each reported ordinary findings: the
 graded suite builds one case at a time, so a corpus-wide check is the only
-thing that sees a dangling reference, and nothing in the ladder ran one.
+thing that sees a dangling reference, and nothing in the regression run ran one.
 
 **The register those sweeps produced was still valid**, because the assertions
 themselves ran, and that is luck rather than a property. A reference that had
@@ -1911,15 +1911,15 @@ against our code, and what gates it is that repository's precondition command.
 | Workflow | Was | Is |
 |---|---|---|
 | `evaluate-live-weekly.yml` | One `evaluate` job, needing nothing, running the graded layers live under a `--max-spend` ceiling | A `preconditions` job runs `pytest -m unit` and `pytest -m system`, and `evaluate` needs it |
-| `AP-Model-QC` `evaluate-engine.yml` | Four graded invocations across three rungs, gated on `resolve` alone | A `preconditions` job ahead of rung 1, which every rung reaches through the chain |
+| `AP-Model-QC` `evaluate-engine.yml` | Four graded invocations across three stages, gated on `resolve` alone | A `preconditions` job ahead of `replay -> replay`, which every stage reaches through the chain |
 
 **A scheduled retirement is not a reason to leave it.**
 `evaluate-live-weekly.yml` is retired at a later step of the probe and
 calibration plan and is fixed here anyway, which is the reasoning
 `consumer_ci.md` section 4.21 used about the same workflow's selection.
 
-**The ladder is the one that mattered**, because it is the workflow that
-spends: rung 2 pays for a live judge and rung 3 for a live candidate, and both
+**The regression run is the one that mattered**, because it is the workflow that
+spends: `replay -> live` pays for a live judge and `live -> live` for a live candidate, and both
 were reachable with the corpus in the state section 8.6.1 describes.
 
 #### 8.6.5 Enforced, from one implementation
@@ -2044,7 +2044,7 @@ Added 2026-10-29 with the probe move, because the project owner's ruling has
 two halves and only one of them is a location: "Probe needs to live with the
 model **and use green harness**".
 
-**A detector that dispatches a live ladder decides to spend.** Section 8.6
+**A detector that dispatches a live regression run decides to spend.** Section 8.6
 gates a job that *runs* graded cases on the preconditions; this gates a job
 that *causes* graded cases to run elsewhere on the instrument being verified.
 Neither covers the other, and the probe is the first job of the second kind.
@@ -2058,7 +2058,7 @@ Neither covers the other, and the probe is the first job of the second kind.
 **What is read.** A job carrying a step that dispatches a workflow, by
 `gh workflow run` or by the Actions API, and whose own condition does not read
 a green pairing from a job it needs. The pairing is the consumer's resolver,
-`tools.harness_pin`, whose `green` output every ladder job here already gates
+`tools.harness_pin`, whose `green` output every regression run job here already gates
 on; the harness has no pin of its own, so this check reports nothing against
 this root and is written here because the implementation is shared.
 

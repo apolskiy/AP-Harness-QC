@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""The calibration record a calibration session writes and a ladder reads.
+"""The calibration record a calibration session writes and a regression run reads.
 
 Created: 2026-11-12
-Last updated: 2026-11-12
+Last updated: 2026-11-13
 
 This file contains ``CalibrationRecord``, the record's fields;
 ``write_calibration_record`` and ``read_calibration_record``, which store and

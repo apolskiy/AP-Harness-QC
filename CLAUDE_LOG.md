@@ -16243,3 +16243,21 @@ was equivalent: `record_invalidity` already gives an absent record its reason,
 and the guard narrows the type. It was replaced by removing that reason, which
 was caught. Requirement `MQC_REQ_HAR_EVL_0093`; `tier3_evaluation.md` section
 9.4.2. The Model Repository's calibration workflows and conftest wiring follow.
+
+## 2026-11-13: A graded run is named by its candidate and judge modes
+
+**What was wrong.** The documents named the case repository's banded run a
+ladder and its parts rung 1 to rung 3, while that run is called a regression
+run, and a rung number does not say what it replays. "Calibration" was also
+read as covering the replay-on-both-sides run.
+
+**What changed.** A graded run is named by its pair, candidate mode first:
+`replay -> replay` verifies the harness and the cases, `replay -> live`
+measures the judge, `live -> live` is the regression. A regression run is the
+three in sequence, each a stage, and judge calibration is `replay -> live`
+over the calibration samples. `code-style.md` holds the vocabulary, and
+`tier3_evaluation.md` section 5A.5 states what each pair is run as. A
+token-aware rename swept designs, requirements, comments and docstrings; the
+change history was left as written. The `MQC_CAL_` row in
+`testing-standards.md` still described rubric exemplars scored within one
+level, retired on 2026-11-12, and was rewritten. No behaviour changed.

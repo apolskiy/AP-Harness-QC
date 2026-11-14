@@ -3,7 +3,7 @@
 """Unit cases for which runs collect a calibration case.
 
 Created: 2026-11-10
-Last updated: 2026-11-12
+Last updated: 2026-11-13
 
 Its cases check ``cmn/calibration_runs.py``. ``deselect_unrequested_calibration``
 deselects a calibration case from a run whose marker expression does not name
@@ -14,7 +14,7 @@ collects both, or where an earlier job carried that case's outcome to a band
 session, so a failed calibration skips its family's judged cases.
 
 Calibration spends a judge call per sample, so a defect here either runs it
-in every gate and rung, lets the run that asks for it measure nothing, or
+in every gate and stage, lets the run that asks for it measure nothing, or
 reports judged scores from a judge that failed it. Its cases are listed in the
 block below, inventoried in ``docs/design/cmn_verdict_and_cli.md`` and
 specified by ``docs/design/tier3_evaluation.md`` sections 9.2, 9.4 and 9.4.1.
@@ -210,7 +210,7 @@ class TestMQCCalibrationRuns:
         try:
             assert rest_judged_cases_on_calibration(items, families) == 0
             assert not declared_dependencies(judged)
-            # A GATE OR A RUNG THAT DOES NOT CALIBRATE STILL RESOLVES.
+            # A GATE OR A STAGE THAT DOES NOT CALIBRATE STILL RESOLVES.
             arrange_dependencies(items)
 
             orphan = CollectedCase(_CAL_FIDELITY, "calibration")

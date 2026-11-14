@@ -59,20 +59,20 @@ credential at all.
 
 ## 2. Decisions I have deferred rather than made
 
-### 2.5 Should a claude-judged rung 3 run at all?
+### 2.5 Should a claude-judged `live -> live` run at all?
 
 Opened 2026-10-21. A second judge was added so that gemini does not score its
-own engine unchecked, and **the comparison only works at rung 2**: the
+own engine unchecked, and **the comparison only works at `replay -> live`**: the
 responses are a recording, so a difference between two judges is the judge.
-Rung 3 draws its candidates live, so a claude-judged rung 3 and a gemini-judged
+`live -> live` draws its candidates live, so a claude-judged `live -> live` and a gemini-judged
 one score different responses and nothing in the result separates a judge
 difference from a response difference.
 
-The project owner named rung 1 as the one rung not to repeat for a second
-judge, so rung 3 runs as instructed and this is the question rather than a
+The project owner named `replay -> replay` as the one stage not to repeat for a second
+judge, so `live -> live` runs as instructed and this is the question rather than a
 change. **What keeps it genuinely open:** a finding filed against a vendor must
 cite a live candidate, so a finding only claude's judging produces cannot be
-filed from rung 2 alone. Recorded in `consumer_ci.md` section 7.7.2 with the
+filed from `replay -> live` alone. Recorded in `consumer_ci.md` section 7.7.2 with the
 table.
 
 **Previously, and still true of the rest:** section 2A says where every settled
@@ -133,7 +133,7 @@ because a second copy drifts.
 | Is `inconsistency_ceiling` at 0.10 right? | 2026-10-01, 0.20, with three observations escalating to five on a single disagreement | `cmn_verdict_and_cli.md` section 4.9.2.1 |
 | Should multi-prompt consistency be built? | 2026-10-01, out of scope and a harness expansion | `cmn_verdict_and_cli.md` section 4.9.5 |
 | Should a security case declare the vector it is about? | 2026-10-01, all of them, with a primary | `model_evaluation_test_plan.md` section 9.10.3.1 |
-| What should the harness's own live run measure? | 2026-10-01, the same ladder, fired weekly or on a version change | `harness_ci_pipeline.md` section 2.0.2 |
+| What should the harness's own live run measure? | 2026-10-01, the same regression run, fired weekly or on a version change | `harness_ci_pipeline.md` section 2.0.2 |
 | Which engines are recorded, and what clears the rest? | 2026-10-04 and 2026-10-05, all four | `config/findings/`, and `CLAUDE_LOG.md` for each recording |
 | Where do the credentials live, and which secret is where? | 2026-10-05, **deliberately not recorded in a tracked document** | Nowhere. The properties are asserted by code, per section 1 |
 | Is `--max-spend` wired into anything? | 2026-10-04, into every leg that can dispatch | `harness_ci_pipeline.md`, and the `max_spend` input on each |
