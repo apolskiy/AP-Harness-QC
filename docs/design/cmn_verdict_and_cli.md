@@ -3532,6 +3532,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112255` | N | `a_document_outside_the_register_is_reported` |
 | `112256` | P | `an_index_resolves_a_family_without_the_rest_of_its_row` |
 | `112257` | N | `a_live_step_without_a_spend_ceiling_is_reported` |
+| `112263` | N | `a_local_action_spending_without_a_ceiling_is_reported` |
 | `112313` | N | `a_collected_test_named_in_no_matrix_row_is_reported` |
 | `112314` | N | `an_index_case_count_disagreeing_with_its_design_is_reported` |
 | `112600` | P | `the_default_judge_engine_is_gemini` |
@@ -3702,7 +3703,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 516 cases, 308 negative, 154 positive, 54 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 517 cases, 309 negative, 154 positive, 54 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

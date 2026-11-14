@@ -3,16 +3,17 @@
 """Unit tests for choosing which cases a run collects, by name, family, requirement or module.
 
 Created: 2026-10-03
-Last updated: 2026-10-21
+Last updated: 2026-11-14
 
 Its cases check ``select_named_tests``, ``select_traced_cases`` and
 ``select_modules`` in ``cmn/selection.py``, and ``load_case_index`` and
 ``cases_for_index_values`` in ``cmn/traceability.py``. A named list runs exactly
 those tests, read inline or from a file, and reports a stale entry. A family or
 requirement selection resolves through the matrix, a module selection keeps only
-that module's cases, and an unresolvable selector is reported. One case checks
+that module's cases, and an unresolvable selector is reported. Two cases check
 ``uncapped_spending_steps`` in ``cmn/workflow_standards.py``, which reports a live
-workflow step with no spend ceiling.
+workflow step with no spend ceiling, written in the workflow or reached through a
+local composite action.
 
 The selectors run at collection, so they decide which cases a stabilization or
 debug run re-runs after a fix. Any of them makes the selection manual, which
@@ -48,6 +49,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112256  an_index_resolves_a_family_without_the_rest_of_its_row
 # TestMQCSpendCeiling
 #   112257  a_live_step_without_a_spend_ceiling_is_reported
+#   112263  a_local_action_spending_without_a_ceiling_is_reported
 # ------------------------------------------------------------ end of cases
 
 import sys
@@ -56,6 +58,7 @@ from typing import Any
 
 import pytest
 
+from cmn.case_steps import step
 from cmn.selection import select_modules, select_named_tests, select_traced_cases
 from cmn.workflow_standards import uncapped_spending_steps
 from cmn.traceability import cases_for_index_values, load_case_index
@@ -690,3 +693,111 @@ class TestMQCSpendCeiling:
             "a step carrying a ceiling on a continuation line was reported, "
             "which is the over-reporting that trains a check away"
         )
+
+    def MQC_CMN_UNI_112263_a_local_action_spending_without_a_ceiling_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """A step calling a local composite action is read through it, and zero is no ceiling.
+
+        The action writes its modes and ceiling as ``${{ inputs.<name> }}``, so
+        each is read as the calling step passes it or as the input defaults.
+        A quoted ``"live"`` spends, and a ceiling of zero or empty names none.
+
+        Design: ``harness_ci_pipeline.md`` section 8.2.2.
+
+        Returns:
+            None
+        """
+        action = tmp_path / ".github" / "actions" / "band"
+        action.mkdir(parents=True)
+        (action / "action.yml").write_text(
+            "\n".join([
+                "name: Band",
+                "inputs:",
+                "  mode:",
+                "    default: replay",
+                "  judge_mode:",
+                '    default: ""',
+                "  max_spend:",
+                '    default: "0"',
+                "runs:",
+                "  using: composite",
+                "  steps:",
+                "    - shell: bash",
+                "      run: |",
+                '        pytest -m "evaluator or tool or sec" \\',
+                "          --mode ${{ inputs.mode }} \\",
+                '          --judge-mode "${{ inputs.judge_mode }}" \\',
+                '          --max-spend "${{ inputs.max_spend }}" \\',
+                "          --junitxml=reports/junit.xml",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        workflows = tmp_path / ".github" / "workflows"
+        workflows.mkdir(parents=True)
+
+        def band_job(name: str, *with_lines: str) -> list[str]:
+            """Return a job calling the band action with the given inputs."""
+            return [
+                f"  {name}:",
+                "    steps:",
+                "      - uses: ./.github/actions/band",
+                "        with:",
+                *[f"          {line}" for line in with_lines],
+            ]
+
+        (workflows / "bands.yml").write_text(
+            "\n".join([
+                "name: bands",
+                "jobs:",
+                *band_job("replayed", "mode: replay"),
+                *band_job("live_capped", "mode: live",
+                          "max_spend: ${{ steps.spend.outputs.remaining }}"),
+                *band_job("live_uncapped", "mode: live"),
+                *band_job("judged_at_zero", "mode: replay", "judge_mode: live",
+                          'max_spend: "0.00"'),
+                *band_job("live_empty_ceiling", "mode: live", 'max_spend: ""'),
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        (workflows / "direct.yml").write_text(
+            "\n".join([
+                "name: direct",
+                "jobs:",
+                "  live:",
+                "    steps:",
+                "      - run: |",
+                "          pytest -m sec \\",
+                "            --mode live \\",
+                "            --max-spend 0 \\",
+                "            --junitxml=reports/junit.xml",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+
+        reported = uncapped_spending_steps(tmp_path)
+
+        def reported_for(name: str) -> list[str]:
+            """Return the reports naming a job or a workflow."""
+            return [entry for entry in reported if name in entry]
+
+        step(1, "find the live band with no ceiling reported through the action")
+        assert reported_for("live_uncapped"), reported
+
+        step(2, "find the band judging \"live\" at a ceiling of 0.00 reported")
+        assert reported_for("judged_at_zero"), reported
+
+        step(3, "find the live band passing an empty ceiling reported")
+        assert reported_for("live_empty_ceiling"), reported
+
+        step(4, "find a direct live step at --max-spend 0 reported")
+        assert reported_for("direct.yml"), reported
+
+        step(5, "find the replayed band not reported")
+        assert not reported_for("replayed"), reported
+
+        step(6, "find the live band passing its remainder as a ceiling not reported")
+        assert not reported_for("live_capped"), reported
+
+        step(7, "find exactly the four uncapped steps reported")
+        assert len(reported) == 4, reported

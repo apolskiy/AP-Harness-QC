@@ -16261,3 +16261,35 @@ token-aware rename swept designs, requirements, comments and docstrings; the
 change history was left as written. The `MQC_CAL_` row in
 `testing-standards.md` still described rubric exemplars scored within one
 level, retired on 2026-11-12, and was rewritten. No behaviour changed.
+
+## 2026-11-14: The spend-ceiling check reads through local composite actions
+
+**A) What was wrong.** `uncapped_spending_steps` read workflow files only, so
+a band the case repository runs through `.github/actions/band` was outside
+`MQC_CAS_UNI_115418`, recorded there as not yet done on 2026-11-12. The action
+writes `--mode ${{ inputs.mode }}`, which never read as live, and
+`--max-spend "${{ inputs.max_spend }}"` with a default of zero, which the
+option reads as no ceiling; a caller passing `mode: live` without `max_spend`
+would have run live with no ceiling and passed. A literal `--max-spend 0`
+passed as well. **B) Why it happened.** The check matched the flag's presence
+in workflow text, which held while every invocation was written in a workflow;
+the band action moved the invocations out of them and nothing followed.
+
+**What changed.** A step whose `uses:` names a local composite action is read
+through it: each `${{ inputs.<name> }}` takes the step's `with:` value, or the
+input's default where none is passed, and each `run:` command is checked as
+the step's own. A quoted `"live"` spends, and a ceiling resolving to empty or
+zero is none; an expression or a shell variable still counts, being supplied at
+run time. Continuation joining is shared between the two readers.
+`harness_ci_pipeline.md` section 8.2.2; requirement `MQC_REQ_HAR_CMN_0124`,
+unchanged, now traced to `112263` as well.
+
+**Cases.** `MQC_CMN_UNI_112263` failed first, reporting nothing for any of its
+four uncapped steps. Six injections were run. The first pass of one, an empty
+value counting as a ceiling, went NOT CAUGHT, because no fixture passed an
+empty ceiling; a band call passing `max_spend: ""` was added and all six were
+caught, among them the case repository's `115418` catching a `live -> live`
+band call with its `max_spend` removed. Ignoring an input's declared default is
+not distinguishable by the fixture, both an empty and a zero ceiling reading
+as none.
+

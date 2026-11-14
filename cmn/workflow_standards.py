@@ -3,10 +3,11 @@
 """Workflow standards checks, what the CI definitions must hold, checked before a push.
 
 Created: 2026-10-04
-Last updated: 2026-10-28
+Last updated: 2026-11-14
 
 This file contains ``uncapped_spending_steps``, which reports a workflow step
-that can spend on a provider and names no ``--max-spend`` ceiling;
+that can spend on a provider and names no ``--max-spend`` ceiling above zero,
+in the workflow or through a local composite action it calls;
 ``pylint_invocations`` and ``disagreeing_pylint_invocations``, which report a
 pylint command differing from its copies; ``duplicate_yaml_keys``;
 ``engine_list_gaps``, a workflow engine list disagreeing with the roster;
@@ -61,11 +62,24 @@ _PYLINT_CALL: Final[re.Pattern] = re.compile(
 
 _CEILING_FLAG: Final[str] = "--max-spend"
 
+# THE CEILING'S VALUE, quoted or bare. Zero is the option's default and reads
+# as none, so a step written or resolved to zero names no ceiling. Design
+# `harness_ci_pipeline.md` section 8.2.2.
+_CEILING_VALUE: Final[re.Pattern] = re.compile(
+    r"--max-spend(?:[ =]+(?:\"([^\"]*)\"|'([^']*)'|(\S+)))?"
+)
+
 
 # A STEP THAT CAN REACH A PROVIDER. `--mode live` dispatches to the candidate
 # and `--judge-mode live` dispatches to the judge whatever the candidate mode.
-# Either spends. Design `harness_ci_pipeline.md` section 8.2.
-_SPENDING_FLAGS: Final[tuple[str, ...]] = ("--mode live", "--judge-mode live")
+# Either spends, quoted or not. Design `harness_ci_pipeline.md` section 8.2.
+_SPENDING: Final[re.Pattern] = re.compile(r"--(?:judge-)?mode[ =]+[\"']?live\b")
+
+# A LOCAL COMPOSITE ACTION, which a step reaches through ``uses:`` and whose
+# `run:` steps are read as the step's own, its inputs filled in.
+_LOCAL_ACTION_PREFIX: Final[str] = "./"
+_ACTION_FILES: Final[tuple[str, ...]] = ("action.yml", "action.yaml")
+_INPUT_REFERENCE: Final[re.Pattern] = re.compile(r"\$\{\{\s*inputs\.([A-Za-z0-9_-]+)\s*\}\}")
 
 # The triggers whose ``branches`` filter names a branch, and the filter that
 # names every branch at once.
@@ -155,29 +169,154 @@ def uncapped_spending_steps(root: Path) -> list[str]:
     a ceiling, on the same reasoning that makes the artifact check key on the
     flags rather than on the word pytest.
 
-    Design: ``harness_ci_pipeline.md`` section 8.2.
+    **A ceiling of zero or empty is none**, being the option's default. A step
+    calling a local composite action is read through the action, each
+    ``${{ inputs.<name> }}`` taking the step's ``with:`` value or the input's
+    default.
+
+    Design: ``harness_ci_pipeline.md`` sections 8.2 and 8.2.2.
 
     Args:
         root (Path): The repository root.
 
     Returns:
-        list[str]: One entry per step, naming the workflow and the line. Empty
-        when every step that can reach a provider carries a ceiling.
+        list[str]: One entry per step, naming the workflow and the line, or the
+        workflow, job and action. Empty when every step that can reach a
+        provider carries a ceiling.
     """
     problems: list[str] = []
     for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
         for number, invocation in _shell_invocations(workflow):
-            spends = any(flag in invocation for flag in _SPENDING_FLAGS)
-            matrix_mode = "--mode ${{ matrix.mode }}" in invocation
-            if not spends and not matrix_mode:
-                continue
-            if _CEILING_FLAG in invocation:
-                continue
-            problems.append(
-                f"{workflow.name}:{number} can dispatch live and names no "
-                f"{_CEILING_FLAG}, so the run has no ceiling"
-            )
+            if _uncapped(invocation):
+                problems.append(
+                    f"{workflow.name}:{number} can dispatch live and names no "
+                    f"{_CEILING_FLAG}, so the run has no ceiling"
+                )
+        problems.extend(_uncapped_action_calls(root, workflow))
     return problems
+
+
+def _uncapped(invocation: str) -> bool:
+    """Return whether one shell command can dispatch live without a ceiling.
+
+    Args:
+        invocation (str): The command, its continuations joined.
+
+    Returns:
+        bool: True when it can spend and names no ceiling above zero.
+    """
+    spends = bool(_SPENDING.search(invocation))
+    matrix_mode = "--mode ${{ matrix.mode }}" in invocation
+    if not spends and not matrix_mode:
+        return False
+    return not _names_ceiling(invocation)
+
+
+def _names_ceiling(invocation: str) -> bool:
+    """Return whether a command names a ceiling above zero.
+
+    Args:
+        invocation (str): The command, its continuations joined.
+
+    Returns:
+        bool: True for a positive figure, an expression or a shell variable;
+        False for no flag, an empty value or zero.
+    """
+    match = _CEILING_VALUE.search(invocation)
+    if match is None:
+        return False
+    value = next((group for group in match.groups() if group is not None), "")
+    if not value.strip():
+        return False
+    try:
+        return float(value) > 0
+    except ValueError:
+        return True
+
+
+def _uncapped_action_calls(root: Path, workflow: Path) -> list[str]:
+    """Report each step calling a local composite action that spends without a ceiling.
+
+    Args:
+        root (Path): The repository root.
+        workflow (Path): The workflow file.
+
+    Returns:
+        list[str]: One entry per offending step, naming the workflow, the job
+        and the action.
+    """
+    definition = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
+    problems: list[str] = []
+    for job_name, job in (definition.get("jobs") or {}).items():
+        for step_value in (job or {}).get("steps") or []:
+            uses = str((step_value or {}).get("uses") or "")
+            if not uses.startswith(_LOCAL_ACTION_PREFIX):
+                continue
+            action = _local_action(root, uses)
+            if action is None:
+                continue
+            passed = {
+                str(key): "" if value is None else str(value)
+                for key, value in ((step_value or {}).get("with") or {}).items()
+            }
+            if any(_uncapped(command) for command in _action_commands(action, passed)):
+                problems.append(
+                    f"{workflow.name} job {job_name} runs {uses}, which can "
+                    f"dispatch live with the inputs it is given and names no "
+                    f"{_CEILING_FLAG} above zero, so the run has no ceiling"
+                )
+    return problems
+
+
+def _local_action(root: Path, uses: str) -> dict[str, Any] | None:
+    """Return a local action's definition, or None where it is not a composite action.
+
+    Args:
+        root (Path): The repository root.
+        uses (str): The step's ``uses:`` value, a path starting ``./``.
+
+    Returns:
+        dict | None: The parsed action, or None where no action file exists or
+        the action is not composite, such as a reusable workflow.
+    """
+    directory = root / uses[len(_LOCAL_ACTION_PREFIX):]
+    for name in _ACTION_FILES:
+        path = directory / name
+        if path.is_file():
+            action = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            runs = action.get("runs") or {}
+            return action if runs.get("using") == "composite" else None
+    return None
+
+
+def _action_commands(action: dict[str, Any], passed: dict[str, str]) -> list[str]:
+    """Return each shell command a composite action runs, with its inputs filled in.
+
+    Args:
+        action (dict): The parsed action.
+        passed (dict): The calling step's ``with:`` values.
+
+    Returns:
+        list[str]: Each command, its continuations joined and every
+        ``${{ inputs.<name> }}`` replaced by the passed value or the default.
+    """
+    declared = action.get("inputs") or {}
+    defaults = {
+        str(name): str((spec or {}).get("default", "") or "")
+        for name, spec in declared.items()
+    }
+
+    def resolve(match: re.Match) -> str:
+        name = match.group(1)
+        return passed.get(name, defaults.get(name, ""))
+
+    commands: list[str] = []
+    for step_value in (action.get("runs") or {}).get("steps") or []:
+        script = str((step_value or {}).get("run") or "")
+        if script:
+            resolved = _INPUT_REFERENCE.sub(resolve, script)
+            commands.extend(command for _, command in _joined_lines(resolved.splitlines()))
+    return commands
 
 
 def _shell_invocations(workflow: Path) -> list[tuple[int, str]]:
@@ -196,12 +335,23 @@ def _shell_invocations(workflow: Path) -> list[tuple[int, str]]:
         list[tuple[int, str]]: The line the command starts on, and the command
         with its continuations joined.
     """
+    return _joined_lines(workflow.read_text(encoding="utf-8").splitlines())
+
+
+def _joined_lines(lines: list[str]) -> list[tuple[int, str]]:
+    """Join lines ending in a backslash with the lines that continue them.
+
+    Args:
+        lines (list[str]): The text, one entry per line.
+
+    Returns:
+        list[tuple[int, str]]: The line each command starts on, counted from
+        one, and the command with its continuations joined.
+    """
     joined: list[tuple[int, str]] = []
     pending: list[str] = []
     start = 0
-    for number, line in enumerate(
-        workflow.read_text(encoding="utf-8").splitlines(), start=1
-    ):
+    for number, line in enumerate(lines, start=1):
         stripped = line.strip()
         if not pending:
             start = number

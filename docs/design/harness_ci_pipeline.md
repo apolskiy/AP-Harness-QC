@@ -1656,8 +1656,29 @@ approaches it has gone wrong rather than done more work.
 | `--judge-mode live` | Dispatches to the judge whatever the candidate mode. A replayed judge loads a stored judgement and never dispatches (`tier2_execution.md` section 7.9) |
 | `--mode ${{ matrix.mode }}` | May be live on one leg of the matrix, so it is treated as spending |
 
+**A value may be quoted.** `--judge-mode "live"` spends as `--judge-mode live`
+does.
+
+**A ceiling of zero is no ceiling.** `--max-spend` defaults to zero and the
+dispatch session reads zero as none, so a step whose ceiling is written or
+resolves to `0`, `0.00` or an empty value is reported as though it named none.
+A ceiling written as an expression or a shell variable counts, being a value
+the step supplies at run time.
+
+**A step calling a local composite action is read through it.** A step whose
+`uses:` names a path in the repository, `./.github/actions/<name>`, runs that
+action's `run:` steps, so each is read as the calling step's own: every
+`${{ inputs.<name> }}` is replaced by the value the step passes in `with:`, or
+by the input's declared default where it passes none. A band action writes
+`--mode ${{ inputs.mode }}` and `--max-spend "${{ inputs.max_spend }}"`, so it
+spends only as its caller makes it spend, and a caller passing `mode: live`
+without `max_spend` runs live at the default of zero. Until 2026-11-14 the check
+read workflow files only, so such a step was never read at all.
+
 `MQC_CMN_UNI_112257` and `MQC_CAS_UNI_115418` report a step that can dispatch
 live and names no ceiling, one implementation called with each root.
+`MQC_CMN_UNI_112263` reports one that does so through a local composite action
+or with a ceiling of zero.
 
 **The check reads whole invocations, not lines.** A CI pytest call is written
 across several lines with trailing backslashes, and the first version of this

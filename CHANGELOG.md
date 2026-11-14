@@ -29,6 +29,21 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The spend-ceiling check reads through local composite actions, 2026-11-14
+
+**Why.** `uncapped_spending_steps` read workflow files only, so a band run
+through the case repository's `.github/actions/band` was never checked: the
+action writes `--mode ${{ inputs.mode }}`, which never read as live, and a
+caller passing `mode: live` without `max_spend` ran at the input's default of
+zero, which the option reads as no ceiling. A literal `--max-spend 0` also
+passed, the flag's presence being all the check looked for.
+
+**What changed.** A step calling a local composite action is read through the
+action, each `${{ inputs.<name> }}` taking the step's `with:` value or the
+input's default. A quoted `"live"` spends, and a ceiling that is empty or zero
+is reported as none. `harness_ci_pipeline.md` section 8.2.2 states the rule,
+and `MQC_CMN_UNI_112263` checks it. The README states 1131 instrument cases.
+
 ### A graded run is named by its candidate and judge modes, 2026-11-13
 
 **Why.** "Ladder" and "rung 1" to "rung 3" named the case repository's banded

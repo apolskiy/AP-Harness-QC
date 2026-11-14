@@ -23,7 +23,7 @@ beside it carry what is specified and not yet built.
 | Piece | State |
 |---|---|
 | `ingestion/`, `execution/`, `evaluation/`, `cmn/` | Implemented |
-| Instrument suite (`UNI`, `SYS`): tests **of this harness** | **1130 test cases, all passing**, each executed once per run. Nothing here measures a model |
+| Instrument suite (`UNI`, `SYS`): tests **of this harness** | **1131 test cases, all passing**, each executed once per run. Nothing here measures a model |
 | Mutation audit (`MUT`): the suite's own coverage | **4 audits**, counted apart and run by hand. It measures neither the harness nor a model, so it is an internal tool rather than part of the suite, and it carries no priority band |
 | Judge calibration (`CAL`): the judge against authored responses | A registered layer, ungraded and blocking. Each calibration sample is a written response, clean or carrying one or two stated mistakes, evaluated by the graded path unchanged: our checks must fail exactly the constraints it names, and the judge must clear every criterion of a clean sample and drop one below the threshold for a flawed one. A family with a disagreeing sample exits 3 with `QC_HARNESS_JUDGE_UNCALIBRATED`. The samples and cases live in the case repository and run only under `-m calibration` with a live judge. Such a session given `--record-calibration` writes a calibration record of its judge; a live-judged session given `--calibration-record` judges only while that record names the judge's served model and the current samples, and otherwise skips every judged case before calling the judge |
 | Gate 1, pylint at `fail-under=10.0` | **10.00/10** |
