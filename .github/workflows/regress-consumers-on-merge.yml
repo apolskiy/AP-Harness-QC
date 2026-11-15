@@ -2,6 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 # Finding out before the consumer does.
 #
+# WHAT "CONSUMER" MEANS HERE. A consumer is any repository that installs this
+# harness and runs its own cases against it, listed in config/consumers.yaml.
+# Today there is one, the case repository AP-Model-QC. The word names the
+# role, not that repository (code-style.md section 7.1), so a second case
+# repository is an entry in the registry and not a change to this file.
+#
+# WHAT IT REGRESSES. Each consumer's cases are replayed against this harness
+# change and against the harness before it, and only an outcome the change
+# altered fails the job. Nothing here calls a model: this is a regression of
+# the harness, through the consumer's cases, and never a regression run of an
+# eval engine, which is the consumer's evaluate-engine.yml.
+#
 # Specified by docs/design/harness_ci_pipeline.md sections 3B and 3C.
 #
 # THIS IS THE FAN-OUT THE SPLIT EXISTS FOR. A harness change is verified here
@@ -52,7 +64,9 @@ env:
 
 jobs:
   # The registry is read once and turned into a matrix, so adding a consumer is
-  # an entry in config/consumers.yaml rather than a change here.
+  # an entry in config/consumers.yaml rather than a change here. Each entry
+  # names a consumer repository, the ref paired with this harness branch, and
+  # the command that runs its deterministic gates.
   enumerate:
     name: read the consumer registry
     runs-on: ubuntu-26.04
@@ -105,6 +119,9 @@ jobs:
           --sha "$HARNESS_SHA"
           --output "$GITHUB_OUTPUT"
 
+  # ONE MATRIX LEG PER CONSUMER: its deterministic gates and its graded layers in
+  # replay, on this harness change and on the harness before it. The leg is
+  # named for the consumer and the ref it was checked out at.
   verify:
     name: verify ${{ matrix.consumer.name }} (${{ matrix.consumer.ref }})
     needs: enumerate

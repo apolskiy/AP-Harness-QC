@@ -2142,9 +2142,9 @@ two are not always the same answer.
 
 | `--mode` | `--judge-mode` | Named | Answers | Run as |
 |---|---|---|---|---|
-| replay | replay | `replay -> replay` | Did **our code** change the outcome | Every gate, verifying the harness and the cases; the first stage of a regression run |
-| replay | live | `replay -> live` | Did the **judge** change | Judge calibration, over the calibration samples; the second stage of a regression run, over the suite |
-| live | live | `live -> live` | What is true today | The regression itself, the third stage of a regression run, and the only source of a finding |
+| replay | replay | `replay -> replay` | Did **our code** change the outcome | Every gate: a machinery check, unit testing the harness and the cases together. Not part of a regression run since 2026-11-14 |
+| replay | live | `replay -> live` | Did the **judge** change | Judge calibration, over the calibration samples. Its stage over the suite left the regression run on 2026-11-14 |
+| live | live | `live -> live` | What is true today | The regression itself: the whole of a regression run's graded work (`AP-Model-QC` `consumer_ci.md` section 7.9), and the only source of a finding |
 | live | replay | `live -> replay` | **Incoherent, and refused** | Never |
 
 **A graded run is named by its pair, candidate mode first**, in documents,

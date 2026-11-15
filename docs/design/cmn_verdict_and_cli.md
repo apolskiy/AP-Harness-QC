@@ -612,6 +612,47 @@ is what a quarantine entry is. A separate dispensation file would be a second
 registry of the same fact, which `framework-rules.md` section 4.1 forbids, and
 the expiry that keeps quarantine honest would not apply to it.
 
+#### 4.6.14 A quarantined case is not selected, and nothing counts it
+
+Restated 2026-11-15 by the project owner as the design's intent: only
+non-quarantined cases count, against the total and against the floor, and a
+quarantined case does not execute. Sections 4.6.11.1, 4.6.12 and 4.6.13 are
+corrected by this one where they disagree with it.
+
+**What was wrong.** Section 4.6.12 built "does not execute" as a skip before
+dispatch, and a skip is a different outcome: it counts as not passed. So the
+blocking-band floor counted every quarantined case, and a quarantined P0 or P1
+turned its band red until a dispensation was recorded. **Why that was
+wrong:** quarantine means a ticket stands against the case and it is being
+fixed, or scheduled for a release, at the production team's pace. A job red
+for an issue already known and judged not urgent reports nothing new and
+trains its readers to ignore red.
+
+**The rule now, at every priority:**
+
+| A quarantined case is | |
+|---|---|
+| Selected | **No.** Deselected at collection, like a case outside the run's selection |
+| Run | No |
+| Counted by V1, V2, a band floor or a pass rate | **No.** It is in no denominator and never turns a job red |
+| Reported | Yes, as a deselection naming its entry and ticket, so the exclusion stays visible |
+
+**Quarantine ends by a manual reset or on expiry** (section 4.6.1), and the
+case is selected again from the next run.
+
+**Deselected, not skipped.** A skip is an absence inside the run and counts as
+not passed (`AP-Model-QC` `consumer_ci.md` section 3.12.2); a deselection
+leaves the total, which is the arrangement environment scopes already use
+(`harness_test_taxonomy.md` section 7.5.1).
+
+**Decided by the project owner on 2026-11-15:**
+
+| Question | Answer |
+|---|---|
+| What does expiry do? | **It returns the case to selection**, and that is all. An expired entry no longer fails the run, so V5 retires; the case is measured again from the next run, and if it still fails it fails in its band |
+| Is `release_accepted_in` (section 4.6.13) retired? | **No.** It stays as the record: when the case breaks again, it traces back to the decision and the reason for the earlier breakage. It no longer decides any floor, since a quarantined case is not counted |
+| Must an entry carry a ticket? | **Yes.** A case cannot be quarantined without an issue opened against it, or it becomes an invisible, untracked bug. An entry without `ticket` is refused, which supersedes section 4.6.7's inert `ticket` |
+
 ### 4.7 All breached rules are reported, not the first
 
 The verdict is red if any rule fires, but the result carries **every** rule that fired.

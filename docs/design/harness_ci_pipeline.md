@@ -1167,8 +1167,9 @@ a scheduled retirement is not a reason to leave a defect in place; this is that
 retirement arriving.
 
 **The spending workflow is the case repository's**, one per engine, calling the
-three-stage regression run in `evaluate-engine.yml`. Its design is `consumer_ci.md`
-sections 4.18 and 7.
+regression run in `evaluate-engine.yml`: its unit tests, a calibration check,
+then `live -> live` in three bands, since 2026-11-14 (until then three stages,
+two of them replays). Its design is `consumer_ci.md` sections 4.18 and 7.9.
 
 **The subsections below keep their numbers and remain the record of what they
 decided**, because A3, A4, A6 and A7 are traced to them from section 12 and

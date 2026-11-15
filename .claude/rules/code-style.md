@@ -357,9 +357,10 @@ concepts keep to the same vocabulary."
 | The mode that reads a recording | **`replay`** | `fixture`, `frozen`. `--mode replay` is the flag and `testing-standards.md` says replay |
 | The file a replay run reads | **`fixture`** | Anything else. A fixture is a file; replay is what a run does with it |
 | A graded run, by what it replays | **`<candidate mode> -> <judge mode>`**: `replay -> replay`, `replay -> live`, `live -> live` | `rung 1` to `rung 3`, `Job 1`, `our code`, `the judge`, `the model`. The pair is what the run does, so it cannot be read two ways |
-| The banded run of `evaluate-engine.yml`, the three pairs in sequence | **`regression run`** | `ladder`, `attribution ladder`, `live ladder` |
-| One pair inside a regression run | **`stage`**, named by its pair | `rung`. One stage is three jobs in the gate's shape |
-| `replay -> live` over the calibration samples, in its own workflow | **`judge calibration`** | `calibration` for any other pair. `replay -> replay` verifies the harness and the cases, and is not called calibration |
+| The live runs of an engine: the case repository's `evaluate-engine.yml`, its unit tests, a calibration check, then `live -> live` in the gate's three bands | **`regression run`** | `ladder`, `attribution ladder`, `live ladder`. Never a gate, a unit run or a replay |
+| A run proving the instrument works and measuring no eval model: unit tests, harness-only tests, and `replay -> replay`, which unit tests the harness and the cases together | **`machinery check`** | `regression run`, which is the live runs. An internal work product, run before money is spent. The `regress-*` workflows keep their names: they regress the harness, and the cases against the harness, and neither is a regression run |
+| One pair inside a regression run, before 2026-11-14 | **`stage`**, named by its pair. Retired with the replay stages, kept for reading the record | `rung` |
+| `replay -> live` over the calibration samples, in its own workflow | **`judge calibration`** | `calibration` for any other pair. `replay -> replay` is a machinery check, and is not called calibration |
 | A CI job | **`job`** | `stage`, `step`. A step is a step of a job |
 
 **`live -> replay` is refused at argument parsing.** A recorded judgement
