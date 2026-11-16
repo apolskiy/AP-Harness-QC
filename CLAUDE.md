@@ -14,9 +14,9 @@ It publishes standard CI artifacts for read-only consumption and depends on no c
 
 Before generating proposals, architecture designs, or code, you MUST review and adhere to every governance file below. Paths are relative to the repository root (`AP-Harness-QC/`) and are the real on-disk locations.
 
-1. `CLAUDE_LOG.md` (repo root, **tracked**): First-priority instruction. Log architecture decisions, trade-offs, and quality audits. **The permanent development trail**, written for an external reader: it is what stops a failed attempt being repeated or context being lost across a session reset. It records changes and the reasoning behind them, never a verbatim prompt and never who asked for what.
+1. `CLAUDE_LOG.md` (repo root, **tracked**): First-priority instruction. Log architecture decisions, trade-offs, and quality audits. **The permanent development trail**, written for an external reader: it is what stops a failed attempt being repeated or context being lost across a session reset. It records changes and the reasoning behind them.
 1a. `CLAUDE_TASK.md` (repo root, **tracked**): **The active focus items**, one row each with what must hold before the item is done. Entries are added, worked and removed, so it carries no history: a closed item's record goes to `CLAUDE_LOG.md`.
-1b. `.claude/logs/PROMPT_LOG.md` (**not tracked**): Verbatim prompts and working notes. A work product, never committed and never shared, and nothing is copied from it into a tracked file.
+1b. `.claude/logs/PROMPT_LOG.md` (**not tracked**): Verbatim prompts and working notes. A work product, never committed and never shared.
 
 **These two divide by time, and neither declares the architecture.** `CLAUDE_TASK.md` holds what is active now and `CLAUDE_LOG.md` the permanent trail of what was done and why. This file routes a reader to the rest and holds the core directives and the boundaries.
 
@@ -61,7 +61,7 @@ Governance states the rules; design documents state the specifications implement
 * `pytest.ini`: `MQC_*` discovery overrides and marker registry.
 
 ## Core Directives
-* **Logging First:** Always begin and end tasks by documenting requirements, design choices, and audit metrics in `CLAUDE_LOG.md`. Verbatim prompts go to `.claude/logs/PROMPT_LOG.md` instead: the tracked log records decisions, not phrasing.
+* **Logging First:** Always begin and end tasks by documenting requirements, design choices, and audit metrics in `CLAUDE_LOG.md`. Verbatim prompts are kept in `.claude/logs/PROMPT_LOG.md`.
 * **Strict Phased Workflow:** NEVER generate implementation code directly. Complete Phase 0 (Ambiguity Resolution), Phase 1 (Discussion), and Phase 2 (Design Doc) first. Phase 0 closes only when every blocking ambiguity has a recorded decision.
 * **10.00/10 Pylint Compliance:** All generated Python code MUST achieve a 10.00/10 Pylint score against `.pylintrc`.
 * **Descriptive Variable Naming:** Single-character variables (`i`, `e`, `x`, `k`, `v`) are strictly forbidden. All variable names MUST be at least 3 characters long.

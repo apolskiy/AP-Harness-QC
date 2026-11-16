@@ -633,7 +633,7 @@ history less reliably and blurs that responsibility.
 |---|---|
 | Why the change was needed: the gap, the defect, what a reader could not learn | The changelog entry, first |
 | What changed, and any figure that moved | The changelog entry, second |
-| Who asked for it, and in what words | **No tracked file.** It stays in the local working log, which is never committed |
+| Who asked for it, and in what words | Not the changelog |
 
 **A purpose the author does not agree with is discussed before it is written**,
 not recorded as somebody else's reason. An entry attributing a change ("at the

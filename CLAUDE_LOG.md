@@ -16370,3 +16370,53 @@ The Model Repository follows in its own entry.
 - A model change always ended an entry: fixed by `ends_on_model_change`,
   true by default.
 
+## 2026-11-16: The rule against prompts and attribution in tracked files is withdrawn
+
+**A) What was wrong.** The governance stated that no tracked file records a
+verbatim prompt or who asked for a change, and the tracked files did not
+follow it: 344 lines in 37 harness files and 203 lines in 25 Model Repository
+files name the project owner, and 73 of them quote a prompt. **B) Why.** The
+rule was added on 2026-11-01, after most of those lines were written, and
+nothing checked it.
+
+**What changed.** The rule is withdrawn rather than enforced, a sweep of about
+550 lines being out of proportion to what it would buy. `CLAUDE.md` no longer
+states it, the logging rules in `.claude/skills/skill-rules.md` lose the
+bullet and the commit-note paragraph that restated it, and `code-style.md`
+section 7.4.1 keeps only its own scope: a changelog entry names no author.
+Existing attributions and quotes stay as written.
+
+**Verified.** Unit 1112 of 1112 here and 291 of 291 in the Model Repository,
+both exit 0.
+
+## 2026-11-16: Fixed the dependency cascade refusing or skipping the dependents of a quarantined foundation
+
+**A) What was wrong.** A quarantined case is deselected, so it records no
+outcome. A dependent collected in the same band skipped with
+`QC_HARNESS_DEPENDENCY_UNMET`, and one collected in a later band refused the
+run at collection because its foundation was unknown. **B) Why.** The
+cascade knew only foundations that ran here or were carried from an earlier
+band, and a quarantine is neither.
+
+**The ruling.** A quarantined foundation does not quarantine its dependents.
+A dependent not quarantined by name runs and counts, a pass opens an
+investigation of the foundation, and no skip releases a blocking band.
+
+**What changed.** `cmn/dependencies.py` gained `set_aside_foundations`, which
+a consumer calls with the case numbers it holds out, and
+`set_aside_foundations_of`, which names the set-aside foundations a case rests
+on. A set-aside foundation is known at collection, and a dependent resting on
+one runs, with a log line naming it. A foundation that ran is judged by its
+outcome whether or not it was set aside. `reset_dependency_state` clears the
+declaration. Design `cmn_verdict_and_cli.md` section 10.28.7, requirement
+`MQC_REQ_HAR_CMN_0257`, cases `112443` to `112445`.
+
+**Injection.** Five defects, five caught, each exiting 3: a set-aside
+foundation unknown at collection, the declaration surviving a reset, a
+dependent skipping, setting aside overriding a measured failure, and a
+measured foundation still named as set aside. Baseline exit 0 after restore.
+
+**Verified.** Harness: unit 1115 of 1115, system 24 of 24, pylint exit 0.
+Preconditions only; no graded band runs here. Model Repository line in its
+own log, same date.
+

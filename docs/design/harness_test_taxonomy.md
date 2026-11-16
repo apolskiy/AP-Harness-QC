@@ -290,7 +290,7 @@ against ten slots, so there the category is the subject they share.
 | `1121xx` | Invocation and the CLI | `cli`, `selection_mode`, `extensibility`, `execution_identity` |
 | `1122xx` | The result record | `metadata`, `reporting`, `pricing` |
 | `1123xx` | Governance and traceability | `governance`, `traceability`, `registries`, `model_coherence` |
-| `1124xx` | The dependency cascade | `dependency` |
+| `1124xx` | The dependency cascade | `dependency`, `set_aside` |
 | `1125xx` | Project standards | `file_standards`, `credentials`, `branch_policy` |
 | `1126xx` | Judge resolution | `judge_selection`, `judgement_replay` |
 | `1127xx` | Quarantine expiry, one case per boundary day. `1120xx` filled when its parametrised cases were split on 2026-10-16 (section 1.1) | `quarantine` |

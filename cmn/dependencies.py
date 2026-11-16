@@ -3,7 +3,7 @@
 """Case dependencies, which run foundational cases first and skip what rests on a failure.
 
 Created: 2026-09-26
-Last updated: 2026-11-12
+Last updated: 2026-11-16
 
 This file contains the dependency cascade. ``arrange_dependencies`` orders the
 collected cases so every ``base`` case runs ahead of its dependents and refuses
@@ -12,7 +12,9 @@ each foundation held; and ``enforce_dependencies`` skips a dependent of a
 failed foundation with ``QC_HARNESS_DEPENDENCY_UNMET``, or dispatches it
 unattributed when the run opens an inquest. ``adopt_prerequisites`` and
 ``publish_prerequisites`` read and write the carry file one priority band hands
-the next.
+the next. ``set_aside_foundations`` takes the foundations a consumer has
+quarantined, whose dependents run rather than skip, and
+``set_aside_foundations_of`` names the ones a case rests on.
 
 Both repositories' ``conftest.py`` call these at session start, collection,
 setup, reporting and session end, so a dependent's skip names the foundation it
@@ -38,7 +40,7 @@ import logging
 import os
 import platform
 from pathlib import Path
-from typing import Any, Final, Optional
+from typing import Any, Final, Iterable, Optional
 
 import pytest
 
@@ -66,6 +68,10 @@ _CARRIED: set[str] = set()
 # the skip says why (tier3_evaluation.md section 9.4.2).
 _REASONS: dict[str, str] = {}
 
+# FOUNDATIONS A CONSUMER SET ASIDE, being quarantined: known at collection, and
+# skipping no dependent until this execution measures them. Section 10.28.7.
+_SET_ASIDE: set[str] = set()
+
 def reset_dependency_state() -> None:
     """Forget every recorded base outcome.
 
@@ -76,6 +82,7 @@ def reset_dependency_state() -> None:
     _BASE_OUTCOMES.clear()
     _CARRIED.clear()
     _REASONS.clear()
+    _SET_ASIDE.clear()
 
 def adopt_carried_outcomes(carried: dict[str, bool],
                            reasons: Optional[dict[str, str]] = None) -> None:
@@ -97,6 +104,40 @@ def adopt_carried_outcomes(carried: dict[str, bool],
     _CARRIED.update(str(identifier) for identifier in carried)
     for identifier, reason in (reasons or {}).items():
         _REASONS.setdefault(str(identifier), reason)
+
+def set_aside_foundations(identifiers: Iterable[str]) -> None:
+    """Declare foundations the consumer has quarantined, so their dependents run.
+
+    A set-aside foundation is known at collection and, until this execution
+    records an outcome for it, skips none of its dependents: each runs and
+    counts in its band. Design section 10.28.7.
+
+    Args:
+        identifiers (Iterable[str]): The identifiers of the quarantined
+            foundations.
+
+    Returns:
+        None
+    """
+    _SET_ASIDE.update(str(identifier) for identifier in identifiers)
+
+def set_aside_foundations_of(item: Any) -> list[str]:
+    """Return the set-aside foundations a case rests on, unmeasured in this execution.
+
+    A consumer reads it to report a dependent that passed while its foundation
+    is quarantined, which is a question about the foundation.
+
+    Args:
+        item (Any): The collected test.
+
+    Returns:
+        list[str]: The identifiers, in declaration order, empty where the case
+        rests on none.
+    """
+    return [
+        identifier for identifier in declared_dependencies(item)
+        if identifier in _SET_ASIDE and identifier not in _BASE_OUTCOMES
+    ]
 
 def carried_identifiers() -> frozenset[str]:
     """Return the identifiers admitted from an earlier band.
@@ -320,7 +361,9 @@ def unknown_dependencies(items: list[pytest.Item]) -> list[str]:
     # A CARRIED FOUNDATION IS A KNOWN ONE. An earlier band in this job ran
     # it and published whether it held, so a dependent here is resolvable
     # without collecting it again (design section 7.6).
-    known = set(bases) | set(_CARRIED)
+    # A SET-ASIDE FOUNDATION IS KNOWN TOO: quarantine deselected it, and a
+    # dependent left in runs rather than refusing the suite (section 10.28.7).
+    known = set(bases) | set(_CARRIED) | set(_SET_ASIDE)
     return [
         f"{item.name} depends on {identifier}, which no collected case "
         f"declares as base"
@@ -551,6 +594,14 @@ def enforce_dependencies(item: pytest.Item) -> None:
         # dependents. Asking here could not tell the two apart, and reported
         # an ordering accident as a missing case (design section 10.28.6).
         if _BASE_OUTCOMES.get(identifier, False):
+            continue
+        # SET ASIDE AND UNMEASURED, so the dependent runs and counts like any
+        # case; a recorded outcome would have decided above (section 10.28.7).
+        if identifier in _SET_ASIDE and identifier not in _BASE_OUTCOMES:
+            logger.info(
+                "%s rests on %s, which is quarantined, so it runs and counts",
+                item.name, identifier,
+            )
             continue
         if opens_an_inquest(item):
             # MEASURED, AND COUNTED NOWHERE. The marker is read by

@@ -698,6 +698,11 @@ again, with a ticket.
 | **Extend** | Sets `quarantined_on` to the current date, which restarts the window. `originally_quarantined_on` never moves, so the entry keeps when its hold began |
 | Remove | Deletes the entry once the fix is tested; the case is selected from the next run |
 
+**A quarantined foundation does not quarantine its dependents.** A consumer
+quarantines a dependent only when somebody asks for it explicitly; a dependent
+left in runs and counts, and the cascade sets the foundation aside rather than
+refusing the run or skipping what rests on it (section 10.28.7).
+
 **There is no end date on an entry.** When a hold ends depends on the software
 being fixed and tested, which nobody can date in advance; the window is the
 backstop and removal is the decision.
@@ -3770,6 +3775,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112515` | N | `no_workflow_reads_a_credential_file` |
 | `112404` | N | `a_base_case_skipped_in_setup_is_recorded_for_its_dependents` |
 | `112405` | N | `a_dependent_collected_before_its_base_is_reordered` |
+| `112443` | N | `a_dependency_on_a_set_aside_foundation_is_not_refused` (10.28.7) |
+| `112444` | P | `a_dependent_of_a_set_aside_foundation_runs_and_is_named` (10.28.7) |
+| `112445` | B | `a_measured_set_aside_foundation_is_judged_by_its_outcome` (10.28.7) |
 | `112516` | N | `a_credential_file_beside_the_roster_is_found` |
 | `112517` | N | `the_consumer_conftest_searches_both_roots` |
 | `112033` | N | `a_case_whose_observations_disagree_is_a_finding` |
@@ -3865,7 +3873,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 526 cases, 314 negative, 157 positive, 55 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 529 cases, 315 negative, 158 positive, 56 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -5083,6 +5091,46 @@ where it is a statement about the suite rather than a guess about timing.
 
 `MQC_CMN_UNI_112405` runs the three-link chain under a deliberately reversed
 collection order, which is the arrangement that failed.
+
+#### 10.28.7 A quarantined foundation is set aside, and its dependents run
+
+Added 2026-11-16.
+
+**What was wrong.** Quarantining a foundation without its dependents refused
+the whole run at collection. Section 4.6.14 deselects the quarantined case, so
+its dependents named an identifier no collected case declared as base, and
+section 10.28.6.2 refuses that suite. Past collection it would have been no
+better: an absent foundation reads as one that did not hold, so every
+dependent would skip, and a skip counts against its band. **Why.** The
+cascade knew two states for a foundation, held and did not hold, and
+quarantine is neither: the foundation is set aside with a ticket against it.
+
+**The rule.** A consumer declares which foundations are set aside with
+`set_aside_foundations`, after its quarantine deselection. A set-aside
+foundation:
+
+| | |
+|---|---|
+| Is known at collection | **Yes.** A dependency on it is not reported as naming no case |
+| Skips its dependents | **No.** Each dependent runs and counts in its band like any case, at every priority |
+| Overrides a measurement | **No.** Where the foundation ran in this execution after all, its recorded outcome decides, as for any foundation |
+
+**What a dependent's result means.** A failure is an ordinary failure. **A pass
+while its foundation is quarantined is a question about the foundation**, since
+the case resting on it held: the consumer reports it, and
+`set_aside_foundations_of` names the set-aside foundations a case rests on so it
+can. Whether a dependent is quarantined with its foundation is the consumer's
+explicit decision, never the harness's: the harness only stops refusing the run
+and stops skipping what was left in.
+
+**Nothing here decides which foundations are set aside**, which is the
+division section 4.6.15 draws: the harness holds the mechanism and the consumer
+holds the quarantine file. `reset_dependency_state` forgets the declaration
+with every other piece of cascade state.
+
+`MQC_CMN_UNI_112443` asserts the collection half, `112444` that a dependent
+runs and is named against its foundation, and `112445` that a measured outcome
+still decides.
 
 
 ### 10.29 The homoglyph vector

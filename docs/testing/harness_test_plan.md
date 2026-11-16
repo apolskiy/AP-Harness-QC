@@ -590,6 +590,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0254` | A model change ends a quarantine entry by default, and an entry quarantined with ends_on_model_change false stays in force through one until its window lapses | cmn_verdict_and_cli.md section 4.6.15 |
 | `MQC_REQ_HAR_CMN_0255` | A quarantine entry without a ticket is refused when the file is loaded, so no case is held out of a run without an issue tracking it | cmn_verdict_and_cli.md section 4.6.15 |
 | `MQC_REQ_HAR_CMN_0256` | Every case a mutation audit deselects is named by a node that is defined, its module, class and case all present, so a moved case cannot stay in the control run unseen | harness_test_taxonomy.md section 15.7.1.2 |
+| `MQC_REQ_HAR_CMN_0257` | A foundation a consumer sets aside, being quarantined, is known at collection and skips none of its dependents, each of which runs and counts, while a set-aside foundation that ran in the execution is judged by its recorded outcome | cmn_verdict_and_cli.md section 10.28.7 |
 ---
 
 ## 4. Coverage

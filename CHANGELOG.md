@@ -29,6 +29,22 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A quarantined foundation no longer refuses the run or skips its dependents, 2026-11-16
+
+**Why.** Quarantining a foundation without its dependents refused the whole
+run at collection, because the dependents named a case nothing collected; past
+collection every dependent would have skipped, and a skip counts against its
+band.
+
+**What changed.** `cmn.dependencies.set_aside_foundations` takes the
+foundations a consumer has quarantined: each is known at collection, and its
+dependents run and count like any case unless the execution measured the
+foundation after all. `set_aside_foundations_of` names the set-aside
+foundations a case rests on, so a consumer can report a dependent that passed.
+`cmn_verdict_and_cli.md` section 10.28.7; requirement `MQC_REQ_HAR_CMN_0257`;
+cases `112443` to `112445`. The README states 1143 test cases and 437
+requirements.
+
 ### Only a quarantine entry in force holds its case out, 2026-11-15
 
 **Why.** An expired quarantine entry failed the whole run through verdict

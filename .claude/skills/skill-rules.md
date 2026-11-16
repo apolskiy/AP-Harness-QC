@@ -14,7 +14,6 @@ Two logs, split by audience. Writing to the wrong one is a process error.
 | `.claude/logs/PROMPT_LOG.md` | **No** | Verbatim prompts, phrasings, reprompt history. Working notes, not project output. |
 
 * **Log Entry Required**: an entry MUST be written to `CLAUDE_LOG.md` upon completion of every phase, including phases that produce no code.
-* **No Raw Prompts In The Tracked Log**: summarize intent in `CLAUDE_LOG.md`; the verbatim text goes to `PROMPT_LOG.md` only.
 * **No Credentials In Either**: API keys and `.env` values are redacted in both, without exception.
 * **No Self-Referential Or Audience-Facing Framing In The Tracked Log**: `CLAUDE_LOG.md` is publicly visible. It records decisions and their reasoning, never commentary on how the work should be perceived, who might read it, or what it demonstrates about its author. Such notes belong in `.claude/logs/PROMPT_LOG.md`, which is not tracked.
 * **Write For An External Reader**: `CLAUDE_LOG.md` entries record what was decided, what was rejected, and why, for someone evaluating the work who was not present. The record demonstrates the reasoning on its own; it does not need to point at itself.
@@ -204,10 +203,7 @@ from the diff.
 **This is `code-style.md` section 7.4.1 applied to a different artefact, and
 the division of labour is the same.** The changelog states the purpose and then
 the change and never who made it; the commit note does the same for one commit,
-and authorship is recorded by the commit itself. **Who asked, and in what
-words, reaches no tracked file**: `CLAUDE_LOG.md` is a chronological history of
-changes and the reasons behind them, not a record of who requested them, and a
-verbatim prompt stays in the local working log, which is never committed.
+and authorship is recorded by the commit itself.
 
 #### 6.1.1 The subject line is a sentence naming what was fixed or implemented
 
