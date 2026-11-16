@@ -3,7 +3,7 @@
 """Unit tests for the run verdict, the red or green decision on a corpus of results.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-15
 
 Its cases check ``verdict`` and ``evaluate_distribution`` in ``cmn/verdict.py``
 rule by rule. They cover the priority gate (V1) on a P0, P1 or P2 failure, the
@@ -481,16 +481,19 @@ class TestMQCVerdictProperties:
         for forbidden in ("date.today()", "datetime.now()", "time.time()", "os.environ"):
             assert forbidden not in source
 
+        # NO RULE READS THE DATE SINCE V5 RETIRED (design section 4.6.15), so
+        # the injected date can no longer move a verdict; what is asserted is
+        # that two dates a year apart give the same one, which a clock read
+        # inside a rule would break.
         entry = QuarantineEntry(
             "MQC_TASK_q::MQC_RULE_r", "flaky", date(2026, 10, 1),
-            observed_model="gemini-3.8-flash",
+            observed_model="gemini-3.8-flash", ticket="MQC-41",
         )
         past = verdict(passing_suite(), VerdictConfig(quarantine=[entry]), date(2026, 1, 1))
         future = verdict(
             passing_suite(), VerdictConfig(quarantine=[entry]), date(2027, 1, 1)
         )
-        assert past.green is True
-        assert future.green is False
+        assert (past.green, past.breached_rules) == (future.green, future.breached_rules)
 
 
 class TestMQCDistribution:

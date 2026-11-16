@@ -3,7 +3,7 @@
 """The verdict command line tool, which scores a stored results file after a run.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-15
 
 This file contains ``main``, run as ``python -m cmn.verdict_tool <results>``,
 and the steps it takes: ``build_parser`` from the shared option registry,
@@ -52,7 +52,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Final, Optional
 
-from cmn.config import load_quarantine_for, load_harness_config
+from cmn.config import load_harness_config
+from cmn.quarantine_file import load_quarantine_for
 from cmn.observations import Observation
 from cmn.options import Option, registered_options
 from cmn.verdict import Thresholds, Verdict, VerdictConfig, verdict

@@ -3,13 +3,13 @@
 """Configuration loading, the engine roster, capability gaps, quarantine and judge.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-15
 
 This file contains ``load_yaml_config``, which reads one configuration file and
 refuses anything credential-shaped; the loaders ``load_engines``,
-``load_unsupported``, ``load_quarantine``, ``load_consumers`` and
-``load_harness_config``, which return ``EngineConfig``, ``UnsupportedPair``,
-``QuarantineEntry``, ``Consumer`` and ``HarnessConfig`` records; the judge
+``load_unsupported``, ``load_consumers`` and ``load_harness_config``, which
+return ``EngineConfig``, ``UnsupportedPair``, ``Consumer`` and
+``HarnessConfig`` records; the judge
 resolvers ``load_judge_engine``, ``resolve_judge_engine`` and
 ``load_judge_model``; and ``load_env_file`` with ``warn_orphan_credentials``
 for a local ``.env`` file.
@@ -25,9 +25,9 @@ Specified by ``docs/design/cmn_verdict_and_cli.md`` section 8.
 |---|---|
 | ``engines.yaml`` | Adding an engine is an entry, never a module (B8) |
 | ``unsupported.yaml`` | A capability gap must not consume skip budget (A13) |
-| ``quarantine/<engine>.yaml`` | An entry expires by model change or by the
-  window, and an expired one fails the run. **The consumer's directory**, which
-  owns the graded cases an entry can be about (design section 4.6.9) |
+| ``quarantine/<engine>.yaml`` | An entry holds its case out while it is in
+  force. **The consumer's directory**, read by ``cmn/quarantine_file.py``
+  (design sections 4.6.9 and 4.6.15) |
 
 **Credentials are never in configuration.** They are read from the environment
 at runtime and redacted from every log and artifact, so a configuration file
@@ -40,7 +40,6 @@ durable record silently.
 """
 
 import logging
-import re
 import os
 from importlib import resources
 from dataclasses import dataclass, field
@@ -311,106 +310,6 @@ def load_unsupported(path: Path) -> list[UnsupportedPair]:
             )
         )
     return pairs
-
-
-# WHAT A TICKET REFERENCE MAY LOOK LIKE. An absolute URL, or a tracker key of
-# the PROJECT-123 shape. Nothing reads the field (design section 4.6.7), and it
-# is validated anyway: an annotation nothing reads is exactly where a typo
-# survives, and the point of the field is that somebody can follow it later.
-_TICKET_REFERENCE: Final[re.Pattern] = re.compile(
-    r"^(?:https?://\S+|[A-Z][A-Z0-9]+-\d+)$"
-)
-
-# WHERE A QUARANTINE FILE LIVES, one per engine. Design section 4.6.3.
-_QUARANTINE_DIRECTORY: Final[str] = "quarantine"
-
-
-def load_quarantine(path: Path) -> list[QuarantineEntry]:
-    """Load one engine's quarantine list.
-
-    **An absent file is an empty quarantine**, which is the default state and
-    needs no file to say so.
-
-    An entry missing ``quarantined_on`` or ``observed_model`` loads as
-    unconfirmed rather than being refused: the condition is our bookkeeping
-    failing and is reported as ``QC_HARNESS_QUARANTINE_UNCONFIRMED``, never as
-    a parse failure or a red run (design section 4.6.4).
-
-    Args:
-        path (Path): The file.
-
-    Returns:
-        list[QuarantineEntry]: Every entry, each carrying what provenance it
-        has.
-
-    Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when an entry carries no
-            reason, or a ticket reference that is neither a URL nor a tracker
-            key.
-    """
-    loaded = load_yaml_config(path)
-    entries: list[QuarantineEntry] = []
-    for entry in loaded.get("quarantine") or []:
-        if not entry.get("reason"):
-            raise ValueError(
-                f"QC_HARNESS_PARSER_ERROR: quarantine entry "
-                f"{entry.get('case_id')!r} in {path} carries no reason"
-            )
-        ticket = str(entry.get("ticket") or "")
-        if ticket and not _TICKET_REFERENCE.match(ticket):
-            raise ValueError(
-                f"QC_HARNESS_PARSER_ERROR: quarantine entry "
-                f"{entry.get('case_id')!r} in {path} carries the ticket "
-                f"reference {ticket!r}, which is neither an absolute URL nor a "
-                f"tracker key of the PROJECT-123 shape, so nobody can follow it"
-            )
-        # THE DISPENSATION TAKES THE SAME VALIDATION AS THE TICKET, and for a
-        # stronger reason: it is the only thing that lets a blocker release,
-        # and a reference nobody can follow records that somebody said so
-        # rather than what was decided. Design section 4.6.13.
-        accepted = str(entry.get("release_accepted_in") or "")
-        if accepted and not _TICKET_REFERENCE.match(accepted):
-            raise ValueError(
-                f"QC_HARNESS_PARSER_ERROR: quarantine entry "
-                f"{entry.get('case_id')!r} in {path} accepts a release in "
-                f"{accepted!r}, which is neither an absolute URL nor a tracker "
-                f"key of the PROJECT-123 shape, so the decision cannot be read"
-            )
-        stamped = entry.get("quarantined_on")
-        entries.append(
-            QuarantineEntry(
-                case_id=str(entry["case_id"]),
-                reason=str(entry["reason"]),
-                quarantined_on=coerce_date(stamped, path) if stamped else None,
-                observed_model=str(entry.get("observed_model") or ""),
-                ticket=ticket,
-                release_accepted_in=accepted,
-            )
-        )
-    return entries
-
-
-def load_quarantine_for(config_dir: Path, engine: str) -> list[QuarantineEntry]:
-    """Load the quarantine list for one engine.
-
-    Reads ``quarantine/<engine>.yaml`` beneath ``config_dir``. **An unnamed
-    engine or an absent file yields nothing**, so a run that names no engine
-    does no expiry work.
-
-    Design: ``cmn_verdict_and_cli.md`` section 4.6.3.
-
-    Args:
-        config_dir (Path): Where the configuration files live.
-        engine (str): The candidate engine, whose findings the entries record.
-
-    Returns:
-        list[QuarantineEntry]: Every entry for that engine.
-    """
-    if not engine:
-        return []
-    return load_quarantine(
-        config_dir / _QUARANTINE_DIRECTORY / f"{engine}.yaml"
-    )
 
 
 def coerce_date(value: Any, path: Path) -> date:
@@ -806,7 +705,8 @@ def load_harness_config(config_dir: Optional[Path] = None) -> HarnessConfig:
         engines=engines,
         unsupported=load_unsupported(root / "unsupported.yaml"),
         # QUARANTINE IS PER ENGINE and is loaded by the caller that knows
-        # which engine ran, through `load_quarantine_for`. Design 4.6.3.
+        # which engine ran, through `cmn.quarantine_file.load_quarantine_for`.
+        # Design 4.6.3.
         judge_engine=load_judge_engine(root / "engines.yaml"),
         judge_model=load_judge_model(root / "engines.yaml", engines),
     )

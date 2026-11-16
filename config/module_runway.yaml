@@ -21,9 +21,6 @@
 # `_2` suffix would destroy the one-subject-per-module property the
 # suite is navigable by.
 past_the_runway:
-  cmn/config.py:
-    reason: "Loading and refusing every configuration file, one subject. 938 lines when the rule was written on 2026-10-05"
-    expires_on: 2026-12-31
   cmn/verdict.py:
     reason: "The nine verdict rules and the soundness conditions, one subject. 991 lines when the rule was written on 2026-10-05"
     expires_on: 2026-12-31

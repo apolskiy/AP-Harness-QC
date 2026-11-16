@@ -3,7 +3,7 @@
 """Unit tests for the safeguards of the mutation audit tool itself.
 
 Created: 2026-10-14
-Last updated: 2026-10-25
+Last updated: 2026-11-15
 
 Its cases check ``tools/mutation_audit.py`` and the manifest functions it calls
 from ``tools/mutation_declarations.py``. ``baseline_problem`` refuses a module
@@ -42,6 +42,7 @@ question was looking at the right file.
 #   112384  a_control_that_raises_leaves_no_backup
 # TestMQCMutationQuarantine
 #   410005  an_audit_names_the_cases_it_set_aside
+#   410009  a_deselect_naming_no_case_is_reported
 # TestMQCAuditAccounting
 #   410007  no_audit_carries_a_priority_band
 #   410008  the_readme_counts_audits_apart_from_the_suite
@@ -86,6 +87,7 @@ from tools.mutation_audit import (
     survivors,
 )
 from tools import mutation_audit
+from tools.mutation_scope import undefined_deselects
 from tools.mutation_declarations import (
     baseline_problem,
     declare_digest,
@@ -467,6 +469,49 @@ class TestMQCMutationQuarantine:
         assert "--quarantined" in workflow and "quarantined" in workflow, (
             "Gate 8's job does not ask the tool what it set aside, so a reader "
             "of the job summary cannot see which cases did not run"
+        )
+
+    def MQC_CMN_UNI_410009_a_deselect_naming_no_case_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """Every audit deselect names a defined case, and a moved one is reported.
+
+        Design: ``harness_test_taxonomy.md`` section 15.7.1.2.
+
+        Args:
+            tmp_path (Path): Where the planted case module is written.
+
+        Returns:
+            None
+        """
+        root = Path(__file__).resolve().parents[2]
+        step(1, "every deselect the audit declares names a defined case")
+        stale = undefined_deselects(root, list(AUDIT_TARGETS))
+        assert not stale, (
+            f"the audit deselects {stale}, which name no defined case, so "
+            f"pytest deselects nothing and the case runs in the control"
+        )
+
+        step(2, "a deselect naming a case that moved out of its module is reported")
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "mqc_uni_planted.py").write_text(
+            "class TestMQCPlanted:\n"
+            "    def MQC_CMN_UNI_999999_kept(self) -> None:\n"
+            "        pass\n",
+            encoding="utf-8",
+        )
+        kept = "tests/mqc_uni_planted.py::TestMQCPlanted::MQC_CMN_UNI_999999_kept"
+        planted = [
+            "-m", "unit",
+            "--deselect", kept,
+            "--deselect", "tests/mqc_uni_planted.py::TestMQCPlanted::MQC_CMN_UNI_999998_gone",
+            "--deselect", "tests/mqc_uni_planted.py::TestMQCMoved::MQC_CMN_UNI_999999_kept",
+            "--deselect", "tests/mqc_uni_absent.py::TestMQCPlanted::MQC_CMN_UNI_999999_kept",
+        ]
+        reported = undefined_deselects(tmp_path, planted)
+        assert len(reported) == 3 and kept not in reported, (
+            f"a missing case, class or module was not each reported, or the "
+            f"defined one was: {reported}"
         )
 
 

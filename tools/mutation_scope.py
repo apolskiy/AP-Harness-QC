@@ -3,12 +3,13 @@
 """What a mutation audit is asked for: its targets, its exclusions, its scope.
 
 Created: 2026-10-24
-Last updated: 2026-10-24
+Last updated: 2026-11-15
 
 This file contains ``AUDIT_TARGETS``, the pytest arguments an audit runs and
 the cases it deselects; ``audit_targets``, which takes a caller's arguments or
 those; ``quarantined_cases`` and ``quarantine_report``, which name what the run
-set aside; and ``changed_lines``, the lines a module gained since a git ref,
+set aside; ``undefined_deselects``, which reports a deselected node naming no
+defined case; and ``changed_lines``, the lines a module gained since a git ref,
 which is how an audit is narrowed to the work that prompted it.
 
 **Asked for, as against measured.** ``tools/mutation_audit.py`` mutates a
@@ -24,6 +25,7 @@ that module to 956 lines against the nine-hundred-line runway
 Design: ``docs/design/harness_test_taxonomy.md`` sections 15.6A and 15.7.1.2.
 """
 
+import ast
 import logging
 import re
 import subprocess
@@ -61,13 +63,17 @@ _HUNK: Final[re.Pattern[str]] = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))
 # `ast.unparse` re-emits a docstring as one string literal, so the `Created:`
 # and `Last updated:` lines stop being line-shaped text and the reader finds
 # none (section 15.7.1.1).
+#
+# A NODE IS A PATH, AND A PATH GOES STALE WHEN A CASE MOVES. pytest deselects
+# nothing for a node it cannot find, so `undefined_deselects` reports one and
+# MQC_CMN_UNI_410009 asserts there is none (section 15.7.1.2).
 AUDIT_TARGETS: Final[tuple[str, ...]] = (
     "-m", "unit",
     "--deselect",
     "tests/cmn/mqc_uni_file_standards.py::TestMQCAuthorshipHeader"
     "::MQC_CMN_UNI_112502_every_python_file_carries_its_spdx_header",
     "--deselect",
-    "tests/cmn/mqc_uni_file_standards.py::TestMQCModuleRunway"
+    "tests/cmn/mqc_uni_module_layout.py::TestMQCModuleRunway"
     "::MQC_CMN_UNI_112331_a_module_at_the_runway_ceiling_is_reported",
     "--deselect",
     "tests/cmn/mqc_uni_mutation_declarations.py::TestMQCMutationDeclarations"
@@ -157,6 +163,45 @@ def quarantine_report(targets: Optional[list[str]] = None) -> str:
     return (
         f"{len(quarantined)} case(s) quarantined from this audit: "
         f"{', '.join(quarantined) or 'none'}"
+    )
+def undefined_deselects(root: Path, targets: list[str]) -> list[str]:
+    """Return every deselected node that names no defined case.
+
+    Args:
+        root (Path): The repository root the node paths are relative to.
+        targets (list[str]): The pytest arguments to read.
+
+    Returns:
+        list[str]: The nodes, in the order the targets declare them.
+    """
+    nodes = [
+        targets[index + 1]
+        for index, argument in enumerate(targets[:-1])
+        if argument == "--deselect"
+    ]
+    return [node for node in nodes if not _node_defined(root, node)]
+def _node_defined(root: Path, node: str) -> bool:
+    """Return whether a ``module::Class::case`` node names a defined case.
+
+    Args:
+        root (Path): The repository root the module path is relative to.
+        node (str): The node identifier.
+
+    Returns:
+        bool: True when the module exists, defines the class, and the class
+        defines the case.
+    """
+    module, _, rest = node.partition("::")
+    class_name, _, case_name = rest.partition("::")
+    source = root / module
+    if not source.is_file():
+        return False
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    return any(
+        isinstance(member, ast.FunctionDef) and member.name == case_name
+        for definition in tree.body
+        if isinstance(definition, ast.ClassDef) and definition.name == class_name
+        for member in definition.body
     )
 def audit_targets(named: list[str]) -> list[str]:
     """Return the pytest arguments an audit runs, the declared ones when none are named.

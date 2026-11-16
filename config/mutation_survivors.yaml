@@ -43,19 +43,28 @@
 # section 15.6A).
 survivors:
   cmn/verdict.py:
-    digest: 3fe07d74bf5e34f19d79ce555176567de1453d051e3fa514f4364ab17583d5ff
+    digest: d39bbe12de66eb40cddf8aa41c16123a7d960c2d70e6228ee12a5c3fd526091b
     accepted:
-      - mutation: "line 734: False to True"
+      - mutation: "line 271: Or to And"
+        kind: equivalent
+        reason: >-
+          The date the rules are read on. Since V5 retired on 2026-11-15 no
+          registered rule reads it, so the verdict is the same on every date,
+          which MQC_CMN_UNI_112025 asserts. The parameter stays because every
+          rule takes it, and a rule that reads a date again makes this
+          mutant killable.
+        expires_on: 2026-12-31
+      - mutation: "line 722: False to True"
         kind: equivalent
         reason: >-
           The V2 pass-floor rule returns no breach when there is no rate to
-          compare. A run with no rate has no executions, so V5 has already
-          fired and the verdict is red either way; flipping this adds a V2 to
+          compare. A run with no rate has no executions, so V6 has already
+          fired on nothing measured and the verdict is red either way; flipping this adds a V2 to
           `breached_rules` on a run nobody reads that list from. Recorded
           rather than asserted because the assertion would pin a breach list
           on a path whose only reader is this file.
         expires_on: 2026-12-31
-      - mutation: "line 839: True to False"
+      - mutation: "line 816: True to False"
         kind: equivalent
         reason: >-
           The third `_NOTHING_MEASURED` branch, on an empty skip denominator.

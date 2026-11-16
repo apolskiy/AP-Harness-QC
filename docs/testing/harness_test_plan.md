@@ -240,7 +240,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0004` | A run measuring nothing is never green | CMN section 4.5 |
 | `MQC_REQ_HAR_CMN_0005` | No metric divides without testing its denominator | CMN section 4.5 |
 | `MQC_REQ_HAR_CMN_0006` | Dependency and unsupported skips are excluded from the skip denominator | CMN section 4.4 |
-| `MQC_REQ_HAR_CMN_0007` | An expired quarantine entry fails the run | CMN section 4.6 |
+| `MQC_REQ_HAR_CMN_0007` | An expired quarantine entry never fails the run: it returns its case to selection, and the case's own result is what counts | cmn_verdict_and_cli.md section 4.6.15 |
 | `MQC_REQ_HAR_CMN_0008` | Layer semantics are read from registration, never hardcoded | CMN section 9 |
 | `MQC_REQ_HAR_CMN_0009` | Every flag that can change a result is recorded in metadata | CMN section 7 |
 | `MQC_REQ_HAR_CMN_0010` | Run-scoped fields are emitted per result, not only in a manifest | Taxonomy section 9.2 |
@@ -389,8 +389,8 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0100` | A five-digit case identifier is bound by exactly one test callable across the suite, so an accidental duplicate is reported rather than collapsing into a set | cmn_verdict_and_cli.md section 10.10.1 |
 | `MQC_REQ_HAR_CMN_0227` | A graded case whose outcome a rubric threshold can decide is reported where it claims P0 or P1, so a run never blocks on a number a judge produced, and a case priced at P2 carrying its severity condition alongside the rubric condition is accepted as a recorded demotion | harness_test_taxonomy.md section 4.1.2.1 |
 | `MQC_REQ_HAR_CMN_0101` | Every workflow invocation emits both JUnit XML and Allure raw results, so a diagnostic or regression run produces the reporting evidence the downstream artifact contract requires and not half of it | cmn_verdict_and_cli.md section 7.1.0.3 |
-| `MQC_REQ_HAR_CMN_0102` | A quarantine entry expires when the run's resolved model differs from the model it was observed against, or when the injected evaluation date reaches 21 days past the date it was quarantined, so an accepted finding cannot outlive the model it was accepted about | cmn_verdict_and_cli.md section 4.6.2 |
-| `MQC_REQ_HAR_CMN_0103` | A quarantine entry missing the date or the model it was observed against is reported as a harness condition and still excludes its case, so a defect in our bookkeeping neither fails the run nor silently reinstates an accepted failure | cmn_verdict_and_cli.md section 4.6.4 |
+| `MQC_REQ_HAR_CMN_0102` | A quarantine entry expires when the injected evaluation date reaches 21 days past the date it was last quarantined, or when the run's model differs from the model it was observed against where the entry ends on a model change, so an accepted finding cannot outlive the model it was accepted about | cmn_verdict_and_cli.md section 4.6.2 |
+| `MQC_REQ_HAR_CMN_0103` | A quarantine entry missing the date or the model it was observed against is reported as a harness condition and stays in force, so a defect in our bookkeeping neither fails the run nor silently reinstates an accepted failure | cmn_verdict_and_cli.md section 4.6.4 |
 | `MQC_REQ_HAR_CMN_0104` | Quarantine is read per engine and an absent file is an empty quarantine, so the default state needs no file and a run whose engine has none does no expiry work | cmn_verdict_and_cli.md section 4.6.3 |
 | `MQC_REQ_HAR_CMN_0105` | The quarantine entries a run consulted are recorded in its metadata by hash, so a stored pass rate can be read against the exclusions that produced it | cmn_verdict_and_cli.md section 4.6.6 |
 | `MQC_REQ_HAR_CMN_0106` | Re-observing a quarantined case decides its entry as a pure function of what was observed: a case that passed throughout loses its entry, one that failed is re-stamped with the date and model, and one that was not observed is left alone and reported | cmn_verdict_and_cli.md section 4.6.10 |
@@ -585,6 +585,11 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EVL_0073` | On a rule judged on its answer alone, an instruction-override match the answer reports and rejects, outside any quotation, does not abort the screen; any other match of it in the answer still aborts, and every other vector and every ordinary case is screened unchanged | tier3_evaluation.md section 5.2.6 |
 | `MQC_REQ_HAR_EVL_0072` | A judgement returning the planted score its rubric declares, on an answer carrying a grading instruction asking for that value, fails the observation with QC_SEC_INJECTION_ATTEMPT whatever the aggregate, naming the criterion and the value; a judgement on an answer asking for no such value, and a rubric declaring none, are decided as before | tier3_evaluation.md section 4C.5 |
 | `MQC_REQ_HAR_CMN_0107` | Every field section 9 requires of an observation reaches the published artifact as a parameter, with the taxonomy code also carried as a label, so a reviewer or an analysis can say which engine and which judge produced a result from the artifact alone | cmn_verdict_and_cli.md sections 5.1 and 5.2 |
+| `MQC_REQ_HAR_CMN_0252` | A quarantine entry is in force while it is within its window and its model has not ended it, including after it was extended; an expired entry, and a case with no entry, are not in force, so the consumer selects that case | cmn_verdict_and_cli.md section 4.6.15 |
+| `MQC_REQ_HAR_CMN_0253` | An entry records the date its hold began in originally_quarantined_on, which never moves: an extension or a re-stamp moves quarantined_on alone, and an entry written without the field takes its quarantine date | cmn_verdict_and_cli.md section 4.6.15 |
+| `MQC_REQ_HAR_CMN_0254` | A model change ends a quarantine entry by default, and an entry quarantined with ends_on_model_change false stays in force through one until its window lapses | cmn_verdict_and_cli.md section 4.6.15 |
+| `MQC_REQ_HAR_CMN_0255` | A quarantine entry without a ticket is refused when the file is loaded, so no case is held out of a run without an issue tracking it | cmn_verdict_and_cli.md section 4.6.15 |
+| `MQC_REQ_HAR_CMN_0256` | Every case a mutation audit deselects is named by a node that is defined, its module, class and case all present, so a moved case cannot stay in the control run unseen | harness_test_taxonomy.md section 15.7.1.2 |
 ---
 
 ## 4. Coverage

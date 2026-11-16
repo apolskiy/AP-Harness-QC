@@ -3,16 +3,19 @@
 """Test builders for observations, suites and artifacts, for the verdict cases.
 
 Created: 2026-10-02
-Last updated: 2026-10-21
+Last updated: 2026-11-15
 
 This file provides ``graded``, one graded observation, ``passing_suite``, a suite
 that satisfies every rule, ``distribution_suite``, a passing suite with an exact
 priority distribution, ``scored_observations``, one case's judged observations,
-``gated_artifact``, a gated artifact over a valid base, and ``RateRefusal``, the
-check each rate threshold case runs.
+``gated_artifact``, a gated artifact over a valid base, ``RateRefusal``, the
+check each rate threshold case runs, ``held_entry``, a confirmed quarantine
+entry for the quarantined case, and ``write_quarantine``, which writes an
+engine's quarantine file for a case to load.
 
 They serve ``mqc_uni_verdict.py``, ``mqc_uni_verdict_invariants.py``,
-``mqc_uni_quarantine.py``, ``mqc_uni_thresholds.py``, ``mqc_uni_cli.py`` and
+``mqc_uni_quarantine.py``, ``mqc_uni_quarantine_in_force.py``,
+``mqc_uni_thresholds.py``, ``mqc_uni_cli.py`` and
 ``mqc_uni_consistency.py``, so each builds its input from one shared copy.
 
 Extracted 2026-10-02, when splitting the quarantine cases out of
@@ -26,11 +29,14 @@ deliberately outside that pattern, which is the same arrangement
 """
 
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from cmn.observations import Observation
+from cmn.quarantine import QuarantineEntry
 from cmn.verdict import Thresholds
 
 # The date every verdict case injects. The verdict reads no clock, so this is
@@ -41,6 +47,45 @@ TODAY = date(2026, 9, 23)
 # The case the quarantine cases quarantine. Named once because each of them
 # asserts against the identifier the entry carries.
 QUARANTINED_CASE = "MQC_TASK_q::MQC_RULE_r"
+
+# THE MODEL A QUARANTINE ENTRY WAS OBSERVED AGAINST, and one a new release
+# serves. Named once so the in-force cases compare the two the same way.
+OBSERVED_MODEL = "gemini-3.8-flash"
+NEWER_MODEL = "gemini-4.0-pro"
+
+
+def held_entry(held_since: date, **fields: Any) -> QuarantineEntry:
+    """Return a confirmed entry for the quarantined case, held since a date.
+
+    Args:
+        held_since (date): Its ``quarantined_on``.
+        **fields (Any): Further fields, such as ``originally_quarantined_on``
+            or ``ends_on_model_change``.
+
+    Returns:
+        QuarantineEntry: The entry, carrying a ticket and its observed model.
+    """
+    return QuarantineEntry(
+        QUARANTINED_CASE, "flaky", held_since, observed_model=OBSERVED_MODEL,
+        ticket="MQC-41", **fields,
+    )
+
+
+def write_quarantine(config_dir: Path, entries: list[dict[str, Any]]) -> None:
+    """Write ``quarantine/gemini.yaml`` beneath a directory standing in for ``config/``.
+
+    Args:
+        config_dir (Path): The directory.
+        entries (list): The entries, as the file holds them.
+
+    Returns:
+        None
+    """
+    folder = config_dir / "quarantine"
+    folder.mkdir(parents=True, exist_ok=True)
+    folder.joinpath("gemini.yaml").write_text(
+        yaml.safe_dump({"quarantine": entries}, sort_keys=False), encoding="utf-8",
+    )
 
 
 def graded(

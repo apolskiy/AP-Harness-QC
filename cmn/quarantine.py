@@ -3,17 +3,19 @@
 """Quarantine entries, the cases excluded from the pass rate, and when they lapse.
 
 Created: 2026-10-02
-Last updated: 2026-10-21
+Last updated: 2026-11-15
 
-This file contains ``QuarantineEntry``, one excluded case with its provenance;
+This file contains ``QuarantineEntry``, one held case with its provenance;
+``in_force_cases``, which returns the cases a consumer deselects;
 ``reconcile``, which decides after a re-observation whether an entry is dropped,
 re-stamped or left undecided; ``released_by_dispensation`` and
 ``dispensed_ids``, which read an announced release acceptance; and
 ``excluded_bands``, which reports each quarantined case that ran and its band.
 
-``cmn.verdict`` reads these to take quarantined cases out of the pass-rate
-denominator, and ``cmn.config`` loads the entries a run applies. A quarantined
-case still runs and is reported; only the denominator changes.
+``cmn.config`` loads an engine's entries. A consumer passes them to
+``in_force_cases`` at collection with its date and model and deselects what
+comes back, so a case in force is neither run nor counted, and an expired or
+removed one is selected again (design section 4.6.15).
 
 Specified in ``docs/design/cmn_verdict_and_cli.md`` section 4.6.
 
@@ -40,10 +42,11 @@ QUARANTINE_WINDOW_DAYS: Final[int] = 21
 
 @dataclass(frozen=True)
 class QuarantineEntry:
-    """One case excluded from the pass-rate denominator, with its provenance.
+    """One case held out of the run while its entry is in force, with its provenance.
 
-    **Never deleted from the suite.** A quarantined case still runs and is
-    listed in the report; it only leaves the denominator.
+    **Never deleted from the suite.** A consumer deselects the case while the
+    entry is in force (:func:`in_force_cases`) and selects it again once the
+    entry expires or is removed.
 
     Attributes:
         case_id (str): Which case.
@@ -64,9 +67,17 @@ class QuarantineEntry:
             auditable. Read by two things and no third, the blocking-band
             floor and the pass-rate denominator; nothing aggregates it
             (design section 4.6.13).
-        ticket (str): An optional tracker reference or URL. **Nothing reads
-            it**, by design: it carries the human context an entry needs,
-            pending a tracking system (design section 4.6.7).
+        ticket (str): The tracker reference or URL of the issue standing
+            against the case. **Required in a file**, which the loader
+            refuses without one (design section 4.6.15); nothing reads it
+            beyond that.
+        originally_quarantined_on (Optional[date]): The day the hold began.
+            It never moves: an extension or a re-stamp moves
+            ``quarantined_on`` alone. The loader fills it from
+            ``quarantined_on`` where a file omits it.
+        ends_on_model_change (bool): Whether a changed model ends the entry.
+            ``True`` by default, since a new model is assumed to carry fixes;
+            ``False`` leaves the window as its only lapse.
     """
 
     case_id: str
@@ -75,6 +86,8 @@ class QuarantineEntry:
     observed_model: str = ""
     ticket: str = ""
     release_accepted_in: str = ""
+    originally_quarantined_on: Optional[date] = None
+    ends_on_model_change: bool = True
 
     @property
     def confirmed(self) -> bool:
@@ -89,9 +102,9 @@ class QuarantineEntry:
         """Report whether this entry has lapsed.
 
         Expired when the resolved model differs from the one it was observed
-        against, or when ``as_of`` reaches ``window_days`` past
-        ``quarantined_on``. **The window boundary is inclusive**, so a 21-day
-        window makes day 21 the first expired day.
+        against and the entry ends on a model change, or when ``as_of`` reaches
+        ``window_days`` past ``quarantined_on``. **The window boundary is
+        inclusive**, so a 21-day window makes day 21 the first expired day.
 
         An unconfirmed entry never expires here: there is nothing to measure
         against, and the condition is reported separately rather than resolved
@@ -111,7 +124,8 @@ class QuarantineEntry:
         """
         if self.quarantined_on is None or not self.observed_model:
             return False
-        if resolved_model and resolved_model != self.observed_model:
+        if (self.ends_on_model_change and resolved_model
+                and resolved_model != self.observed_model):
             return True
         return (as_of - self.quarantined_on).days >= window_days
 
@@ -228,6 +242,37 @@ def reconcile(
         )
 
     return remaining, actions
+
+
+def in_force_cases(
+    entries: Iterable[QuarantineEntry], as_of: date, model: str, window_days: int
+) -> frozenset[str]:
+    """Return the cases whose quarantine entries are in force, which a consumer deselects.
+
+    An entry is in force until it expires (:meth:`QuarantineEntry.expired`):
+    within its window, its model unchanged or the entry kept through a change.
+    An extended entry is in force because its ``quarantined_on`` is recent. An
+    unconfirmed entry stays in force. A case with no entry is absent.
+
+    Pure, so a consumer passes the date and model it runs against and
+    deselects at collection; the harness ships no selection hook.
+
+    Design: ``cmn_verdict_and_cli.md`` section 4.6.15.
+
+    Args:
+        entries (Iterable[QuarantineEntry]): The engine's entries.
+        as_of (date): The date the run evaluates against.
+        model (str): The model the run measures, in the form ``observed_model``
+            records it; empty leaves the model trigger unevaluated.
+        window_days (int): How long an entry stays in force without extension.
+
+    Returns:
+        frozenset[str]: The case identifiers held out of the run.
+    """
+    return frozenset(
+        entry.case_id for entry in entries
+        if not entry.expired(as_of, model, window_days)
+    )
 
 
 def excluded_bands(

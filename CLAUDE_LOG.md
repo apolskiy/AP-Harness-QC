@@ -16293,3 +16293,80 @@ band call with its `max_spend` removed. Ignoring an input's declared default is
 not distinguishable by the fixture, both an empty and a zero ceiling reading
 as none.
 
+## 2026-11-15: Only a quarantine entry in force holds its case out
+
+**A) What was wrong.** An expired quarantine entry did two things at once: the
+case repository kept deselecting its case, because collection read every entry
+in the file, and verdict rule V5 failed the whole run on it. So a lapsed entry
+hid its case and turned the run red, and nothing selected the case again until
+somebody deleted the entry. An extension moved `quarantined_on` and lost the
+day the hold began, every entry ended on any model change, and an entry could
+be filed without a ticket. **B) Why.** Expiry was modelled as a verdict
+finding after the run rather than as a selection decision before it.
+
+**What changed.** `cmn.quarantine.in_force_cases` returns the cases whose entry
+is in force on a date and for a model; a consumer selects every other case.
+Quarantining stays explicit: an entry is made, extended by setting
+`quarantined_on` to the current date, and removed by a person or the tool,
+never inside a run. V5 is retired and never fires. `QuarantineEntry` gained
+`originally_quarantined_on`, which the loader fills from `quarantined_on`, and
+`ends_on_model_change`, true by default because a new model is assumed to
+carry fixes and vendors do not say which. The loader refuses an entry without a
+ticket. Ticket-driven extension is documented as an option and not supported.
+`cmn_verdict_and_cli.md` section 4.6.15; requirements `MQC_REQ_HAR_CMN_0252` to
+`0255` added, `CMN_0007`, `0102` and `0103` amended.
+
+**Cases.** `112704` to `112713` added; against a stub holding every entry in
+force, `112706`, `112707`, `112708`, `112710`, `112711` and `112713` failed at
+their intended steps. `112010` and `112042` retired with V5; `112025`, `112037`,
+`112039`, `112041`, `112147` and `112700` to `112703` rewritten to assert the
+same claims through `expired()` and through the verdict's independence of the
+date.
+
+**The loader moved.** The two fields took `cmn/config.py` to 1003 lines, past
+the hard ceiling, so `load_quarantine` and `load_quarantine_for` moved to
+`cmn/quarantine_file.py`, split by subject. It imports `cmn.config` and nothing
+imports it back, which a move into `cmn/quarantine.py` could not have done:
+that path cycles through `cmn.verdict`. `cmn/config.py` is at 878 lines and
+left the runway list. Every caller, in both repositories, imports from the new
+module.
+
+**The verdict's mutation audit.** `_Population.resolved_model` was read only by
+V5, so it was removed rather than declared. The date the rules read on is now
+read by no rule, so `as_of_date or date.min` survives as an equivalent mutant
+and is declared, with `112025` asserting the property it leaves. The two
+existing declarations moved twelve lines up, and one reason that named V5 for
+the nothing-measured rule now names V6. Three survivors, all declared; digest
+re-declared.
+
+**And the audit could not run until a tool defect was fixed.** Its control
+failed on `112331`: the list of cases the audit sets aside named it at
+`tests/cmn/mqc_uni_file_standards.py`, the module it left on 2026-10-29, and
+pytest deselects nothing for a node it cannot find. The control rewrites the
+audited module without comments, so a module on the runway list fell under
+nine hundred lines and the runway check reported its entry as stale. Every
+module audited in the seventeen days since was off the runway, so nothing
+showed it. `tools.mutation_scope.undefined_deselects` reports a deselected node
+whose module, class or case is not defined, and `MQC_CMN_UNI_410009` asserts
+there is none; against a stub it failed at step 2, and against the stale list
+at step 1, naming the node. Requirement `MQC_REQ_HAR_CMN_0256`;
+`harness_test_taxonomy.md` section 15.7.1.2.
+
+**Injections.** Eight across both repositories, each caught: every entry
+held, the model never compared, the window never lapsing, the run reading no
+date, either new field left unwritten by the tool, a stale deselect passing,
+and a missing class going unreported.
+
+**Verified.** Harness: unit 1112 of 1112, system 24 of 24, pylint exit 0,
+actionlint exit 0, and the `cmn/verdict.py` audit with no undeclared survivor.
+The Model Repository follows in its own entry.
+
+### Digressions the user spotted, and the fix
+
+- V5 failed the run on an expired entry instead of returning the case to the
+  run: fixed by deciding expiry at selection and retiring V5.
+- An extended entry lost the day its hold began: fixed by
+  `originally_quarantined_on`.
+- A model change always ended an entry: fixed by `ends_on_model_change`,
+  true by default.
+

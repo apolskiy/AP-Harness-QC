@@ -3810,6 +3810,26 @@ repository's corpus is measured by the graded layers rather than mutated.
 
 `MQC_CMN_UNI_410005` and `MQC_REQ_HAR_CMN_0222`.
 
+##### A deselect that names no case deselects nothing
+
+Added 2026-11-15, after an audit of `cmn/verdict.py` refused at its control.
+
+**What was wrong.** `AUDIT_TARGETS` deselected `112331` at
+`tests/cmn/mqc_uni_file_standards.py::TestMQCModuleRunway`, and on 2026-10-29
+the case moved to `tests/cmn/mqc_uni_module_layout.py`. The runway check read
+the unparsed module, which carries no comments and sits under nine hundred
+lines, so it reported the module's runway entry as stale and the control
+failed. **Why it went unseen.** pytest treats a `--deselect` naming no
+collected node as nothing to do, and every module audited in the next
+seventeen days was off the runway, so the control passed without the case on
+the list.
+
+**Every deselect names a node that is defined**: the module exists, the class
+is defined in it and the case is a method of that class. The check reads the
+syntax tree of the named module rather than collecting it, so it costs
+nothing and runs on every unit run. `MQC_CMN_UNI_410009` and
+`MQC_REQ_HAR_CMN_0256`.
+
 #### 15.7.2 The job compares every declaration before it measures one
 
 Added 2026-10-24 at the project owner's instruction: "we don't want CI running

@@ -112,6 +112,7 @@ modules:
   tests/cmn/mqc_uni_graded_selection.py: Verdict and bands
   tests/cmn/mqc_uni_runner_images.py: Project standards
   tests/cmn/mqc_uni_quarantine.py: Verdict and bands
+  tests/cmn/mqc_uni_quarantine_in_force.py: Verdict and bands
   tests/cmn/mqc_uni_skip_accounting.py: Verdict and bands
   tests/cmn/mqc_uni_measurement_ceiling.py: Verdict and bands
   tests/cmn/mqc_uni_thresholds.py: Verdict and bands

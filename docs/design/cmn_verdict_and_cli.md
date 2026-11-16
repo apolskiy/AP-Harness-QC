@@ -77,7 +77,7 @@ Evaluated in full: **not short-circuited**. See §4.7.
 | V2 | Overall pass rate below 90% | Red |
 | ~~V3~~ | ~~Total skips above 20%~~ | **Retired 2026-10-08**: `harness_test_taxonomy.md` section 7.4.1.0 |
 | ~~V4~~ | ~~P0/P1 skips above 10%~~ | **Retired 2026-10-08**: `harness_test_taxonomy.md` section 7.4.1.0 |
-| V5 | Any quarantine entry expired as of `as_of_date`, by model change or the 21-day window | Red |
+| ~~V5~~ | ~~Any quarantine entry expired as of `as_of_date`, by model change or the 21-day window~~ | **Retired 2026-11-15**: expiry returns the case to selection (section 4.6.15) |
 | V6 | Zero graded observations | Red: §4.5 |
 | V7 | P0 share of the corpus above its ceiling | Red: §4.4 |
 | V8 | P1 share above its ceiling | Red: §4.4 |
@@ -123,6 +123,11 @@ These are specified because they are where verdict computers are wrong in practi
 Revised 2026-10-02. An entry carries a case identifier, a reason, the date it
 was quarantined, the model it was observed against, and an optional ticket
 reference.
+
+**Superseded 2026-11-15 where the bullets below disagree.** A quarantined case
+is not selected and is in no denominator (section 4.6.14); an entry needs a
+ticket, records the date its hold began, and lapses back into selection rather
+than failing the run (section 4.6.15).
 
 * **A quarantined case is not dispatched**, which is what it is for: a case
   already known to fail buys nothing by being asked again, and asking spends
@@ -652,6 +657,121 @@ leaves the total, which is the arrangement environment scopes already use
 | What does expiry do? | **It returns the case to selection**, and that is all. An expired entry no longer fails the run, so V5 retires; the case is measured again from the next run, and if it still fails it fails in its band |
 | Is `release_accepted_in` (section 4.6.13) retired? | **No.** It stays as the record: when the case breaks again, it traces back to the decision and the reason for the earlier breakage. It no longer decides any floor, since a quarantined case is not counted |
 | Must an entry carry a ticket? | **Yes.** A case cannot be quarantined without an issue opened against it, or it becomes an invisible, untracked bug. An entry without `ticket` is refused, which supersedes section 4.6.7's inert `ticket` |
+
+#### 4.6.15 Whether an entry is in force decides selection, and only an explicit act changes it
+
+Added 2026-11-15 at the project owner's ruling. Section 4.6.14 says a
+quarantined case is not selected; this section says which entries are in
+force, how a hold is extended, and what the harness owns against what a
+consumer owns.
+
+**What was wrong.** The case repository deselected the case of every entry in
+its file and never asked whether the entry had lapsed, so an expired entry
+kept its case out of the run, which is the opposite of section 4.6.14's ruling.
+**Why it happened.** Expiry was read only by V5, at verdict time, after the
+run; selection happens at collection, before it, and nothing at collection
+read expiry.
+
+##### The three selection rules
+
+| The case's entry | In force | The case |
+|---|---|---|
+| Within its window, its model unchanged, or extended | **Yes** | Not selected |
+| Expired: the window reached, or the model changed where the entry ends on one | No | **Selected**, and counted in its band like any case |
+| Removed from the file | No entry | **Selected** |
+
+**An unconfirmed entry stays in force** and is reported, as section 4.6.4
+holds: its expiry cannot be evaluated, and reinstating an accepted failure on
+a bookkeeping defect is the error that section refuses.
+
+##### Quarantine changes only by an explicit act
+
+**A person quarantines, extends or removes an entry**, by running the
+consumer's quarantine tool, which calls `reconcile` (section 4.6.10), or by
+editing the file. **Nothing re-quarantines a case inside a run.** An expired
+case that runs and fails again fails in its band until somebody quarantines it
+again, with a ticket.
+
+| Act | Changes |
+|---|---|
+| Quarantine | Writes an entry with `ticket`, `quarantined_on`, `originally_quarantined_on` (the same day) and `observed_model` |
+| **Extend** | Sets `quarantined_on` to the current date, which restarts the window. `originally_quarantined_on` never moves, so the entry keeps when its hold began |
+| Remove | Deletes the entry once the fix is tested; the case is selected from the next run |
+
+**There is no end date on an entry.** When a hold ends depends on the software
+being fixed and tested, which nobody can date in advance; the window is the
+backstop and removal is the decision.
+
+**`originally_quarantined_on` is filled from `quarantined_on` where a file
+omits it**, so an entry written before the field existed loads with the one
+date it has.
+
+##### A model change ends quarantine, by default
+
+**A new model is assumed to carry fixes, and a vendor does not say which**, so
+a new model gets a full retest: every entry ends on a model change unless it
+says otherwise. `ends_on_model_change`, set when the case is quarantined,
+defaults to `true`; `false` keeps the hold through a model change and leaves
+the window as its only lapse.
+
+**The model is compared in the form the entry recorded it.** `reconcile`
+stamps `observed_model` from the observations' resolved model, which is the
+rostered model name, so the consumer supplies the run's rostered model at
+collection. **A served version that changes behind an unchanged name does not
+end quarantine by this comparison**: the model version probe reacts to it and
+dispatches a regression run, and that run deselects the case until the window
+lapses or the entry is removed.
+
+##### Ticket-driven extension is an option this demo does not run
+
+In a project with a tracker, a hold can follow its ticket: in force while the
+ticket is open, lapsed when it closes. **It is documented as an option for a
+full-sized suite and is not supported here**: the demo reads no tracker, and
+the one ticket filed sits with a vendor whose state CI cannot read. Recording
+it as not supported keeps it from reading as a design waiting to be built.
+
+##### The harness owns the decision; the consumer owns selection
+
+**The harness ships the mechanism and nothing more**, so a consumer adapts
+quarantine without extending the harness:
+
+| Harness | Consumer |
+|---|---|
+| The entry, the loader, `in_force_cases`, `reconcile`, the window | The file, the date and model it passes, the collection hook that deselects, the tool that writes |
+
+`cmn.quarantine.in_force_cases(entries, as_of, model, window_days)` returns
+the case identifiers whose entries are in force. It is pure, for section 4.1's
+reason, so each of the three rules is a unit case with no run behind it.
+
+##### V5 retires
+
+**An expired entry no longer fails the run**, since expiry returns the case to
+selection and the case's own result is what counts. V5 never fires, as V3 and
+V4 never fire (section 4.3).
+
+##### Not changed here
+
+**The dispensation readers.** `release_accepted_in` still excuses a skip in
+`_build_population` and in the case repository's blocking-band floor. Section
+4.6.14 holds that it decides no floor; with quarantine deselecting, a
+quarantined case produces no skip for either reader to excuse, so the readers
+are unreachable rather than wrong. Removing them, and the cases asserting
+them, is recorded as open.
+
+##### Cases
+
+| ID | Cat | Behavior |
+|---|---|---|
+| `112704` | P | `an_entry_within_its_window_is_in_force` |
+| `112705` | P | `an_extended_entry_is_in_force_and_keeps_its_original_date` |
+| `112706` | N | `an_entry_past_its_window_is_not_in_force` |
+| `112707` | N | `an_entry_whose_model_changed_is_not_in_force` |
+| `112708` | P | `an_entry_kept_through_a_model_change_is_in_force` |
+| `112709` | N | `a_case_with_no_entry_is_not_in_force` |
+| `112710` | N | `an_entry_without_a_ticket_is_refused` |
+| `112711` | B | `an_entry_without_an_original_date_takes_its_quarantine_date` |
+| `112712` | P | `reconciling_a_failure_keeps_the_original_date` |
+| `112713` | N | `an_expired_entry_never_fails_the_run` |
 
 ### 4.7 All breached rules are reported, not the first
 
@@ -3252,7 +3372,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | ~~`112007`~~ | | ~~`red_just_above_twenty_percent_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
 | ~~`112008`~~ | | ~~`green_at_exactly_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
 | ~~`112009`~~ | | ~~`red_just_above_ten_percent_priority_skips`~~. **Retired 2026-10-08 with V3 and V4**, `harness_test_taxonomy.md` section 7.4.1.0. A skip has no ceiling, so the boundary it named no longer exists; `112044` states what is still worth asserting |
-| `112010` | N | `red_when_quarantine_entry_expired` (V5) |
+| ~~`112010`~~ | | ~~`red_when_quarantine_entry_expired`~~. **Retired 2026-11-15 with V5**, section 4.6.15: an expired entry returns its case to selection and fails nothing. `112713` states it |
 | `112011` | P | `green_when_quarantine_entry_current` (V5) |
 | ~~`112012`~~ | | ~~`expiry_boundary_evaluated_against_injected_date`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112700`, `112701`, `112702`, `112703`. One case per boundary day |
 | `112700` | B | `an_entry_nineteen_days_old_is_still_valid` |
@@ -3542,7 +3662,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112039` | P | `an_absent_quarantine_file_is_an_empty_quarantine` |
 | `112040` | P | `the_consulted_quarantine_hash_is_recorded` |
 | `112041` | N | `a_malformed_ticket_reference_is_reported` |
-| `112042` | P | `the_named_evaluation_date_reaches_quarantine_expiry` |
+| ~~`112042`~~ | | ~~`the_named_evaluation_date_reaches_quarantine_expiry`~~. **Retired 2026-11-15 with V5**, section 4.6.15: the verdict no longer turns red on expiry, so the date on its command line decides none. The consumer passes its date to `in_force_cases` at collection, which `112704` to `112709` cover |
 | `112043` | P | `reconciling_decides_each_entry_from_what_was_observed` |
 | `112239` | P | `every_required_result_field_is_emitted` |
 | `112240` | P | `a_failing_case_reports_every_call_it_made` |
@@ -3722,6 +3842,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `410006` | P | `the_audit_runs_only_when_somebody_asks_for_it` (taxonomy 15.6A) |
 | `410007` | P | `no_audit_carries_a_priority_band` (taxonomy 15.6A.5) |
 | `410008` | N | `the_readme_counts_audits_apart_from_the_suite` (taxonomy 15.6A.5) |
+| `410009` | N | `a_deselect_naming_no_case_is_reported` (taxonomy 15.7.1.2) |
 | `420000` | N | `a_collected_module_declaring_no_capability_is_reported` (taxonomy 16.3) |
 | `420001` | N | `a_capability_outside_the_vocabulary_is_reported` (taxonomy 16.3) |
 | `420002` | P | `the_declared_epic_is_the_distribution_name` (taxonomy 16.3) |
@@ -3744,7 +3865,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 517 cases, 309 negative, 154 positive, 54 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 526 cases, 314 negative, 157 positive, 55 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

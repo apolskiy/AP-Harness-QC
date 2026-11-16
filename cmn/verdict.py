@@ -3,7 +3,7 @@
 """The run verdict, red or green with reasons, computed from a run's observations.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-15
 
 This file contains ``verdict``, which applies every registered rule to a run's
 observations under a ``VerdictConfig`` and ``Thresholds`` and returns a ``Verdict``
@@ -239,18 +239,12 @@ class _Population:
             excluding quarantined cases.
         skippable (list): Graded observations counting toward the skip rate.
         skipped (list): Of those, the ones that skipped.
-        resolved_model (str): The one model this run reported, or empty
-            when it reported none or several. **Empty leaves the
-            quarantine model trigger unevaluated**, because which of two
-            models an entry should be compared against has no answer
-            (design section 4.6.2).
     """
 
     graded: list[Observation]
     executions: list[Observation]
     skippable: list[Observation]
     skipped: list[Observation]
-    resolved_model: str = ""
 
 
 def verdict(
@@ -658,17 +652,11 @@ def _build_population(
         if entry.outcome != "skip" or skip_counts_toward_rate(entry.skip_reason)
     ]
     skipped = [entry for entry in skippable if entry.outcome == "skip"]
-    # ONE MODEL OR NONE. A mixed corpus leaves this empty rather than
-    # picking one: `mixed_model_engines` reports the run as mixed, and
-    # expiring quarantine on an arbitrary pick would attach a second
-    # consequence to that one cause. Design section 4.6.2.
-    reported = {entry.resolved_model for entry in observations if entry.resolved_model}
     return _Population(
         graded=graded,
         executions=executions,
         skippable=skippable,
         skipped=skipped,
-        resolved_model=reported.pop() if len(reported) == 1 else "",
     )
 
 
@@ -779,34 +767,23 @@ def _rule_v4(
 def _rule_v5(
     population: _Population, config: VerdictConfig, as_of: date
 ) -> tuple[bool, str]:
-    """An expired quarantine entry fails the run.
+    """Retired 2026-11-15: an expired quarantine entry, which never fires now.
 
-    Expiry is by model change or by the configured window, per design section
-    4.6.2. **An unconfirmed entry does not fire this rule**: it is our
-    bookkeeping failing rather than a model finding, and is reported as
-    ``QC_HARNESS_QUARANTINE_UNCONFIRMED`` instead (section 4.6.4).
+    Expiry returns the case to selection and its own result counts, so
+    failing the run as well would count one problem twice.
+
+    Design: ``cmn_verdict_and_cli.md`` section 4.6.15.
 
     Args:
-        population (_Population): For the run's resolved model.
-        config (VerdictConfig): For the quarantine list and the window.
-        as_of (date): The injected evaluation date.
+        population (_Population): Unused.
+        config (VerdictConfig): Unused.
+        as_of (date): Unused.
 
     Returns:
-        tuple: Whether it fired, and what it found. Without this, quarantine
-        becomes where failures go to be forgotten.
+        tuple: Never fires.
     """
-    window = config.thresholds.quarantine_window_days
-    expired = [
-        entry for entry in config.quarantine
-        if entry.expired(as_of, population.resolved_model, window)
-    ]
-    if not expired:
-        return False, ""
-    names = ", ".join(sorted(entry.case_id for entry in expired))
-    return True, (
-        f"{len(expired)} quarantine entries expired as of {as_of}, by a changed "
-        f"model or the {window}-day window: {names}"
-    )
+    del population, config, as_of
+    return False, ""
 
 
 def _rule_v6(

@@ -29,6 +29,32 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Only a quarantine entry in force holds its case out, 2026-11-15
+
+**Why.** An expired quarantine entry failed the whole run through verdict
+rule V5, while the case it named stayed out of selection, so one lapsed entry
+both hid its case and turned the run red. Nothing recorded the day a hold
+began once an extension moved its date, a model change ended every entry
+whether or not that suited it, and an entry could be filed with no ticket.
+
+**What changed.** `cmn.quarantine.in_force_cases` returns the cases whose
+entry is in force on a date and for a model; a consumer selects every other
+case. V5 is retired and never fires. An entry carries
+`originally_quarantined_on`, which the loader fills from `quarantined_on`, and
+`ends_on_model_change`, true by default; the loader refuses an entry without a
+ticket. `cmn_verdict_and_cli.md` section 4.6.15 holds the design, and
+requirements `MQC_REQ_HAR_CMN_0252` to `0255` were added.
+
+**And the mutation audit's exclusions are checked.** Its list of cases set
+aside named `112331` in the module it left on 2026-10-29, and pytest ignores a
+deselect that matches nothing, so the control of any module declared on the
+runway failed. `tools.mutation_scope.undefined_deselects` reports such a node,
+`MQC_CMN_UNI_410009` asserts there is none, and requirement
+`MQC_REQ_HAR_CMN_0256` was added (`harness_test_taxonomy.md` section 15.7.1.2).
+
+The README states 1140 instrument cases and 436 requirements, and describes
+quarantine as holding out only an entry in force.
+
 ### The spend-ceiling check reads through local composite actions, 2026-11-14
 
 **Why.** `uncapped_spending_steps` read workflow files only, so a band run
