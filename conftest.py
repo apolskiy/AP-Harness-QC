@@ -3,7 +3,7 @@
 """The harness's pytest configuration, which wires the run's hooks and shared fixtures.
 
 Created: 2026-09-26
-Last updated: 2026-11-10
+Last updated: 2026-11-17
 
 This file contains the pytest hooks for this repository's suite, which declare
 the execution flags, record the invocation, label each case's Allure severity
@@ -59,6 +59,7 @@ from cmn.calibration_runs import deselect_unrequested_calibration
 from cmn.case_steps import begin_case_steps, record_assertion, record_call
 from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
+from cmn.missing_artifact import refuse_missing_artifacts
 from cmn.mutation_guard import imported_harness_root, refuse_if_mutating
 from cmn.passw import mark_passw, passw_count, refuse_precondition_warnings
 from cmn.run_context import adopt_run_context, publish_preconditions_record
@@ -593,6 +594,8 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     refuse_precondition_warnings(session)
     # AND A CRASH MEASURED NOTHING EITHER (taxonomy section 5.1.1).
     refuse_broken(session)
+    # AND A CASE MISSING AN ARTIFACT IS A BUG TO INVESTIGATE (taxonomy 5.1.3).
+    refuse_missing_artifacts(session)
     # LAST, after the refusals that raise the exit status: only a session that
     # exits 0 vouches for its preconditions (harness design section 7.1.4).
     publish_preconditions_record(session, os.environ)

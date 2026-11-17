@@ -29,6 +29,27 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A case whose artifact is missing skips at setup, alone, and the run exits 3, 2026-11-16
+
+**Why.** A file a case reads and its own run does not produce had no common
+handling: a missing carried outcome refused the whole band, a corrupt judgement
+counted as a graded failure, and a missing recording was found only mid-dispatch,
+with no path in the result. No reader was ever tested with its artifact missing
+or malformed, and the artifacts handed between live bands are read only in a
+live run, so the gap first showed where it cost money.
+
+**What changed.** `cmn.missing_artifact` adds the code
+`QC_HARNESS_ARTIFACT_MISSING` and `skip_for_missing_artifact`, which skips one
+case at setup, before any request is formed, naming a registered kind and the
+path in its message, in the JUnit properties `mqc_artifact_kind` and
+`mqc_artifact_path`, and in the Allure labels `taxonomy_code`, `artifact_kind`
+and `artifact_path`. The other cases run and count, and
+`refuse_missing_artifacts` makes the run exit 3. The result block glosses the
+code and the report's Categories tab files it under "Skipped for a missing
+artifact". Design `harness_test_taxonomy.md` section 5.1.3, requirement
+`MQC_REQ_HAR_CMN_0258`, cases `112446` to `112450`. The readers adopt it in
+their own changes. README: 1148 test cases, 438 requirements.
+
 ### A quarantined foundation no longer refuses the run or skips its dependents, 2026-11-16
 
 **Why.** Quarantining a foundation without its dependents refused the whole

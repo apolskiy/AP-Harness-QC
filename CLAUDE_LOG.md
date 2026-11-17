@@ -16420,3 +16420,41 @@ measured foundation still named as set aside. Baseline exit 0 after restore.
 Preconditions only; no graded band runs here. Model Repository line in its
 own log, same date.
 
+## 2026-11-16: Added a setup skip for a case whose artifact is missing, with its own code
+
+**A) What was wrong.** A file a case reads and its own run does not produce
+had no common handling and no test with it missing or malformed. A missing
+carried outcome refused the whole band, a missing spend report failed the job
+before pytest, a corrupt judgement counted as a graded failure, and a missing
+recording was found mid-dispatch with no path in the result. **B) Why.** The
+artifacts handed between live bands are read only in a live run, so the gap
+first showed in one, where it cost money; and the rule to unit test every
+reader with valid, invalid and missing input was never applied to artifacts.
+
+**The ruling.** A missing artifact skips only its own case, before any request
+is formed; every other case runs and counts; the skip is kept for later
+analysis of the stored JUnit, and the Allure labels are added because they
+are cheap. One code for every kind, with the kind and path as labels.
+
+**What changed.** This is the first of a series of commits, one per reader.
+`cmn/missing_artifact.py` holds `MissingArtifact`, refused without a
+registered kind, a path and an explanation; `skip_for_missing_artifact`, which
+writes the JUnit properties `mqc_artifact_kind` and `mqc_artifact_path` and
+the Allure labels as markers, since Allure reads an item's labels at teardown;
+and `refuse_missing_artifacts`, which raises the exit to 3, wired in this
+repository's conftest. `QC_HARNESS_ARTIFACT_MISSING` is registered, glossed in
+the result block and named apart in the Categories tab. Design
+`harness_test_taxonomy.md` section 5.1.3, requirement `MQC_REQ_HAR_CMN_0258`,
+cases `112446` to `112450`. Next: the carried outcomes, the calibration
+record, then recordings and judgements, each adopting the skip.
+
+**Injection.** Nine defects, nine caught, each exiting 3: the message naming
+neither kind nor path, the result block losing its gloss, no JUnit properties,
+no Allure labels, an unregistered kind, a blank path and an empty explanation
+accepted, the exit status kept, and the exit raised only over a pass. Baseline
+exit 0 after restore.
+
+**Verified.** Harness: unit 1120 of 1120, system 24 of 24, pylint exit 0.
+Preconditions only; no graded band runs here, and the Model Repository is
+unchanged by this commit.
+

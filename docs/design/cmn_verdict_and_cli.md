@@ -3444,6 +3444,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112440` | B | `a_passw_observation_counts_toward_every_pass_floor` (taxonomy 5.1.2) |
 | `112441` | P | `a_passw_case_carries_its_warning_code_in_junit` (taxonomy 5.1.2) |
 | `112442` | N | `a_precondition_passing_with_a_warning_fails_the_run` (taxonomy 5.1.2.1) |
+| `112446` | P | `a_missing_artifact_skips_only_its_case` (taxonomy 5.1.3) |
+| `112447` | P | `a_missing_artifact_skip_carries_its_kind_and_path_in_junit` (taxonomy 5.1.3) |
+| `112448` | P | `a_missing_artifact_skip_carries_its_allure_labels` (taxonomy 5.1.3) |
+| `112449` | N | `a_missing_artifact_record_without_a_kind_or_path_is_refused` (taxonomy 5.1.3) |
+| `112450` | N | `a_run_with_a_missing_artifact_exits_3` (taxonomy 5.1.3) |
 | `112391` | N | `a_run_refuses_a_module_a_live_audit_holds_but_its_own` (taxonomy 15.12.1) |
 | `112392` | N | `an_abandoned_backup_is_restored_verified_and_the_run_refused` (taxonomy 15.12.2) |
 | `112393` | N | `a_failed_restore_keeps_the_backup_and_names_both_recoveries` (taxonomy 15.12.2) |
@@ -3873,7 +3878,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 529 cases, 315 negative, 158 positive, 56 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 534 cases, 317 negative, 161 positive, 56 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

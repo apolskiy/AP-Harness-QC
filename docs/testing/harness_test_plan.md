@@ -591,6 +591,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0255` | A quarantine entry without a ticket is refused when the file is loaded, so no case is held out of a run without an issue tracking it | cmn_verdict_and_cli.md section 4.6.15 |
 | `MQC_REQ_HAR_CMN_0256` | Every case a mutation audit deselects is named by a node that is defined, its module, class and case all present, so a moved case cannot stay in the control run unseen | harness_test_taxonomy.md section 15.7.1.2 |
 | `MQC_REQ_HAR_CMN_0257` | A foundation a consumer sets aside, being quarantined, is known at collection and skips none of its dependents, each of which runs and counts, while a set-aside foundation that ran in the execution is judged by its recorded outcome | cmn_verdict_and_cli.md section 10.28.7 |
+| `MQC_REQ_HAR_CMN_0258` | A case whose artifact is absent, empty, unreadable or missing a mandatory field skips at setup with QC_HARNESS_ARTIFACT_MISSING before any request is formed, naming a registered kind and the path in its message, its JUnit properties and its Allure labels; every other case runs and counts, and the run exits 3 | harness_test_taxonomy.md section 5.1.3 |
 ---
 
 ## 4. Coverage

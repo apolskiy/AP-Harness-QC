@@ -3,7 +3,7 @@
 """Band result summary, what one priority band's run established, in its own terms.
 
 Created: 2026-10-06
-Last updated: 2026-11-06
+Last updated: 2026-11-17
 
 This file contains ``result_lines``, which renders a band's result as a header and one
 labelled fact per line, under a ``Heading`` naming the band and the engine, with
@@ -92,6 +92,11 @@ _SKIP_CAUSES: Final[dict[str, str]] = {
     ),
     "QC_HARNESS_FIXTURE_STALE": (
         "the recording no longer answers this request, response or judgement"
+    ),
+    # THE KIND AND THE PATH ARE IN THE MESSAGE and the JUnit properties
+    # (taxonomy section 5.1.3).
+    "QC_HARNESS_ARTIFACT_MISSING": (
+        "an artifact this case reads is missing or unreadable, so it was not executed"
     ),
     "QC_HARNESS_BUDGET_EXHAUSTED": "the run reached its spending ceiling",
     "QC_HARNESS_CREDIT_EXHAUSTED": "the account has no credit left",

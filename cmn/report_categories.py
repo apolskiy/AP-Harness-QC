@@ -3,7 +3,7 @@
 """The failure-cause tree a report groups by, which is the taxonomy's four families.
 
 Created: 2026-10-28
-Last updated: 2026-10-28
+Last updated: 2026-11-17
 
 This file contains ``report_categories``, the classification a report's
 Categories tab is built from; ``write_categories``, which puts it beside a
@@ -26,7 +26,7 @@ sets the flag making a dot match a newline.
 
 **The family prefixes come from ``cmn.registries``** rather than being restated
 here, since ``framework-rules.md`` section 4.1 admits one registry of codes.
-The three harness codes carrying a category of their own are a selection out of
+The four harness codes carrying a category of their own are a selection out of
 that registry, and :func:`category_problems` re-resolves each one.
 
 Design: ``docs/design/harness_test_taxonomy.md`` section 16.9.
@@ -59,12 +59,13 @@ _FAMILY_CATEGORIES: Final[tuple[tuple[str, str, tuple[str, ...]], ...]] = (
 )
 
 # THE HARNESS CODES CARRYING A CATEGORY OF THEIR OWN, because each takes a
-# different remedy: another case's failure, a sweep that did not finish, and a
-# decision already taken. This is `code-style.md` section 7.1's rule that a
-# skip names its kind, applied to a report.
+# different remedy: another case's failure, a sweep that did not finish, a bug
+# to investigate, and a decision already taken. This is `code-style.md` section
+# 7.1's rule that a skip names its kind, applied to a report.
 _NAMED_HARNESS_CODES: Final[tuple[tuple[str, str], ...]] = (
     ("Skipped behind a foundation that did not hold", "QC_HARNESS_DEPENDENCY_UNMET"),
     ("Skipped for a missing recording", "QC_HARNESS_FIXTURE_MISSING"),
+    ("Skipped for a missing artifact", "QC_HARNESS_ARTIFACT_MISSING"),
     ("Skipped as a known failure in quarantine", "QC_HARNESS_QUARANTINED"),
 )
 
@@ -92,7 +93,7 @@ def _spanning(body: str) -> str:
 def _instrument_pattern() -> str:
     """Return the pattern matching every harness code not named on its own.
 
-    **A negative lookahead rather than a second list.** The three named codes
+    **A negative lookahead rather than a second list.** The four named codes
     are excluded here by the same spellings that name them above, so a code
     cannot fall into two categories and have one failure counted under two
     headings (section 16.9.3).
@@ -126,8 +127,8 @@ def _unclassified_pattern() -> str:
 def report_categories() -> list[dict[str, Any]]:
     """Return the classification a report's Categories tab is built from.
 
-    Eight categories, in the order a reader works down them: the three model
-    and corpus families, the instrument defects, the three named skips, and
+    Nine categories, in the order a reader works down them: the three model
+    and corpus families, the instrument defects, the four named skips, and
     whatever carried no registered code at all.
 
     Design: ``harness_test_taxonomy.md`` section 16.9.2.

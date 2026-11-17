@@ -1003,6 +1003,45 @@ inconsistent**: the observations did not come out the same.
 `MQC_CMN_UNI_112440` the floors, and `MQC_CMN_UNI_112441` the two properties in
 the JUnit a run writes.
 
+#### 5.1.3 A case whose artifact is missing skips at setup, and only that case
+
+Added 2026-11-16 at the project owner's ruling. **An artifact is a file a case
+reads that its own run does not produce**: a recorded response or judgement, the
+calibration record, the outcomes a band carries to the next, a spend report
+handed between bands, or the task and rule pair the case is built from. One
+that is absent, empty, unreadable or missing a mandatory field is a test bug or
+an environment bug. The case is never executed, is not a fail and is never a
+pass, and **every other case runs and counts**, so the run still measures what
+it can and the missing ones form a record of their own.
+
+**It is decided before a request is formed**, so a live run spends nothing on a
+case it could not have measured. That is the reason this is a setup check
+rather than a dispatch outcome: the artifacts handed between live bands were
+only ever read in a live run, where a gap costs money.
+
+| Output | A missing-artifact skip |
+|---|---|
+| The skip message | `QC_HARNESS_ARTIFACT_MISSING: <kind> <path>, <what was wrong>` |
+| JUnit | The skipped test case carries the properties `mqc_artifact_kind` and `mqc_artifact_path`, which is what an analysis of the stored JUnit filters on |
+| Allure | The labels `taxonomy_code`, `artifact_kind` and `artifact_path`, added to the item before the skip, since Allure reads an item's labels at teardown |
+| The result block | The skip's line names the case, the code and what the code means, as every skip's does (`cmn_verdict_and_cli.md` section 7.11.3) |
+| The exit code | **3**, after every case has run, so the gap is investigated; a status already above 3 is left alone |
+| A band | Not a pass: a P0 or P1 band does not clear, and a P2-P4 skip counts as not passed |
+
+**The kinds are a closed set**, so an analysis never meets one it cannot group:
+`recording`, `judgement`, `calibration_record`, `carried_outcome`,
+`spend_report` and `corpus_pair`. A kind outside it, and an empty path or
+explanation, are refused when the record is built, because a skip naming no
+artifact is the gap this section closes.
+
+`cmn.missing_artifact` holds the record, the skip and the exit. Each reader
+adopts it in its own section: the carried outcomes in `cmn_verdict_and_cli.md`
+section 10.28, the calibration record in `tier3_evaluation.md` section 9.3,
+recordings and judgements in `tier2_execution.md` section 7.6, and the case
+repository's spend reports and corpus pairs in its `consumer_ci.md`.
+`MQC_CMN_UNI_112446` to `112450` assert the skip, its JUnit properties, its
+labels, the refusal of a malformed record and the exit code.
+
 ### 5.2 Adjudication is the reviewer's role (A7.1)
 
 The suite records outcomes. It does not diagnose them. Determining whether a pattern across engines indicates a flaky test, a defect affecting one or several engines, or an environment that never initialised is the reviewer's call: human, or a downstream analysis over the accumulated record.
@@ -1110,6 +1149,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_JUDGE_UNCALIBRATED` | A calibration sample disagreed, in a `CAL` case: the judge cleared every criterion of a sample stating a mistake, marked a clean sample below the threshold, or our checks failed other than what the sample names. **The judge is not under test by a graded case and is under test here**, so the calibration case fails and the run exits 3: every judged score of the run is uninterpretable, which is an instrument defect rather than a finding about the model (`tier3_evaluation.md` section 9.3) |
 | `QC_HARNESS_JUDGE_WITHHELD` | The run asked for no judge, `--judge-mode off`, so an observation whose screen and assertions held and whose rule carries a rubric was skipped `unjudged` rather than judged. **Never a pass**, since its judged criteria were not checked, and allowed only in an on-demand debug run (`tier3_evaluation.md` section 5A.5.3) |
 | `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
+| `QC_HARNESS_ARTIFACT_MISSING` | A file the case reads and its own run does not produce is absent, empty, unreadable or missing a mandatory field: a recording, a judgement, the calibration record, a carried outcome, a spend report or a corpus pair. The case skips at setup naming the kind and the path, every other case runs, and the run exits 3 (section 5.1.3) |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
 | `QC_HARNESS_CASE_REPEATED` | One case identifier was collected more than once in a run, so it would execute several test cases under one name. Refuses the run, exit 3 (`cmn_verdict_and_cli.md` section 7.8.5) |
 | `QC_HARNESS_NO_VERIFICATION` | A precondition case finished having recorded no verification step, so it checked nothing. The case fails (section 8.2.4) |
@@ -4730,7 +4770,7 @@ search, so every pattern spans the message from end to end and every pattern
 sets the flag making the dot match a newline, an assertion message here running
 to several lines.
 
-#### 16.9.2 One category per family, and three skips named apart
+#### 16.9.2 One category per family, and four skips named apart
 
 The four families split by what a code asserts about (section 6), which is the
 division a reader needs first, because a red that is a model finding and a red
@@ -4744,13 +4784,15 @@ that is an instrument defect take different remedies.
 | Instrument defect | Any other `QC_HARNESS_` code | failed, broken, skipped |
 | Skipped behind a foundation that did not hold | `QC_HARNESS_DEPENDENCY_UNMET` | skipped |
 | Skipped for a missing recording | `QC_HARNESS_FIXTURE_MISSING` | skipped |
+| Skipped for a missing artifact | `QC_HARNESS_ARTIFACT_MISSING` | skipped |
 | Skipped as a known failure in quarantine | `QC_HARNESS_QUARANTINED` | skipped |
 | Carrying no registered code | A non-passing result naming none | failed, broken, skipped |
 
-**Three harness codes are named apart because their remedies differ**, which is
+**Four harness codes are named apart because their remedies differ**, which is
 why a skip states its kind rather than only being counted (`code-style.md`
 section 7.1). A foundation that did not hold is another case's failure, a
-missing recording is a sweep that did not finish, and a quarantine is a
+missing recording is a sweep that did not finish, a missing artifact is a test
+or environment bug to investigate (section 5.1.3), and a quarantine is a
 decision already taken.
 
 **The last row is the one that earns its place.** A non-passing result whose
