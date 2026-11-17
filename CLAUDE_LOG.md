@@ -16764,3 +16764,39 @@ after the last change. Preconditions only; no graded band and no mutation
 audit ran. The Model Repository against this checkout, unchanged: unit 295 of
 295, exit 0.
 
+
+## 2026-11-17: Fixed a missing-artifact skip raised during a case's call reporting no code on the band line
+
+**A) What was wrong.** A skip raised by `raise_missing_artifact` during a
+case's call printed "no code, no cause recorded, which is itself a defect" on
+the band line, and its terminal and JUnit reasons opened with
+`cmn.missing_artifact.MissingArtifactSkip:`. **B) Why.** pytest writes a skip
+subclass's reason with the class's qualified name, where a plain skip's reads
+`Skipped: `, and `band_summary` takes a skip's code from the first token once
+that prefix is removed. Cases `112466` and `112467` asserted the properties,
+the labels and that the message appeared somewhere in the reason, so neither
+read the reason's opening.
+
+**How it was found.** Adopting the skip in the Model Repository, a replay of
+Grok `134205` and `134206` with observation 1's judgements moved aside skipped
+`134206` whole and exited 3 as designed, and its band line named no code.
+
+**What changed.** `label_missing_artifact_skip` rewrites the report's reason
+to `Skipped: ` and the message, so the band line, the terminal and JUnit read
+as for a setup skip. Design `harness_test_taxonomy.md` section 5.1.3.1;
+requirement `MQC_REQ_HAR_CMN_0261` amended; case `112468`, which runs a wired
+session printing the band line from pytest's own reports.
+`replay_gap_support.py` gained `CALL_TIME_BAND_CONFTEST`.
+
+**Injection.** Before the fix, `112468` failed naming the defect. Two
+injections, both caught with exit 3: the reason left as pytest wrote it, and
+the reason written without the `Skipped: ` prefix the band line strips.
+Baseline exit 0 after restore.
+
+**Digressions the user spotted, and the fix.** None from the user. Mine: the
+first version of `112468` named two steps, the first with no verification, and
+the step rule refused it; the steps were merged.
+
+**Verified.** Harness: unit 1143 of 1143, system 24 of 24, pylint exit 0, all
+after the last change. Preconditions only; no graded band and no mutation
+audit ran.

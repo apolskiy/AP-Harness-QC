@@ -29,6 +29,20 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A missing-artifact skip raised during a case's call names its code on the band line, 2026-11-17
+
+**Why.** A skip raised during the call printed "no code, no cause recorded" on
+the band line, and its terminal and JUnit reasons opened with the class name
+`cmn.missing_artifact.MissingArtifactSkip`. pytest writes a skip subclass's
+reason with the class's qualified name where a plain skip's reads `Skipped: `,
+and the band line takes the code from the reason once that prefix is removed.
+
+**What changed.** `label_missing_artifact_skip` rewrites the report's reason
+to `Skipped: ` and the message, so the band line, the terminal and JUnit read
+as for a setup skip. `harness_test_taxonomy.md` section 5.1.3.1 holds the
+design. Requirement `MQC_REQ_HAR_CMN_0261` was amended and case `112468` added.
+The README states 1171 test cases.
+
 ### A replay case missing a recording or judgement is skipped whole, 2026-11-17
 
 **Why.** A replay case missing the judgement of some observations was still

@@ -199,7 +199,9 @@ def label_missing_artifact_skip(item: Any, call: Any, report: Any) -> bool:
 
     The item gains the JUnit properties and the Allure label markers, which
     Allure reads at teardown, and the report gains the properties, pytest having
-    copied the item's before this runs. Called from the makereport hook.
+    copied the item's before this runs. The report's reason becomes
+    ``Skipped: <message>``, as a plain skip's reads, where pytest had written the
+    class's qualified name. Called from the makereport hook.
 
     Args:
         item (Any): The pytest item.
@@ -215,6 +217,9 @@ def label_missing_artifact_skip(item: Any, call: Any, report: Any) -> bool:
     item.user_properties.extend(_properties(raised.missing))
     report.user_properties.extend(_properties(raised.missing))
     _add_labels(item, raised.missing)
+    longrepr = getattr(report, "longrepr", None)
+    if isinstance(longrepr, tuple) and len(longrepr) == 3:
+        report.longrepr = (longrepr[0], longrepr[1], f"Skipped: {raised.missing.message()}")
     return True
 
 

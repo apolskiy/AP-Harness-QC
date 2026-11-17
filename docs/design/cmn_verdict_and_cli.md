@@ -3456,6 +3456,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112465` | P | `a_case_with_no_replay_gap_is_left_to_its_caller` (taxonomy 5.1.3.1) |
 | `112466` | P | `a_missing_artifact_raised_in_the_call_is_labelled_in_junit` (taxonomy 5.1.3.1) |
 | `112467` | P | `a_missing_artifact_raised_in_the_call_carries_allure_labels` (taxonomy 5.1.3.1) |
+| `112468` | N | `a_call_time_skip_names_its_code_on_the_band_line` (taxonomy 5.1.3.1) |
 | `112391` | N | `a_run_refuses_a_module_a_live_audit_holds_but_its_own` (taxonomy 15.12.1) |
 | `112392` | N | `an_abandoned_backup_is_restored_verified_and_the_run_refused` (taxonomy 15.12.2) |
 | `112393` | N | `a_failed_restore_keeps_the_backup_and_names_both_recoveries` (taxonomy 15.12.2) |
@@ -3897,7 +3898,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 550 cases, 328 negative, 165 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 551 cases, 329 negative, 165 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

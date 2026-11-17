@@ -1081,11 +1081,20 @@ item and to the report. Allure reads an item's labels at teardown, after the
 call, so the labels reach it. The skip then counts toward the exit 3 of section
 5.1.3 like any other.
 
+**Its reason reads as a setup skip's does.** pytest writes a skip subclass's
+reason as the class's qualified name, a colon and the message, where a plain
+skip's reads `Skipped: ` and the message. The band summary takes a skip's code
+from the first token of its reason once that prefix is removed, so the
+qualified name left it no code to find. `label_missing_artifact_skip`
+therefore rewrites the report's reason to `Skipped: ` and the message, and the
+terminal, the JUnit report and the band line read the same as for a setup skip.
+
 `cmn.missing_artifact.skip_unreplayed_case` reads one result per observation
 and skips where any carries a replay gap, returning nothing otherwise.
 `MQC_CMN_UNI_112463` to `112467` assert the whole-case skip for a missing and a
 stale judgement, a case with no gap left to its caller, and the call-time skip's
-JUnit properties, labels and exit code.
+JUnit properties, labels and exit code. `112468` asserts that the call-time
+skip's reason yields its code to the band line.
 
 ### 5.2 Adjudication is the reviewer's role (A7.1)
 

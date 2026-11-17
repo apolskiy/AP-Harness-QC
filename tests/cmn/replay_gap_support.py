@@ -10,7 +10,8 @@ carrying a gap; ``MISSING_JUDGEMENT``, the record of a judgement the store
 could not find; ``call_raising`` and ``ReportDouble``, the call and report a
 makereport hook hands ``cmn.missing_artifact.label_missing_artifact_skip``; and
 ``CALL_TIME_CONFTEST`` and ``CALL_TIME_CASES``, a wired session whose case
-raises the skip during its call. ``mqc_uni_replay_gap.py`` reads them.
+raises the skip during its call, with ``CALL_TIME_BAND_CONFTEST`` printing the
+band line each skip earns. ``mqc_uni_replay_gap.py`` reads them.
 """
 
 from types import SimpleNamespace
@@ -92,6 +93,18 @@ def pytest_runtest_makereport(item: Any, call: Any) -> Any:
 
 def pytest_sessionfinish(session: Any, exitstatus: int) -> None:
     refuse_missing_artifacts(session)
+'''
+
+# THE SAME, PRINTING THE BAND LINE each skipped case earns, from pytest's own reports.
+CALL_TIME_BAND_CONFTEST: Final[str] = CALL_TIME_CONFTEST + '''
+
+from cmn.band_summary import skip_detail_lines, skipped_cases_from
+
+
+def pytest_terminal_summary(terminalreporter: Any) -> None:
+    skipped = terminalreporter.stats.get("skipped", [])
+    for line in skip_detail_lines(skipped_cases_from(skipped)):
+        terminalreporter.write_line(line)
 '''
 
 CALL_TIME_CASES: Final[str] = '''

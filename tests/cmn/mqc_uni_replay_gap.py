@@ -25,6 +25,7 @@ marker, per ``framework-rules.md`` section 3.3."""
 #   112465  a_case_with_no_replay_gap_is_left_to_its_caller
 #   112466  a_missing_artifact_raised_in_the_call_is_labelled_in_junit
 #   112467  a_missing_artifact_raised_in_the_call_carries_allure_labels
+#   112468  a_call_time_skip_names_its_code_on_the_band_line
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -43,6 +44,7 @@ from cmn.missing_artifact import (
 from execution.replay import FixtureMissing
 from tests.cmn.missing_artifact_support import LabelledItem
 from tests.cmn.replay_gap_support import (
+    CALL_TIME_BAND_CONFTEST,
     CALL_TIME_CASES,
     CALL_TIME_CONFTEST,
     CALL_TIME_MESSAGE,
@@ -201,3 +203,37 @@ class TestMQCReplayGap:
                 ("mqc_artifact_path", MISSING_JUDGEMENT.path),
             ]
         ), (item.labels(), report.user_properties)
+
+    def MQC_CMN_UNI_112468_a_call_time_skip_names_its_code_on_the_band_line(
+        self, tmp_path: Path
+    ) -> None:
+        """A skip raised during the call yields its code to the band line and to JUnit.
+
+        Design: ``harness_test_taxonomy.md`` section 5.1.3.1.
+
+        Args:
+            tmp_path (Path): Where the wired session, its cases and its XML are written.
+
+        Returns:
+            None
+        """
+        step(1, "run a session raising the skip in its call; read its band line and JUnit")
+        report = tmp_path / "junit.xml"
+        finished = run_wired_session(
+            tmp_path, CALL_TIME_BAND_CONFTEST, CALL_TIME_CASES,
+            extra=("--junitxml", str(report)),
+        )
+        band_lines = [
+            line for line in finished.stdout.splitlines() if line.startswith("skipped 1 of 1:")
+        ]
+        skipped = next(
+            element.find("skipped")
+            for element in ElementTree.parse(report).getroot().iter("testcase")
+            if element.get("name") == "test_raises_in_its_call"
+        )
+        message = "" if skipped is None else str(skipped.get("message"))
+        assert (
+            len(band_lines) == 1
+            and f"test_raises_in_its_call, {ARTIFACT_MISSING}," in " ".join(band_lines)
+            and message.startswith(CALL_TIME_MESSAGE)
+        ), (band_lines, message, finished.stdout[-1500:])
