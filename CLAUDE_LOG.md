@@ -16800,3 +16800,43 @@ the step rule refused it; the steps were merged.
 **Verified.** Harness: unit 1143 of 1143, system 24 of 24, pylint exit 0, all
 after the last change. Preconditions only; no graded band and no mutation
 audit ran.
+
+## 2026-11-17: Added --missing-artifact, so a CI step can declare an artifact missing to the run
+
+**A) What was wrong.** An artifact a CI step reads before pytest starts, such
+as an earlier band's spend report in the case repository's regression run, had
+no way to reach the run, so its absence failed the job before any case
+reported and no case result named the missing file. **B) Why.** The
+missing-artifact skip of section 5.1.3 is raised by a reader inside the
+session, and the spend remainder is computed by a step outside it.
+
+**What changed.** The owner ruled that such a band runs and every case skips
+without spending, and chose a flag over an environment variable so a reader of
+the job sees why. `--missing-artifact KIND=PATH` is registered in
+`cmn/options.py`. `declared_missing_artifact` reads and validates it,
+`configure_invocation` calls it so a value with no `=`, a kind outside the
+closed set or an empty path refuses the run, and `skip_declared_missing`, called
+from a consumer's setup hook, skips every graded case with
+`QC_HARNESS_ARTIFACT_MISSING` naming the kind and path while a precondition
+runs. Design `harness_test_taxonomy.md` section 5.1.3.2; requirement
+`MQC_REQ_HAR_CMN_0262`; cases `112469` to `112471` in
+`mqc_uni_declared_artifact.py`, each running a wired session through
+`add_mqc_options` and `configure_invocation`; `flag_coverage.yaml` names the
+harness as the flag's owner.
+
+**Injection.** Before the implementation all three failed. Five defects, five
+caught, each exiting 3: a declaration skipping nothing, a precondition skipped
+too, no refusal at configuration, an unknown kind taken for a spend report, and
+another detail in the skip. Baseline exit 0 after restore.
+
+**Digressions the user spotted, and the fix.** None from the user. Mine: two
+cases first reported broken rather than failed when the session wrote no
+report, so the report reader returns nothing for a missing file; the reader
+then sat in the case module and `112328` refused it, so it moved to
+`missing_artifact_support.py` as `junit_outcomes`; and the README and
+`DESIGN.md` requirement counts were one short until `112323` and `400007`
+reported them.
+
+**Verified.** Harness: unit 1146 of 1146, system 24 of 24, pylint exit 0, all
+after the last change. Preconditions only; no graded band and no mutation
+audit ran.

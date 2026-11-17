@@ -12,7 +12,10 @@ naming the artifact in its message, its JUnit properties and its Allure labels;
 ``raise_missing_artifact`` and ``MissingArtifactSkip``, the same skip raised
 from a case's call, which ``label_missing_artifact_skip`` labels from the
 makereport hook; ``skip_unreplayed_case``, which skips a replay case whole once
-its observations show a missing or stale judgement; ``missing_artifact_count``,
+its observations show a missing or stale judgement;
+``declared_missing_artifact`` and ``skip_declared_missing``, which read
+``--missing-artifact`` and skip every graded case it covers at setup;
+``missing_artifact_count``,
 which counts those skips; and ``refuse_missing_artifacts``, which makes the run
 exit 3 where any occurred.
 
@@ -24,15 +27,17 @@ artifact is a test bug or an environment bug, never a model finding.
 A replay case is the exception, decided once its observations have replayed,
 because which judgements it needs is known only then; replay spends nothing.
 
-Design: ``docs/design/harness_test_taxonomy.md`` sections 5.1.3 and 5.1.3.1.
+Design: ``docs/design/harness_test_taxonomy.md`` sections 5.1.3 to 5.1.3.2.
 """
 
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Final, NoReturn
+from typing import Any, Final, NoReturn, Optional
 
 import pytest
+
+from cmn.environments import is_precondition
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +62,11 @@ _MISSING_EXIT: Final[int] = 3
 # (`tier3_evaluation.md` section 6.5).
 _UNAVAILABLE: Final[str] = "judgement_unavailable"
 _STALE: Final[str] = "QC_HARNESS_FIXTURE_STALE"
+
+# AN ARTIFACT A CI STEP FOUND MISSING BEFORE PYTEST STARTED (taxonomy section
+# 5.1.3.2).
+_DECLARED_FLAG: Final[str] = "--missing-artifact"
+_DECLARED_DETAIL: Final[str] = "declared missing to this run by --missing-artifact"
 
 
 @dataclass(frozen=True)
@@ -176,6 +186,52 @@ def skip_for_missing_artifact(item: Any, missing: MissingArtifact) -> NoReturn:
     _add_labels(item, missing)
     logger.warning("%s %s", getattr(item, "nodeid", "?"), missing.message())
     pytest.skip(missing.message())
+
+
+def declared_missing_artifact(config: Any) -> Optional[MissingArtifact]:
+    """Return the artifact ``--missing-artifact KIND=PATH`` declares missing, if any.
+
+    Args:
+        config (Any): pytest's configuration.
+
+    Returns:
+        Optional[MissingArtifact]: The artifact, or ``None`` where the flag is
+        absent or empty.
+
+    Raises:
+        pytest.UsageError: Naming the flag and its value, where the value has no
+            ``=``, names a kind outside :data:`ARTIFACT_KINDS` or an empty path.
+    """
+    value = str(config.getoption(_DECLARED_FLAG, "") or "").strip()
+    if not value:
+        return None
+    kind, separator, path = value.partition("=")
+    if not separator:
+        raise pytest.UsageError(f"{_DECLARED_FLAG} {value!r} names no path; give KIND=PATH")
+    try:
+        return MissingArtifact(kind=kind.strip(), path=path.strip(), detail=_DECLARED_DETAIL)
+    except ValueError as error:
+        raise pytest.UsageError(f"{_DECLARED_FLAG} {value!r}: {error}") from error
+
+
+def skip_declared_missing(item: Any) -> None:
+    """Skip a graded case at setup where the run declares an artifact missing.
+
+    Called from a consumer's ``pytest_runtest_setup``. A precondition runs.
+
+    Args:
+        item (Any): The pytest item being set up.
+
+    Returns:
+        None: Where nothing is declared, or the item is a precondition.
+
+    Raises:
+        pytest.skip.Exception: Through :func:`skip_for_missing_artifact`.
+    """
+    missing = declared_missing_artifact(item.config)
+    if missing is None or is_precondition(str(getattr(item, "nodeid", ""))):
+        return
+    skip_for_missing_artifact(item, missing)
 
 
 def raise_missing_artifact(missing: MissingArtifact) -> NoReturn:

@@ -1096,6 +1096,35 @@ stale judgement, a case with no gap left to its caller, and the call-time skip's
 JUnit properties, labels and exit code. `112468` asserts that the call-time
 skip's reason yields its code to the band line.
 
+##### 5.1.3.2 An artifact a job could not hand over is declared to the run
+
+Added 2026-11-17 at the project owner's ruling that a band missing an earlier
+band's spend report runs and skips every case without spending, and the choice
+of a flag over an environment variable, so a reader of the job sees why.
+
+**Some artifacts are read by a CI step before pytest starts.** A band's spend
+remainder is computed from the reports the earlier bands uploaded, and no case
+holds that read. **`--missing-artifact KIND=PATH` declares such an artifact
+missing to the run**: every graded case collected skips at setup with
+`QC_HARNESS_ARTIFACT_MISSING`, naming the kind and the path, with the detail
+"declared missing to this run by --missing-artifact". The run exits 3 as
+section 5.1.3 states, and no graded case dispatches, so nothing is spent.
+
+| Value | Outcome |
+|---|---|
+| Absent or empty | Nothing is declared and no case skips for it |
+| `KIND=PATH`, the kind in the closed set and the path non-empty | Every graded case skips at setup naming it; a precondition runs, since it reads nothing a job hands over |
+| No `=`, a kind outside the set, or an empty path | **Refused at configuration**, naming the flag and the fault, before any case runs |
+
+**One value.** The step that finds a gap declares the first it finds: one
+missing artifact already skips every graded case, so a second adds no outcome.
+
+`cmn.missing_artifact.declared_missing_artifact` reads and validates the value,
+`configure_invocation` calls it so a malformed value refuses the run, and
+`skip_declared_missing` is called from a consumer's `pytest_runtest_setup`.
+`MQC_CMN_UNI_112469` to `112471` assert the skip of a graded case, the refusal
+of a malformed value, and a precondition or an undeclared run left alone.
+
 ### 5.2 Adjudication is the reviewer's role (A7.1)
 
 The suite records outcomes. It does not diagnose them. Determining whether a pattern across engines indicates a flaky test, a defect affecting one or several engines, or an environment that never initialised is the reviewer's call: human, or a downstream analysis over the accumulated record.

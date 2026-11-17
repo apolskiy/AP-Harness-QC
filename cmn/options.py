@@ -3,7 +3,7 @@
 """The option registry, every command line flag a run accepts, declared once.
 
 Created: 2026-09-24
-Last updated: 2026-11-13
+Last updated: 2026-11-17
 
 This file contains ``Option``, one declared flag; ``registered_options``,
 ``option`` and ``defaults``, which read the registry; ``validate_value``, which
@@ -199,6 +199,16 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         help_text=(
             "Calibration record of the judge, read at start under a live judge; "
             "judged cases skip where it is absent or invalid"
+        ),
+    ),
+    # AN ARTIFACT A CI STEP FOUND MISSING BEFORE PYTEST STARTED, such as an
+    # earlier band's spend report (harness_test_taxonomy.md section 5.1.3.2).
+    Option(
+        name="missing-artifact",
+        default="",
+        help_text=(
+            "KIND=PATH of an artifact found missing before the run; every graded "
+            "case skips at setup naming it"
         ),
     ),
     Option(

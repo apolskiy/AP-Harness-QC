@@ -3,7 +3,7 @@
 """Shared pytest hook bodies, which each repository's ``conftest.py`` delegates to.
 
 Created: 2026-09-23
-Last updated: 2026-10-29
+Last updated: 2026-11-17
 
 This file contains ``add_mqc_options``, which registers the execution flags
 from the shared option registry; ``configure_invocation``, which records what
@@ -72,6 +72,7 @@ import pytest
 from cmn.config import load_engines, packaged_roster_path
 from cmn.environments import is_precondition
 from cmn.grouping import load_grouping, story_for
+from cmn.missing_artifact import declared_missing_artifact
 from cmn.options import Option, build_invocation, registered_options
 from cmn.provenance import provenance_fields, testsuite_properties, write_provenance
 from cmn.report_categories import write_categories
@@ -478,6 +479,9 @@ def configure_invocation(config: Any) -> None:
     }
     invocation = build_invocation(supplied)
     config.mqc_invocation = invocation
+    # A MALFORMED DECLARATION REFUSES THE RUN HERE, before any case is set up
+    # (`harness_test_taxonomy.md` section 5.1.3.2).
+    declared_missing_artifact(config)
     adopt_corpus_selection(config)
     adopt_artifact_destinations(config)
     # AFTER THE DESTINATION IS FINAL, so the classification lands where the

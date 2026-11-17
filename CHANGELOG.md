@@ -29,6 +29,21 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### An artifact a CI step found missing is declared to the run with --missing-artifact, 2026-11-17
+
+**Why.** An artifact a CI step reads before pytest starts, such as an earlier
+band's spend report, had no way to reach the run, so its absence failed the
+job before any case reported, and no case result named the missing file.
+
+**What changed.** `--missing-artifact KIND=PATH` skips every graded case at
+setup with `QC_HARNESS_ARTIFACT_MISSING`, naming the kind and path, and leaves
+a precondition alone. A value with no `=`, a kind outside the closed set or an
+empty path is refused at configuration. A consumer calls
+`skip_declared_missing` from its setup hook. `harness_test_taxonomy.md`
+section 5.1.3.2 holds the design. Requirement `MQC_REQ_HAR_CMN_0262` and cases
+`112469` to `112471` were added. The README states 445 requirements and 1174
+test cases.
+
 ### A missing-artifact skip raised during a case's call names its code on the band line, 2026-11-17
 
 **Why.** A skip raised during the call printed "no code, no cause recorded" on

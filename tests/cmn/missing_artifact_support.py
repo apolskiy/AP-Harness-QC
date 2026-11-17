@@ -13,7 +13,8 @@ markers the skip adds, without an Allure runtime in the session;
 the provenance such a band stamps; ``MALFORMED_CARRY_FILES`` and
 ``write_malformed_carry``, one body per way a carry file can be unusable;
 ``carry_population``, a dependent of a carried foundation beside a case resting
-on nothing; ``band_outcomes``, which runs the cascade's session start,
+on nothing; ``junit_outcomes``, each case's outcome and properties in a JUnit
+report; ``band_outcomes``, which runs the cascade's session start,
 collection and setup over a population; and ``accepted_by``, which names each
 malformed record a reader accepted, for the carry file's and the calibration
 record's reader cases alike.
@@ -24,6 +25,7 @@ import os
 import platform
 from pathlib import Path
 from typing import Any, Callable, Final, Mapping, Optional
+from xml.etree import ElementTree
 
 import pytest
 
@@ -221,6 +223,28 @@ def accepted_by(reader: Callable[[Path], Any], records: Mapping[str, Path]) -> l
                 continue
         accepted.append(name)
     return accepted
+
+
+def junit_outcomes(report: Path) -> dict[str, tuple[str, dict[str, str]]]:
+    """Return each case's outcome in a JUnit report, with a skip's message and its properties.
+
+    Args:
+        report (Path): The JUnit XML.
+
+    Returns:
+        dict: Case name to ``passed`` or ``skipped: <message>``, and its
+        properties. Empty where the session wrote no report.
+    """
+    if not report.is_file():
+        return {}
+    outcomes: dict[str, tuple[str, dict[str, str]]] = {}
+    for case in ElementTree.parse(report).getroot().iter("testcase"):
+        skipped = case.find("skipped")
+        outcomes[str(case.get("name"))] = (
+            "passed" if skipped is None else f"skipped: {skipped.get('message')}",
+            {str(found.get("name")): str(found.get("value")) for found in case.iter("property")},
+        )
+    return outcomes
 
 
 def band_outcomes(config: SimulatedConfig, items: list[Any]) -> dict[str, str]:
