@@ -3,11 +3,13 @@
 """Case dependencies, which run foundational cases first and skip what rests on a failure.
 
 Created: 2026-09-26
-Last updated: 2026-11-16
+Last updated: 2026-11-17
 
 This file contains the dependency cascade. ``arrange_dependencies`` orders the
 collected cases so every ``base`` case runs ahead of its dependents and refuses
-an unknown or unresolvable dependency; ``record_from_report`` records whether
+an unknown or unresolvable dependency, except that in a band naming a carry file
+a foundation the file should have held skips only its dependents, at setup,
+with ``QC_HARNESS_ARTIFACT_MISSING``; ``record_from_report`` records whether
 each foundation held; and ``enforce_dependencies`` skips a dependent of a
 failed foundation with ``QC_HARNESS_DEPENDENCY_UNMET``, or dispatches it
 unattributed when the run opens an inquest. ``adopt_prerequisites`` and
@@ -44,6 +46,7 @@ from typing import Any, Final, Iterable, Optional
 
 import pytest
 
+from cmn.missing_artifact import MissingArtifact, skip_for_missing_artifact
 from cmn.prerequisites import Provenance, read_outcomes, write_outcomes
 from cmn.pytest_support import case_identifier, item_priority
 
@@ -72,6 +75,15 @@ _REASONS: dict[str, str] = {}
 # skipping no dependent until this execution measures them. Section 10.28.7.
 _SET_ASIDE: set[str] = set()
 
+# THE CARRY FILE A BAND NAMED, and what was wrong with it, empty where it was
+# read. A foundation neither collected nor carried is then a missing artifact
+# rather than a dependency on a case that exists nowhere. Section 10.28.8.
+_CARRY_FILE: dict[str, str] = {}
+
+# FOUNDATIONS THE CARRY FILE SHOULD HAVE HELD AND DID NOT, whose dependents
+# skip at setup naming the file.
+_UNCARRIED: set[str] = set()
+
 def reset_dependency_state() -> None:
     """Forget every recorded base outcome.
 
@@ -83,6 +95,8 @@ def reset_dependency_state() -> None:
     _CARRIED.clear()
     _REASONS.clear()
     _SET_ASIDE.clear()
+    _CARRY_FILE.clear()
+    _UNCARRIED.clear()
 
 def adopt_carried_outcomes(carried: dict[str, bool],
                            reasons: Optional[dict[str, str]] = None) -> None:
@@ -185,25 +199,43 @@ def _run_provenance(config: pytest.Config) -> Provenance:
 def adopt_prerequisites(config: pytest.Config) -> None:
     """Read base outcomes an earlier band published, if a file was named.
 
+    **A file the reader refuses is adopted as nothing**, and why is kept: an
+    absent file, a malformed one, or one another run wrote. Neither fallback of
+    section 7.6.1 is taken. The cases resting on a foundation the band does not
+    collect skip at setup naming the file, and the rest of the band runs
+    (design section 10.28.8).
+
     Args:
         config (pytest.Config): The active configuration, read for
             ``--carry-outcomes``.
 
     Returns:
         None
-
-    Raises:
-        ValueError: With ``QC_HARNESS_PREREQUISITE_MISMATCH`` when the record
-            was not produced by this run. Refused rather than ignored, because
-            both fallbacks are worse than stopping: re-running the
-            prerequisites is the waste this avoids, and assuming they held is
-            an assertion nobody measured (design section 7.6.1).
     """
     named = str(config.getoption("--carry-outcomes", "") or "")
     if not named:
         return
-    carried = read_outcomes(Path(named), _run_provenance(config))
+    path = Path(named)
+    _CARRY_FILE.update(path=named, problem="" if path.is_file() else "is absent")
+    try:
+        carried = read_outcomes(path, _run_provenance(config))
+    except ValueError as error:
+        _CARRY_FILE["problem"] = str(error)
+        logger.warning("the carry file was not adopted: %s", error)
+        return
     adopt_carried_outcomes(carried.outcomes)
+
+def _uncarried_detail(identifier: str) -> str:
+    """Return why the carry file does not hold a foundation.
+
+    Args:
+        identifier (str): The foundation's identifier.
+
+    Returns:
+        str: What was wrong with the file, or that it holds no outcome for it.
+    """
+    problem = _CARRY_FILE.get("problem", "")
+    return problem or f"holds no outcome for foundation {identifier}"
 
 def publish_prerequisites(config: pytest.Config) -> None:
     """Write what this execution established, for the next band.
@@ -357,13 +389,7 @@ def unknown_dependencies(items: list[pytest.Item]) -> list[str]:
         list[str]: One message per offender, in collection order, empty when
         every dependency resolves.
     """
-    bases = declared_bases(items)
-    # A CARRIED FOUNDATION IS A KNOWN ONE. An earlier band in this job ran
-    # it and published whether it held, so a dependent here is resolvable
-    # without collecting it again (design section 7.6).
-    # A SET-ASIDE FOUNDATION IS KNOWN TOO: quarantine deselected it, and a
-    # dependent left in runs rather than refusing the suite (section 10.28.7).
-    known = set(bases) | set(_CARRIED) | set(_SET_ASIDE)
+    known = _known_foundations(items)
     return [
         f"{item.name} depends on {identifier}, which no collected case "
         f"declares as base"
@@ -371,6 +397,22 @@ def unknown_dependencies(items: list[pytest.Item]) -> list[str]:
         for identifier in declared_dependencies(item)
         if identifier not in known
     ]
+
+def _known_foundations(items: list[pytest.Item]) -> set[str]:
+    """Return every identifier a dependency may name and resolve.
+
+    Args:
+        items (list): The collected test items.
+
+    Returns:
+        set[str]: The collected bases, the carried and the set-aside foundations.
+    """
+    # A CARRIED FOUNDATION IS A KNOWN ONE. An earlier band in this job ran
+    # it and published whether it held, so a dependent here is resolvable
+    # without collecting it again (design section 7.6).
+    # A SET-ASIDE FOUNDATION IS KNOWN TOO: quarantine deselected it, and a
+    # dependent left in runs rather than refusing the suite (section 10.28.7).
+    return set(declared_bases(items)) | set(_CARRIED) | set(_SET_ASIDE)
 
 def order_by_dependency(items: list[pytest.Item]) -> list[pytest.Item]:
     """Return the items with every foundation ahead of its dependents.
@@ -508,9 +550,11 @@ def arrange_dependencies(items: list[pytest.Item]) -> None:
 
     Raises:
         ValueError: With ``QC_HARNESS_DEPENDENCY_UNMET`` when a dependency
-            names no collected base, or when the declarations form a cycle.
-            **Reported once, naming every offender**, rather than erroring per
-            dependent at setup.
+            names no collected base in a band naming no carry file, or when the
+            declarations form a cycle. **Reported once, naming every
+            offender**, rather than erroring per dependent at setup. **In a
+            band naming a carry file** the foundation belonged in that file, so
+            only its dependents skip, at setup (design section 10.28.8).
     """
     inverted = inverted_priority_dependencies(items)
     if inverted:
@@ -522,7 +566,18 @@ def arrange_dependencies(items: list[pytest.Item]) -> None:
             "than what rests on it; " + "; ".join(inverted)
         )
     unknown = unknown_dependencies(items)
-    if unknown:
+    if unknown and _CARRY_FILE:
+        known = _known_foundations(items)
+        _UNCARRIED.update(
+            identifier for item in items for identifier in declared_dependencies(item)
+            if identifier not in known
+        )
+        logger.warning(
+            "the carry file %s holds no outcome for %s, so the cases resting on "
+            "them skip and the rest of the band runs",
+            _CARRY_FILE["path"], ", ".join(sorted(_UNCARRIED)),
+        )
+    elif unknown:
         raise ValueError(
             "QC_HARNESS_DEPENDENCY_UNMET: a dependency on a case that does "
             "not exist is satisfied by nothing existing to fail; "
@@ -588,6 +643,13 @@ def enforce_dependencies(item: pytest.Item) -> None:
     answers at collection where the population is known.
     """
     for identifier in declared_dependencies(item):
+        # THE CARRY FILE SHOULD HAVE HELD IT, so the file is the missing
+        # artifact and only this case skips (section 10.28.8).
+        if identifier in _UNCARRIED:
+            skip_for_missing_artifact(item, MissingArtifact(
+                kind="carried_outcome", path=_CARRY_FILE["path"],
+                detail=_uncarried_detail(identifier),
+            ))
         # ABSENT MEANS DID NOT RUN, WHICH IS DID NOT HOLD. The other reading,
         # that nothing declares this identifier, is settled at collection by
         # `arrange_dependencies`, which also orders every base ahead of its

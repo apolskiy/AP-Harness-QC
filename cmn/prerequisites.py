@@ -3,7 +3,7 @@
 """The carry file, which hands foundational case outcomes from one band to the next.
 
 Created: 2026-09-29
-Last updated: 2026-10-21
+Last updated: 2026-11-17
 
 This file contains ``write_outcomes`` and ``read_outcomes``, which write and
 read the ``CarriedOutcomes`` record and refuse one whose ``Provenance`` no
@@ -334,10 +334,13 @@ def read_outcomes(path: Path, provenance: Provenance) -> CarriedOutcomes:
 
     Raises:
         ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the file will not
-            parse, and with ``QC_HARNESS_PREREQUISITE_MISMATCH`` when a guarded
-            field differs. **Refused rather than ignored**: falling back to
-            re-running the prerequisites is the waste this avoids, and falling
-            back to assuming they held is an assertion nobody measured.
+            parse, is not a mapping, carries no provenance or no outcomes
+            mapping, or records a held value other than true or false, and with
+            ``QC_HARNESS_PREREQUISITE_MISMATCH`` when a guarded field differs.
+            **Refused rather than ignored**: falling back to re-running the
+            prerequisites is the waste this avoids, and falling back to assuming
+            they held is an assertion nobody measured. The caller decides what
+            a refusal costs (``cmn_verdict_and_cli.md`` section 10.28.8).
     """
     if not path.is_file():
         return CarriedOutcomes(provenance=provenance)
@@ -349,8 +352,21 @@ def read_outcomes(path: Path, provenance: Provenance) -> CarriedOutcomes:
         ) from error
     if not isinstance(payload, dict):
         raise ValueError(f"{_PARSER}: carried outcomes at {path} are not a mapping")
+    stored_fields = payload.get("provenance")
+    if not isinstance(stored_fields, dict):
+        raise ValueError(f"{_PARSER}: carried outcomes at {path} carry no provenance")
+    recorded = payload.get("outcomes")
+    if not isinstance(recorded, dict):
+        raise ValueError(f"{_PARSER}: carried outcomes at {path} carry no outcomes mapping")
+    # A HELD VALUE IS TRUE OR FALSE. The string "false" read as held, which is
+    # a foundation that failed admitted as one that held.
+    unreadable = sorted(str(name) for name, held in recorded.items() if not isinstance(held, bool))
+    if unreadable:
+        raise ValueError(
+            f"{_PARSER}: carried outcomes at {path} record a held value other than "
+            f"true or false for {', '.join(unreadable)}"
+        )
 
-    stored_fields = payload.get("provenance") or {}
     stored = Provenance(
         **{name: str(stored_fields.get(name, "")) for name in (*_GUARDED, "band")}
     )
@@ -360,10 +376,7 @@ def read_outcomes(path: Path, provenance: Provenance) -> CarriedOutcomes:
             f"{_MISMATCH}: the outcomes at {path} were not produced by this run: "
             f"{moved}. Run the earlier band again rather than carrying them"
         )
-    outcomes = {
-        str(name): bool(held)
-        for name, held in (payload.get("outcomes") or {}).items()
-    }
+    outcomes = {str(name): held for name, held in recorded.items()}
     logger.info("Carried %d base outcome(s) from band %s", len(outcomes), stored.band)
     return CarriedOutcomes(provenance=stored, outcomes=outcomes)
 

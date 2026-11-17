@@ -2487,10 +2487,13 @@ So the record carries provenance and the load compares it field by field:
 reason `harness_test_taxonomy.md` section 9.1.1 gives: a commit reference cannot see an
 uncommitted edit, and corpus edits between executions are normal working.
 
-**A mismatch refuses.** The two available fallbacks are both worse than
-stopping: re-running the prerequisites is the waste this avoids, and assuming
-the foundation held is an assertion nobody measured. The refusal names the field
-that differed, because "provenance mismatch" sends a reader to check six things.
+**A mismatch refuses the record.** The two available fallbacks are both worse
+than stopping: re-running the prerequisites is the waste this avoids, and
+assuming the foundation held is an assertion nobody measured. The refusal names
+the field that differed, because "provenance mismatch" sends a reader to check
+six things. **Since 2026-11-16 it refuses the record, not the band**: nothing
+is adopted, and only the cases resting on a carried foundation skip, naming the
+field (section 10.28.8).
 
 **The record is per job and is not a durable artifact.** It is written under
 `reports/`, read by the next execution in the same job, and dies with the
@@ -3783,6 +3786,12 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112443` | N | `a_dependency_on_a_set_aside_foundation_is_not_refused` (10.28.7) |
 | `112444` | P | `a_dependent_of_a_set_aside_foundation_runs_and_is_named` (10.28.7) |
 | `112445` | B | `a_measured_set_aside_foundation_is_judged_by_its_outcome` (10.28.7) |
+| `112451` | N | `an_uncarried_foundation_skips_only_its_dependents` (10.28.8) |
+| `112452` | N | `an_absent_carry_file_skips_the_cases_resting_on_it` (10.28.8) |
+| `112453` | N | `a_malformed_carry_file_skips_the_cases_resting_on_it` (10.28.8) |
+| `112454` | N | `a_carry_file_from_another_run_skips_the_cases_resting_on_it` (10.28.8) |
+| `112455` | P | `a_valid_carry_file_still_decides_its_dependents` (10.28.8) |
+| `112456` | N | `the_carry_reader_refuses_each_malformed_record` (10.28.8) |
 | `112516` | N | `a_credential_file_beside_the_roster_is_found` |
 | `112517` | N | `the_consumer_conftest_searches_both_roots` |
 | `112033` | N | `a_case_whose_observations_disagree_is_a_finding` |
@@ -3878,7 +3887,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 534 cases, 317 negative, 161 positive, 56 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 540 cases, 322 negative, 162 positive, 56 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -5136,6 +5145,46 @@ with every other piece of cascade state.
 `MQC_CMN_UNI_112443` asserts the collection half, `112444` that a dependent
 runs and is named against its foundation, and `112445` that a measured outcome
 still decides.
+
+#### 10.28.8 A carried outcome that is missing skips only the cases resting on it
+
+Added 2026-11-16 at the project owner's ruling, which is
+`harness_test_taxonomy.md` section 5.1.3 applied to the carry file.
+
+**What was wrong.** In a band naming `--carry-outcomes`, a foundation neither
+collected nor carried refused the whole band at collection, and a carry file
+that would not parse or came from another run refused it at session start. A
+band whose earlier band's file was lost therefore measured nothing, including
+every case resting on no carried foundation. **Why.** The refusal of section
+10.28.6.2 was written for a dependency naming a case that exists nowhere, and
+it could not tell that defect in the cases from a carried outcome the hand-off
+between band jobs lost.
+
+**The rule.** The band names a carry file, so a foundation it does not collect
+is expected in that file. Where it is not there, the carry file is the missing
+artifact:
+
+| The carry file | What happens |
+|---|---|
+| Holds the foundation | It decides, as section 7.6 says: held runs the dependent, did not hold skips it with `QC_HARNESS_DEPENDENCY_UNMET` |
+| Is valid and lacks the foundation | Each case resting on it skips at setup with `QC_HARNESS_ARTIFACT_MISSING`, kind `carried_outcome`, naming the path and the foundation |
+| Is absent | The same, saying the file is absent |
+| Will not parse, is not a mapping, carries no provenance or no outcomes mapping, or records a held value other than true or false | Nothing is adopted, and every case resting on a foundation not collected skips the same way, naming what was wrong |
+| Was written by another run | The same, naming the field that moved. Section 7.6.1's reasoning holds: neither assuming the foundation held nor running it again is done |
+
+**Every other case runs and counts**, and the run exits 3 for the skips
+(taxonomy section 5.1.3). The reader, `cmn.prerequisites.read_outcomes`, still
+raises on each of these, and `adopt_prerequisites` turns the error into the
+detail the skip carries.
+
+**A band naming no carry file is unchanged.** A dependency on a foundation
+nothing collects is a defect in the cases there, and section 10.28.6.2 still
+refuses it at collection: `MQC_CMN_UNI_112402` asserts it.
+
+`MQC_CMN_UNI_112451` asserts a foundation missing from a valid file,
+`112452` an absent file, `112453` each malformed file, `112454` a file from
+another run, `112455` that a valid file still decides, and `112456` that the
+reader refuses each malformed record.
 
 
 ### 10.29 The homoglyph vector

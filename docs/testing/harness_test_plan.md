@@ -592,6 +592,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_CMN_0256` | Every case a mutation audit deselects is named by a node that is defined, its module, class and case all present, so a moved case cannot stay in the control run unseen | harness_test_taxonomy.md section 15.7.1.2 |
 | `MQC_REQ_HAR_CMN_0257` | A foundation a consumer sets aside, being quarantined, is known at collection and skips none of its dependents, each of which runs and counts, while a set-aside foundation that ran in the execution is judged by its recorded outcome | cmn_verdict_and_cli.md section 10.28.7 |
 | `MQC_REQ_HAR_CMN_0258` | A case whose artifact is absent, empty, unreadable or missing a mandatory field skips at setup with QC_HARNESS_ARTIFACT_MISSING before any request is formed, naming a registered kind and the path in its message, its JUnit properties and its Allure labels; every other case runs and counts, and the run exits 3 | harness_test_taxonomy.md section 5.1.3 |
+| `MQC_REQ_HAR_CMN_0259` | In a band naming a carry file, a foundation neither collected nor held in that file, because the file is absent, malformed, from another run or lacks it, skips only the cases resting on it with QC_HARNESS_ARTIFACT_MISSING naming the file and why, every other case runs, and the reader refuses each malformed record; a band naming no carry file still refuses a dependency on a case that exists nowhere | cmn_verdict_and_cli.md section 10.28.8 |
 ---
 
 ## 4. Coverage

@@ -29,6 +29,26 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A lost or malformed carry file skips only the cases resting on it, 2026-11-16
+
+**Why.** In a band naming `--carry-outcomes`, a foundation neither collected
+nor carried refused the whole band at collection, and a carry file that would
+not parse or came from another run refused it at session start, so every case
+resting on no carried foundation went unmeasured too. The reader also took the
+string `"false"` as a foundation that held.
+
+**What changed.** `adopt_prerequisites` keeps why a carry file was not
+adopted, absent, malformed or from another run, instead of raising, and
+`arrange_dependencies` no longer refuses a band naming a carry file over a
+foundation it does not collect: each case resting on one skips at setup with
+`QC_HARNESS_ARTIFACT_MISSING`, kind `carried_outcome`, naming the file and why,
+and the rest of the band runs. A band naming no carry file still refuses a
+dependency on a case that exists nowhere. `read_outcomes` refuses a record
+with no provenance, no outcomes mapping, or a held value other than true or
+false. Design `cmn_verdict_and_cli.md` section 10.28.8, requirement
+`MQC_REQ_HAR_CMN_0259`, cases `112451` to `112456`. README: 1154 test cases,
+439 requirements.
+
 ### A case whose artifact is missing skips at setup, alone, and the run exits 3, 2026-11-16
 
 **Why.** A file a case reads and its own run does not produce had no common

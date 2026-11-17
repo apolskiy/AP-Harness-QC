@@ -16458,3 +16458,40 @@ exit 0 after restore.
 Preconditions only; no graded band runs here, and the Model Repository is
 unchanged by this commit.
 
+## 2026-11-16: Fixed a lost or malformed carry file refusing the whole band
+
+**A) What was wrong.** In a band naming `--carry-outcomes`, a foundation
+neither collected nor carried refused the whole band at collection, and a carry
+file that would not parse or came from another run refused it at session
+start, so cases resting on no carried foundation went unmeasured as well. The
+reader also read the string `"false"` as a foundation that held, through
+`bool()`. **B) Why.** The refusal was written for a dependency on a case that
+exists nowhere, and could not tell that from a carried outcome the hand-off
+between band jobs lost; the reader was never fed a malformed record.
+
+**What changed.** `adopt_prerequisites` records why a carry file was not
+adopted instead of raising; `arrange_dependencies`, in a band naming a carry
+file, marks a foundation it does not collect as uncarried rather than refusing;
+`enforce_dependencies` skips each case resting on one with
+`QC_HARNESS_ARTIFACT_MISSING`, kind `carried_outcome`, naming the file and why.
+`read_outcomes` refuses a record with no provenance, no outcomes mapping, or a
+held value other than true or false. A band naming no carry file still refuses
+at collection, so `112402` stands unchanged. Design `cmn_verdict_and_cli.md`
+section 10.28.8, with 7.6.1 amended: a mismatch refuses the record, not the
+band. Requirement `MQC_REQ_HAR_CMN_0259`, cases `112451` to `112456`.
+
+**Injection.** Ten defects, ten caught, each exiting 3: three malformed
+records read, a refused record and a refused provenance refusing the band
+again, an absent file not named, a carry band refusing an uncarried
+foundation, setup ignoring one, the skip not naming the foundation, and a band
+naming no carry file no longer refusing (`112402`). Baseline exit 0 after
+restore, rerun after the last change.
+
+**Digressions the user spotted, and the fix.** None from the user. One of
+mine: a `python -c` to find the Model Repository's harness import was refused
+by the hook, as the rule says; it went into a script file.
+
+**Verified.** Harness: unit 1126 of 1126, system 24 of 24, pylint exit 0.
+Preconditions only; no graded band runs here. The Model Repository, which
+imports this checkout, was run against it unchanged: unit 295 of 295, exit 0.
+

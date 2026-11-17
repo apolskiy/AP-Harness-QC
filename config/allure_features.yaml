@@ -180,6 +180,7 @@ modules:
   tests/cmn/mqc_uni_cascade_policy.py: The dependency cascade
   tests/cmn/mqc_uni_dependency.py: The dependency cascade
   tests/cmn/mqc_uni_set_aside.py: The dependency cascade
+  tests/cmn/mqc_uni_carried_artifact.py: The dependency cascade
 
   # Gate 8: the audit of the suite itself.
   tests/cmn/mqc_uni_mutation_declarations.py: The mutation audit
