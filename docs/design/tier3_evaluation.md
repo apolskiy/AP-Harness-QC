@@ -3071,8 +3071,9 @@ session start**, before collection, and decides once whether it is valid:
 
 | The record | Valid? | Reason given |
 |---|---|---|
-| Absent | No | No calibration record for the judge at the path |
-| Will not parse, or lacks a field | **Refused**, `QC_HARNESS_PARSER_ERROR` | A committed record that cannot be read is our defect, not an unmet prerequisite |
+| Absent | **Missing**, section 9.4.3 | No calibration record for the judge at the path |
+| Will not parse, is not an object, lacks a field, gives a family without its identifier and whether it held, or records a held value other than true or false | **Missing**, section 9.4.3 | The reader's `QC_HARNESS_PARSER_ERROR` message |
+| Valid, and holds no entry for a family whose calibration case the mapping names | **Missing for that family**, section 9.4.3 | The record holds no calibration for the family |
 | Names another judge engine | No | The record calibrated another judge |
 | Its samples digest differs from the samples now | No | The samples changed since it was recorded |
 | The judge's served identity cannot be read now | No | Nothing establishes that the judge is the one calibrated |
@@ -3111,9 +3112,60 @@ and the skip message appends it.
 | `MQC_CMN_UNI_112627` | A record whose samples digest differs, or that names another judge engine, is invalid |
 | `MQC_CMN_UNI_112628` | No record skips every judged case, and a case the mapping does not name runs |
 | `MQC_CMN_UNI_112629` | A valid record whose family failed skips that family's judged case only, naming the failure |
-| `MQC_CMN_UNI_112630` | A record that will not parse, or lacks a field, refuses with `QC_HARNESS_PARSER_ERROR` |
+| ~~`MQC_CMN_UNI_112630`~~ | ~~A record that will not parse, or lacks a field, refuses with `QC_HARNESS_PARSER_ERROR`~~. **Retired 2026-11-17**, section 9.4.3: such a record is a missing artifact and refuses nothing. `112458` and `112460` replace it |
 | `MQC_CMN_UNI_112631` | A session not given the option, or under a judge that is not live, reads no record and wires nothing |
 | `MQC_CMN_UNI_112632` | A judge whose served identity cannot be read invalidates the record |
+
+#### 9.4.3 A calibration record that is missing skips the judged cases resting on it, as a missing artifact
+
+Added 2026-11-17, at the project owner's ruling of 2026-11-16 on missing
+artifacts (`harness_test_taxonomy.md` section 5.1.3).
+
+**The record is an artifact handed between workflows**, written by the
+judge's calibration workflow and read by every regression run, and it is read
+only under a live judge. So the three ways it can be missing showed up only
+where they cost money, and two of them did the wrong thing:
+
+| The record | Before | Since 2026-11-17 |
+|---|---|---|
+| Absent | Every judged case skipped with `QC_HARNESS_DEPENDENCY_UNMET`, as though a calibration had failed | Every judged case skips with `QC_HARNESS_ARTIFACT_MISSING` |
+| Will not parse, or malformed | **The session ended in an internal error**, every case unmeasured | Every judged case skips with `QC_HARNESS_ARTIFACT_MISSING`, the reader's message as the detail |
+| Valid, and silent about a family | **That family's judged cases were judged with nothing guarding them** | That family's judged cases skip with `QC_HARNESS_ARTIFACT_MISSING`, naming the family |
+
+**The skip names kind `calibration_record`, the path and why**, in the
+message, the JUnit properties and the Allure labels, as section 5.1.3 of the
+taxonomy specifies. A case graded by our checks alone rests on no calibration
+and runs, and so does every judged case of a family the record covers.
+**Nothing is sent to the judge's provider** for an absent or malformed record:
+the served identity is read only once a record has parsed.
+
+**A calibration case collected in the same run is not missing.** It is the
+foundation its family's judged cases rest on, measured here, so the record's
+silence about it decides nothing.
+
+**A record that parses and does not cover the judge stays a calibration that
+did not hold**, with `QC_HARNESS_DEPENDENCY_UNMET` and its reason, as above:
+another judge engine, changed samples, or a served identity that moved or
+cannot be read. Those records exist and say something, and what they say is
+that the judge in use is not the one calibrated.
+
+**The reader refuses a held value other than true or false.** It read the
+value through `bool`, so the string `"false"` adopted a failed calibration as
+one that held, the defect section 10.28.8 of `cmn_verdict_and_cli.md` found in
+the carry file.
+
+**The mechanism is the cascade's.** `cmn.dependencies` keeps each foundation
+an artifact should have held and did not, with that artifact, and skips a case
+resting on one at setup with `skip_for_missing_artifact`. The carry file of
+section 10.28.8 and this record both declare their gaps there.
+
+| Case | Asserts |
+|---|---|
+| `MQC_CMN_UNI_112457` | An absent record skips every judged case with `QC_HARNESS_ARTIFACT_MISSING`, kind `calibration_record` and the path, sends nothing to the provider, and runs a case graded by our checks alone |
+| `MQC_CMN_UNI_112458` | Each malformed record skips every judged case the same way instead of raising, and sends nothing to the provider |
+| `MQC_CMN_UNI_112459` | A valid record silent about a family skips that family's judged case, naming it, and judges the family it covers |
+| `MQC_CMN_UNI_112460` | The reader refuses each malformed record with `QC_HARNESS_PARSER_ERROR`, reads a valid one and returns nothing for an absent file |
+| `MQC_CMN_UNI_112461` | A calibration case collected in the run is its family's foundation, not a missing artifact, whatever the record holds |
 
 ### 9.5 What calibration does not cover
 

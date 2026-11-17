@@ -3,7 +3,7 @@
 """Unit preconditions for a band whose carry file is missing, malformed or lacks a foundation.
 
 Created: 2026-11-16
-Last updated: 2026-11-16
+Last updated: 2026-11-17
 
 The cases here check ``cmn.dependencies`` and ``cmn.prerequisites`` together.
 In a band naming a carry file, a foundation neither collected nor held in that
@@ -41,6 +41,7 @@ from tests.cmn.missing_artifact_support import (
     CARRY_INDEPENDENT as _INDEPENDENT,
     MALFORMED_CARRY_FILES,
     ArtifactItem,
+    accepted_by,
     band_outcomes,
     carry_config,
     carry_population as _population,
@@ -201,15 +202,11 @@ class TestMQCCarriedArtifact:
             None
         """
         step(1, "read each malformed record, and collect the ones the reader accepted")
-        accepted = []
-        for name, body in MALFORMED_CARRY_FILES.items():
-            record = write_malformed_carry(tmp_path / f"{name.replace(' ', '_')}.json", body)
-            try:
-                read_outcomes(record, carry_provenance())
-            except ValueError as error:
-                if "QC_HARNESS_PARSER_ERROR" in str(error):
-                    continue
-            accepted.append(name)
+        records = {
+            name: write_malformed_carry(tmp_path / f"{name.replace(' ', '_')}.json", body)
+            for name, body in MALFORMED_CARRY_FILES.items()
+        }
+        accepted = accepted_by(lambda path: read_outcomes(path, carry_provenance()), records)
         assert not accepted, f"the reader accepted malformed records: {accepted}"
 
         step(2, "read a valid record and an absent one")

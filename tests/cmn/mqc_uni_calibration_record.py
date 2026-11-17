@@ -3,19 +3,21 @@
 """Unit cases for the calibration record a regression run reads in place of calibrating.
 
 Created: 2026-11-12
-Last updated: 2026-11-13
+Last updated: 2026-11-17
 
 Its cases check ``cmn/calibration_record.py``. A calibration session writes a
 record naming the judge, what it served, the samples' digest and each family's
 outcome; a session reading it under a live judge adopts its families as
 carried calibration outcomes while the judge serves what it names and the
 samples are unchanged, and otherwise skips every judged case with the reason
-before its judge is called. A record that cannot be read refuses the run.
+before its judge is called. A record that is absent, will not parse or is
+malformed, and a family a valid record is silent about, skip the judged cases
+resting on it as a missing artifact, and the provider is asked nothing.
 
 A defect here either judges with a judge nobody calibrated, or skips judged
 cases a valid calibration covered. Its cases are listed in the block below,
 inventoried in ``docs/design/cmn_verdict_and_cli.md`` and specified by
-``docs/design/tier3_evaluation.md`` section 9.4.2.
+``docs/design/tier3_evaluation.md`` sections 9.4.2 and 9.4.3.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
@@ -30,7 +32,11 @@ marker, per ``framework-rules.md`` section 3.3.
 #   112627  changed_samples_or_another_judge_invalidate_it
 #   112628  no_record_skips_every_judged_case
 #   112629  a_failed_family_skips_only_its_judged_cases
-#   112630  an_unreadable_record_refuses_the_run
+#   112457  an_absent_record_skips_judged_cases_as_a_missing_artifact
+#   112458  a_malformed_record_skips_judged_cases_as_a_missing_artifact
+#   112459  a_family_the_record_leaves_out_skips_only_its_judged_cases
+#   112460  the_record_reader_refuses_each_malformed_record
+#   112461  a_calibration_collected_in_the_run_is_not_missing
 #   112631  a_session_not_asking_reads_no_record
 #   112632  an_unreadable_judge_identity_invalidates_it
 # ------------------------------------------------------------ end of cases
@@ -39,11 +45,13 @@ from pathlib import Path
 
 import pytest
 
-from cmn.calibration_record import adopt_calibration_record
+from cmn.calibration_record import adopt_calibration_record, read_calibration_record
 from cmn.calibration_runs import rest_judged_cases_on_calibration
 from cmn.case_steps import step
-from cmn.dependencies import carried_identifiers, enforce_dependencies
+from cmn.dependencies import carried_identifiers, enforce_dependencies, record_base_outcome
+from cmn.missing_artifact import ARTIFACT_MISSING
 from tests.cmn.calibration_record_support import (
+    CAL_FIDELITY,
     FAMILIES,
     JUDGED_FIDELITY,
     JUDGED_SHAPE,
@@ -52,11 +60,16 @@ from tests.cmn.calibration_record_support import (
     SERVED,
     UNJUDGED,
     UNREADABLE,
+    CountingReader,
+    artifact_properties,
     forget_record_state,
     record_options,
+    write_malformed_records,
     write_record,
+    write_record_without,
 )
 from tests.cmn.calibration_runs_support import CollectedCase
+from tests.cmn.missing_artifact_support import accepted_by
 from tests.cmn.mutation_tool_support import AuditConfig
 
 pytestmark = pytest.mark.unit
@@ -229,10 +242,51 @@ class TestMQCCalibrationRecord:
         finally:
             forget_record_state()
 
-    def MQC_CMN_UNI_112630_an_unreadable_record_refuses_the_run(self, tmp_path: Path) -> None:
-        """A record that will not parse, or lacks a field, raises QC_HARNESS_PARSER_ERROR.
+    def MQC_CMN_UNI_112457_an_absent_record_skips_judged_cases_as_a_missing_artifact(
+        self, tmp_path: Path
+    ) -> None:
+        """An absent record skips each judged case as missing, asking the provider nothing.
 
-        Design: ``tier3_evaluation.md`` section 9.4.2.
+        Design: ``tier3_evaluation.md`` section 9.4.3.
+
+        Args:
+            tmp_path (Path): Where no record is.
+
+        Returns:
+            None
+        """
+        absent = tmp_path / "absent.json"
+        fidelity = CollectedCase(JUDGED_FIDELITY, "evaluator")
+        unjudged = CollectedCase(UNJUDGED, "evaluator")
+        reader = CountingReader()
+        forget_record_state()
+        try:
+            adopt_calibration_record(
+                AuditConfig(tmp_path, [], record_options(read=absent)), SAMPLES_DIGEST,
+                served_reader=reader)
+            rest_judged_cases_on_calibration([fidelity, unjudged], FAMILIES)
+
+            step(1, "skip the judged case as a missing calibration record, naming the path")
+            with pytest.raises(pytest.skip.Exception,
+                               match=f"^{ARTIFACT_MISSING}: calibration_record "):
+                enforce_dependencies(fidelity)
+
+            step(2, "carry the record's kind and path as the case's properties")
+            assert artifact_properties(fidelity) == {
+                "mqc_artifact_kind": "calibration_record", "mqc_artifact_path": str(absent),
+            }, fidelity.user_properties
+
+            step(3, "run the case graded by our checks alone, having asked the provider nothing")
+            assert enforce_dependencies(unjudged) is None and not reader.calls, reader.calls
+        finally:
+            forget_record_state()
+
+    def MQC_CMN_UNI_112458_a_malformed_record_skips_judged_cases_as_a_missing_artifact(
+        self, tmp_path: Path
+    ) -> None:
+        """Each malformed record skips the judged case without raising or asking the provider.
+
+        Design: ``tier3_evaluation.md`` section 9.4.3.
 
         Args:
             tmp_path (Path): Where the records are written.
@@ -240,23 +294,118 @@ class TestMQCCalibrationRecord:
         Returns:
             None
         """
-        broken = tmp_path / "broken.json"
-        broken.write_text("{", encoding="utf-8")
-        partial = tmp_path / "partial.json"
-        partial.write_text('{"judge_engine": "claude"}', encoding="utf-8")
-        forget_record_state()
-        try:
-            step(1, "refuse a record that will not parse")
-            with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+        step(1, "read each malformed record, and collect what went otherwise")
+        wrong: dict[str, object] = {}
+        for name, path in write_malformed_records(tmp_path).items():
+            judged = CollectedCase(JUDGED_SHAPE, "evaluator")
+            unjudged = CollectedCase(UNJUDGED, "evaluator")
+            reader = CountingReader()
+            forget_record_state()
+            try:
                 adopt_calibration_record(
-                    AuditConfig(tmp_path, [], record_options(read=broken)), SAMPLES_DIGEST,
-                    served_reader=SERVED)
+                    AuditConfig(tmp_path, [], record_options(read=path)), SAMPLES_DIGEST,
+                    served_reader=reader)
+                rest_judged_cases_on_calibration([judged, unjudged], FAMILIES)
+                try:
+                    enforce_dependencies(judged)
+                    wrong[name] = "the judged case ran"
+                except pytest.skip.Exception as skipped:
+                    expected = f"{ARTIFACT_MISSING}: calibration_record {path}"
+                    if not str(skipped).startswith(expected):
+                        wrong[name] = str(skipped)
+                if enforce_dependencies(unjudged) is not None or reader.calls:
+                    wrong[name] = f"asked the provider {reader.calls}"
+            except ValueError as error:
+                wrong[name] = f"raised: {error}"
+            finally:
+                forget_record_state()
+        assert not wrong, wrong
 
-            step(2, "refuse a record lacking a field")
-            with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
-                adopt_calibration_record(
-                    AuditConfig(tmp_path, [], record_options(read=partial)), SAMPLES_DIGEST,
-                    served_reader=SERVED)
+    def MQC_CMN_UNI_112459_a_family_the_record_leaves_out_skips_only_its_judged_cases(
+        self, tmp_path: Path
+    ) -> None:
+        """A valid record silent about source_fidelity skips that family alone, naming it.
+
+        Design: ``tier3_evaluation.md`` section 9.4.3.
+
+        Args:
+            tmp_path (Path): Where the record is written.
+
+        Returns:
+            None
+        """
+        path = write_record_without(tmp_path, "source_fidelity")
+        fidelity = CollectedCase(JUDGED_FIDELITY, "evaluator")
+        shape = CollectedCase(JUDGED_SHAPE, "evaluator")
+        try:
+            reason = adopt_calibration_record(
+                AuditConfig(tmp_path, [], record_options(read=path)), SAMPLES_DIGEST,
+                served_reader=SERVED)
+            rest_judged_cases_on_calibration([fidelity, shape], FAMILIES)
+
+            step(1, "read the record as valid")
+            assert reason is None, reason
+
+            step(2, "skip the judged case of the family the record leaves out, naming it")
+            with pytest.raises(pytest.skip.Exception,
+                               match=f"^{ARTIFACT_MISSING}: calibration_record .*source_fidelity"):
+                enforce_dependencies(fidelity)
+
+            step(3, "judge the case whose family the record covers")
+            assert enforce_dependencies(shape) is None
+        finally:
+            forget_record_state()
+
+    def MQC_CMN_UNI_112460_the_record_reader_refuses_each_malformed_record(
+        self, tmp_path: Path
+    ) -> None:
+        """The reader refuses each malformed record, reads a valid one, returns None when absent.
+
+        Design: ``tier3_evaluation.md`` section 9.4.3.
+
+        Args:
+            tmp_path (Path): Where the records are written.
+
+        Returns:
+            None
+        """
+        step(1, "read each malformed record, and collect the ones the reader accepted")
+        accepted = accepted_by(read_calibration_record, write_malformed_records(tmp_path))
+        assert not accepted, f"the reader accepted malformed records: {accepted}"
+
+        step(2, "read a valid record, and nothing where none exists")
+        valid = read_calibration_record(write_record(tmp_path, {"174906": False}))
+        assert (
+            valid is not None and valid.families["source_fidelity"]["held"] is False
+            and read_calibration_record(tmp_path / "absent.json") is None
+        ), valid
+
+    def MQC_CMN_UNI_112461_a_calibration_collected_in_the_run_is_not_missing(
+        self, tmp_path: Path
+    ) -> None:
+        """A collected calibration case is its family's foundation, though the record omits it.
+
+        Design: ``tier3_evaluation.md`` section 9.4.3.
+
+        Args:
+            tmp_path (Path): Where the record is written.
+
+        Returns:
+            None
+        """
+        path = write_record_without(tmp_path, "source_fidelity")
+        calibration = CollectedCase(CAL_FIDELITY, "calibration")
+        judged = CollectedCase(JUDGED_FIDELITY, "evaluator")
+        try:
+            adopt_calibration_record(
+                AuditConfig(tmp_path, [], record_options(read=path)), SAMPLES_DIGEST,
+                served_reader=SERVED)
+            rest_judged_cases_on_calibration([calibration, judged], FAMILIES)
+            record_base_outcome(calibration, True)
+
+            step(1, "judge the case resting on the calibration this run measured")
+            assert enforce_dependencies(judged) is None and not artifact_properties(judged), (
+                judged.user_properties)
         finally:
             forget_record_state()
 

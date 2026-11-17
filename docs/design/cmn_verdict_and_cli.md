@@ -3750,7 +3750,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112627` | N | `changed_samples_or_another_judge_invalidate_it` (`tier3_evaluation.md` 9.4.2) |
 | `112628` | N | `no_record_skips_every_judged_case` (`tier3_evaluation.md` 9.4.2) |
 | `112629` | N | `a_failed_family_skips_only_its_judged_cases` (`tier3_evaluation.md` 9.4.2) |
-| `112630` | N | `an_unreadable_record_refuses_the_run` (`tier3_evaluation.md` 9.4.2) |
+| ~~`112630`~~ | | ~~`an_unreadable_record_refuses_the_run`~~. **Retired 2026-11-17**, `tier3_evaluation.md` section 9.4.3: a record that will not parse is a missing artifact and refuses nothing. `112458` and `112460` replace it |
 | `112631` | B | `a_session_not_asking_reads_no_record` (`tier3_evaluation.md` 9.4.2) |
 | `112632` | N | `an_unreadable_judge_identity_invalidates_it` (`tier3_evaluation.md` 9.4.2) |
 | `112504` | N | `a_runbook_command_naming_an_undeclared_input_is_reported` |
@@ -3792,6 +3792,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112454` | N | `a_carry_file_from_another_run_skips_the_cases_resting_on_it` (10.28.8) |
 | `112455` | P | `a_valid_carry_file_still_decides_its_dependents` (10.28.8) |
 | `112456` | N | `the_carry_reader_refuses_each_malformed_record` (10.28.8) |
+| `112457` | N | `an_absent_record_skips_judged_cases_as_a_missing_artifact` (`tier3_evaluation.md` 9.4.3) |
+| `112458` | N | `a_malformed_record_skips_judged_cases_as_a_missing_artifact` (`tier3_evaluation.md` 9.4.3) |
+| `112459` | N | `a_family_the_record_leaves_out_skips_only_its_judged_cases` (`tier3_evaluation.md` 9.4.3) |
+| `112460` | N | `the_record_reader_refuses_each_malformed_record` (`tier3_evaluation.md` 9.4.3) |
+| `112461` | B | `a_calibration_collected_in_the_run_is_not_missing` (`tier3_evaluation.md` 9.4.3) |
 | `112516` | N | `a_credential_file_beside_the_roster_is_found` |
 | `112517` | N | `the_consumer_conftest_searches_both_roots` |
 | `112033` | N | `a_case_whose_observations_disagree_is_a_finding` |
@@ -3887,7 +3892,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 540 cases, 322 negative, 162 positive, 56 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 544 cases, 325 negative, 162 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

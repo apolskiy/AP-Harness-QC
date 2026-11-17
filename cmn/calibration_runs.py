@@ -3,7 +3,7 @@
 """Decides which runs collect a calibration case, and what rests on it.
 
 Created: 2026-11-10
-Last updated: 2026-11-13
+Last updated: 2026-11-17
 
 This file contains ``deselect_unrequested_calibration``, which deselects every
 case carrying the ``calibration`` marker from a run whose marker expression
@@ -12,7 +12,8 @@ live; ``rest_judged_cases_on_calibration``, which makes each judged case depend
 on its family's calibration case where the run collects both, where an
 earlier job carried that case's outcome to a band session, or where a
 calibration record was read, carrying every calibration case as not held when
-that record is invalid; and ``calibration_marker``, the marker's name.
+that record is invalid and declaring each one the record should have held and
+did not as a missing artifact; and ``calibration_marker``, the marker's name.
 
 Both repositories' ``conftest.py`` call the deselection at collection, beside
 the environment and audit deselection. A calibration case sends every
@@ -23,8 +24,8 @@ The case repository calls the dependency wiring after its selectors, with the
 family of each judged case, so a family whose calibration failed is skipped
 with ``QC_HARNESS_DEPENDENCY_UNMET`` rather than reported.
 
-Specified by ``docs/design/tier3_evaluation.md`` sections 9.2, 9.4, 9.4.1
-and 9.4.2.
+Specified by ``docs/design/tier3_evaluation.md`` sections 9.2, 9.4, 9.4.1,
+9.4.2 and 9.4.3.
 """
 
 import logging
@@ -33,8 +34,16 @@ from typing import Any, Final, Mapping
 
 import pytest
 
-from cmn.calibration_record import calibration_identifiers, invalid_record_reason
-from cmn.dependencies import adopt_carried_outcomes, carried_identifiers
+from cmn.calibration_record import (
+    calibration_identifiers,
+    invalid_record_reason,
+    missing_calibrations,
+)
+from cmn.dependencies import (
+    adopt_carried_outcomes,
+    carried_identifiers,
+    declare_missing_foundations,
+)
 from cmn.options import resolve_judge_mode
 from cmn.pytest_support import case_identifier
 
@@ -140,6 +149,7 @@ def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, st
             )
         item.add_marker(pytest.mark.base)
         foundations.setdefault(family, []).append(identifier)
+    _declare_missing_record(families, foundations)
     _carry_invalid_record(families)
     for identifier, family in _carried_calibration(families).items():
         if identifier not in foundations.get(family, []):
@@ -158,6 +168,35 @@ def rest_judged_cases_on_calibration(items: list[Any], families: Mapping[str, st
             "%d judged case(s) rest on the calibration of %s", wired, ", ".join(sorted(foundations))
         )
     return wired
+
+
+def _declare_missing_record(families: Mapping[str, str],
+                            foundations: dict[str, list[str]]) -> None:
+    """Declare each calibration the session's record should have held and did not.
+
+    Design: ``tier3_evaluation.md`` section 9.4.3. A calibration case this run
+    collected is its family's foundation and is never missing. Each other one
+    becomes a foundation its family's judged cases rest on, and skip naming
+    the record.
+
+    Args:
+        families (Mapping[str, str]): Case name to family, naming every
+            calibration case of the corpus.
+        foundations (dict): Family to the calibration identifiers its judged
+            cases rest on, extended in place.
+
+    Returns:
+        None
+    """
+    collected = {identifier for identifiers in foundations.values() for identifier in identifiers}
+    by_identifier = calibration_identifiers(families)
+    missing = {
+        identifier: artifact for identifier, artifact in missing_calibrations(families).items()
+        if identifier not in collected
+    }
+    declare_missing_foundations(missing)
+    for identifier in missing:
+        foundations.setdefault(by_identifier[identifier], []).append(identifier)
 
 
 def _carry_invalid_record(families: Mapping[str, str]) -> None:

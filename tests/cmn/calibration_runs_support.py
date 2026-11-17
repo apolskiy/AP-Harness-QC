@@ -3,7 +3,7 @@
 """Collected cases carrying markers, for the calibration selection and dependency cases.
 
 Created: 2026-11-10
-Last updated: 2026-11-11
+Last updated: 2026-11-17
 
 This file contains :class:`MarkedItem`, a collected case whose
 ``get_closest_marker`` answers for the markers it was built with, and
@@ -57,6 +57,7 @@ class CollectedCase:
         originalname (str): The same name, as pytest gives an unparametrized case.
         nodeid (str): A node identifier carrying the name.
         config (None): No invocation, so no run opens an inquest.
+        user_properties (list): The properties a missing-artifact skip adds.
     """
 
     def __init__(self, name: str, *markers: str) -> None:
@@ -73,6 +74,9 @@ class CollectedCase:
         self.originalname = name
         self.nodeid = f"tests/x.py::T::{name}"
         self.config = None
+        # WHERE A MISSING-ARTIFACT SKIP WRITES ITS KIND AND PATH, as pytest's
+        # item carries them to JUnit (cmn.missing_artifact).
+        self.user_properties: list[tuple[str, Any]] = []
         self._marks: list[Any] = [getattr(pytest.mark, marker).mark for marker in markers]
 
     def add_marker(self, marker: Any) -> None:

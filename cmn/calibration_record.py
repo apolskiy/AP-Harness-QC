@@ -3,7 +3,7 @@
 """The calibration record a calibration session writes and a regression run reads.
 
 Created: 2026-11-12
-Last updated: 2026-11-13
+Last updated: 2026-11-17
 
 This file contains ``CalibrationRecord``, the record's fields;
 ``write_calibration_record`` and ``read_calibration_record``, which store and
@@ -11,16 +11,19 @@ load it as JSON; ``record_invalidity``, which says why a record does not cover
 the judge and samples now, or nothing when it does; ``adopt_calibration_record``,
 which a session given ``--calibration-record`` under a live judge calls at
 session start, adopting a valid record's families as carried calibration
-outcomes and remembering an invalid record's reason; ``invalid_record_reason``,
-which ``cmn.calibration_runs`` reads at collection to skip every judged case;
-and ``publish_calibration_record``, which a session given
+outcomes, remembering an invalid record's reason and keeping an absent or
+malformed one as missing; ``invalid_record_reason``, which
+``cmn.calibration_runs`` reads at collection to skip every judged case;
+``missing_calibrations``, which names each calibration the record should have
+held and did not, for its judged cases to skip as a missing artifact; and
+``publish_calibration_record``, which a session given
 ``--record-calibration`` calls at session end.
 
 The case repository's ``conftest.py`` calls the adoption after the carried band
 outcomes and the publication at session finish, with a digest of its
 calibration samples, because the harness owns no case data.
 
-Specified by ``docs/design/tier3_evaluation.md`` section 9.4.2.
+Specified by ``docs/design/tier3_evaluation.md`` sections 9.4.2 and 9.4.3.
 """
 
 import json
@@ -33,6 +36,7 @@ from typing import Any, Callable, Final, Mapping, Optional
 from cmn.config import load_engines, load_judge_engine, load_judge_model, packaged_roster_path
 from cmn.dependencies import adopt_carried_outcomes, established_outcomes
 from cmn.layers import layer_properties
+from cmn.missing_artifact import ARTIFACT_MISSING, MissingArtifact
 from cmn.options import resolve_judge_mode
 from cmn.project_clock import project_today
 from cmn.pytest_support import case_identifier
@@ -49,6 +53,12 @@ ServedReader = Callable[[str, str], dict[str, str]]
 # wired to a calibration that did not hold. None where no record was read or
 # the one read is valid.
 _INVALID: dict[str, Optional[str]] = {"reason": None}
+
+# THE RECORD A SESSION READ UNDER A LIVE JUDGE: its path, what was wrong with
+# it where it was absent or malformed, and the calibration identifiers it
+# covered where it was valid. Empty where no record was read or the one read
+# is invalid. Read at collection by `missing_calibrations` (section 9.4.3).
+_READ: dict[str, Any] = {}
 
 
 @dataclass(frozen=True)
@@ -88,6 +98,7 @@ def reset_calibration_record_state() -> None:
         None
     """
     _INVALID["reason"] = None
+    _READ.clear()
 
 
 def invalid_record_reason() -> Optional[str]:
@@ -124,9 +135,11 @@ def read_calibration_record(path: Path) -> Optional[CalibrationRecord]:
         Optional[CalibrationRecord]: The record, None where the file is absent.
 
     Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when it will not parse or
-            lacks a field: a committed record that cannot be read is our
-            defect, not an unmet prerequisite.
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when it will not parse, is
+            not an object, lacks a field, gives a family without its
+            identifier and whether it held, or records a held value other than
+            true or false. The caller decides what a refusal costs
+            (``tier3_evaluation.md`` section 9.4.3).
     """
     if not path.is_file():
         return None
@@ -147,6 +160,16 @@ def read_calibration_record(path: Path) -> Optional[CalibrationRecord]:
         raise ValueError(
             f"{_PARSER}: calibration record {path} gives a family without its "
             f"identifier and whether it held"
+        )
+    # A HELD VALUE IS TRUE OR FALSE. The string "false" read as held, which
+    # adopted a failed calibration as one that held (section 9.4.3).
+    unreadable = sorted(
+        str(family) for family, entry in families.items() if not isinstance(entry["held"], bool)
+    )
+    if unreadable:
+        raise ValueError(
+            f"{_PARSER}: calibration record {path} records a held value other than "
+            f"true or false for {', '.join(unreadable)}"
         )
     return CalibrationRecord(**{name: loaded[name] for name in _FIELDS})
 
@@ -193,11 +216,14 @@ def adopt_calibration_record(config: Any, samples_digest: str, *,
                              served_reader: Optional[ServedReader] = None) -> Optional[str]:
     """Read the record a session names, and adopt its families or its reason.
 
-    Design: ``tier3_evaluation.md`` section 9.4.2. Called at session start,
-    after the carried band outcomes. A valid record's families become carried
-    calibration outcomes, a family that did not hold carrying why; an invalid
-    record's reason is kept for ``cmn.calibration_runs`` to apply at
-    collection.
+    Design: ``tier3_evaluation.md`` sections 9.4.2 and 9.4.3. Called at
+    session start, after the carried band outcomes. A valid record's families
+    become carried calibration outcomes, a family that did not hold carrying
+    why; an invalid record's reason is kept for ``cmn.calibration_runs`` to
+    apply at collection. **An absent or malformed record is kept as missing**,
+    not raised, and the judge's provider is asked nothing about it:
+    ``missing_calibrations`` names it at collection, so every judged case
+    skips with ``QC_HARNESS_ARTIFACT_MISSING``.
 
     Args:
         config (Any): pytest's configuration, read for ``--calibration-record``,
@@ -207,25 +233,30 @@ def adopt_calibration_record(config: Any, samples_digest: str, *,
             ``execution.preflight.served_facts`` by default.
 
     Returns:
-        Optional[str]: Why the record is invalid, or None where it is valid or
-        nothing was read.
-
-    Raises:
-        ValueError: With ``QC_HARNESS_PARSER_ERROR`` when the record will not
-            parse or lacks a field.
+        Optional[str]: Why the record is missing or invalid, or None where it
+        is valid or nothing was read.
     """
     named = str(config.getoption("--calibration-record", "") or "")
     if not named or _judge_mode(config) != _LIVE:
         return None
     engine, model = _judge(config)
-    record = read_calibration_record(Path(named))
-    served = (served_reader or _served_facts)(engine, model) if record is not None else {}
+    try:
+        record = read_calibration_record(Path(named))
+    except ValueError as error:
+        return _missing_record(named, str(error))
+    if record is None:
+        return _missing_record(named, f"is absent: no calibration record for the judge {engine}")
+    served = (served_reader or _served_facts)(engine, model)
     reason = record_invalidity(record, engine, served, samples_digest)
-    if record is None or reason is not None:
+    if reason is not None:
         reason = f"{reason} at {named}"
         _INVALID["reason"] = reason
         logger.warning("Calibration record invalid, every judged case will skip: %s", reason)
         return reason
+    _READ.update(
+        path=named, problem="",
+        covered=frozenset(str(entry["identifier"]) for entry in record.families.values()),
+    )
     outcomes = {str(entry["identifier"]): bool(entry["held"]) for entry in record.families.values()}
     reasons = {
         str(entry["identifier"]): (
@@ -239,6 +270,55 @@ def adopt_calibration_record(config: Any, samples_digest: str, *,
         record.recorded, len(outcomes), sum(outcomes.values()),
     )
     return None
+
+
+def _missing_record(named: str, problem: str) -> str:
+    """Keep a record that is absent or malformed as missing, and say why.
+
+    Args:
+        named (str): The path the session named.
+        problem (str): What is wrong with it.
+
+    Returns:
+        str: The problem and the path.
+    """
+    _READ.update(path=named, problem=problem, covered=frozenset())
+    logger.warning(
+        "%s: calibration record %s %s, so every judged case will skip",
+        ARTIFACT_MISSING, named, problem,
+    )
+    return f"{problem} at {named}"
+
+
+def missing_calibrations(families: Mapping[str, str]) -> dict[str, MissingArtifact]:
+    """Return each calibration the record this session read should have held and did not.
+
+    Design: ``tier3_evaluation.md`` section 9.4.3. Every calibration case the
+    mapping names, where the record is absent or malformed; where it is valid,
+    those of the families it is silent about. Nothing where no record was read
+    or the one read is invalid.
+
+    Args:
+        families (Mapping[str, str]): Case name to family, naming every
+            calibration case of the corpus.
+
+    Returns:
+        dict[str, MissingArtifact]: Calibration identifier to the record, as
+        the artifact its judged cases skip naming.
+    """
+    if not _READ:
+        return {}
+    missing: dict[str, MissingArtifact] = {}
+    for identifier, family in calibration_identifiers(families).items():
+        if not _READ["problem"] and identifier in _READ["covered"]:
+            continue
+        missing[identifier] = MissingArtifact(
+            kind="calibration_record", path=_READ["path"],
+            detail=_READ["problem"] or (
+                f"holds no calibration for family {family}, case {identifier}"
+            ),
+        )
+    return missing
 
 
 def publish_calibration_record(config: Any, samples_digest: str, families: Mapping[str, str], *,

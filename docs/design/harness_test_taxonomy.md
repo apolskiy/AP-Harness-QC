@@ -1036,7 +1036,7 @@ artifact is the gap this section closes.
 
 `cmn.missing_artifact` holds the record, the skip and the exit. Each reader
 adopts it in its own section: the carried outcomes in `cmn_verdict_and_cli.md`
-section 10.28.8, the calibration record in `tier3_evaluation.md` section 9.3,
+section 10.28.8, the calibration record in `tier3_evaluation.md` section 9.4.3,
 recordings and judgements in `tier2_execution.md` section 7.6, and the case
 repository's spend reports and corpus pairs in its `consumer_ci.md`.
 `MQC_CMN_UNI_112446` to `112450` assert the skip, its JUnit properties, its

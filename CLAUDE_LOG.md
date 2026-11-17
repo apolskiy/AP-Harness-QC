@@ -16613,3 +16613,59 @@ printing the hook's own source, which contains the refusal sentence; a
 refusal now has to open with that sentence, and the call is counted as the
 allowed read it was.
 
+## 2026-11-17: Fixed a missing calibration record ending the session or leaving a family unguarded
+
+**A) What was wrong.** Under a live judge, a calibration record that would
+not parse raised `QC_HARNESS_PARSER_ERROR` at session start, so the session
+ended in an internal error with every case unmeasured. An absent record
+skipped every judged case with `QC_HARNESS_DEPENDENCY_UNMET`, as though a
+calibration had run and failed. A valid record silent about a family the
+corpus calibrates wired nothing for that family, so its judged cases were
+judged with no calibration guarding them. The reader read a held value
+through `bool`, so the string `"false"` adopted a failed calibration as held.
+**B) Why.** The record is handed from the judge's calibration workflow to every
+regression run and read only under a live judge, so no case fed its reader a
+missing or malformed record, the gap the owner named on 2026-11-16.
+
+**What changed.** `adopt_calibration_record` keeps an absent or malformed
+record as missing instead of raising, and asks the judge's provider nothing
+until a record has parsed. `missing_calibrations` names every calibration the
+record should have held and did not: all of them for an absent or malformed
+record, the silent families for a valid one. `rest_judged_cases_on_calibration`
+declares those, less any calibration case the run collected, and wires each
+family's judged cases to them, so they skip at setup with
+`QC_HARNESS_ARTIFACT_MISSING`, kind `calibration_record`, naming the path and
+why. A record that parses and does not cover the judge is unchanged. The
+reader refuses a held value other than true or false. **The cascade now keeps
+any artifact's missing foundations in one map**, `declare_missing_foundations`,
+and the carry file of the previous commit uses it in place of its own set.
+Design `tier3_evaluation.md` section 9.4.3; requirement `MQC_REQ_HAR_EVL_0094`,
+and `MQC_REQ_HAR_EVL_0093` amended to drop the refusal; cases `112457` to
+`112461`. `112630` asserted the refusal and is retired, struck through in both
+inventories and moved to the RTM's retired column.
+
+**Injection.** Eight defects, eight caught, each exiting 3: a held value read
+through `bool` (`112460`), a malformed record raising again (`112458`), an
+absent record treated as a failed calibration and the provider asked before
+the record parsed (`112457`), a silent family treated as covered, the missing
+calibrations never declared and setup ignoring a missing foundation (`112459`),
+and a collected calibration declared missing (`112461`). **The last was caught
+by a skip, not a failure**: the judged case skipped as a missing artifact
+inside the case and the run exited 3 naming it, which is the defect's own
+effect reported. Baseline exit 0 after restore, rerun after the last change.
+
+**Digressions the user spotted, and the fix.** None from the user. Mine, all
+caught by the gate before handoff: two case names ran past the 60-character
+callable limit, failing `112305` and `112325`, and were shortened in the
+module, the inventory and the RTM; the reader-refusal loop duplicated
+`112456`'s, which pylint reported, and both now call
+`missing_artifact_support.accepted_by`; four lines ran past 100 characters;
+and one case broke the step-numbering rule by asserting after a `raises`
+block without a step of its own.
+
+**Verified.** Harness: unit 1130 of 1130, system 24 of 24, pylint exit 0.
+Preconditions only; no graded band runs here, and no mutation audit was run.
+The Model Repository, which imports this checkout, was run against it
+unchanged: unit 295 of 295, exit 0. Its conftest does not yet exit 3 on a
+missing artifact, which is the next commit there.
+

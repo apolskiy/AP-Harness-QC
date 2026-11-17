@@ -13,15 +13,17 @@ markers the skip adds, without an Allure runtime in the session;
 the provenance such a band stamps; ``MALFORMED_CARRY_FILES`` and
 ``write_malformed_carry``, one body per way a carry file can be unusable;
 ``carry_population``, a dependent of a carried foundation beside a case resting
-on nothing; and ``band_outcomes``, which runs the cascade's session start,
-collection and setup over a population.
+on nothing; ``band_outcomes``, which runs the cascade's session start,
+collection and setup over a population; and ``accepted_by``, which names each
+malformed record a reader accepted, for the carry file's and the calibration
+record's reader cases alike.
 """
 
 import json
 import os
 import platform
 from pathlib import Path
-from typing import Any, Final, Optional
+from typing import Any, Callable, Final, Mapping, Optional
 
 import pytest
 
@@ -197,6 +199,28 @@ def write_malformed_carry(path: Path, body: str) -> Path:
     provenance = json.dumps(carry_provenance().as_fields())
     path.write_text(body.replace("PROVENANCE", provenance), encoding="utf-8")
     return path
+
+
+def accepted_by(reader: Callable[[Path], Any], records: Mapping[str, Path]) -> list[str]:
+    """Return each record a reader accepted rather than refusing with QC_HARNESS_PARSER_ERROR.
+
+    Args:
+        reader (Callable): Reads one record by path.
+        records (Mapping[str, Path]): What is wrong with each record, to the record.
+
+    Returns:
+        list[str]: The names of the records read without that refusal, empty
+        where the reader refused every one.
+    """
+    accepted = []
+    for name, path in records.items():
+        try:
+            reader(path)
+        except ValueError as error:
+            if "QC_HARNESS_PARSER_ERROR" in str(error):
+                continue
+        accepted.append(name)
+    return accepted
 
 
 def band_outcomes(config: SimulatedConfig, items: list[Any]) -> dict[str, str]:

@@ -29,6 +29,28 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A missing calibration record skips the judged cases resting on it, 2026-11-17
+
+**Why.** A regression run reads the judge's calibration record only under a
+live judge, so its gaps showed up only where they cost money. A record that
+would not parse ended the session in an internal error with nothing measured,
+an absent one skipped the judged cases as though a calibration had failed, and
+a valid record silent about a family left that family's judged cases judged
+with nothing guarding them. The reader also took the string `"false"` as a
+calibration that held.
+
+**What changed.** An absent or malformed record, and a family a valid record
+is silent about, now skip the judged cases resting on it at setup with
+`QC_HARNESS_ARTIFACT_MISSING`, kind `calibration_record`, naming the path and
+why; the judge's provider is asked nothing until a record has parsed. A record
+that parses and does not cover the judge still skips with
+`QC_HARNESS_DEPENDENCY_UNMET` and its reason. The reader refuses a held value
+other than true or false. The cascade now keeps any artifact's missing
+foundations in one place, `declare_missing_foundations`, which the carry file
+uses too. Design `tier3_evaluation.md` section 9.4.3, requirement
+`MQC_REQ_HAR_EVL_0094`, cases `112457` to `112461`; `112630`, which asserted
+the refusal, is retired. README: 1158 test cases, 440 requirements.
+
 ### A lost or malformed carry file skips only the cases resting on it, 2026-11-16
 
 **Why.** In a band naming `--carry-outcomes`, a foundation neither collected
