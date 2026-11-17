@@ -64,7 +64,6 @@ _FAMILY_CATEGORIES: Final[tuple[tuple[str, str, tuple[str, ...]], ...]] = (
 # 7.1's rule that a skip names its kind, applied to a report.
 _NAMED_HARNESS_CODES: Final[tuple[tuple[str, str], ...]] = (
     ("Skipped behind a foundation that did not hold", "QC_HARNESS_DEPENDENCY_UNMET"),
-    ("Skipped for a missing recording", "QC_HARNESS_FIXTURE_MISSING"),
     ("Skipped for a missing artifact", "QC_HARNESS_ARTIFACT_MISSING"),
     ("Skipped as a known failure in quarantine", "QC_HARNESS_QUARANTINED"),
 )

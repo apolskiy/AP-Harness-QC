@@ -3,7 +3,7 @@
 """Unit preconditions for what a dispatch records and what it keeps.
 
 Created: 2026-10-30
-Last updated: 2026-10-30
+Last updated: 2026-11-17
 
 This file contains the recording cases, and it is the second file of the dispatch
 cases: ``mqc_uni_dispatch.py`` is the first and holds dispatching, pacing and the
@@ -287,7 +287,7 @@ class TestMQCRetainedRequest:
         unmeasured = dispatch_case(minimal_case, "claude", plan, session, 1)
 
         assert not unmeasured.measured
-        assert unmeasured.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING"
+        assert unmeasured.taxonomy_code == "QC_HARNESS_ARTIFACT_MISSING"
         assert unmeasured.request == composed, (
             "an outcome that measured nothing carries no request, which is the "
             "case where what was sent matters most"

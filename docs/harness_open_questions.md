@@ -114,6 +114,12 @@ and `QC_HARNESS_JUDGEMENT_STALE` should exist, and whether
 decision rather than an omission, and overturning one costs every stored row
 that carries the old code.
 
+**2026-11-17: `QC_HARNESS_FIXTURE_MISSING` is retired** (`harness_test_taxonomy.md`
+section 6.2.2). A missing recording or judgement is `QC_HARNESS_ARTIFACT_MISSING`
+with kind `recording` or `judgement`, which a skip at setup carries as a JUnit
+property and an Allure label a tally can count. Whether stale needs the same
+split, and whether this closes the question, is still the owner's call.
+
 ## 2A. Settled, and where the reasoning now lives
 
 Removed from section 2 once the decision was recorded. The question is here so a

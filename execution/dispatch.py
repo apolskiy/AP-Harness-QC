@@ -3,13 +3,14 @@
 """Sends one case to one engine, live or from a recorded fixture, and returns what came back.
 
 Created: 2026-09-26
-Last updated: 2026-11-11
+Last updated: 2026-11-17
 
 This file contains ``dispatch_case``, which composes the request for a case,
 replays the recorded observation or issues the request live, and returns a
 ``DispatchOutcome`` holding either a normalized response or a skip with its
-reason; ``DispatchPlan``, the run's fixed settings such as its mode, model,
-fixture root and whether to record; ``DispatchSession``, the run-level state
+reason, and the missing artifact for a recording replay could not load;
+``DispatchPlan``, the run's fixed settings such as its mode, model, fixture
+root and whether to record; ``DispatchSession``, the run-level state
 that spaces requests and trips ``CircuitBreakerTripped`` when the provider
 stops answering, inheriting its spending from ``execution.run_spend``; and
 ``attributed_refusal``, which decides
@@ -41,6 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Final, Optional
 
+from cmn.missing_artifact import ARTIFACT_MISSING, MissingArtifact
 from execution.adapters.base import ProviderAdapter
 from execution.adapters.registry import adapter_for
 from execution.normalize import NormalizedResponse
@@ -91,7 +93,7 @@ BUDGET_STOP: Final[str] = "QC_HARNESS_BUDGET_EXHAUSTED"
 # A REPLAY THE STORE COULD NOT SERVE, under either cause. The breaker must not
 # count either, since no engine was asked (design section 8.3.2).
 _FIXTURE_ABSENT: Final[frozenset[str]] = frozenset(
-    {"QC_HARNESS_FIXTURE_STALE", "QC_HARNESS_FIXTURE_MISSING"}
+    {"QC_HARNESS_FIXTURE_STALE", ARTIFACT_MISSING}
 )
 
 
@@ -143,6 +145,9 @@ class DispatchOutcome:
             taken, and the passing ones are what its report needs
             (design section 7.12).
         taxonomy_code (Optional[str]): Present exactly when skipped.
+        missing_artifact (Optional[MissingArtifact]): The recording a replay
+            could not load, where that is why it skipped, so a caller skipping
+            the case can name the file (design section 7.6.2). Never emitted.
     """
 
     case_id: str
@@ -155,6 +160,7 @@ class DispatchOutcome:
     response: Optional[NormalizedResponse] = None
     taxonomy_code: Optional[str] = None
     request: Optional[dict[str, Any]] = None
+    missing_artifact: Optional[MissingArtifact] = None
 
     def __post_init__(self) -> None:
         """Refuse an outcome that is both a measurement and a skip, or neither.
@@ -608,6 +614,7 @@ def _replay_case(context: _CaseContext) -> DispatchOutcome:
             case_id=case_id, engine=engine, mode="replay", duration_ms=0,
             duration_kind="measured", attempts=0, rate_limit_encounters=0,
             taxonomy_code=code, request=context.request,
+            missing_artifact=error.missing if isinstance(error, FixtureMissing) else None,
         )
 
     replayed = NormalizedResponse.from_mapping(stored.response).replace(
@@ -797,7 +804,7 @@ def _fixture_error_code(error: Exception) -> str:
         names none.
     """
     text = str(error)
-    for code in ("QC_HARNESS_FIXTURE_STALE", "QC_HARNESS_FIXTURE_MISSING"):
+    for code in ("QC_HARNESS_FIXTURE_STALE", ARTIFACT_MISSING):
         if code in text:
             return code
     return "QC_HARNESS_PARSER_ERROR"

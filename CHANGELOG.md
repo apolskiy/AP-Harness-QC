@@ -29,6 +29,26 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A missing recording or judgement names the file, and a malformed judgement no longer crashes, 2026-11-17
+
+**Why.** A replay skip for a missing recording or judgement named the code and
+not the file, so whoever re-recorded it had to work out the path, the engine
+and the observation index by hand. A judgement file that existed and would not
+parse escaped the store as a decoding or key error, so the pipeline reported
+an unanticipated error instead of a judgement it could not use, and a
+recording whose response was a list was read as an empty one.
+
+**What changed.** The store raises `QC_HARNESS_ARTIFACT_MISSING` with kind
+`recording` or `judgement`, the path, and whether the file is absent or cannot
+be read. The dispatch outcome and the evaluation result carry that missing
+artifact, so a caller skipping the case can name it. `QC_HARNESS_FIXTURE_MISSING`
+is retired: it stays registered for stored results, emitting it is refused,
+and a check reports any production code naming it. Design `tier2_execution.md`
+section 7.6.2 and `harness_test_taxonomy.md` section 6.2.2, requirements
+`MQC_REQ_HAR_EXE_0150`, `MQC_REQ_HAR_EVL_0095` and `MQC_REQ_HAR_CMN_0260`,
+cases `113621` to `113625`, `114146` and `112462`. README: 1165 test cases,
+443 requirements.
+
 ### A missing calibration record skips the judged cases resting on it, 2026-11-17
 
 **Why.** A regression run reads the judge's calibration record only under a

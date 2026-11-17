@@ -3,12 +3,13 @@
 """Stand-in judges for the cases that need a judge without calling a provider.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-17
 
-This file contains two factories returning a ``JudgeBinding`` from
+This file contains three factories returning a ``JudgeBinding`` from
 :mod:`evaluation.judge`. :func:`scoring_judge` awards one fixed score to every
 criterion and returns the log of requests it received; :func:`refusing_judge`
-raises the exception it was built with instead of judging.
+raises the exception it was built with instead of judging; :func:`stored_judge`
+replays one judgement from a fixture root, raising what the store raises.
 
 ``mqc_sys_evaluation.py`` uses the scoring judge to prove the dual pass invokes
 a judge, ``mqc_sys_whole_chain.py`` needs one inside a longer chain, and
@@ -22,9 +23,11 @@ built, reading the required criteria out of the request, so a composer that
 emitted the wrong schema produces a `KeyError` here instead of a passing test.
 """
 
+from pathlib import Path
 from typing import Any
 
 from evaluation.judge import JudgeBinding
+from execution.replay import JudgementKey, load_judgement
 
 
 def scoring_judge(
@@ -111,4 +114,32 @@ def refusing_judge(error: Exception) -> JudgeBinding:
 
     return JudgeBinding(
         invoke=_raise, judge_engine="gemini", candidate_engine="claude",
+    )
+
+
+def stored_judge(root: Path, key: JudgementKey) -> JudgeBinding:
+    """Return a binding that replays the judgement stored under one key, as replay mode does.
+
+    Args:
+        root (Path): The fixture root.
+        key (JudgementKey): The judgement every invocation loads.
+
+    Returns:
+        JudgeBinding: A binding whose invoke loads that judgement, raising what
+        the store raises.
+    """
+
+    def _load(_request: Any) -> Any:
+        """Load the held judgement.
+
+        Args:
+            _request (Any): The composed judge request, unused.
+
+        Returns:
+            Any: The stored reply.
+        """
+        return load_judgement(root, key, "sha256:any", "gemini-2.5-flash").reply
+
+    return JudgeBinding(
+        invoke=_load, judge_engine="gemini", candidate_engine="claude",
     )

@@ -3,11 +3,12 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-17
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
-reads and the result it returns; ``observation_judge_request``, which composes
+reads and the result it returns, which carries the missing artifact where a
+judgement could not be replayed; ``observation_judge_request``, which composes
 what the judge is sent, for the run and for anyone rebuilding a judge prompt
 from a recorded response; and ``judgements_for_observations``, which counts how
 many distinct observations a case's judge replies cover.
@@ -49,6 +50,7 @@ import logging
 from dataclasses import dataclass, field, replace
 from typing import Any, Final, Optional
 
+from cmn.missing_artifact import ARTIFACT_MISSING, MissingArtifact
 from cmn.vectors import grading_values
 
 # THE REPLAY STORE'S OWN EXCEPTIONS, not a vendor type. Tier 3's boundary
@@ -202,6 +204,9 @@ class EvaluationResult:
         answer_route (str): ``list``, ``clarification`` or ``neither`` where
             the rule declares a list, empty where it declares none or the
             evaluation ended before the route was read (design section 5.5).
+        missing_artifact (Optional[MissingArtifact]): The judgement replay
+            could not find or read, where that is why the judgement is
+            unavailable (section 6.5). Never emitted.
     """
 
     case_id: str
@@ -219,6 +224,7 @@ class EvaluationResult:
     judge_prompt: str = ""
     judge_reply: dict[str, Any] = field(default_factory=dict)
     answer_route: str = ""
+    missing_artifact: Optional[MissingArtifact] = None
 
     @property
     def judged(self) -> bool:
@@ -710,10 +716,11 @@ def _judge_and_aggregate(
         # nothing and scores nothing, and the assertion results below travel
         # with it, so an observation that failed an assertion still reports
         # that failure with its own model code.
+        # A JUDGEMENT ABSENT OR UNREADABLE IS A MISSING ARTIFACT, carried so
+        # a caller skipping the case can name the file (`tier2_execution.md`
+        # section 7.6.2).
         code = (
-            "QC_HARNESS_FIXTURE_STALE"
-            if isinstance(error, FixtureStale)
-            else "QC_HARNESS_FIXTURE_MISSING"
+            ARTIFACT_MISSING if isinstance(error, FixtureMissing) else "QC_HARNESS_FIXTURE_STALE"
         )
         logger.warning(
             "%s observation %d judgement unavailable: %s",
@@ -726,6 +733,7 @@ def _judge_and_aggregate(
             judge_on_failure=judge_on_failure,
             taxonomy_codes=progress.codes + [code],
             checks_ran=declared, rubric_authored=rubric_authored, judge_prompt=request.rendered(),
+            missing_artifact=error.missing if isinstance(error, FixtureMissing) else None,
         )
     except ValueError as error:
         # NO REPLY IS NOT A BAD REPLY. The channel leads its message with the

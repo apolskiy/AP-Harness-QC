@@ -3057,7 +3057,6 @@ honest, rather than folded into a catch-all.
 |---|---|
 | `QC_HARNESS_DEPENDENCY_UNMET` | blocked by a prerequisite at the same or a higher priority that did not hold |
 | `QC_HARNESS_QUARANTINED` | a known failure in quarantine, not dispatched |
-| `QC_HARNESS_FIXTURE_MISSING` | no recording for this engine, response or judgement |
 | `QC_HARNESS_FIXTURE_STALE` | the recording no longer answers this request, response or judgement |
 | `QC_HARNESS_BUDGET_EXHAUSTED` | the run reached its spending ceiling |
 | `QC_HARNESS_ENGINE_UNREACHABLE` | the provider could not be reached |
@@ -3553,6 +3552,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112201` | N | `registered_code_with_no_emit_site_is_reported` |
 | `112202` | N | `unregistered_code_in_a_live_specification_is_reported` |
 | `112262` | N | `every_code_production_code_names_is_registered` |
+| `112462` | N | `a_retired_code_is_refused_and_named_by_nothing` (`harness_test_taxonomy.md` 6.2.2) |
 | `112203` | N | `stated_inventory_counts_disagreeing_with_rows_is_reported` |
 | `112110` | P | `option_registry_yields_identical_flags_to_both_surfaces` |
 | ~~`112111`~~ | | ~~`invalid_enumerated_flag_value_is_rejected_at_parse_time`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `112155`, `112156`. One case per flag |
@@ -3892,7 +3892,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 544 cases, 325 negative, 162 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 545 cases, 326 negative, 162 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -3906,6 +3906,7 @@ Five checks, the same shape as the RTM integrity checks in section 6 and for the
 | `112201` | Registry rot, where a code remains listed long after the condition that raised it was removed |
 | `112202` | A specification naming a code that was never registered |
 | `112262` | Production code raising or logging a code that was never registered (`harness_test_taxonomy.md` section 6.2.1) |
+| `112462` | Production code emitting a code that was retired (`harness_test_taxonomy.md` section 6.2.2) |
 | `112203` | An inventory whose stated totals no longer match its rows |
 
 ### 10.2 The suite enforces its own authoring order

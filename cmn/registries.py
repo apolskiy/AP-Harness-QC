@@ -8,10 +8,11 @@ Last updated: 2026-11-17
 This file contains the priority conditions (``priority_condition_level``,
 ``registered_priority_conditions``); the failure taxonomy codes by family
 (``is_registered_harness_code``, ``is_registered_llm_code``, ``is_registered_sec_code``,
-``is_registered_data_code``, ``data_code_severity``, ``registered_codes``) with their
-ranking (``code_criticality``, ``most_critical``, ``unranked_codes``); aggregation
-strategies; evaluation families (``EvaluationFamily`` and its register functions); and
-the adapter error, constraint kind, status and Windows reserved name lookups.
+``is_registered_data_code``, ``data_code_severity``, ``registered_codes``,
+``retired_codes``) with their ranking (``code_criticality``, ``most_critical``,
+``unranked_codes``); aggregation strategies; evaluation families
+(``EvaluationFamily`` and its register functions); and the adapter error,
+constraint kind, status and Windows reserved name lookups.
 
 Ingestion invariant G6, ``cmn.metadata``, the evaluation tier and the case repository's
 tools ask these whether an identifier is registered and at what level, and the rule that
@@ -531,6 +532,22 @@ def registered_codes() -> frozenset[str]:
         frozenset[str]: Every registered code.
     """
     return frozenset(_LLM_CODES | _SEC_CODES | _HARNESS_CODES | frozenset(_DATA_CODES))
+
+
+# A RETIRED CODE, TO THE CODE THAT REPLACED IT. Still registered, since stored
+# results carry it, and emitted by nothing (taxonomy section 6.2.2).
+_RETIRED_CODES: Final[dict[str, str]] = {
+    "QC_HARNESS_FIXTURE_MISSING": "QC_HARNESS_ARTIFACT_MISSING",
+}
+
+
+def retired_codes() -> dict[str, str]:
+    """Return each retired code and the code that replaced it.
+
+    Returns:
+        dict[str, str]: A copy, so a caller cannot retire or revive a code.
+    """
+    return dict(_RETIRED_CODES)
 
 
 def family_prefixes() -> tuple[str, ...]:

@@ -3,13 +3,14 @@
 """Code standards checks, the style rules pylint cannot express, run over a source tree.
 
 Created: 2026-09-23
-Last updated: 2026-10-22
+Last updated: 2026-11-17
 
 This file contains ``annotation_gaps`` and ``future_annotation_imports`` for the
 annotation rules; ``header_problems`` and ``markup_header_problems`` for SPDX
 headers; ``encoding_gaps`` for a file opened with no encoding;
 ``unfrozen_records`` for an undeclared mutable dataclass;
 ``unregistered_code_literals`` for a failure code the registry lacks;
+``retired_code_literals`` for a failure code the registry retired;
 ``artifact_mandate_gaps`` for a workflow step emitting one mandated artifact
 without the other; ``flag_coverage_problems`` for a flag no case proves; and
 the readers ``python_sources``, ``markup_sources``, ``walked_nodes``,
@@ -47,7 +48,7 @@ from typing import Any, Final
 import yaml
 
 from cmn.options import registered_options
-from cmn.registries import registered_codes
+from cmn.registries import registered_codes, retired_codes
 
 # Not this project's source, so not this project's conventions to enforce.
 COPYRIGHT_TAG: Final[str] = "SPDX-FileCopyrightText:"
@@ -845,5 +846,34 @@ def unregistered_code_literals(root: Path) -> list[str]:
                 continue
             for code in _CODE_LITERAL.findall(node.value):
                 if code not in registered:
+                    found.append(f"{relative.as_posix()}:{node.lineno} {code}")
+    return found
+
+
+def retired_code_literals(root: Path) -> list[str]:
+    """Report each retired failure code production code names, outside the registry.
+
+    Read as :func:`unregistered_code_literals` reads, ``tests/`` excepted, and
+    ``cmn/registries.py`` excepted as well, being where a retired code is
+    mapped to its replacement. Design: ``harness_test_taxonomy.md`` section 6.2.2.
+
+    Args:
+        root (Path): The repository root.
+
+    Returns:
+        list[str]: ``<path>:<line> <code>`` per occurrence, the path relative to
+        the root, sorted by path and line.
+    """
+    retired = retired_codes()
+    found: list[str] = []
+    for source in python_sources(root):
+        relative = source.relative_to(root)
+        if relative.parts[0] == "tests" or relative.as_posix() == "cmn/registries.py":
+            continue
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+            if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+                continue
+            for code in _CODE_LITERAL.findall(node.value):
+                if code in retired:
                     found.append(f"{relative.as_posix()}:{node.lineno} {code}")
     return found

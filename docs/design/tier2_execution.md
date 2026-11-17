@@ -755,7 +755,7 @@ Splitting needs no encoding at all, because both halves are identifiers this har
 |---|---|
 | Hash matches | Replay the stored response |
 | Hash differs | `QC_HARNESS_FIXTURE_STALE`, skip, naming the case |
-| No fixture found | `QC_HARNESS_FIXTURE_MISSING`, skip, naming the case |
+| No fixture found, or one that cannot be read | `QC_HARNESS_ARTIFACT_MISSING`, skip, naming the case and the file (section 7.6.2) |
 
 Locating by identity keeps fixtures findable; verifying by hash keeps them honest. Without the hash, changing prompt composition would silently replay a recorded answer to a **different question**, which is the same class of corruption as an unmarked replay (A6) and harder to notice.
 
@@ -818,7 +818,7 @@ instrument is not.
 #### 7.4.3 A missing judgement is a skip, never a live call
 
 A replay run that cannot find a judgement records
-`QC_HARNESS_FIXTURE_MISSING` and skips, **excluded from the skip-rate
+`QC_HARNESS_ARTIFACT_MISSING`, kind `judgement` (section 7.6.2), and skips, **excluded from the skip-rate
 denominator**, on the same reasoning as a dependency skip: nothing was measured
 about the model, so it must not count against a threshold.
 
@@ -879,6 +879,54 @@ clause disagreed with it.
 the suite until now supplied a fixture, because a case that needs one was
 written alongside it. `MQC_EXE_UNI_113611` asserts the conversion directly, so
 it no longer depends on somebody running a graded case with an empty store.
+
+#### 7.6.2 A missing recording or judgement is a missing artifact, naming the file
+
+Added 2026-11-17 at the project owner's ruling, adopting
+`harness_test_taxonomy.md` section 5.1.3 for the replay store.
+
+**What was wrong.** A recording or judgement replay could not find skipped
+with `QC_HARNESS_FIXTURE_MISSING`, a code of its own, and named the case,
+the engine and the observation but never the file. A judgement file that
+existed and would not parse was worse: `load_judgement` let the decoder's
+`ValueError` escape, which the pipeline recorded as `judge_reply_unusable`
+with `QC_HARNESS_PARSER_ERROR`, and a file lacking a field raised `KeyError`,
+which escaped the pipeline as an unanticipated exception. **Why:** the
+recording side learned in section 7.6 to treat an unreadable file as missing,
+and the judgement side was written without that lesson.
+
+**What it does now.** The store raises `FixtureMissing` carrying a
+`MissingArtifact`, so the kind, the path and what was wrong reach whoever
+catches it:
+
+| The file | Kind | What was wrong |
+|---|---|---|
+| No recording for the case, engine and observation | `recording` | `is absent` |
+| A recording that will not parse or lacks a field | `recording` | `cannot be read as a recording` |
+| No judgement for the observation by this judge | `judgement` | `is absent` |
+| A judgement that will not parse or lacks a field | `judgement` | `cannot be read as a judgement` |
+
+The message is `MissingArtifact.message()`, so it leads with
+`QC_HARNESS_ARTIFACT_MISSING`. **Dispatch and the pipeline keep the record**:
+a replay that could not load its recording returns a `DispatchOutcome` whose
+`missing_artifact` holds it, and a judgement that could not be replayed
+returns an `EvaluationResult` with `judgement_unavailable`, the code, and the
+record in `missing_artifact`. Neither field is emitted with a result; they are
+there for a caller skipping the whole case on them, to label the skip with
+the kind and the path. The circuit breaker still counts neither,
+since no engine was asked (section 8.3.2).
+
+**A stale recording or judgement is unchanged**: `FixtureStale`, with
+`QC_HARNESS_FIXTURE_STALE`. It is a file that exists and answers another
+request, so the remedy is the same and the cause is not.
+
+**`QC_HARNESS_FIXTURE_MISSING` is retired**, its registry row kept for
+results already stored (`harness_test_taxonomy.md` section 6.2.2).
+
+`113621` and `113622` assert an absent and each unreadable recording,
+`113623` and `113624` an absent and each malformed judgement, never a decoding
+or key error, `113625` the dispatch outcome, and `114146` in
+`tier3_evaluation.md` the evaluation result.
 
 
 
@@ -1223,7 +1271,7 @@ section 6.4 recorded as open until section 6.4.1 closed it.
 `load_judgement` raises rather than returning anything a caller could mistake
 for a score, and the channel does not catch it to fall back. **The fail-open
 path does not exist to be taken by accident**: a replay run missing a
-judgement reports `QC_HARNESS_FIXTURE_MISSING` and records a skip, which is
+judgement reports `QC_HARNESS_ARTIFACT_MISSING` and records a skip, which is
 cheap and visible, where a silent live call is expensive and is not.
 
 #### 7.9.2 The hash covers the composed request, which carries the candidate
@@ -1780,7 +1828,7 @@ budget stop did before section 8.3.1.
 
 | Outcome | Counts toward the breaker |
 |---|---|
-| **`QC_HARNESS_FIXTURE_STALE`, `QC_HARNESS_FIXTURE_MISSING`** | **No. The store had nothing to replay, and no engine was asked** |
+| **`QC_HARNESS_FIXTURE_STALE`, `QC_HARNESS_ARTIFACT_MISSING`** | **No. The store had nothing to replay, and no engine was asked** |
 
 **What it costs when counted.** The stale fixtures are skips naming their
 cause, which is the remedy a reader needs: record again. Past the threshold
@@ -2502,6 +2550,11 @@ the twenty-first check and any fifth engine are in the partition
 | `113615` | P | `a_recording_without_a_request_is_a_gap_not_a_stale_fixture` |
 | `113616` | P | `recording_retires_a_pair_answering_another_request` |
 | `113620` | N | `a_replaced_or_retired_recording_takes_its_judgements_with_it` |
+| `113621` | N | `an_absent_recording_is_a_missing_artifact_naming_its_path` (7.6.2) |
+| `113622` | N | `an_unreadable_recording_is_a_missing_artifact_naming_it` (7.6.2) |
+| `113623` | N | `an_absent_judgement_is_a_missing_artifact_naming_its_path` (7.6.2) |
+| `113624` | N | `a_malformed_judgement_is_a_missing_artifact_not_a_crash` (7.6.2) |
+| `113625` | N | `a_replay_dispatch_carries_the_missing_recording` (7.6.2) |
 | `113505` | P | `a_resolved_version_is_returned_stripped` |
 | `113506` | P | `a_change_dispatches_once_not_on_every_later_run` |
 | `113507` | P | `a_failed_probe_leaves_its_baseline_untouched` |
@@ -2745,7 +2798,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 237 cases, 107 negative, 119 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 242 cases, 112 negative, 119 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

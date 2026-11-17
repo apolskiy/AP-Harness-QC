@@ -3,10 +3,11 @@
 """Result metadata, the record emitted for each result and the names runs publish under.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-17
 
 This file contains ``emit_result``, which builds one emitted result from an
-observation and the run-scoped fields, refusing an unregistered taxonomy code;
+observation and the run-scoped fields, refusing an unregistered or retired
+taxonomy code;
 ``latency_statistics`` over measured durations; ``COLLECTED_PREFIX`` and
 ``DEBUG_PREFIX``, the artifact name prefixes a collector matches and a debug
 upload carries; ``current_platform``; ``changed_areas_from``, which classifies
@@ -46,7 +47,7 @@ from statistics import mean
 from typing import Any, Final, Optional
 
 from cmn.observations import Observation, RunContext, require_complete_result
-from cmn.registries import registered_codes
+from cmn.registries import registered_codes, retired_codes
 
 logger = logging.getLogger(__name__)
 
@@ -128,12 +129,19 @@ def require_registered_code(taxonomy_code: str) -> str:
     Raises:
         ValueError: With ``QC_HARNESS_PARSER_ERROR``. ``harness_test_taxonomy.md``
             section 6 is the single registry, and a code emitted from outside
-            it would be invisible to every count drawn from the record.
+            it would be invisible to every count drawn from the record. A
+            retired code is refused too, naming its replacement (section 6.2.2).
     """
     if taxonomy_code not in registered_codes():
         raise ValueError(
             f"QC_HARNESS_PARSER_ERROR: {taxonomy_code!r} is not a registered taxonomy "
             f"code, so a result carrying it could not be counted by root-cause class"
+        )
+    replacement = retired_codes().get(taxonomy_code)
+    if replacement is not None:
+        raise ValueError(
+            f"QC_HARNESS_PARSER_ERROR: {taxonomy_code!r} is retired, replaced by "
+            f"{replacement}, so it is registered for stored results and emitted by nothing"
         )
     return taxonomy_code
 

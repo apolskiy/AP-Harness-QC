@@ -3,15 +3,17 @@
 """Records model responses and judge replies to disk and replays them in later runs.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-17
 
 This file contains the candidate side of the fixture store, ``record_fixture``
 and ``load_fixture`` keyed by a ``FixtureKey`` and checked against
 ``hash_request``, with ``retire_stale_siblings`` and
 ``stored_observation_count``; the judge side, ``record_judgement`` and
 ``load_judgement`` keyed by a ``JudgementKey``; the ``FixtureMissing`` and
-``FixtureStale`` errors a load raises; and ``fixture_credential_problems``,
-which reports any stored fixture carrying a credential.
+``FixtureStale`` errors a load raises, the first carrying the missing artifact,
+kind ``recording`` or ``judgement``, for a file absent or unreadable; and
+``fixture_credential_problems``, which reports any stored fixture carrying a
+credential.
 
 **Dispatch and the judge channel read and write it.** A live run with
 recording on writes each observation here, and a replay run reads it back
@@ -40,6 +42,7 @@ from pathlib import Path
 from typing import Any, Final, Optional
 
 from cmn.credentials import credential_shaped_name, credential_shaped_value
+from cmn.missing_artifact import MissingArtifact
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +145,42 @@ class FixtureStale(Exception):
 
 
 class FixtureMissing(Exception):
-    """No fixture exists for this case, engine and observation index."""
+    """A recording or judgement is absent, or present and unreadable.
+
+    Its message is the missing artifact's, led by ``QC_HARNESS_ARTIFACT_MISSING``.
+    Design: ``tier2_execution.md`` section 7.6.2.
+
+    Attributes:
+        missing (MissingArtifact): The kind, the path and what was wrong.
+    """
+
+    def __init__(self, missing: MissingArtifact) -> None:
+        """Hold the missing artifact and take its message.
+
+        Args:
+            missing (MissingArtifact): What could not be read.
+
+        Returns:
+            None
+        """
+        super().__init__(missing.message())
+        self.missing = missing
+
+
+def _missing(kind: str, path: Path, detail: str) -> FixtureMissing:
+    """Return the error for one recording or judgement that could not be used, logging it.
+
+    Args:
+        kind (str): ``recording`` or ``judgement``.
+        path (Path): Where it was looked for.
+        detail (str): What was wrong.
+
+    Returns:
+        FixtureMissing: Carrying the missing artifact.
+    """
+    missing = MissingArtifact(kind=kind, path=str(path), detail=detail)
+    logger.warning("%s", missing.message())
+    return FixtureMissing(missing)
 
 
 def hash_request(request: Any) -> str:
@@ -226,7 +264,8 @@ def load_fixture(root: Path, key: FixtureKey, request_hash: str) -> StoredFixtur
         StoredFixture: The recorded observation.
 
     Raises:
-        FixtureMissing: With ``QC_HARNESS_FIXTURE_MISSING``, naming the case.
+        FixtureMissing: Carrying kind ``recording`` and the path, when the
+            file is absent or cannot be read as a recording.
         FixtureStale: With ``QC_HARNESS_FIXTURE_STALE``, naming the case. The
             run skips rather than failing, because a stale fixture is an
             instrument defect
@@ -234,13 +273,10 @@ def load_fixture(root: Path, key: FixtureKey, request_hash: str) -> StoredFixtur
     """
     path = key.as_path(root)
     if not path.is_file():
-        logger.warning(
-            "QC_HARNESS_FIXTURE_MISSING %s engine %s observation %d",
-            key.case_id, key.engine, key.observation_index,
-        )
-        raise FixtureMissing(
-            f"QC_HARNESS_FIXTURE_MISSING: no fixture for {key.case_id} on {key.engine} "
-            f"observation {key.observation_index}"
+        raise _missing(
+            "recording", path,
+            f"is absent: no recording of {key.case_id} on {key.engine} "
+            f"observation {key.observation_index}",
         )
 
     stored = _read_fixture(path, key)
@@ -486,6 +522,8 @@ def _read_fixture(path: Path, key: FixtureKey) -> StoredFixture:
     """
     try:
         payload = json.loads(path.read_text(encoding=_ENCODING))
+        if not isinstance(payload.get("response"), dict):
+            raise TypeError("the response is not a mapping")
         return StoredFixture(
             request_hash=str(payload["request_hash"]),
             response=dict(payload["response"]),
@@ -494,11 +532,11 @@ def _read_fixture(path: Path, key: FixtureKey) -> StoredFixture:
                 dict(payload["request"]) if payload.get("request") is not None else None
             ),
         )
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
-        logger.warning("QC_HARNESS_FIXTURE_MISSING %s is unreadable", path)
-        raise FixtureMissing(
-            f"QC_HARNESS_FIXTURE_MISSING: {key.case_id} on {key.engine} observation "
-            f"{key.observation_index} exists and cannot be read as a fixture"
+    except (AttributeError, KeyError, TypeError, ValueError) as error:
+        raise _missing(
+            "recording", path,
+            f"cannot be read as a recording of {key.case_id} on {key.engine} "
+            f"observation {key.observation_index}: {type(error).__name__}",
         ) from error
 
 
@@ -587,7 +625,8 @@ def load_judgement(
         StoredJudgement: The recorded judgement.
 
     Raises:
-        FixtureMissing: With ``QC_HARNESS_FIXTURE_MISSING`` when none exists.
+        FixtureMissing: Carrying kind ``judgement`` and the path, when none
+            exists or the one stored cannot be read as a judgement.
             **It raises rather than returning anything a caller could mistake
             for a score**, so the fail-open path does not exist to be taken by
             accident. A replay run records a skip; it never calls a judge live.
@@ -599,17 +638,28 @@ def load_judgement(
     """
     path = key.path(root)
     if not path.is_file():
-        raise FixtureMissing(
-            f"QC_HARNESS_FIXTURE_MISSING: no judgement for {key.case_id} "
-            f"observation {key.observation_index} judged by {key.judge_engine}"
+        raise _missing(
+            "judgement", path,
+            f"is absent: no judgement of {key.case_id} observation "
+            f"{key.observation_index} by {key.judge_engine}",
         )
 
-    payload = json.loads(path.read_text(encoding=_ENCODING))
-    stored = StoredJudgement(
-        request_hash=str(payload["request_hash"]),
-        judge_model=str(payload["judge_model"]),
-        reply=payload["reply"],
-    )
+    # A JUDGEMENT THAT WILL NOT PARSE IS MISSING, as a recording is
+    # (`tier2_execution.md` section 7.6.2). Its decoding or key error escaped
+    # until 2026-11-17 and reached the pipeline as an unusable reply.
+    try:
+        payload = json.loads(path.read_text(encoding=_ENCODING))
+        stored = StoredJudgement(
+            request_hash=str(payload["request_hash"]),
+            judge_model=str(payload["judge_model"]),
+            reply=payload["reply"],
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise _missing(
+            "judgement", path,
+            f"cannot be read as a judgement of {key.case_id} observation "
+            f"{key.observation_index} by {key.judge_engine}: {type(error).__name__}",
+        ) from error
 
     if stored.request_hash != request_hash:
         raise FixtureStale(

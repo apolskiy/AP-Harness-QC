@@ -3,7 +3,7 @@
 """Unit cases for storing recorded responses and finding them again by request hash.
 
 Created: 2026-09-26
-Last updated: 2026-11-05
+Last updated: 2026-11-17
 
 Its cases check :mod:`execution.replay`. :func:`hash_request` hashes a request
 alike across line endings and differently when it changes. The fixture store
@@ -264,7 +264,7 @@ class TestMQCFixtureStore:
         Returns:
             None
         """
-        with pytest.raises(FixtureMissing, match="QC_HARNESS_FIXTURE_MISSING") as caught:
+        with pytest.raises(FixtureMissing, match="QC_HARNESS_ARTIFACT_MISSING") as caught:
             load_fixture(tmp_path, FixtureKey(_CASE_ID, "gemini", 0), hash_request(_REQUEST))
         assert _CASE_ID in str(caught.value)
 
@@ -370,7 +370,7 @@ class TestMQCDispatchConvertsFixtureFailures:
 
         outcome = dispatch_case(minimal_case, "gemini", plan, DispatchSession())
 
-        assert outcome.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING", (
+        assert outcome.taxonomy_code == "QC_HARNESS_ARTIFACT_MISSING", (
             "a missing fixture did not become a skip, so a harness event "
             "reaches the suite as a failure about the model"
         )

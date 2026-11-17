@@ -1148,7 +1148,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_VERSION_UNAVAILABLE` | Resolved model version could not be obtained (A8) |
 | `QC_HARNESS_JUDGE_UNCALIBRATED` | A calibration sample disagreed, in a `CAL` case: the judge cleared every criterion of a sample stating a mistake, marked a clean sample below the threshold, or our checks failed other than what the sample names. **The judge is not under test by a graded case and is under test here**, so the calibration case fails and the run exits 3: every judged score of the run is uninterpretable, which is an instrument defect rather than a finding about the model (`tier3_evaluation.md` section 9.3) |
 | `QC_HARNESS_JUDGE_WITHHELD` | The run asked for no judge, `--judge-mode off`, so an observation whose screen and assertions held and whose rule carries a rubric was skipped `unjudged` rather than judged. **Never a pass**, since its judged criteria were not checked, and allowed only in an on-demand debug run (`tier3_evaluation.md` section 5A.5.3) |
-| `QC_HARNESS_FIXTURE_MISSING` | Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one. **The skip message names which**, because the remedy differs: re-record the model, or re-record the judge |
+| ~~`QC_HARNESS_FIXTURE_MISSING`~~ | **Retired 2026-11-17**, replaced by `QC_HARNESS_ARTIFACT_MISSING` with kind `recording` or `judgement` (section 6.2.2). Replay found no fixture for this case, engine and observation index: a candidate response, or a judgement of one |
 | `QC_HARNESS_ARTIFACT_MISSING` | A file the case reads and its own run does not produce is absent, empty, unreadable or missing a mandatory field: a recording, a judgement, the calibration record, a carried outcome, a spend report or a corpus pair. The case skips at setup naming the kind and the path, every other case runs, and the run exits 3 (section 5.1.3) |
 | `QC_HARNESS_FIXTURE_STALE` | A fixture exists but its stored request hash no longer matches the composed request, so replaying it would answer a different question |
 | `QC_HARNESS_CASE_REPEATED` | One case identifier was collected more than once in a run, so it would execute several test cases under one name. Refuses the run, exit 3 (`cmn_verdict_and_cli.md` section 7.8.5) |
@@ -1196,6 +1196,26 @@ a repository's production code, f-string parts included, and reports each code
 of the four families the registry lacks. `tests/` is not read, because a case
 names an invented code on purpose to prove one is refused. `MQC_CMN_UNI_112262`
 and `MQC_CAS_UNI_115774` call it with each root.
+
+#### 6.2.2 A retired code stays registered, and nothing emits it
+
+Added 2026-11-17 at the project owner's ruling, when
+`QC_HARNESS_FIXTURE_MISSING` gave way to `QC_HARNESS_ARTIFACT_MISSING`
+(`tier2_execution.md` section 7.6.2).
+
+**A retired code stays in the registry**, because results already stored,
+JUnit and the database an analysis reads, carry it, and a reader of that
+history has to resolve it. Its row in section 6.2 is struck through with the
+date and the code that replaced it, as a retired identifier's inventory row
+is (section 3.2).
+
+**Nothing emits it.** `cmn.registries.retired_codes` maps each retired code
+to its replacement. `require_registered_code` refuses a retired code naming
+the replacement, and `cmn.code_standards.retired_code_literals` reports a
+string constant in production code naming one, outside `cmn/registries.py`,
+where the mapping lives. `tests/` is not read, for the reason section 6.2.1
+gives. `MQC_CMN_UNI_112462` asserts both, the second with this repository's
+root and with a planted tree.
 
 ### 6.3 `QC_DATA_*`: ingestion diagnostics
 
@@ -3308,7 +3328,7 @@ survivor that was never computed.
 
 **This is the general rule and not a mutation-layer special case.** A
 precondition that the environment or the harness fails is a skip at every
-layer, which is why `QC_HARNESS_FIXTURE_MISSING` skips a graded case rather
+layer, which is why `QC_HARNESS_ARTIFACT_MISSING` skips a graded case rather
 than failing it. The mutation layer was the one place the rule had been
 written as an exception without anybody deciding to make one.
 
@@ -4783,7 +4803,6 @@ that is an instrument defect take different remedies.
 | Corpus or configuration diagnostic | `QC_DATA_` | failed, broken |
 | Instrument defect | Any other `QC_HARNESS_` code | failed, broken, skipped |
 | Skipped behind a foundation that did not hold | `QC_HARNESS_DEPENDENCY_UNMET` | skipped |
-| Skipped for a missing recording | `QC_HARNESS_FIXTURE_MISSING` | skipped |
 | Skipped for a missing artifact | `QC_HARNESS_ARTIFACT_MISSING` | skipped |
 | Skipped as a known failure in quarantine | `QC_HARNESS_QUARANTINED` | skipped |
 | Carrying no registered code | A non-passing result naming none | failed, broken, skipped |

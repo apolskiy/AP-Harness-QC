@@ -225,7 +225,8 @@ case repository's corpus:
 
 **The cost is one judge call per failing observation in a live run**, accepted
 at the ruling. A replay spends nothing and reads the store, and a judgement the
-store lacks is a `QC_HARNESS_FIXTURE_MISSING` skip exactly as before.
+store lacks is a `QC_HARNESS_ARTIFACT_MISSING` skip, kind `judgement`, as
+section 6.5 describes.
 
 #### 4.2.0 `--judge-on-failure` is for authoring a case, and it was never the defaults switch
 
@@ -2515,7 +2516,7 @@ error, and an error is the one outcome that says nothing about anything.
 
 | Raised | Code recorded | Means |
 |---|---|---|
-| `FixtureMissing` | `QC_HARNESS_FIXTURE_MISSING` | No judgement was recorded for this observation |
+| `FixtureMissing` | `QC_HARNESS_ARTIFACT_MISSING`, the result carrying the kind and the path in `missing_artifact` | No judgement was recorded for this observation, or the one recorded cannot be read (`tier2_execution.md` section 7.6.2). `QC_HARNESS_FIXTURE_MISSING` until 2026-11-17 |
 | `FixtureStale` | `QC_HARNESS_FIXTURE_STALE` | One was, under a different request or judge model |
 
 **The assertion results survive the skip**, which is the point. An observation
@@ -3420,6 +3421,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114143` | N | `a_correction_on_an_asserting_claim_is_refused` (5.3.2) |
 | `114144` | P | `a_clarification_without_figures_reaches_the_judge_verbatim` (4.2.0.1) |
 | `114145` | N | `a_clarification_to_an_injection_case_reaches_no_judge` (4.2.0.1) |
+| `114146` | N | `an_unreplayable_judgement_carries_the_missing_artifact` (6.5, `tier2_execution.md` 7.6.2) |
 | ~~`114005`~~ | | ~~`a_strategy_is_deterministic_for_identical_input`~~. **Retired 2026-10-16**, split into one case per input (`harness_test_taxonomy.md` section 1.1): `114017`, `114018`, `114019`, `114020`, `114021`. One case per registered strategy |
 | `114017` | P | `the_all_must_pass_strategy_is_deterministic` |
 | `114018` | P | `the_min_strategy_is_deterministic` |
@@ -3485,7 +3487,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 250 cases, 113 negative, 89 positive, 48 boundary.**
+**Inventory: 251 cases, 114 negative, 89 positive, 48 boundary.**
 
 `114313` to `114315` were added on 2026-11-05 with section 3.1.2: the judge is
 shown the system instruction, isolated like every other field the case author

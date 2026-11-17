@@ -3,7 +3,7 @@
 """Unit cases for recording a judge's reply and replaying it in later runs.
 
 Created: 2026-09-25
-Last updated: 2026-10-21
+Last updated: 2026-11-17
 
 Its cases check :mod:`execution.replay` and :class:`execution.judge_channel.JudgeChannel`.
 A recorded judgement replays for the same request, goes stale when the judge
@@ -250,7 +250,7 @@ class TestMQCJudgementFixture:
             observation_index=0,
         )
 
-        with pytest.raises(FixtureMissing, match="QC_HARNESS_FIXTURE_MISSING"):
+        with pytest.raises(FixtureMissing, match="QC_HARNESS_ARTIFACT_MISSING"):
             load_judgement(tmp_path, absent, _REQUEST, _MODEL)
 
         # It returns nothing a caller could mistake for a score, in any branch.

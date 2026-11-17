@@ -16669,3 +16669,53 @@ The Model Repository, which imports this checkout, was run against it
 unchanged: unit 295 of 295, exit 0. Its conftest does not yet exit 3 on a
 missing artifact, which is the next commit there.
 
+## 2026-11-17: Fixed a missing recording or judgement skipping without naming its file, and a malformed judgement crashing
+
+**A) What was wrong.** A replay skip for an absent recording or judgement
+carried `QC_HARNESS_FIXTURE_MISSING` and the case, but not the path, engine or
+observation index, so re-recording it meant reconstructing the file by hand.
+A judgement file present and unreadable (empty, not JSON, not an object, or
+missing its request hash, judge model or reply) escaped `load_judgement` as a
+`JSONDecodeError`, `TypeError` or `KeyError`, which the pipeline reported as
+an unanticipated error. A recording whose `response` was a list was read as an
+empty mapping. **B) Why.** The store's errors carried a message and no
+record, the judgement reader parsed without a guard, and the recording reader
+cast the response without checking its type.
+
+**What changed.** `FixtureMissing` carries a `MissingArtifact` of kind
+`recording` or `judgement`, with its path and whether it is absent or cannot
+be read, and its message leads with `QC_HARNESS_ARTIFACT_MISSING`. Both
+readers turn any unreadable file into that error. `DispatchOutcome` and
+`EvaluationResult` gained a `missing_artifact` field, never emitted, which the
+case-level skip of the next commit reads. `QC_HARNESS_FIXTURE_MISSING` is
+retired by the owner's ruling of 2026-11-17: `cmn.registries.retired_codes`
+maps it to its replacement, `require_registered_code` refuses it, and
+`cmn.code_standards.retired_code_literals` reports production code naming it.
+The band-summary gloss and report category for it are removed, and the prose
+describing current behaviour now names the new code; history sections keep
+the old one. Design `tier2_execution.md` section 7.6.2,
+`harness_test_taxonomy.md` section 6.2.2, `tier3_evaluation.md` section 6.5;
+requirements `MQC_REQ_HAR_EXE_0150`, `MQC_REQ_HAR_EVL_0095`,
+`MQC_REQ_HAR_CMN_0260`; cases `113621` to `113625`, `114146`, `112462`, and
+seven existing cases amended to assert the new code.
+
+**Injection.** Seven defects, seven caught, each exiting 3: an absent
+recording naming the wrong kind (`113621`), a recording with a non-mapping
+response read (`113622`), a malformed judgement escaping as a decoding error
+(`113624`), the dispatch outcome and the evaluation result dropping the
+missing artifact (`113625`, `114146`), and a retired code emitted or named in
+production code unreported (`112462`). Baseline exit 0 after restore.
+
+**Digressions the user spotted, and the fix.** None from the user. Mine,
+caught by the gate before handoff: `113622`'s name ran past 60 characters and
+was shortened in the module, the inventory and the RTM; a case table in 7.6.2
+had no implementation rows behind it and became prose; `113625` named a step
+with no verification after it; and pylint reported two long docstring lines,
+one local too many in `_judge_and_aggregate`, and an unused argument in
+`stored_judge`.
+
+**Verified.** Harness: unit 1137 of 1137, system 24 of 24, pylint exit 0, all
+rerun after the last change. Preconditions only; no graded band and no
+mutation audit ran. The Model Repository against this checkout, unchanged:
+unit 295 of 295, exit 0.
+

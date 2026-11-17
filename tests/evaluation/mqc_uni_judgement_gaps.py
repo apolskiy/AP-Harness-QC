@@ -3,14 +3,16 @@
 """Unit cases for evaluating a response whose judgement could not be obtained.
 
 Created: 2026-10-06
-Last updated: 2026-10-21
+Last updated: 2026-11-17
 
 Its cases check :func:`evaluation.pipeline.evaluate_observation` when the judge
 raises ``FixtureMissing`` or ``FixtureStale``, or the provider could not answer.
 The case is skipped as unavailable and keeps its assertion results, rather than
-failing.
+failing, and a judgement the store cannot find or read carries
+``QC_HARNESS_ARTIFACT_MISSING`` and the missing artifact.
 
-Specified by `tier3_evaluation.md` section 6.5.
+Specified by `tier3_evaluation.md` section 6.5 and `tier2_execution.md`
+section 7.6.2.
 
 **Split from `mqc_uni_pipeline.py` on 2026-10-06**, which stood at 895 lines
 and would have passed the 1000-line ceiling with this case in it. The runway
@@ -29,15 +31,20 @@ failures, that a `QC_HARNESS_*` event is a skip and never a failure.
 # TestMQCJudgementAvailability
 #   114115  an_unavailable_judgement_skips_and_keeps_its_assertions
 #   114117  a_judge_the_provider_could_not_answer_is_unavailable
+#   114146  an_unreplayable_judgement_carries_the_missing_artifact
 # ------------------------------------------------------------ end of cases
+
+from pathlib import Path
 
 import pytest
 
+from cmn.case_steps import step
+from cmn.missing_artifact import ARTIFACT_MISSING, MissingArtifact
 from evaluation.pipeline import evaluate_observation
-from execution.replay import FixtureMissing, FixtureStale
+from execution.replay import FixtureMissing, FixtureStale, JudgementKey
 from ingestion.schemas import GoldenRuleSet
 
-from tests.evaluation.judge_doubles import refusing_judge
+from tests.evaluation.judge_doubles import refusing_judge, stored_judge
 
 # THE FIXTURE AND THE CONTEXT BUILDER ARE IMPORTED, NOT COPIED. A second
 # copy of a fixture builder is the drift this project keeps paying for, and
@@ -83,8 +90,8 @@ class TestMQCJudgementAvailability:
             None
         """
         for error, expected in (
-            (FixtureMissing("QC_HARNESS_FIXTURE_MISSING: no judgement"),
-             "QC_HARNESS_FIXTURE_MISSING"),
+            (FixtureMissing(MissingArtifact(kind="judgement", path="j/0.json", detail="is absent")),
+             ARTIFACT_MISSING),
             (FixtureStale("QC_HARNESS_FIXTURE_STALE: recorded elsewhere"),
              "QC_HARNESS_FIXTURE_STALE"),
         ):
@@ -149,3 +156,51 @@ class TestMQCJudgementAvailability:
             refusing_judge(ValueError("QC_HARNESS_PARSER_ERROR: the reply was not JSON")),
         )
         assert garbled.judge_skipped_reason == "judge_reply_unusable", garbled.judge_skipped_reason
+
+    def MQC_EVL_UNI_114146_an_unreplayable_judgement_carries_the_missing_artifact(
+        self,
+        rules: GoldenRuleSet,
+        tmp_path: Path,
+    ) -> None:
+        """An absent or malformed stored judgement is unavailable, with the code and the record.
+
+        Design: ``tier3_evaluation.md`` section 6.5, ``tier2_execution.md``
+        section 7.6.2.
+
+        Args:
+            rules (GoldenRuleSet): The rule set.
+            tmp_path (Path): The fixture root.
+
+        Returns:
+            None
+        """
+        step(1, "evaluate an observation whose judgement the store does not hold")
+        key = JudgementKey(
+            case_id="MQC_TASK_alpha::MQC_RULE_grounding", candidate_engine="claude",
+            judge_engine="gemini", observation_index=0,
+        )
+        absent = evaluate_observation(
+            observation_context(rules, "It requires five years of Python.", produced_output=True),
+            stored_judge(tmp_path, key),
+        )
+        assert (
+            absent.judge_skipped_reason == "judgement_unavailable"
+            and ARTIFACT_MISSING in absent.taxonomy_codes
+            and absent.missing_artifact is not None
+            and absent.missing_artifact.kind == "judgement"
+            and absent.missing_artifact.path == str(key.path(tmp_path))
+            and absent.assertion_results
+        ), (absent.judge_skipped_reason, absent.taxonomy_codes, absent.missing_artifact)
+
+        step(2, "evaluate one whose stored judgement will not parse")
+        key.path(tmp_path).parent.mkdir(parents=True, exist_ok=True)
+        key.path(tmp_path).write_text("{ truncated", encoding="utf-8")
+        garbled = evaluate_observation(
+            observation_context(rules, "It requires five years of Python.", produced_output=True),
+            stored_judge(tmp_path, key),
+        )
+        assert (
+            garbled.judge_skipped_reason == "judgement_unavailable"
+            and ARTIFACT_MISSING in garbled.taxonomy_codes
+            and "QC_HARNESS_PARSER_ERROR" not in garbled.taxonomy_codes
+        ), (garbled.judge_skipped_reason, garbled.taxonomy_codes)

@@ -76,6 +76,7 @@ modules:
   tests/execution/mqc_uni_preflight.py: Engine dispatch
   tests/execution/mqc_uni_refusal.py: Engine dispatch
   tests/execution/mqc_uni_replay.py: Engine dispatch
+  tests/execution/mqc_uni_replay_artifacts.py: Engine dispatch
   tests/execution/mqc_uni_reproduction.py: Engine dispatch
   tests/execution/mqc_uni_spending.py: Engine dispatch
 

@@ -3,7 +3,7 @@
 """Unit tests for what a run publishes about each case and each priority band.
 
 Created: 2026-10-02
-Last updated: 2026-11-06
+Last updated: 2026-11-17
 
 Its cases check ``observation_parameters`` and ``vendor_report`` in
 ``cmn/reporting.py``, ``emit_result`` in ``cmn/metadata.py`` and the band summary
@@ -451,9 +451,9 @@ class TestMQCBandSummary:
         """
         skips = [
             ("MQC_EVL_SEC_154108_delimiter",
-             "QC_HARNESS_FIXTURE_MISSING: produced no measurement"),
+             "QC_HARNESS_ARTIFACT_MISSING: produced no measurement"),
             ("MQC_EVL_SEC_154104_base64",
-             "QC_HARNESS_FIXTURE_MISSING: produced no measurement"),
+             "QC_HARNESS_ARTIFACT_MISSING: produced no measurement"),
             ("MQC_EVL_EVAL_134200_absent",
              "QC_HARNESS_DEPENDENCY_UNMET: foundational case did not hold"),
             ("MQC_EVL_EVAL_134201_altered", "QC_HARNESS_QUARANTINED: parked"),
@@ -479,7 +479,7 @@ class TestMQCBandSummary:
         # EACH CARRIES ITS CODE AND WHAT THE CODE MEANS.
         joined = "\n".join(named)
         for code, meaning in (
-            ("QC_HARNESS_FIXTURE_MISSING", "no recording for this engine, response or judgement"),
+            ("QC_HARNESS_ARTIFACT_MISSING", "an artifact this case reads is missing or unreadable"),
             ("QC_HARNESS_DEPENDENCY_UNMET",
              "blocked by a prerequisite at the same or a higher priority that did not hold"),
             ("QC_HARNESS_QUARANTINED", "a known failure in quarantine"),

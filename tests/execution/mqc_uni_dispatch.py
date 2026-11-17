@@ -3,7 +3,7 @@
 """Unit cases for how requests to a provider are paced, retried and stopped.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-17
 
 Its cases check :func:`execution.dispatch.dispatch_case` and
 ``DispatchSession``. Live requests are spaced at the configured interval and
@@ -548,7 +548,7 @@ class TestMQCCircuitBreaker:
 
         for _ in range(4):
             missing = dispatch_case(minimal_case, "claude", plan, session)
-            assert missing.taxonomy_code == "QC_HARNESS_FIXTURE_MISSING", missing.taxonomy_code
+            assert missing.taxonomy_code == "QC_HARNESS_ARTIFACT_MISSING", missing.taxonomy_code
         assert session.consecutive_failures == 0, (
             "a missing fixture counted toward the breaker's streak, so a replay "
             "reports an engine that stopped answering"

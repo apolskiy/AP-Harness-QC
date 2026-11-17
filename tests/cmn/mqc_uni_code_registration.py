@@ -1,20 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Unit test that every failure code this harness's own code names is registered.
+"""Unit tests that every failure code this harness's own code names is registered and live.
 
 Created: 2026-10-21
-Last updated: 2026-10-21
+Last updated: 2026-11-17
 
-Its case checks ``unregistered_code_literals`` in ``cmn/code_standards.py``,
-which reads every string in the repository's production code, outside
-``tests/``, for a ``QC_LLM_``, ``QC_HARNESS_``, ``QC_DATA_`` or ``QC_SEC_`` code
-and reports each one ``cmn.registries.registered_codes`` does not hold.
+Its cases check ``unregistered_code_literals`` and ``retired_code_literals`` in
+``cmn/code_standards.py``, which read every string in the repository's
+production code, outside ``tests/``, for a ``QC_LLM_``, ``QC_HARNESS_``,
+``QC_DATA_`` or ``QC_SEC_`` code: the first reports each one
+``cmn.registries.registered_codes`` does not hold, the second each one
+``cmn.registries.retired_codes`` retired, outside the registry that maps it.
+``require_registered_code`` refuses a retired code naming its replacement.
 
 An unregistered code reaches a log line or an exception and no tally by
-root-cause class ever counts it. A failure here is **not a model finding**, so
-the module carries no priority marker, per ``framework-rules.md`` section 3.3.
+root-cause class ever counts it, and a retired one splits a tally in two. A
+failure here is **not a model finding**, so the module carries no priority
+marker, per ``framework-rules.md`` section 3.3.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` section 6.2.1.
+Specified by ``docs/design/harness_test_taxonomy.md`` sections 6.2.1 and 6.2.2.
 """
 
 # ------------------------------------------------------------- cases in here
@@ -22,6 +26,7 @@ Specified by ``docs/design/harness_test_taxonomy.md`` section 6.2.1.
 #
 # TestMQCCodeRegistration
 #   112262  every_code_production_code_names_is_registered
+#   112462  a_retired_code_is_refused_and_named_by_nothing
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -29,9 +34,14 @@ from pathlib import Path
 import pytest
 
 from cmn.case_steps import step
-from cmn.code_standards import unregistered_code_literals
+from cmn.code_standards import retired_code_literals, unregistered_code_literals
+from cmn.metadata import require_registered_code
+from cmn.registries import registered_codes, retired_codes
 
 pytestmark = pytest.mark.unit
+
+# THE FIRST CODE RETIRED (`harness_test_taxonomy.md` section 6.2.2).
+_RETIRED = "QC_HARNESS_FIXTURE_MISSING"
 
 
 class TestMQCCodeRegistration:
@@ -66,3 +76,47 @@ class TestMQCCodeRegistration:
         assert unregistered_code_literals(tmp_path) == [
             "cmn/planted.py:2 QC_HARNESS_INVENTED_HERE"
         ], f"the planted tree reported {unregistered_code_literals(tmp_path)}"
+
+    def MQC_CMN_UNI_112462_a_retired_code_is_refused_and_named_by_nothing(
+        self, tmp_path: Path
+    ) -> None:
+        """A retired code stays registered, is refused when emitted and named by no production code.
+
+        Design: ``harness_test_taxonomy.md`` section 6.2.2.
+
+        Args:
+            tmp_path (Path): A repository root for the positive control.
+
+        Returns:
+            None
+        """
+        step(1, "read the retired codes and the registry")
+        retired = retired_codes()
+        assert (
+            retired.get(_RETIRED) == "QC_HARNESS_ARTIFACT_MISSING"
+            and _RETIRED in registered_codes()
+        ), retired
+
+        step(2, "emit the retired code")
+        with pytest.raises(ValueError, match="QC_HARNESS_ARTIFACT_MISSING"):
+            require_registered_code(_RETIRED)
+
+        step(3, "read this repository's production code")
+        found = retired_code_literals(Path(__file__).resolve().parents[2])
+        assert not found, "production code names retired codes: " + "; ".join(found)
+
+        step(4, "plant a module naming the retired code, and the registry naming it too")
+        (tmp_path / "cmn").mkdir()
+        (tmp_path / "cmn" / "planted.py").write_text(
+            f'GONE = "{_RETIRED}"\n', encoding="utf-8"
+        )
+        (tmp_path / "cmn" / "registries.py").write_text(
+            f'MAPPED = {{"{_RETIRED}": "QC_HARNESS_ARTIFACT_MISSING"}}\n', encoding="utf-8"
+        )
+        (tmp_path / "tests").mkdir()
+        (tmp_path / "tests" / "planted_case.py").write_text(
+            f'IGNORED = "{_RETIRED}"\n', encoding="utf-8"
+        )
+        assert retired_code_literals(tmp_path) == [
+            f"cmn/planted.py:1 {_RETIRED}"
+        ], f"the planted tree reported {retired_code_literals(tmp_path)}"
