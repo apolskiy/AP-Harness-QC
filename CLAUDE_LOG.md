@@ -16495,3 +16495,121 @@ by the hook, as the rule says; it went into a script file.
 Preconditions only; no graded band runs here. The Model Repository, which
 imports this checkout, was run against it unchanged: unit 295 of 295, exit 0.
 
+## 2026-11-17: Every banned shell shape issued since 2026-09-18, refused or run
+
+**Why.** To estimate later, for the portfolio, how many tokens the
+`PreToolUse` hook saved. **A refusal is the saving and a call that ran is the
+waste**: a refused call costs one short message and is rewritten as a script
+file, while one that ran could do something other than what was written and
+still exit 0, and its cost lands later as a defect found by reading.
+
+**How it was counted.** Every session transcript under `~/.claude/projects`,
+27 files across three project folders, subagents included, dated 2026-09-18 to
+2026-11-17. Each Bash and PowerShell command was classified with the hook's
+own patterns, loaded from `~/.claude/deny-banned-bash.py`, so a shape is named
+exactly as the hook names it: a heredoc first, then a program passed to
+python, then `sed` in place. A call counts as refused when its result opens
+with the hook's sentence. The scanner and the per-call dataset sit outside
+both repositories, in the portfolio material directory:
+`C:\Users\vorns\PythonProject\portfolio\banned_shell_attempts.py` and
+`banned_shell_attempts.csv` beside it, 3327 rows.
+
+**The ban dates the periods are measured against**, from this log:
+
+| Shape | Refused on Bash from | Refused on PowerShell from |
+|---|---|---|
+| Heredoc, bare `python -` | 2026-10-22 | 2026-11-09 |
+| `python -c`, `sed -i` | 2026-10-28 | 2026-11-09 |
+
+**3327 calls carried a banned shape: 3289 ran and 38 were refused.**
+
+| Shape | Tool | Ran before its ban | Ran after its ban | Refused |
+|---|---|---|---|---|
+| Heredoc | Bash | 2051 | 1 | 12 |
+| `python -c` | Bash | 992 | 15 | 16 |
+| `python -c` | PowerShell | 19 | 0 | 2 |
+| `sed -i` | Bash | 198 | 2 | 4 |
+| Bare `python -` | Bash | 5 | 6 | 4 |
+| **Total** | | **3265** | **24** | **38** |
+
+**The 24 that ran after their ban date** fall on two kinds of day. Twenty
+were on a ban's own day, five on 2026-10-22 and fifteen on 2026-10-28, which
+the date alone cannot place before or after the hook took effect. Four were on
+later days, when the hook of that date did not refuse them and today's
+patterns do: one bare `python -` on 2026-10-25, one `python -c` on 2026-10-29,
+and one `python -c` each on 2026-11-06 and 2026-11-09, the days the
+substitution gap and the `python.exe` gap were closed.
+
+**Of the 3289 that ran, 144 ended in a tool error**: 76 heredocs, 61
+`python -c`, 5 `sed -i` and 2 bare `python -`. **That is the only waste the
+transcripts measure directly, and it is the smaller part.** These shapes are
+banned because they fail without an error, so a call that ran and ended
+cleanly may still have written the wrong file or run a different program. The
+rows of `code-style.md` section 8.1 are the measured instances of that.
+
+**Every refusal**, from the main session in each case, none from a subagent:
+
+| Date | Session | Tool | Shape | Output tokens of the issuing message | Refusal characters |
+|---|---|---|---|---|---|
+| 2026-10-24 | `a84884d7` | Bash | Heredoc | 133 | 324 |
+| 2026-10-28 | `a84884d7` | Bash | Heredoc | 122 | 324 |
+| 2026-10-29 | `a84884d7` | Bash | `python -c` | 519 | 459 |
+| 2026-10-29 | `a84884d7` | Bash | Heredoc | 117 | 356 |
+| 2026-10-29 | `a84884d7` | Bash | `python -c` | 1757 | 459 |
+| 2026-10-29 | `a84884d7` | Bash | `python -c` | 1313 | 459 |
+| 2026-10-29 | `a84884d7` | Bash | `python -c` | 189 | 459 |
+| 2026-10-29 | `a84884d7` | Bash | Heredoc | 152 | 356 |
+| 2026-10-29 | `a84884d7` | Bash | Heredoc | 500 | 356 |
+| 2026-10-29 | `a84884d7` | Bash | Bare `python -` | 112 | 459 |
+| 2026-10-29 | `a84884d7` | Bash | Heredoc | 118 | 356 |
+| 2026-10-29 | `a84884d7` | Bash | Bare `python -` | 109 | 459 |
+| 2026-10-29 | `a84884d7` | Bash | `sed -i` | 147 | 424 |
+| 2026-10-29 | `a84884d7` | Bash | `python -c` | 793 | 459 |
+| 2026-10-30 | `a84884d7` | Bash | Heredoc | 147 | 356 |
+| 2026-10-30 | `a84884d7` | Bash | `python -c` | 1017 | 459 |
+| 2026-10-30 | `a84884d7` | Bash | `python -c` | 469 | 459 |
+| 2026-10-30 | `a84884d7` | Bash | `python -c` | 202 | 459 |
+| 2026-11-01 | `a84884d7` | Bash | `python -c` | 374 | 459 |
+| 2026-11-01 | `a84884d7` | Bash | Bare `python -` | 21 | 459 |
+| 2026-11-01 | `a84884d7` | Bash | `python -c` | 223 | 459 |
+| 2026-11-01 | `a84884d7` | Bash | Heredoc | 122 | 356 |
+| 2026-11-01 | `a84884d7` | Bash | `python -c` | 992 | 459 |
+| 2026-11-02 | `a84884d7` | Bash | Heredoc | 115 | 356 |
+| 2026-11-02 | `a84884d7` | Bash | Bare `python -` | 183 | 459 |
+| 2026-11-02 | `a84884d7` | Bash | `sed -i` | 184 | 424 |
+| 2026-11-03 | `a84884d7` | Bash | `python -c` | 839 | 459 |
+| 2026-11-03 | `a84884d7` | Bash | `python -c` | 257 | 459 |
+| 2026-11-04 | `a84884d7` | Bash | `python -c` | 146 | 459 |
+| 2026-11-05 | `a84884d7` | Bash | Heredoc | 1268 | 356 |
+| 2026-11-09 | `a84884d7` | Bash | `python -c` | 462 | 459 |
+| 2026-11-09 | `a84884d7` | PowerShell | `python -c` | 257 | 465 |
+| 2026-11-09 | `a84884d7` | Bash | Heredoc | 257 | 356 |
+| 2026-11-09 | `a84884d7` | Bash | `sed -i` | 1157 | 424 |
+| 2026-11-10 | `df44bf35` | Bash | Heredoc | 745 | 356 |
+| 2026-11-10 | `df44bf35` | Bash | `sed -i` | 1056 | 424 |
+| 2026-11-10 | `df44bf35` | Bash | `python -c` | 534 | 465 |
+| 2026-11-17 | `a84884d7` | PowerShell | `python -c` | 408 | 471 |
+
+**What the token figures measure, and what they do not.**
+
+| Figure | Value | Measures |
+|---|---|---|
+| Output tokens of the messages that issued a refused call | 17259 | The cost of the refused attempts, an upper bound: a message also carries its text and any other call |
+| Characters of refusal returned | 16026 | The input cost of the refusals, roughly 4000 tokens at four characters a token |
+| Output tokens of the messages that issued a call that ran | 3404300 | An upper bound on generating those calls, not the waste: a heredoc that wrote the right file wasted nothing |
+| Tokens spent finding and repairing what a call that ran did wrong | **Not measured** | The waste the hook prevents. It needs each call's follow-up read, which the dataset does not link |
+
+**For the estimate, the dataset supports two numbers.** The prevention cost
+is measured: about 21000 tokens across 38 refusals. The waste avoided is 38
+times what one call that ran cost in repair, and that per-call figure is the
+part still to be derived, from the 144 calls that errored and from the
+section 8.1 instances, which are the ones somebody found.
+
+**Two corrections to the count, made before it was written here.** A
+transcript keeps an undated copy of some lines, and the first pass took the
+undated copy where it came first, leaving 30 refusals without a date or
+token figure; the dated line now wins. And one "refusal" was a `sed -n`
+printing the hook's own source, which contains the refusal sentence; a
+refusal now has to open with that sentence, and the call is counted as the
+allowed read it was.
+
