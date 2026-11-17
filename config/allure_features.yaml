@@ -141,6 +141,7 @@ modules:
   tests/cmn/mqc_uni_metadata.py: The result record
   tests/cmn/mqc_uni_passw.py: The result record
   tests/cmn/mqc_uni_missing_artifact.py: The result record
+  tests/cmn/mqc_uni_replay_gap.py: The result record
   tests/cmn/mqc_uni_pricing.py: The result record
   tests/cmn/mqc_uni_provenance.py: The result record
   tests/cmn/mqc_uni_reporting.py: The result record

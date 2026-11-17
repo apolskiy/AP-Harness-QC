@@ -59,7 +59,7 @@ from cmn.calibration_runs import deselect_unrequested_calibration
 from cmn.case_steps import begin_case_steps, record_assertion, record_call
 from cmn.config import load_env_file, warn_orphan_credentials
 from cmn.emission import begin_case, publish_result
-from cmn.missing_artifact import refuse_missing_artifacts
+from cmn.missing_artifact import label_missing_artifact_skip, refuse_missing_artifacts
 from cmn.mutation_guard import imported_harness_root, refuse_if_mutating
 from cmn.passw import mark_passw, passw_count, refuse_precondition_warnings
 from cmn.run_context import adopt_run_context, publish_preconditions_record
@@ -313,6 +313,9 @@ def pytest_runtest_makereport(item: pytest.Item, call: Any) -> Any:
         Any: The hook result, yielded back to pytest unchanged.
     """
     outcome = yield
+    # A MISSING ARTIFACT RAISED IN THE CALL is labelled as one raised at setup
+    # (taxonomy section 5.1.3.1).
+    label_missing_artifact_skip(item, call, outcome.get_result())
     # A CRASH IS BROKEN, NOT FAILED (taxonomy section 5.1.1).
     mark_broken(outcome.get_result(), call)
     # A PASS WITH A WARNING IS COUNTED APART (taxonomy section 5.1.2).

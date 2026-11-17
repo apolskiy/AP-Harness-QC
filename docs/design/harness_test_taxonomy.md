@@ -1042,6 +1042,51 @@ repository's spend reports and corpus pairs in its `consumer_ci.md`.
 `MQC_CMN_UNI_112446` to `112450` assert the skip, its JUnit properties, its
 labels, the refusal of a malformed record and the exit code.
 
+##### 5.1.3.1 A replay gap skips the whole case, decided once its observations have replayed
+
+Added 2026-11-17 at the project owner's ruling: "in replay case if judgement or
+recording is missing, test must be rerecorded. Running a partially recorded
+test is a waste, because that tests nothing."
+
+**In replay, a case any of whose observations lacks its recording or its
+judgement, or reads a stale one, is skipped whole and re-recorded.** It is
+never decided on the observations that were present: not passed on them, not
+failed on them, and not reported inconsistent across them. The rule it
+replaces, the case repository's `consumer_ci.md` section 9.4.5, failed a case
+on a measured failure and skipped a partial pass.
+
+**The decision is made after the case's observations have replayed, not at
+setup**, because which judgements a case needs is known only then. An
+observation the screen aborts, or whose assertions fail without
+`--judge-on-failure`, is never judged, and a failing observation earns two
+more (`cmn_verdict_and_cli.md` section 4.9.2.2). Replay spends nothing, so
+running the observations first costs no tokens.
+
+| Gap | Where it is found | Skip |
+|---|---|---|
+| A recording absent or unreadable | Dispatch, at the first observation lacking one | `QC_HARNESS_ARTIFACT_MISSING`, kind `recording`, the path |
+| A judgement absent or unreadable | After every observation has replayed | `QC_HARNESS_ARTIFACT_MISSING`, kind `judgement`, the path of the first |
+| A recording or judgement that no longer answers its request | As above | `QC_HARNESS_FIXTURE_STALE`, re-record |
+
+**A gap outside the replay store is not this rule's.** A live judge that was
+unreachable, or withheld with `--judge-mode off`, is left to the caller, since
+neither is a file to re-record.
+
+**A skip raised during the call carries what a setup skip carries.** A case
+holds no pytest item, so it cannot call `skip_for_missing_artifact`.
+`raise_missing_artifact` raises `MissingArtifactSkip`, pytest's own skip
+carrying the record, and `label_missing_artifact_skip`, called from the
+makereport hook, adds the JUnit properties and the Allure label markers to the
+item and to the report. Allure reads an item's labels at teardown, after the
+call, so the labels reach it. The skip then counts toward the exit 3 of section
+5.1.3 like any other.
+
+`cmn.missing_artifact.skip_unreplayed_case` reads one result per observation
+and skips where any carries a replay gap, returning nothing otherwise.
+`MQC_CMN_UNI_112463` to `112467` assert the whole-case skip for a missing and a
+stale judgement, a case with no gap left to its caller, and the call-time skip's
+JUnit properties, labels and exit code.
+
 ### 5.2 Adjudication is the reviewer's role (A7.1)
 
 The suite records outcomes. It does not diagnose them. Determining whether a pattern across engines indicates a flaky test, a defect affecting one or several engines, or an environment that never initialised is the reviewer's call: human, or a downstream analysis over the accumulated record.

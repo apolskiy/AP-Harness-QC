@@ -29,6 +29,26 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A replay case missing a recording or judgement is skipped whole, 2026-11-17
+
+**Why.** A replay case missing the judgement of some observations was still
+decided on the rest: a measured failure failed it and a partial pass skipped
+it, so a partially recorded case could report a finding on evidence that tests
+nothing. And a missing-artifact skip could only be raised at setup, where a
+pytest item is in reach, so a skip found during a case's call carried no
+artifact kind or path and did not count toward exit 3.
+
+**What changed.** `skip_unreplayed_case` reads a case's observations once they
+have replayed and skips the whole case for the first missing judgement, with
+`QC_HARNESS_ARTIFACT_MISSING` naming it, or the first stale one, with
+`QC_HARNESS_FIXTURE_STALE`. An unreachable or withheld judge is left to the
+caller. `raise_missing_artifact` raises the skip from inside a call, and
+`label_missing_artifact_skip`, called from the makereport hook, gives it the
+JUnit properties and Allure labels a setup skip carries, so it counts toward
+exit 3. Design `harness_test_taxonomy.md` section 5.1.3.1, requirement
+`MQC_REQ_HAR_CMN_0261`, cases `112463` to `112467`. README: 1170 test cases,
+444 requirements.
+
 ### A missing recording or judgement names the file, and a malformed judgement no longer crashes, 2026-11-17
 
 **Why.** A replay skip for a missing recording or judgement named the code and

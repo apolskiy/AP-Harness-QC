@@ -16719,3 +16719,48 @@ rerun after the last change. Preconditions only; no graded band and no
 mutation audit ran. The Model Repository against this checkout, unchanged:
 unit 295 of 295, exit 0.
 
+## 2026-11-17: Fixed a partially recorded replay case being decided on the observations present
+
+**A) What was wrong.** In replay, a case whose judgement was missing for some
+observations was decided on the rest: a measured failure failed it, a partial
+pass skipped it. A missing-artifact skip could only be raised at setup, so one
+found during a case's call carried no kind or path and did not count toward
+exit 3. **B) Why.** The partial-population rule (`consumer_ci.md` section
+9.4.5) predates the owner's ruling of 2026-11-17, "Running a partially recorded
+test is a waste, because that tests nothing", and the labelling needed a pytest
+item, which a case's call does not hold.
+
+**What changed.** `skip_unreplayed_case` reads a case's observations once they
+have replayed and skips the whole case for the first missing judgement, with
+`QC_HARNESS_ARTIFACT_MISSING` naming it, or the first stale one, with
+`QC_HARNESS_FIXTURE_STALE`. The owner chose deciding after the observations
+rather than at setup, since which judgements a case needs is known only then.
+An unreachable or withheld judge is left to the caller, which is my reading
+and not yet ruled on. `raise_missing_artifact` raises `MissingArtifactSkip`,
+pytest's skip carrying the record, and `label_missing_artifact_skip`, called
+from this repository's makereport hook, adds the JUnit properties and Allure
+labels. Allure reads labels at teardown, after the call, so the labels reach
+it. Design `harness_test_taxonomy.md` section 5.1.3.1; requirement
+`MQC_REQ_HAR_CMN_0261`; cases `112463` to `112467`. The Model Repository
+adopts it in the next commit there.
+
+**Injection.** Seven defects, seven caught, each exiting 3: a missing
+judgement not skipping (`112463`), a stale one not skipping (`112464`), any
+unavailable judgement skipping (`112465`), the call-time skip raised as a plain
+skip (`112463`), the report or the item left unlabelled (`112466`, `112467`),
+and any error carrying an artifact labelled as the skip (`112467`).
+
+**Digressions the user spotted, and the fix.** None from the user. Mine: the
+last injection went NOT CAUGHT on the first run, because `112467` tested an
+unrelated error carrying no artifact. `FixtureMissing` carries one and is not a
+skip, so a crash raising it would have been labelled a missing artifact; the
+case now uses it. I had also planned the makereport helper on the wrong
+premise, that labels added during the call would miss Allure; reading
+allure-pytest showed it reads them at teardown, and the helper is needed only
+because a case holds no item.
+
+**Verified.** Harness: unit 1142 of 1142, system 24 of 24, pylint exit 0, all
+after the last change. Preconditions only; no graded band and no mutation
+audit ran. The Model Repository against this checkout, unchanged: unit 295 of
+295, exit 0.
+
