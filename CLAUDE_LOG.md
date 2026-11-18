@@ -16881,3 +16881,43 @@ carried outcomes, for the preconditions record, which section 7.1.4 holds;
 corrected. And the script appending this entry first carried doubled
 backslashes in its newline arguments, the slip already made once this session;
 fixed before it ran.
+
+## 2026-11-18: The Served Model Guards The Carried Outcomes
+
+**Why.** The owner's ruling of 2026-11-17: a carrier is kept "80 days or new
+model shows up", whichever comes first. The case repository's version probe
+deletes a changed engine's carried outcomes weekly; the second mechanism the
+owner chose with it, the carry file recording the served model so a band
+under another skips what rests on it, was recorded there as not built. That
+is this commit.
+
+**What changed.** `adopt_provenance` already asks a live provider what it
+serves at configuration; it now also sets `config.mqc_served_digest` and
+`config.mqc_served_version`, empty where nothing was read. `Provenance` gains
+both fields: `served_digest` joins `_GUARDED`, and `served_version` is
+recorded beside `band` and never compared, since a pinned identifier cannot
+move. `_run_provenance` stamps both, so a band whose digest differs refuses
+the record with `QC_HARNESS_PREREQUISITE_MISMATCH` naming `served_digest`, and
+the existing section 10.28.8 path skips only the cases resting on a carried
+foundation, as `carried_outcome`. Design `cmn_verdict_and_cli.md` section
+7.6.3, with the 7.6.1 table extended; requirement `MQC_REQ_HAR_CMN_0264`;
+cases `112473` and `112474`. README 447 requirements and 1177 test cases.
+
+**Empty against a value is a mismatch.** A live band that could not read its
+provider, against a record that names a digest, or the reverse, refuses the
+record: a foundation whose model nobody could name is not known to be the
+model now served. Replay compares empty with empty and is unchanged. A record
+written before this field existed carries none, so in a live run it is
+refused once.
+
+**A stale statement corrected on the way.** Section 7.6.1 said the record is
+per job and dies with the runner. The case repository uploads it for the next
+band job and keeps it eighty days, which is why the model has to be checked;
+section 7.6.3 says so.
+
+**Injection.** Before the change `112473` failed constructing a `Provenance`
+with `served_digest` and `112474` found nothing on the config. Removing
+`served_digest` from `_GUARDED` failed both: the dependent ran under a revised
+model, and the published record carried no digest. Restored.
+
+**Digressions the user spotted, and the fix.** None this commit.

@@ -2481,6 +2481,8 @@ So the record carries provenance and the load compares it field by field:
 | `engine` | The same provider |
 | `mode` | Observed or replayed |
 | `platform` | The harness is verified on two, and a P1 failing on one is the case this whole topology exists to surface |
+| `served_digest` | The same model the engine served, in a live run (section 7.6.3) |
+| `served_version` | Which version that was, for the reader; not compared |
 | `band` | Which execution wrote it |
 
 **`rule_set_hash` is the primary guard**, and the refs are secondary, for the
@@ -2557,6 +2559,54 @@ defect has.
 `adopt_prerequisites`.** Recording stays idempotent, so the call where the plan
 is built finds the digest already set. `MQC_CAS_UNI_115757` runs the P0 band and
 then the P1 band carrying its outcomes, as the consumer's gate does.
+
+#### 7.6.3 The served model guards the record too
+
+Added 2026-11-18 at the project owner's ruling: a carried outcome is kept "80
+days or new model shows up", whichever comes first, and the carry file records
+the served model version so that a band reading it under another version skips
+the cases resting on it.
+
+**What was wrong.** A foundation's outcome is a measurement of one served
+model. The record's guards named the code, the rules, the engine, the mode and
+the platform, and not the model, so a band re-run after the provider revised
+the model behind an unchanged identifier adopted foundations measured on the
+old one. The case repository keeps the record eighty days and deletes it when
+its weekly version probe sees a change (its `consumer_ci.md` sections 3.12.1.2
+and 4.23.3); a change in the week before the probe ran was not caught by
+anything.
+
+**`served_digest` is a guarded field.** `adopt_provenance` already asks a live
+provider what it serves, at configuration, and it now also sets
+`config.mqc_served_digest` and `config.mqc_served_version` from the answer.
+`_run_provenance` stamps both on the record, and a reader whose digest differs
+refuses it with `QC_HARNESS_PREREQUISITE_MISMATCH` naming `served_digest`, so
+the cases resting on a carried foundation skip as `carried_outcome` and the
+rest of the band runs (section 10.28.8). Configuration runs before session
+start, so the digest is set before `adopt_prerequisites` compares it.
+
+**The digest, not the version.** `execution.preflight.served_digest` is taken
+over everything the provider declares because a pinned identifier cannot move,
+and comparing it would detect nothing (`tier2_execution.md` section 5.1). The
+version is recorded beside it for a reader of the record and is not compared.
+
+| The run | `served_digest` on the record and in the run |
+|---|---|
+| Replay | Empty on both: a replay asks no provider, its recording names what produced it, and empty matches empty |
+| Live, the provider answered on both sides | Compared, and a differing digest refuses the record |
+| Live, the provider could not be read on one side | **Empty against a value, which differs, so the record is refused.** A foundation whose model nobody could name is not known to be the model now served |
+| A record written before this field existed | Carries none, so in a live run it is refused once and the band re-establishes it |
+
+**The record is also no longer per job.** Section 7.6.1 described it as dying
+with the runner. The case repository uploads it as an artifact for the next
+band job to download, kept eighty days, which is what lets a re-run band read a
+record written on another day, and why the model has to be checked.
+
+`MQC_CMN_UNI_112473` runs a band whose record was written under another served
+digest and asserts the dependent skips naming `served_digest` while the other
+case runs. `MQC_CMN_UNI_112474` asserts the wire: a live configuration's served
+facts reach `config` and the provenance a band stamps, and a replay
+configuration's stay empty.
 
 ### 7.7 Selecting a regression set by family or by requirement
 
@@ -3461,6 +3511,8 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112470` | N | `a_malformed_missing_artifact_value_is_refused` (taxonomy 5.1.3.2) |
 | `112471` | P | `a_precondition_or_an_undeclared_run_is_left_alone` (taxonomy 5.1.3.2) |
 | `112472` | N | `a_declared_missing_preconditions_record_skips_graded_cases` (taxonomy 5.1.3.2) |
+| `112473` | N | `a_carry_file_from_another_served_model_skips_its_dependents` (7.6.3) |
+| `112474` | N | `the_served_model_reaches_the_carried_provenance` (7.6.3) |
 | `112391` | N | `a_run_refuses_a_module_a_live_audit_holds_but_its_own` (taxonomy 15.12.1) |
 | `112392` | N | `an_abandoned_backup_is_restored_verified_and_the_run_refused` (taxonomy 15.12.2) |
 | `112393` | N | `a_failed_restore_keeps_the_backup_and_names_both_recoveries` (taxonomy 15.12.2) |
@@ -3902,7 +3954,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 555 cases, 331 negative, 167 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 557 cases, 333 negative, 167 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

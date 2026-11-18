@@ -3,7 +3,7 @@
 """Shared pytest hook bodies, which each repository's ``conftest.py`` delegates to.
 
 Created: 2026-09-23
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 This file contains ``add_mqc_options``, which registers the execution flags
 from the shared option registry; ``configure_invocation``, which records what
@@ -323,6 +323,10 @@ def asks_the_provider(config: Any) -> bool:
 def adopt_provenance(config: Any, reader: Any) -> dict[str, str]:
     """Build what this run measured against, and write the half a report reads.
 
+    It also sets ``config.mqc_served_digest`` and ``config.mqc_served_version``
+    from what the provider answered, empty where it was not asked or could not
+    be read, which the carried outcomes are guarded by (design section 7.6.3).
+
     **One implementation and two callers**, each repository's ``conftest.py``,
     which is the arrangement ``framework-rules.md`` section 4.1 asks for. The
     mapping is returned as well as written because the two artifacts are
@@ -358,6 +362,11 @@ def adopt_provenance(config: Any, reader: Any) -> dict[str, str]:
     served: dict[str, str] = {}
     if model and asks_the_provider(config):
         served = reader(engine, model)
+    # ON THE CONFIG TOO, so the carried outcomes record the model their
+    # foundations were measured on and a band under another refuses them.
+    # Empty where nothing was read, never "unrecorded" (section 7.6.3).
+    for name in ("served_digest", "served_version"):
+        setattr(config, f"mqc_{name}", str(served.get(name, "") or ""))
     fields = provenance_fields(
         engine=engine,
         mode=str(getattr(config.option, "mode", "") or ""),

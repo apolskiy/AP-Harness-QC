@@ -3,7 +3,7 @@
 """The carry file, which hands foundational case outcomes from one band to the next.
 
 Created: 2026-09-29
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 This file contains ``write_outcomes`` and ``read_outcomes``, which write and
 read the ``CarriedOutcomes`` record and refuse one whose ``Provenance`` no
@@ -58,8 +58,12 @@ _PARSER: Final[str] = "QC_HARNESS_PARSER_ERROR"
 # reference cannot see an uncommitted edit, and corpus edits between executions
 # are normal working (`harness_test_taxonomy.md` section 9.1.1).
 _GUARDED: Final[tuple[str, ...]] = (
-    "rule_set_hash", "code_ref", "case_ref", "engine", "mode", "platform",
+    "rule_set_hash", "code_ref", "case_ref", "engine", "mode", "platform", "served_digest",
 )
+
+# RECORDED FOR A READER AND NEVER COMPARED: the served version beside the digest
+# that is (section 7.6.3), and the band, which a later band legitimately differs on.
+_RECORDED: Final[tuple[str, ...]] = ("served_version", "band")
 
 
 def rule_set_digest(rule_sets: Iterable[Any]) -> str:
@@ -241,6 +245,11 @@ class Provenance:
         platform (str): The harness is verified on two, and a foundation
             holding on one and not the other is the case the band topology
             exists to surface.
+        served_digest (str): What the engine served, as a live run read it at
+            configuration, empty in replay or where it could not be read. A
+            foundation is a measurement of one served model (section 7.6.3).
+        served_version (str): The version beside that digest, for the reader
+            rather than for matching.
         band (str): Which selection wrote the record, for the log rather than
             for matching: a later band legitimately reads an earlier band's.
     """
@@ -251,6 +260,8 @@ class Provenance:
     engine: str = ""
     mode: str = ""
     platform: str = ""
+    served_digest: str = ""
+    served_version: str = ""
     band: str = ""
 
     def as_fields(self) -> dict[str, str]:
@@ -259,7 +270,7 @@ class Provenance:
         Returns:
             dict: Every field, for serialisation.
         """
-        return {name: str(getattr(self, name)) for name in (*_GUARDED, "band")}
+        return {name: str(getattr(self, name)) for name in (*_GUARDED, *_RECORDED)}
 
     def disagreement(self, other: "Provenance") -> Optional[str]:
         """Return the first guarded field that differs, or None.
@@ -368,7 +379,7 @@ def read_outcomes(path: Path, provenance: Provenance) -> CarriedOutcomes:
         )
 
     stored = Provenance(
-        **{name: str(stored_fields.get(name, "")) for name in (*_GUARDED, "band")}
+        **{name: str(stored_fields.get(name, "")) for name in (*_GUARDED, *_RECORDED)}
     )
     moved = stored.disagreement(provenance)
     if moved is not None:

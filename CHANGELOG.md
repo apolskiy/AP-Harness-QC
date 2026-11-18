@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Carried outcomes from another served model skip the cases resting on them, 2026-11-18
+
+**Why.** A carried foundation is a measurement of one served model, and the
+record's guards did not name the model, so a band re-run after a provider
+revised the model behind an unchanged identifier adopted foundations measured
+on the old one.
+
+**What changed.** A live run sets the served digest and version it reads at
+configuration on its config, and the carried outcomes record both. A band
+whose served digest differs from the record's, including where either side
+could not read one, refuses the record naming `served_digest`, so the cases
+resting on a carried foundation skip as `carried_outcome` and the rest of the
+band runs. A replay run records and compares an empty digest.
+`cmn_verdict_and_cli.md` section 7.6.3 holds the design. Requirement
+`MQC_REQ_HAR_CMN_0264` and cases `112473` and `112474` were added. README: 447
+requirements, 1177 test cases.
+
 ### A band whose preconditions record is missing skips its graded cases, 2026-11-18
 
 **Why.** A band whose download of its preconditions record found nothing had

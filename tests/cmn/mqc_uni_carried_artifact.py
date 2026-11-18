@@ -3,16 +3,18 @@
 """Unit preconditions for a band whose carry file is missing, malformed or lacks a foundation.
 
 Created: 2026-11-16
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 The cases here check ``cmn.dependencies`` and ``cmn.prerequisites`` together.
 In a band naming a carry file, a foundation neither collected nor held in that
 file skips only the cases resting on it, with ``QC_HARNESS_ARTIFACT_MISSING``
 naming the file and why, whether the file lacks the foundation, is absent, is
-malformed or was written by another run; every other case runs. A valid file
-still decides its dependents, and the reader refuses each malformed record.
+malformed or was written by another run, another served model included; every
+other case runs. A valid file still decides its dependents, the reader refuses
+each malformed record, and a live run's served model reaches the record it
+publishes.
 
-Specified by ``docs/design/cmn_verdict_and_cli.md`` section 10.28.8. A failure
+Specified by ``docs/design/cmn_verdict_and_cli.md`` sections 7.6.3 and 10.28.8. A failure
 here is **not a model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3."""
 
@@ -26,16 +28,22 @@ here is **not a model finding**, so the module carries no priority marker, per
 #   112454  a_carry_file_from_another_run_skips_the_cases_resting_on_it
 #   112455  a_valid_carry_file_still_decides_its_dependents
 #   112456  the_carry_reader_refuses_each_malformed_record
+#   112473  a_carry_file_from_another_served_model_skips_its_dependents
+#   112474  the_served_model_reaches_the_carried_provenance
 # ------------------------------------------------------------ end of cases
 
+import json
 from pathlib import Path
 
 import pytest
 
 from cmn.case_steps import step
+from cmn.dependencies import publish_prerequisites
 from cmn.grouping import story
 from cmn.missing_artifact import ARTIFACT_MISSING
 from cmn.prerequisites import read_outcomes, write_outcomes
+from cmn.pytest_support import adopt_provenance
+from tests.cmn.provenance_support import Config, Reader
 from tests.cmn.missing_artifact_support import (
     CARRY_DEPENDENT as _DEPENDENT,
     CARRY_INDEPENDENT as _INDEPENDENT,
@@ -50,6 +58,10 @@ from tests.cmn.missing_artifact_support import (
 )
 
 pytestmark = pytest.mark.unit
+
+# WHAT A LIVE PROVIDER ANSWERED, and a revision of it. Section 7.6.3.
+_SERVED = {"served_version": "3.0", "served_digest": "ec1d75e892b80a28"}
+_REVISED_DIGEST = "5b0d1f3a9c7e2264"
 
 
 class TestMQCCarriedArtifact:
@@ -216,3 +228,84 @@ class TestMQCCarriedArtifact:
             read_outcomes(valid, carry_provenance(band="2")).outcomes == {"90003": False}
             and not read_outcomes(tmp_path / "absent.json", carry_provenance()).outcomes
         )
+
+    @story("A missing carried outcome skips only its dependents")
+    def MQC_CMN_UNI_112473_a_carry_file_from_another_served_model_skips_its_dependents(
+        self, tmp_path: Path
+    ) -> None:
+        """A record of another served digest, or of one nobody read, skips the dependent alone.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.6.3.
+
+        Args:
+            tmp_path (Path): Where the carry file is written.
+
+        Returns:
+            None
+        """
+        record = tmp_path / "carry.json"
+        write_outcomes(record, carry_provenance(served_digest=_SERVED["served_digest"]),
+                       {"90003": True})
+        revised = carry_config(str(record))
+        setattr(revised, "mqc_served_digest", _REVISED_DIGEST)
+        unread = carry_config(str(record))
+        setattr(unread, "mqc_served_digest", "")
+        outcomes = {
+            "revised": band_outcomes(revised, _population()),
+            "unread": band_outcomes(unread, _population()),
+        }
+
+        step(1, "find a band served a revised model skipping the dependent, naming served_digest")
+        assert (
+            outcomes["revised"][_DEPENDENT].startswith(
+                f"{ARTIFACT_MISSING}: carried_outcome {record}")
+            and "served_digest" in outcomes["revised"][_DEPENDENT]
+            and outcomes["revised"][_INDEPENDENT] == "runs"
+        ), outcomes["revised"]
+
+        step(2, "find a band that could not read its served model skipping the dependent")
+        assert (
+            "served_digest" in outcomes["unread"][_DEPENDENT]
+            and outcomes["unread"][_INDEPENDENT] == "runs"
+        ), outcomes["unread"]
+
+    @story("A missing carried outcome skips only its dependents")
+    def MQC_CMN_UNI_112474_the_served_model_reaches_the_carried_provenance(
+        self, tmp_path: Path
+    ) -> None:
+        """A live run's served facts reach the config and the record it publishes.
+
+        Design: ``cmn_verdict_and_cli.md`` section 7.6.3.
+
+        Args:
+            tmp_path (Path): Where the carry file is written.
+
+        Returns:
+            None
+        """
+        live = Config(engine="gemini", mode="live")
+        replay = Config(engine="gemini", mode="replay")
+        adopt_provenance(live, Reader(_SERVED))
+        adopt_provenance(replay, Reader(_SERVED))
+        record = tmp_path / "carry.json"
+        band = carry_config(str(record))
+        for name in ("mqc_served_digest", "mqc_served_version"):
+            setattr(band, name, getattr(live, name, None))
+        publish_prerequisites(band)
+        stamped = json.loads(record.read_text(encoding="utf-8")).get("provenance", {})
+
+        step(1, "find a live run's served digest and version set on its config")
+        assert (
+            getattr(live, "mqc_served_digest", None),
+            getattr(live, "mqc_served_version", None),
+        ) == (_SERVED["served_digest"], _SERVED["served_version"])
+
+        step(2, "find a replay run's served digest and version set empty")
+        assert (
+            getattr(replay, "mqc_served_digest", None),
+            getattr(replay, "mqc_served_version", None),
+        ) == ("", "")
+
+        step(3, "find both on the record a band publishes")
+        assert (stamped.get("served_digest"), stamped.get("served_version")) == (
+            _SERVED["served_digest"], _SERVED["served_version"]), stamped

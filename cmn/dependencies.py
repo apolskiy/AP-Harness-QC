@@ -3,7 +3,7 @@
 """Case dependencies, which run foundational cases first and skip what rests on a failure.
 
 Created: 2026-09-26
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 This file contains the dependency cascade. ``arrange_dependencies`` orders the
 collected cases so every ``base`` case runs ahead of its dependents and refuses
@@ -213,6 +213,10 @@ def _run_provenance(config: pytest.Config) -> Provenance:
         engine=str(config.getoption("--engine", "") or ""),
         mode=str(config.getoption("--mode", "") or ""),
         platform=platform.system(),
+        # WHAT A LIVE PROVIDER SERVED, set at configuration by
+        # `cmn.pytest_support.adopt_provenance`, empty in replay (section 7.6.3).
+        served_digest=str(getattr(config, "mqc_served_digest", "") or ""),
+        served_version=str(getattr(config, "mqc_served_version", "") or ""),
         band=str(config.getoption("--priority", "") or "all"),
     )
 
