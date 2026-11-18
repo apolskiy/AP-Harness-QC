@@ -1030,7 +1030,7 @@ only ever read in a live run, where a gap costs money.
 
 **The kinds are a closed set**, so an analysis never meets one it cannot group:
 `recording`, `judgement`, `calibration_record`, `carried_outcome`,
-`spend_report` and `corpus_pair`. A kind outside it, and an empty path or
+`spend_report`, `corpus_pair` and `precondition_record`. A kind outside it, and an empty path or
 explanation, are refused when the record is built, because a skip naming no
 artifact is the gap this section closes.
 
@@ -1119,11 +1119,23 @@ section 5.1.3 states, and no graded case dispatches, so nothing is spent.
 **One value.** The step that finds a gap declares the first it finds: one
 missing artifact already skips every graded case, so a second adds no outcome.
 
+**The preconditions record is declared the same way, kind
+`precondition_record`.** Added 2026-11-18 at the project owner's ruling that a
+missing artifact in any live run spending tokens skips the cases using it,
+whatever the workflow, and never fails the job. A band reads the record its
+preconditions job wrote (`cmn_verdict_and_cli.md` section 7.1.4), and an absent
+record reads as ungated, which is right for a run given no record and wrong for
+a band whose download of one found nothing: that band would run ungated. So a
+band whose download found no record declares it missing, every graded case
+skips naming it, and the run exits 3. Every graded case uses the record, since
+it is what gates the band.
+
 `cmn.missing_artifact.declared_missing_artifact` reads and validates the value,
 `configure_invocation` calls it so a malformed value refuses the run, and
 `skip_declared_missing` is called from a consumer's `pytest_runtest_setup`.
 `MQC_CMN_UNI_112469` to `112471` assert the skip of a graded case, the refusal
 of a malformed value, and a precondition or an undeclared run left alone.
+`112472` asserts the skip for a declared preconditions record.
 
 ### 5.2 Adjudication is the reviewer's role (A7.1)
 

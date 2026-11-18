@@ -3,7 +3,7 @@
 """Missing artifacts: the record naming one, the skip it causes, and the exit 3 it forces.
 
 Created: 2026-11-16
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 This file contains ``MissingArtifact``, the record of a file a case reads and
 its own run does not produce, found absent, empty, unreadable or missing a
@@ -52,6 +52,7 @@ ARTIFACT_KINDS: Final[frozenset[str]] = frozenset({
     "carried_outcome",
     "spend_report",
     "corpus_pair",
+    "precondition_record",
 })
 
 _KIND_PROPERTY: Final[str] = "mqc_artifact_kind"

@@ -3,13 +3,14 @@
 """Unit preconditions for an artifact declared missing to a run with ``--missing-artifact``.
 
 Created: 2026-11-17
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
-This file contains ``TestMQCDeclaredArtifact``, three cases on
+This file contains ``TestMQCDeclaredArtifact``, four cases on
 ``cmn.missing_artifact`` and the shared option registry. A run given
 ``--missing-artifact KIND=PATH`` skips every graded case at setup naming the
-kind and path; a malformed value is refused before any case runs; and a
-precondition, or a run declaring nothing, is left alone.
+kind and path, a spend report and a preconditions record alike; a malformed
+value is refused before any case runs; and a precondition, or a run declaring
+nothing, is left alone.
 
 Each runs a wired session whose conftest takes its options from
 ``add_mqc_options`` and its configuration from ``configure_invocation``, as a
@@ -25,6 +26,7 @@ Specified by ``docs/design/harness_test_taxonomy.md`` section 5.1.3.2.
 #   112469  a_declared_missing_artifact_skips_every_graded_case
 #   112470  a_malformed_missing_artifact_value_is_refused
 #   112471  a_precondition_or_an_undeclared_run_is_left_alone
+#   112472  a_declared_missing_preconditions_record_skips_graded_cases
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -71,6 +73,7 @@ def test_MQC_CMN_UNI_111000_precondition() -> None:
 '''
 
 _DECLARED: Final[str] = "spend_report=spent/junit_mqc_live_live_p0.xml"
+_DECLARED_RECORD: Final[str] = "precondition_record=reports/preconditions.json"
 
 
 class TestMQCDeclaredArtifact:
@@ -182,3 +185,35 @@ class TestMQCDeclaredArtifact:
             and set(without.values()) == {"passed"}
             and len(without) == 2
         ), (with_declaration, without)
+
+    @story("An artifact declared missing skips the graded cases")
+    def MQC_CMN_UNI_112472_a_declared_missing_preconditions_record_skips_graded_cases(
+        self, tmp_path: Path
+    ) -> None:
+        """A declared preconditions record skips the graded case at setup, naming it in JUnit.
+
+        Design: ``harness_test_taxonomy.md`` section 5.1.3.2.
+
+        Args:
+            tmp_path (Path): Where the wired session and its report are written.
+
+        Returns:
+            None
+        """
+        step(1, "run a wired session declaring the preconditions record missing")
+        report = tmp_path / "junit.xml"
+        finished = run_wired_session(
+            tmp_path, _CONFTEST, _CASES,
+            extra=("--missing-artifact", _DECLARED_RECORD, "--junitxml", str(report)),
+        )
+        outcome, properties = junit_outcomes(report).get(
+            "test_MQC_EVL_EVAL_134000_graded", ("not reported", {})
+        )
+        assert (
+            outcome.startswith(
+                f"skipped: {ARTIFACT_MISSING}: precondition_record reports/preconditions.json, "
+                f"declared missing to this run by --missing-artifact"
+            )
+            and properties.get("mqc_artifact_kind") == "precondition_record"
+            and properties.get("mqc_artifact_path") == "reports/preconditions.json"
+        ), (outcome, properties, (finished.stdout + finished.stderr)[-800:])

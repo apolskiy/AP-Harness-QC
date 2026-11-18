@@ -16840,3 +16840,44 @@ reported them.
 **Verified.** Harness: unit 1146 of 1146, system 24 of 24, pylint exit 0, all
 after the last change. Preconditions only; no graded band and no mutation
 audit ran.
+
+## 2026-11-18: A Missing Preconditions Record Is Declared To The Run
+
+**Why.** The owner's ruling of 2026-11-18: "Missing artifacts in any type of
+live run which uses tokens, must skip test cases using those artifacts. work
+flow does not matter and should not be a limitation to that." A band downloads
+the preconditions record its preconditions job wrote, and that download failed
+the job when the record was missing: a re-run after the record's eighty days,
+or after a deletion. Letting the download pass was not enough on its own,
+because a run given no record reads as ungated (`cmn_verdict_and_cli.md`
+section 7.1.4), so the band would have run without the preconditions that gate
+it. The owner chose, of three options, to declare the record missing through a
+new kind, over keeping the failing download or running ungated.
+
+**What changed.** `precondition_record` joins the closed set of artifact kinds
+in `cmn/missing_artifact.py`, so `--missing-artifact precondition_record=PATH`
+skips every graded case at setup naming the record, and the run exits 3.
+Taxonomy section 5.1.3 lists the kind; section 5.1.3.2 records the ruling and
+why every graded case uses the record; the record table in section 7.1.4 points
+a band whose download found nothing to the declaration. Requirement
+`MQC_REQ_HAR_CMN_0263`, case `112472`. README 446 requirements and 1175 test
+cases.
+
+**The flag stays single-valued.** Section 5.1.3.2 already settles it: one
+declared artifact skips every graded case, so the step finding gaps declares
+the first. A repeatable flag was considered this session and dropped on
+re-reading the design. A missing carry file needs no harness change: an absent
+carry file is already a carry problem whose dependents skip as
+`carried_outcome` (section 10.28.8), and only the case repository's download
+step has to stop failing the job.
+
+**Injection.** Before the kind was added, `112472` failed: the run was refused
+at configuration as a kind outside the set. With it, the case and the eight
+other declared and missing artifact cases pass.
+
+**Digressions the user spotted, and the fix.** None this commit. One of mine,
+caught before staging: the design paragraph first cited section 7.6, the
+carried outcomes, for the preconditions record, which section 7.1.4 holds;
+corrected. And the script appending this entry first carried doubled
+backslashes in its newline arguments, the slip already made once this session;
+fixed before it ran.

@@ -29,6 +29,20 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A band whose preconditions record is missing skips its graded cases, 2026-11-18
+
+**Why.** A band whose download of its preconditions record found nothing had
+no way to say so: the download failed the job, and a band given no record runs
+ungated, so letting the download pass would have run the band without the
+preconditions that gate it. A missing artifact in a live run spending tokens
+skips the cases using it, whatever the workflow, and never fails the job.
+
+**What changed.** The closed set of artifact kinds holds `precondition_record`,
+so `--missing-artifact precondition_record=PATH` skips every graded case at
+setup naming the record and the run exits 3. `harness_test_taxonomy.md`
+section 5.1.3.2 holds the design. Requirement `MQC_REQ_HAR_CMN_0263` and case
+`112472` were added. The README states 446 requirements and 1175 test cases.
+
 ### An artifact a CI step found missing is declared to the run with --missing-artifact, 2026-11-17
 
 **Why.** An artifact a CI step reads before pytest starts, such as an earlier
