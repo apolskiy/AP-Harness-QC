@@ -3,19 +3,21 @@
 """Test module layout checks, where support code may live and how subprocesses wait.
 
 Created: 2026-10-05
-Last updated: 2026-11-11
+Last updated: 2026-11-19
 
 This file contains ``inline_support``, which lists the module-level support
 definitions a collected test module carries; ``extraction_problems``, which
 reports such a module that no registry entry declares, and an entry that lapsed
-or outlived its gap; and ``unbounded_subprocess_calls``, which reports a
-subprocess call that passes no timeout.
+or outlived its gap; ``unbounded_subprocess_calls``, which reports a
+subprocess call that passes no timeout; and
+``stdin_inheriting_subprocess_calls``, which reports one that passes no
+standard input.
 
 Precondition cases in both repositories call these, so a helper defined in an
 ``mqc_*.py`` module, or a subprocess that can wait forever, fails the unit
 layer.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` section 13.
+Specified by ``docs/design/harness_test_taxonomy.md`` sections 13, 14 and 14.5.
 
 **A collected test module holds cases, and nothing else holds cases.** The
 functions and classes that support them belong in a sibling module that
@@ -220,6 +222,50 @@ def unbounded_subprocess_calls(root: Path) -> list[str]:
                 f"{source.relative_to(root).as_posix()}:{node.lineno}: "
                 f"{called} passes no timeout, so a child that stalls blocks "
                 f"forever and the job is cancelled rather than failed"
+            )
+    return problems
+
+
+# THE KEYWORDS THAT GIVE A CHILD ITS STANDARD INPUT. `input` supplies one by
+# opening a pipe, so either closes the inheritance.
+_STDIN_KEYWORDS: Final[frozenset[str]] = frozenset({"stdin", "input"})
+
+
+def stdin_inheriting_subprocess_calls(root: Path) -> list[str]:
+    """Report every subprocess invocation that passes neither ``stdin`` nor ``input``.
+
+    Such a child inherits standard input, and under pytest's capture on Windows
+    that handle is invalid, so the call raises ``OSError: [WinError 6]`` before
+    the child starts. Read from the AST, like ``unbounded_subprocess_calls``.
+
+    Design: ``harness_test_taxonomy.md`` section 14.5.
+
+    Args:
+        root (Path): The repository root to scan.
+
+    Returns:
+        list[str]: One entry per call, ``<path>:<line>: ...``, in file order.
+    """
+    problems: list[str] = []
+    for source in sorted(root.rglob("*.py")):
+        if any(part in _SKIPPED for part in source.parts):
+            continue
+        try:
+            tree = ast.parse(source.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            called = ast.unparse(node.func)
+            if called not in _BOUNDED_CALLS:
+                continue
+            if any(keyword.arg in _STDIN_KEYWORDS for keyword in node.keywords):
+                continue
+            problems.append(
+                f"{source.relative_to(root).as_posix()}:{node.lineno}: "
+                f"{called} passes neither stdin nor input, so the child inherits "
+                f"a standard input that is invalid under capture on Windows"
             )
     return problems
 

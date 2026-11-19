@@ -3,23 +3,23 @@
 """Unit preconditions for what a test module is: cases only, gated, and bounded.
 
 Created: 2026-10-29
-Last updated: 2026-11-13
+Last updated: 2026-11-19
 
-This file contains four cases on the shape of a collected test module, reading
+This file contains five cases on the shape of a collected test module, reading
 ``cmn.case_module_standards`` and ``cmn.module_size``.
 ``TestMQCCaseModuleContents`` checks that a collected module defines no support
 code and that some gate would select it; ``TestMQCModuleRunway`` that no module
 sits at the 900-line runway ceiling undeclared; and
 ``TestMQCBoundedSubprocesses`` that every subprocess invocation carries a
-timeout.
+timeout and passes its standard input.
 
 They run with every unit precondition run, so a module breaking one of these
 rules fails the build naming the module, rather than waiting for a reviewer. A
 failure here is **not a model finding**, so this module carries no priority
 marker.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` sections 13, 13.6 and 14,
-and ``code-style.md`` section 5.1.
+Specified by ``docs/design/harness_test_taxonomy.md`` sections 13, 13.6, 14 and
+14.5, and ``code-style.md`` section 5.1.
 
 **Split from ``mqc_uni_file_standards.py`` on 2026-10-29**, when that module
 crossed the runway ceiling. The split follows the subject: that module is about
@@ -37,6 +37,7 @@ unit of collection, which is the subject the gating case joined.
 #   112331  a_module_at_the_runway_ceiling_is_reported
 # TestMQCBoundedSubprocesses
 #   112329  a_subprocess_without_a_timeout_is_reported
+#   112910  a_subprocess_inheriting_standard_input_is_reported
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -45,6 +46,7 @@ import pytest
 
 from cmn.case_module_standards import (
     extraction_problems,
+    stdin_inheriting_subprocess_calls,
     unbounded_subprocess_calls,
     ungated_modules,
 )
@@ -267,5 +269,40 @@ class TestMQCBoundedSubprocesses:
         assert not problems, (
             f"{len(problems)} subprocess invocation(s) carry no timeout, so a "
             f"child that stalls blocks until a runner cancels the job: "
+            + "; ".join(problems)
+        )
+
+    def MQC_CMN_UNI_112910_a_subprocess_inheriting_standard_input_is_reported(
+        self, tmp_path: Path,
+    ) -> None:
+        """Every subprocess invocation passes ``stdin`` or ``input``.
+
+        A child inheriting standard input under pytest's capture raises
+        ``WinError 6`` on Windows before it starts. The first step proves the
+        check reads calls: of three, only the one passing neither is reported.
+
+        Design: ``harness_test_taxonomy.md`` section 14.5.
+
+        Args:
+            tmp_path (Path): Holds the module the first step scans.
+
+        Returns:
+            None
+        """
+        (tmp_path / "spawning.py").write_text(
+            "import subprocess\n"
+            "subprocess.run(['git'], timeout=60)\n"
+            "subprocess.run(['git'], timeout=60, stdin=subprocess.DEVNULL)\n"
+            "subprocess.run(['git'], timeout=60, input='')\n",
+            encoding="utf-8",
+        )
+        step(1, "scan a module holding one call that passes neither stdin nor input")
+        reported = stdin_inheriting_subprocess_calls(tmp_path)
+        assert [entry.split(":")[:2] for entry in reported] == [["spawning.py", "2"]], reported
+
+        step(2, "scan this repository")
+        problems = stdin_inheriting_subprocess_calls(_ROOT)
+        assert not problems, (
+            f"{len(problems)} subprocess invocation(s) inherit standard input: "
             + "; ".join(problems)
         )

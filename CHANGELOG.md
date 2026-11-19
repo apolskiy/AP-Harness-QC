@@ -29,6 +29,22 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Every subprocess passes its standard input, and a case checks both repositories, 2026-11-19
+
+**Why.** A child process that inherits standard input under pytest's capture
+on Windows raises `WinError 6` before it starts. That broke two case
+repository preconditions on a developer's machine while both runners passed,
+and a broken precondition stops every run behind it. The harness passed
+`stdin` on every call by habit, and nothing checked it.
+
+**What changed.** `cmn.case_module_standards.stdin_inheriting_subprocess_calls`
+reports any subprocess call passing neither `stdin` nor `input`, read from the
+AST beside the timeout check. `MQC_CMN_UNI_112910` asserts it here, and the case
+repository calls it with its own root. `harness_test_taxonomy.md` section 14.5
+holds the design; requirement `MQC_REQ_HAR_CMN_0265` was added. README: 1180
+test cases and 448 requirements; `DESIGN.md` states 558 cases in
+`cmn_verdict_and_cli.md` and 448 requirements.
+
 ### A judge timeout carries the judge's code, and skips whatever the assertions found, 2026-11-18
 
 **Why.** A judge that timed out was recorded under the candidate's timeout

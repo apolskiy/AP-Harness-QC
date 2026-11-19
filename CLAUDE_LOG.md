@@ -16967,3 +16967,42 @@ old precedence failed `114422` and `114424`. Restored.
 **Digressions the user spotted, and the fix.** I recommended ruling 1 as a
 fail, which the design then said. The owner ruled skip, for the reason above,
 and the design is corrected to it.
+
+## 2026-11-19: Every Subprocess Passes Its Standard Input
+
+**A portfolio finding, and its fix**, at the owner's ruling: "a crash, if a
+fatal error for harness and repo. Even though it may be an os bug, we inherit
+it and it stops operations. In fact this is a finding for the protfolio and so
+is the fix."
+
+**What was wrong.** The case repository's unit layer broke locally with two
+cases, `115037` and `115041`, each raising `OSError: [WinError 6] The handle is
+invalid` from `subprocess.run`. Both spawn a nested pytest without `stdin`, so
+the child inherits a standard input that pytest's capture leaves invalid on
+Windows. Both runners passed. `MQC_EXE_UNI_113513` had met the same error
+here and was fixed on its own call, so nothing stopped the next call
+repeating it: three calls in the case repository carried the gap.
+
+**The outcome stays broken.** Asked whether a caught crash should skip or
+fail, the owner ruled it fatal for harness and repository alike. The current
+report already says so: broken, `QC_HARNESS_UNANTICIPATED_EXCEPTION`, exit 3.
+A skip would read as not applicable and a fail as a measured outcome; neither
+is what happened. The remedy is preventing the call shape.
+
+**What changed.** `stdin_inheriting_subprocess_calls` in
+`cmn/case_module_standards.py`, beside `unbounded_subprocess_calls`, reports
+any `subprocess` call passing neither `stdin` nor `input`. `MQC_CMN_UNI_112910`
+proves on a synthetic module that only the call passing neither is reported,
+then scans this repository, which is clean. Design `harness_test_taxonomy.md`
+section 14.5; requirement `MQC_REQ_HAR_CMN_0265`; inventory 558 in
+`cmn_verdict_and_cli.md`. README 1180 test cases and 448 requirements, and
+`DESIGN.md`'s two figures with them. The case repository calls
+the function with its own root in `115898` and fixes its three calls.
+
+**Injection.** Before the function existed the module failed to import.
+Treating `stdin` as unknown failed step 1, reporting the `DEVNULL` call as
+well; restored.
+
+**Digressions the user spotted, and the fix.** I first left `WinError 6` as a
+local-only quirk outside the change, because CI passed. The owner ruled it our
+defect, fatal, and a finding in its own right; this entry is that fix.

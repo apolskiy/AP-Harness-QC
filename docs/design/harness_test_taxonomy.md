@@ -3338,6 +3338,30 @@ call spelled across several lines is still seen.
 
 **It reads the keyword, not the value.** Whether 300s is the right number is a
 judgement; whether a bound exists is not, and only the second is mechanical.
+
+### 14.5 Every subprocess closes its standard input
+
+Added 2026-11-19 at the project owner's ruling, after two case repository
+preconditions broke on a developer's Windows machine and passed on both
+runners.
+
+**A child that inherits standard input under pytest's capture raises
+`OSError: [WinError 6] The handle is invalid` on Windows**, before it starts.
+The case reports broken and the run exits 3, which is the right outcome for a
+crash and says nothing about a model. What made it worth a rule is that it
+depends on where the run is started: the runners passed, a local run broke,
+and two of the three calls missing the argument were in cases.
+`MQC_EXE_UNI_113513` met the same error earlier and was fixed alone, so
+nothing stopped the next call repeating it.
+
+**Every `subprocess.run` and `Popen` passes `stdin`**, `subprocess.DEVNULL`
+unless the child is meant to read something, or passes `input`, which supplies
+one. Nothing here runs a child that reads from the terminal.
+
+`MQC_CMN_UNI_112910` and `MQC_CAS_UNI_115898` report any call passing neither,
+read from the AST by `cmn.case_module_standards.stdin_inheriting_subprocess_calls`,
+one implementation called with each root as section 14.4's check is.
+
 ## 15. The Mutation Suite: `MUT`, Which Tests The Tests
 
 Registered 2026-10-13 at the project owner's instruction: "mutation run can be
