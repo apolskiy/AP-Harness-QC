@@ -3,13 +3,14 @@
 """The testcase elements the consumer regression's cases compare, and their writer.
 
 Created: 2026-11-09
-Last updated: 2026-11-12
+Last updated: 2026-11-19
 
 This file contains ``PASSED``, ``PASSW``, ``FAILED`` and ``SKIPPED``, JUnit
 testcase templates taking a ``name`` (and ``FAILED`` a ``code``);
 ``COLLECTION_FAILURE``, taking the module's ``name``, and ``INTERNAL_ERROR``,
 the two testcases pytest writes for a session that stopped before running a
-case, in the shape run 43300514829's baseline report carried; and
+case, in the shape run 43300514829's baseline report carried; ``RAISED``, a
+case that raised, as 26 did in run 44597017556's baseline; and
 ``junit_report``, which writes a report holding rendered testcases and returns
 its path.
 
@@ -37,6 +38,9 @@ SKIPPED: Final[str] = (
 COLLECTION_FAILURE: Final[str] = (
     '<testcase classname="" name="{name}" time="0.000"><error message="collection failure">'
     "ImportError while importing test module</error></testcase>")
+RAISED: Final[str] = (
+    '<testcase classname="c" name="{name}"><error message="TypeError: further_observations()'
+    ' got an unexpected keyword argument">Traceback</error></testcase>')
 INTERNAL_ERROR: Final[str] = (
     '<testcase classname="pytest" name="internal" time="0.000">'
     '<error message="internal error">INTERNALERROR&gt; Traceback</error></testcase>')

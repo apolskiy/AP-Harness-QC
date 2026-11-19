@@ -29,6 +29,22 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A consumer replay that executed no case on the harness before a change skips the comparison, 2026-11-19
+
+**Why.** Run 44597017556 replayed the consumer on the harness before the
+change and executed none of its 96 cases: 26 raised, the consumer already
+passing an escalation target the older harness did not take, and 70 skipped
+behind them. A raise is its own error rather than a session error, so the
+baseline read as having run, all 96 outcomes read as changed, and the job
+failed on a change that broke nothing.
+
+**What changed.** `tools/consumer_regression.py` reads a baseline report in
+which no case passed, passed with a warning or failed as not run, and the
+comparison skips with `QC_HARNESS_DEPENDENCY_UNMET`, as it does for a baseline
+that stopped at collection. A baseline in which any case executed is still
+compared. `harness_ci_pipeline.md` section 3B.3.4, `MQC_REQ_HAR_CMN_0251`
+extended, case `112544`; inventory 565. README: 1187 test cases.
+
 ### A named case runs without its foundations, 2026-11-19
 
 **Why.** A named list is for investigating a case that failed or adding a new

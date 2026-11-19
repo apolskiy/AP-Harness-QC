@@ -3,7 +3,7 @@
 """Unit preconditions for the consumer regression, which compares outcomes across a harness change.
 
 Created: 2026-11-09
-Last updated: 2026-11-12
+Last updated: 2026-11-19
 
 The cases here check ``tools/consumer_regression.py`` and the
 ``regress-consumers-on-merge`` workflow that runs it. A consumer's graded
@@ -39,6 +39,7 @@ here is **not a model finding**, so the module carries no priority marker, per
 #   112541  a_skipped_comparison_says_so_in_the_summary
 #   112542  a_refused_candidate_says_so_in_the_summary
 #   112543  a_candidate_that_stopped_at_collection_is_reported
+#   112544  a_baseline_that_executed_no_case_skips
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -53,9 +54,10 @@ from tests.cmn.consumer_regression_support import FAILED as _FAILED
 from tests.cmn.consumer_regression_support import INTERNAL_ERROR as _INTERNAL_ERROR
 from tests.cmn.consumer_regression_support import PASSED as _PASSED
 from tests.cmn.consumer_regression_support import PASSW as _PASSW
+from tests.cmn.consumer_regression_support import RAISED as _RAISED
 from tests.cmn.consumer_regression_support import SKIPPED as _SKIPPED
 from tests.cmn.consumer_regression_support import junit_report as _report
-from tools.consumer_regression import case_outcomes, changed_outcomes, main
+from tools.consumer_regression import baseline_not_run, case_outcomes, changed_outcomes, main
 
 pytestmark = pytest.mark.unit
 
@@ -462,3 +464,38 @@ class TestMQCConsumerRegression:
         step(2, "report the case the candidate did not run")
         assert ("a: passed before the change, absent after it"
                 in changed_outcomes(baseline, candidate)), changed_outcomes(baseline, candidate)
+
+    @story("A baseline that did not run skips the comparison")
+    def MQC_CMN_UNI_112544_a_baseline_that_executed_no_case_skips(self, tmp_path: Path) -> None:
+        """A baseline whose cases all raised or skipped skips; one case executed is compared.
+
+        The baseline carries the shape run 44597017556's did: cases raising a
+        ``TypeError`` and the rest skipped behind them.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.4.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        candidate = _report(tmp_path / "candidate.xml", *(
+            _PASSED.format(name=name) for name in ("a", "b", "c")))
+        unexecuted = _report(tmp_path / "unexecuted.xml", _RAISED.format(name="a"),
+                             _RAISED.format(name="b"), _SKIPPED.format(name="c"))
+        one_failed = _report(tmp_path / "one_failed.xml", _RAISED.format(name="a"),
+                             _FAILED.format(name="b", code="QC_LLM_SOURCE_ALTERATION"),
+                             _SKIPPED.format(name="c"))
+
+        step(1, "read a baseline whose cases all raised or skipped as not run")
+        assert baseline_not_run(unexecuted) is not None
+
+        step(2, "skip the comparison against it, exit 0")
+        assert main([str(unexecuted), str(candidate)]) == 0
+
+        step(3, "read a baseline in which one case failed beside raised ones as run")
+        assert baseline_not_run(one_failed) is None
+
+        step(4, "compare against it, exit 1, the outcomes having changed")
+        assert main([str(one_failed), str(candidate)]) == 1

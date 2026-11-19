@@ -17116,3 +17116,31 @@ wrote a new scanner instead of reading this log, and the owner pointed to the
 programs passed to python and 4 `sed -i` refused, and about 3300 run before
 their ban. The existing scanner stays the record, and later counts append
 here.
+
+## 2026-11-19: Fixed a consumer replay that executed no case being compared as though it ran
+
+**A) What was wrong.** Run 44597017556, the consumer regression on merge,
+failed on the change that added `--escalate-to`. The replay on the harness
+before the change executed none of its 96 cases, and the job reported 96
+changed outcomes.
+
+**B) Why.** The Model Repository on `main` already passed `escalate_to` to
+`further_observations`, which the older harness did not accept, so 26 cases
+raised a `TypeError` and 70 skipped behind them. `baseline_not_run` recognised
+only pytest's two session errors, and a raise is a per-case error, which
+section 3B.3.4 counted as an outcome. So the baseline read as having run.
+
+**The fix.** A baseline report in which no case passed, passed with a warning
+or failed is read as not run, and the comparison skips with
+`QC_HARNESS_DEPENDENCY_UNMET`, naming how many cases raised and skipped. A
+baseline in which any case executed is still compared, raises included.
+Section 3B.3.4 gained the row; `MQC_REQ_HAR_CMN_0251` extended; case `112544`
+N.
+
+**Failing first.** `112544` failed at step 1 before the fix. Three injections,
+each against a passing control and restored, were caught: the check dropped, a
+failure not counted as executed, and a raise counted as executed.
+
+**Found while reading the log, fixed separately.** The summary listed
+`QC_EVL_EVAL` as the code of each case that raised. No case reports it: the
+code pattern matched inside the case name `MQC_EVL_EVAL_134000` in the message.

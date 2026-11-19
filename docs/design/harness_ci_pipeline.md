@@ -670,10 +670,19 @@ any of these holds:
 | Holds no testcase | The replay collected nothing |
 | Holds a testcase with `<error message="collection failure">` | pytest stopped at collection and ran no case |
 | Holds a testcase with `<error message="internal error">` | pytest stopped on an internal error, so no outcome is complete |
+| Holds testcases, none of them passed, passw or failed | The replay executed no case: every one raised or was skipped |
 
 The two messages are pytest's own, written for a session that ended early.
 A case that raised writes an `error` with its own message, so it is still an
-outcome and still compared.
+outcome and still compared **where any case executed**.
+
+**The last row was added 2026-11-19.** Run 44597017556 replayed the consumer
+on the harness before the change and executed none of its 96 cases: 26 raised
+a `TypeError`, the consumer already passing an escalation target the older
+harness did not take, and 70 skipped behind them. Each raise was its own
+`error`, not a session error, so the replay read as having run, every case
+read as changed, and the job failed. A report in which no case executed holds
+no outcome to compare, whatever each case did instead.
 
 **The candidate is read first, and is never skipped.** It is the change under
 test. A candidate report that is missing, will not parse or holds no case
@@ -694,6 +703,7 @@ failed to run is visible on the run page.
 | `MQC_CMN_UNI_112541` | A skipped comparison's summary names `QC_HARNESS_DEPENDENCY_UNMET`, its reason, that nothing was compared, and the candidate's counts, and appends rather than overwriting |
 | `MQC_CMN_UNI_112542` | A refused comparison's summary gives its reason and that nothing was compared, and appends rather than overwriting |
 | `MQC_CMN_UNI_112543` | A candidate that stopped at collection, against a baseline that ran, is reported as changed |
+| `MQC_CMN_UNI_112544` | A baseline report whose cases all raised or skipped skips, exit 0; one in which a single case failed beside cases that raised is compared |
 
 
 ## 3C. Branch Topology, And Which Harness A Case Set Runs Against

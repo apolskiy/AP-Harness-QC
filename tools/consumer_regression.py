@@ -3,7 +3,7 @@
 """Compares a consumer's graded replay before and after a harness change, case by case.
 
 Created: 2026-10-01
-Last updated: 2026-11-12
+Last updated: 2026-11-19
 
 This file contains ``case_outcomes``, which reads a JUnit report and returns
 each case's outcome with its codes; ``baseline_not_run``, which says why the
@@ -19,9 +19,10 @@ and appends the summary to ``--summary`` when given.
 **The candidate is read first** (section 3B.3.4): it is the change under
 test, so a candidate report that cannot be read refuses whatever the
 baseline did. **A baseline that did not run skips**: its report is missing,
-will not parse or holds no case, or pytest wrote a ``collection failure`` or
+will not parse or holds no case, pytest wrote a ``collection failure`` or
 ``internal error`` testcase, the two it writes for a session that stopped
-early. Nothing was compared, so the skip is not a finding about the change.
+early, or no case executed, every one having raised or skipped. Nothing was
+compared, so the skip is not a finding about the change.
 
 **The summary says what was compared** (section 3B.3.3): the verdict in its
 heading, each side's harness commit and its passed, passw, failed, skipped
@@ -59,6 +60,7 @@ _PROBLEMS: Final[tuple[tuple[str, str], ...]] = (
     ("error", "error"), ("failure", "failed"), ("skipped", "skipped"))
 _ABSENT: Final[str] = "absent"
 _COUNTED: Final[tuple[str, ...]] = ("passed", "passw", "failed", "skipped", "error")
+_EXECUTED: Final[tuple[str, ...]] = ("passed", "passw", "failed")
 _HEADING: Final[str] = "## Outcomes across the harness change: "
 _PARSER_ERROR: Final[str] = "QC_HARNESS_PARSER_ERROR"
 _UNMET: Final[str] = "QC_HARNESS_DEPENDENCY_UNMET"
@@ -132,12 +134,13 @@ def baseline_not_run(report: Path) -> Optional[str]:
 
     Returns:
         Optional[str]: The reason, without a code, when the report is
-        missing, will not parse or holds no case, or holds a testcase whose
-        error pytest wrote as ``collection failure`` or ``internal error``;
-        otherwise ``None``.
+        missing, will not parse or holds no case, holds a testcase whose
+        error pytest wrote as ``collection failure`` or ``internal error``, or
+        holds no case that passed, passed with a warning or failed; otherwise
+        ``None``.
     """
     try:
-        case_outcomes(report)
+        outcomes = case_outcomes(report)
     except ValueError as error:
         return str(error).removeprefix(f"{_PARSER_ERROR}: ")
     stopped = [f"{problem.get('message')} in {case.get('name', '(unnamed)')}"
@@ -146,6 +149,10 @@ def baseline_not_run(report: Path) -> Optional[str]:
                if problem.get("message") in _SESSION_ERRORS]
     if stopped:
         return f"pytest stopped before running a case, reporting {', '.join(stopped)}"
+    kinds = [outcome.split(" ", 1)[0] for outcome in outcomes.values()]
+    if not set(kinds) & set(_EXECUTED):
+        return (f"it executed none of its {len(kinds)} case(s): {kinds.count('error')} "
+                f"raised and {kinds.count('skipped')} skipped")
     return None
 
 
