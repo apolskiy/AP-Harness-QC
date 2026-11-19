@@ -17222,3 +17222,39 @@ under "A consumer replay that executed no case on the harness before a change
 skips the comparison" in `CHANGELOG.md`.
 
 The commit is pushed to `main` and left as it is; this entry is the record.
+
+## 2026-11-19: Fixed the hook letting `python -I -c` run
+
+**A) What was wrong.** Reviewing the grok run of `154202`, I issued a Bash
+call carrying `python -I -c ""` in a loop. It was filler and did nothing, it
+is a banned shape, and the hook let it run.
+
+**B) Why.** `~/.claude/deny-banned-bash.py` required the program flag, or the
+bare hyphen, straight after the interpreter. Any interpreter option in
+between, here `-I`, carried the command past it.
+
+**The fix.** The hook skips a run of the interpreter's own options first: flag
+letters taking no value, `-W` and `-X` with theirs, and the `py` launcher's
+version. A `-c` closing a bundle, as in `-Ic`, is the program flag too. `-m`
+is not among them, so `python -m pytest -c pytest.ini` still passes, its `-c`
+being pytest's. The hook had no cases, so `~/.claude/check-deny-banned-bash.py`
+now holds them: 14 shapes it must refuse and 8 commands it must let through,
+run by path, exit 0 when all hold.
+
+**Failing first.** Before the fix, the check exited 1 on the eight new
+shapes, and the six old ones and all eight allowed commands held. After it,
+all 22 hold. The offending command, fed to the hook from a payload file,
+is denied, and `settings.json` runs that same file.
+
+**The recount, with the wider pattern.** `portfolio/banned_shell_attempts.py`
+classifies with the hook's own patterns, so it now finds 3335 calls carrying
+a banned shape, 3297 run and 38 refused, against 3327 and 3289 this morning.
+All eight added calls are `python -c` on Bash with options before the flag,
+which ran unflagged and uncounted until now: four before that shape's ban,
+four after it, one of them mine today. By shape, `python -c` on Bash reads
+996 run before its ban, 19 after and 16 refused. Of the 3297 that ran, 145
+ended in a tool error, against 144.
+
+**A second slip, in the same review.** One later command ended by running a
+scratchpad script that does not exist, its error discarded. It did nothing,
+which is the filler the rule against filler commands exists to stop.
