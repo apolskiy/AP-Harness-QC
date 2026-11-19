@@ -545,6 +545,12 @@ compares outcomes case by case**:
 `QC_HARNESS_FIXTURE_STALE` changed with the harness, and a passw that became a
 pass lost a warning the consumer reviews.
 
+**A code is read only where it stands as a word.** A message naming a case,
+`MQC_EVL_EVAL_134000`, holds `QC_EVL_EVAL` inside the identifier, and run
+44597017556's summary reported that as the code of 26 cases that carried none.
+A code is read only at a word boundary, so a letter, digit or underscore
+before it means it is part of something else.
+
 **The baseline is the candidate's first parent, not the consumer's pin.** The
 consumer pins `main`, which by the time this job runs is the candidate. The
 first parent is the harness the merge changed, so a difference is what this
@@ -571,6 +577,7 @@ the same cases and ask different questions of them.
 | `MQC_CMN_UNI_112532` | A case skipped or absent on one side only is reported |
 | ~~`MQC_CMN_UNI_112533`~~ | ~~A missing, empty or unreadable report refuses~~. **Retired 2026-11-12**: a baseline that did not run skips, section 3B.3.4; `112539` |
 | `MQC_CMN_UNI_112534` | The workflow replays on the first parent and compares both reports |
+| `MQC_CMN_UNI_112545` | A message naming a case reads no code from the case's identifier, nor one naming a file from the file's name, and a code it states is still read |
 
 ---
 

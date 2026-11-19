@@ -4026,7 +4026,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 565 cases, 337 negative, 169 positive, 59 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 566 cases, 338 negative, 169 positive, 59 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 
@@ -5875,6 +5875,7 @@ output count, and the judge path recorded nothing at all.
 | `112542` | N | `a_refused_candidate_says_so_in_the_summary` |
 | `112543` | N | `a_candidate_that_stopped_at_collection_is_reported` |
 | `112544` | N | `a_baseline_that_executed_no_case_skips` |
+| `112545` | N | `a_case_name_in_a_message_is_read_as_no_code` |
 
 ### 12.2 What was measured before any of this was built
 

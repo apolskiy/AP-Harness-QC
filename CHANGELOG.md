@@ -29,6 +29,17 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The consumer regression reads no code out of a case name, 2026-11-19
+
+**Why.** Run 44597017556's summary gave `QC_EVL_EVAL` as the code of 26
+cases that raised. No case reports that code: the pattern found it inside the
+case name `MQC_EVL_EVAL_134000` in each message, so the run page showed a code
+that does not exist.
+
+**What changed.** `tools/consumer_regression.py` reads a code only at a word
+boundary. `harness_ci_pipeline.md` section 3B.3.1, `MQC_REQ_HAR_CMN_0096`
+extended, case `112545`; inventory 566. README: 1188 test cases.
+
 ### A consumer replay that executed no case on the harness before a change skips the comparison, 2026-11-19
 
 **Why.** Run 44597017556 replayed the consumer on the harness before the

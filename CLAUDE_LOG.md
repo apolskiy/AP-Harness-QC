@@ -17144,3 +17144,23 @@ failure not counted as executed, and a raise counted as executed.
 **Found while reading the log, fixed separately.** The summary listed
 `QC_EVL_EVAL` as the code of each case that raised. No case reports it: the
 code pattern matched inside the case name `MQC_EVL_EVAL_134000` in the message.
+
+## 2026-11-19: Fixed the consumer regression reading a code out of a case name
+
+**A) What was wrong.** Run 44597017556's summary gave `QC_EVL_EVAL` as the code
+of 26 cases. No such code is registered, and none of the 26 reported it.
+
+**B) Why.** `_CODE` matched `QC_` anywhere, and each message named its case,
+`MQC_EVL_EVAL_134000`, which holds `QC_EVL_EVAL` after its first letter.
+
+**The fix.** A code is read only at a word boundary. Section 3B.3.1;
+`MQC_REQ_HAR_CMN_0096` extended; case `112545` N, covering a case name, a file
+name carrying a code after an underscore, and a code stated alone.
+
+**Failing first.** `112545` failed before the fix, reading `failed QC_EVL_EVAL`.
+The first fix was a lookbehind excluding letters, digits and underscores, and
+two of four injections into it survived: allowing an underscore, until the
+case gained the file name, and allowing a lowercase letter. A class guarding
+more than a case could reach was replaced by `\b`, which states the rule
+directly; dropping it and breaking the code pattern were both caught, each
+against a passing control.

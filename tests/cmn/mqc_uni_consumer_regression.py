@@ -40,6 +40,7 @@ here is **not a model finding**, so the module carries no priority marker, per
 #   112542  a_refused_candidate_says_so_in_the_summary
 #   112543  a_candidate_that_stopped_at_collection_is_reported
 #   112544  a_baseline_that_executed_no_case_skips
+#   112545  a_case_name_in_a_message_is_read_as_no_code
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -499,3 +500,27 @@ class TestMQCConsumerRegression:
 
         step(4, "compare against it, exit 1, the outcomes having changed")
         assert main([str(one_failed), str(candidate)]) == 1
+
+    @story("An outcome the change altered is the harness's")
+    def MQC_CMN_UNI_112545_a_case_name_in_a_message_is_read_as_no_code(
+        self, tmp_path: Path
+    ) -> None:
+        """A message naming a case reads no code from its identifier; a stated code is read.
+
+        Design: ``harness_ci_pipeline.md`` section 3B.3.1.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        report = _report(tmp_path / "named.xml",
+                         _FAILED.format(name="a", code="MQC_EVL_EVAL_134000 rests here"),
+                         _FAILED.format(name="b", code="QC_LLM_SOURCE_ALTERATION"),
+                         _FAILED.format(name="d", code="fixture_QC_LLM_SOURCE_ALTERATION.json"))
+
+        step(1, "read the outcomes of failures naming a case, stating a code, and naming a file")
+        assert case_outcomes(report) == {
+            "c::a": "failed", "c::b": "failed QC_LLM_SOURCE_ALTERATION", "c::d": "failed",
+        }, case_outcomes(report)

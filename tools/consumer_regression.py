@@ -55,7 +55,9 @@ from xml.etree import ElementTree
 logger = logging.getLogger(__name__)
 
 _ENCODING: Final[str] = "utf-8"
-_CODE: Final[re.Pattern[str]] = re.compile(r"QC_[A-Z]+(?:_[A-Z]+)+")
+# A CODE STANDS AS A WORD, so ``MQC_EVL_EVAL_134000`` in a message names a case
+# and yields none. harness_ci_pipeline.md section 3B.3.1.
+_CODE: Final[re.Pattern[str]] = re.compile(r"\bQC_[A-Z]+(?:_[A-Z]+)+")
 _PROBLEMS: Final[tuple[tuple[str, str], ...]] = (
     ("error", "error"), ("failure", "failed"), ("skipped", "skipped"))
 _ABSENT: Final[str] = "absent"
