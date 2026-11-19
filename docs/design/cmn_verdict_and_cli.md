@@ -2702,7 +2702,7 @@ This project has found the same defect at least nine times: the thing is right a
 
 | Several values in one flag | Union. `--family a,b` is every case addressing either |
 | Two different flags | Intersection. `--priority 0,1 --family injection_resistance` is the P0 and P1 cases addressing it |
-| `--with-prerequisites` | Applies as it does to `--priority`: a selected case resting on an unselected foundation refuses, naming both remedies (§7.5.1) |
+| `--with-prerequisites` | Applies as it does to `--priority`: a selected case resting on an unselected foundation refuses, naming both remedies (§7.5.1). A named list is the exception: its cases run alone unless the flag is given (§7.8.2.1) |
 
 **Preconditions are never deselected**, for the reason §7.5 gives about bands: they establish that the corpus is loadable at all, and a selection that dropped them would measure against an unchecked corpus.
 
@@ -2878,7 +2878,30 @@ A nodeid carries a path, a class and the callable, so it contains a period, slas
 
 **Keeping preconditions would make the flags a no-op in the harness**, where every case is a precondition and "keep every precondition" means "keep everything". A debugging flag that quietly runs the whole suite is worse than one that does not exist, so this is the rule that has to bend.
 
-**The dependency closure does not bend.** A named case resting on a foundation outside the list refuses, naming both remedies, exactly as a band does (§7.5.1). A graded case whose foundation never ran is not a result.
+**A named case runs alone unless `--with-prerequisites` is given** (§7.8.2.1). A band still refuses a case resting on a foundation outside it, naming both remedies (§7.5.1), because a band is measured and a named list is investigated.
+
+##### 7.8.2.1 A named case runs without its foundations, and `--with-prerequisites` adds them
+
+Revised 2026-11-19 at the project owner's ruling, which replaced "the dependency closure does not bend" for a named list: "prerequisites incur hidden cost and are completely irrelevant if we are investigating a single failure or adding a new test case to the suite." **A named list is for investigating a case**: one that failed in a regression run, or one being added. Its foundations decide nothing about why it failed, and running them costs a live request each.
+
+**Found when the refusal stopped a live debug run.** Run 44601131326 named grok's `154202`, which rests on `154103`, and the harness refused the selection at collection, so the run measured nothing (`AP-Model-QC` `consumer_ci.md` section 6.5.3).
+
+| Named list | Foundations outside it | The named case |
+|---|---|---|
+| Without `--with-prerequisites` | **Left out**: neither run nor consulted | Runs, as though its foundations held |
+| With `--with-prerequisites` | Run first, in the same execution | Runs if they held, and skips with `QC_HARNESS_DEPENDENCY_UNMET` if one did not |
+
+**Left out is not quarantined.** `cmn.dependencies.leave_out_foundations` records the identifiers, so `arrange_dependencies` resolves the dependency and `enforce_dependencies` runs the case. It is a set of its own rather than the quarantine set (§10.28.7), because a consumer reads the quarantine set to report a dependent that passed while its foundation is quarantined, and a left-out foundation is not quarantined.
+
+**A named run yields no verdict anyway** (§7.1.2), so a case run without its foundations reaches no gate. A foundation the list names is run like any named case, and its dependents in the list wait on its outcome as usual.
+
+| Case | Asserts |
+|---|---|
+| `112914` | A named dependent is selected alone, its foundation deselected; the dependency resolves at collection and the dependent is not skipped at setup |
+| `112915` | With `--with-prerequisites` the named dependent keeps its foundation, and nothing is left out |
+| `112916` | A foundation left out of a named run is not among the dependent's quarantined foundations |
+
+Requirement: `MQC_REQ_HAR_CMN_0267`.
 
 #### 7.8.3 A missing test is a skip, and the source decides
 
@@ -3963,6 +3986,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112911` | N | `an_escalation_target_yields_no_verdict` (4.9.2.3) |
 | `112912` | B | `an_escalation_target_sets_the_total_a_failure_earns` (4.9.2.3) |
 | `112913` | P | `escalation_steps_follow_the_escalation_target` (4.9.2.3, taxonomy 8.2.2) |
+| `112914` | P | `a_named_case_runs_without_its_foundations` (7.8.2.1) |
+| `112915` | B | `a_named_case_with_prerequisites_keeps_its_foundations` (7.8.2.1) |
+| `112916` | N | `a_foundation_left_out_of_a_named_run_is_not_quarantined` (7.8.2.1) |
 | `400000` | N | `a_flag_a_document_names_and_nothing_declares_is_reported` (7.1.0.4) |
 | `400001` | P | `a_flag_declared_outside_this_repository_is_not_reported` (7.1.0.4) |
 | `400002` | P | `this_repository_names_no_undeclared_flag` (7.1.0.4) |
@@ -4000,7 +4026,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 561 cases, 335 negative, 168 positive, 58 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 564 cases, 336 negative, 169 positive, 59 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

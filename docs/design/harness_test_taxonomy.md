@@ -1259,7 +1259,7 @@ Our code or environment broke. **Our defect.** Produces a skip or a broken statu
 | `QC_HARNESS_PRECONDITION_SKIPPED` | A precondition case skipped, so it measured nothing. The run exits 3; a precondition needing something the environment lacks declares an environment scope and is deselected instead (section 7.5.1) |
 | `QC_HARNESS_PRECONDITION_WARNED` | A precondition case passed with a warning. A precondition passes or fails, so the run exits 3 (section 5.1.2.1) |
 | `QC_HARNESS_PREREQUISITE_MISMATCH` | A carried outcome or a precondition record was written for another run: a commit, the rule set, the engine, the mode or the platform differs, and the message names which. Refused rather than ignored (`cmn_verdict_and_cli.md` sections 7.6 and 7.1.4) |
-| `QC_HARNESS_UNMET_PREREQUISITE` | A selected case rests on a foundation the selection excludes, and `--with-prerequisites` was not given. Refuses the run, naming both remedies (`cmn_verdict_and_cli.md` section 7.8.2) |
+| `QC_HARNESS_UNMET_PREREQUISITE` | A case a band or traced selection chose rests on a foundation the selection excludes, and `--with-prerequisites` was not given. Refuses the run, naming both remedies. A named list runs its cases alone instead (`cmn_verdict_and_cli.md` sections 7.8.2 and 7.8.2.1) |
 | `QC_HARNESS_REGISTER_REFUSED` | A findings register was not written, because the run it was built from measured nothing it could record. Nothing is overwritten |
 | `QC_HARNESS_BRANCH_ROUTE` | A merge does not follow the one route into `main`, or brought `main` into a branch (3C.6.2 and 3C.6.5) |
 

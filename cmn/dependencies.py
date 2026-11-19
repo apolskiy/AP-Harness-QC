@@ -3,7 +3,7 @@
 """Case dependencies, which run foundational cases first and skip what rests on a failure.
 
 Created: 2026-09-26
-Last updated: 2026-11-18
+Last updated: 2026-11-19
 
 This file contains the dependency cascade. ``arrange_dependencies`` orders the
 collected cases so every ``base`` case runs ahead of its dependents and refuses
@@ -87,6 +87,11 @@ _CARRY_FILE: dict[str, str] = {}
 # (section 10.28.8) and the calibration record (tier3_evaluation.md 9.4.3).
 _MISSING: dict[str, MissingArtifact] = {}
 
+# FOUNDATIONS A NAMED LIST LEFT OUT, neither run nor consulted: their
+# dependents run alone. Kept apart from the quarantine set, which a consumer
+# reads to report quarantined foundations. cmn_verdict_and_cli.md 7.8.2.1.
+_LEFT_OUT: set[str] = set()
+
 def reset_dependency_state() -> None:
     """Forget every recorded base outcome.
 
@@ -100,6 +105,7 @@ def reset_dependency_state() -> None:
     _SET_ASIDE.clear()
     _CARRY_FILE.clear()
     _MISSING.clear()
+    _LEFT_OUT.clear()
 
 def adopt_carried_outcomes(carried: dict[str, bool],
                            reasons: Optional[dict[str, str]] = None) -> None:
@@ -154,6 +160,30 @@ def set_aside_foundations(identifiers: Iterable[str]) -> None:
         None
     """
     _SET_ASIDE.update(str(identifier) for identifier in identifiers)
+
+def leave_out_foundations(identifiers: Iterable[str]) -> None:
+    """Declare foundations a named list left out, so their dependents run alone.
+
+    A left-out foundation is known at collection and, until this execution
+    records an outcome for it, skips none of its dependents. It is not a
+    quarantined foundation and ``set_aside_foundations_of`` never names it.
+    Design: ``cmn_verdict_and_cli.md`` section 7.8.2.1.
+
+    Args:
+        identifiers (Iterable[str]): The identifiers of the foundations left out.
+
+    Returns:
+        None
+    """
+    _LEFT_OUT.update(str(identifier) for identifier in identifiers)
+
+def left_out_identifiers() -> frozenset[str]:
+    """Return the foundations a named list left out.
+
+    Returns:
+        frozenset[str]: The identifiers, empty outside a named run.
+    """
+    return frozenset(_LEFT_OUT)
 
 def set_aside_foundations_of(item: Any) -> list[str]:
     """Return the set-aside foundations a case rests on, unmeasured in this execution.
@@ -438,7 +468,9 @@ def _known_foundations(items: list[pytest.Item]) -> set[str]:
     # dependent left in runs rather than refusing the suite (section 10.28.7).
     # SO IS ONE AN ARTIFACT SHOULD HAVE HELD: its dependents skip naming the
     # artifact, at setup (section 10.28.8).
-    return set(declared_bases(items)) | set(_CARRIED) | set(_SET_ASIDE) | set(_MISSING)
+    # SO IS ONE A NAMED LIST LEFT OUT: its dependents run alone (section 7.8.2.1).
+    return (set(declared_bases(items)) | set(_CARRIED) | set(_SET_ASIDE) | set(_MISSING)
+            | set(_LEFT_OUT))
 
 def order_by_dependency(items: list[pytest.Item]) -> list[pytest.Item]:
     """Return the items with every foundation ahead of its dependents.
@@ -692,6 +724,14 @@ def enforce_dependencies(item: pytest.Item) -> None:
         if identifier in _SET_ASIDE and identifier not in _BASE_OUTCOMES:
             logger.info(
                 "%s rests on %s, which is quarantined, so it runs and counts",
+                item.name, identifier,
+            )
+            continue
+        # LEFT OUT OF A NAMED LIST AND UNMEASURED, so the dependent runs alone
+        # (cmn_verdict_and_cli.md section 7.8.2.1).
+        if identifier in _LEFT_OUT and identifier not in _BASE_OUTCOMES:
+            logger.info(
+                "%s rests on %s, which the named selection left out, so it runs alone",
                 item.name, identifier,
             )
             continue

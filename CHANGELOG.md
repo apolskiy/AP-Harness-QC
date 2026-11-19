@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A named case runs without its foundations, 2026-11-19
+
+**Why.** A named list is for investigating a case that failed or adding a new
+one, and its foundations decide nothing about why that case fails. Requiring
+them cost a live request each, and without them the harness refused the
+selection: debug run 44601131326 named grok's `154202`, which rests on
+`154103`, and measured nothing.
+
+**What changed.** A `--tests` or `--tests-file` selection runs exactly the
+cases named. A foundation the list does not name is deselected and recorded by
+`cmn.dependencies.leave_out_foundations`, and its dependents run as though it
+held. `--with-prerequisites` still adds the foundations, and a band still
+refuses. A left-out foundation is not a quarantined one.
+`cmn_verdict_and_cli.md` section 7.8.2.1, `MQC_REQ_HAR_CMN_0267`, cases
+`112914` to `112916`; inventory 564. README: 1186 test cases and 450
+requirements traced.
+
 ### A run can set the total a failing case escalates to, 2026-11-19
 
 **Why.** A finding's rate needs more observations than the five a failing

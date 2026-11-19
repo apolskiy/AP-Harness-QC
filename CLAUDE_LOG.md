@@ -17042,3 +17042,77 @@ restored.
 **Digressions the user spotted, and the fix.** I told the owner
 `observations=20` gives 20, or 22 if any fails. It gives exactly 20, since the
 rule earns nothing at five or more; I corrected it before building this.
+
+## 2026-11-19: A named case runs without its foundations
+
+**Why.** The owner: "we don't care if prerequisites pass or fail, when
+investigating a particular case. Goal is to run that case", and
+"prerequisited incur hidden cost and are completely irrelevant if we are
+investigating a single failure or adding a new test case to the suite." Asked
+how far it reaches, the owner chose the default for every named list. Debug
+run 44601131326 named grok's `154202`, the harness refused it for resting on
+`154103`, and the run measured nothing.
+
+**What changed.** Without `--with-prerequisites`, `select_named_tests` records
+every foundation the named cases rest on and the list does not hold, through
+`cmn.dependencies.leave_out_foundations`, before restricting the collection.
+`_restrict_items` treats a left-out foundation as it treats a carried one, not
+outside the selection, so it is deselected rather than refused.
+`arrange_dependencies` resolves it, and `enforce_dependencies` runs the
+dependent, logging that it runs alone.
+**A set of its own rather than the quarantine set**, because the Model
+Repository reads `set_aside_foundations_of` to report a dependent that passed
+while its foundation is quarantined, and a left-out foundation is not
+quarantined. A band still refuses: it is measured, and a named list is
+investigated. Design section 7.8.2.1 replaces "the dependency closure does not
+bend" for named lists; `MQC_REQ_HAR_CMN_0267`; cases `112914` P, `112915` B,
+`112916` N.
+
+**Failing first.** Before the change, `112914` and `112916` failed on the
+refusal and `112915` passed, being the unchanged `--with-prerequisites` path.
+Six injections were caught, each restored: the named list refusing again,
+foundations left out despite `--with-prerequisites`, a left-out foundation
+still counted outside the selection, the left-out dependent skipped at setup,
+the left-out foundation unknown at collection, and the left-out set written
+into the quarantine set.
+
+**Digressions the user spotted, and the fix.** None from the user. Two of
+mine. The first draft of the cases built foundations with no priority, which
+`_restrict_items` never counts as foundations, so `112915` failed for the wrong
+reason; the simulated cases now carry P0 and P2, as the real ones do. The first
+implementation passed a seventh argument to `_restrict_items`, and pylint
+exited 8 on too many arguments and locals; the recording moved to
+`select_named_tests`.
+
+**`cmn/selection.py` reached 908 lines**, past the nine-hundred-line runway, and
+`112331` reported it. Split by subject rather than declared: reading a named
+list, `requested_entries` and `entry_identifiers` with the character pattern,
+moved to `cmn/named_entries.py`, public since they cross a module. Moving
+`select_named_tests` itself would have made an import cycle, because the audit
+deselection in `selection.py` parses named lists too. No caller's import
+changed. The design index carried the old counts, 561 cases and 449
+requirements, and `112314` and `400007` reported both.
+
+## 2026-11-19: Banned shell shapes, recounted
+
+**Why.** The owner keeps the count of banned shapes current, for the
+portfolio's estimate of what the `PreToolUse` hook saved: "keep track of
+heredoc, python -c and sed -i attempts in claude_log.md". The method, the
+figures and what each token figure measures are in the 2026-11-17 entry.
+
+**The count is unchanged.** `portfolio/banned_shell_attempts.py`, rerun on
+2026-11-19 over every transcript, still finds 3327 calls carrying a banned
+shape: 3289 ran and 38 were refused. The last is the PowerShell `python -c`
+refused on 2026-11-17. Nothing ran or was refused on 2026-11-18 or 2026-11-19.
+
+**Auto-mode suggestions, counted for the first time.** The reminder naming sed
+and heredocs as the way to edit files appears in 174 transcript records over
+49 days, five of them on 2026-11-19. Each was declined, and none produced a
+call.
+
+**Digressions the user spotted, and the fix.** Asked to track the attempts, I
+wrote a new scanner instead of reading this log, and the owner pointed to the
+2026-11-17 entry. My scanner agreed with it on every shape: 12 heredocs, 22
+programs passed to python and 4 `sed -i` refused, and about 3300 run before
+their ban. The existing scanner stays the record, and later counts append
+here.
