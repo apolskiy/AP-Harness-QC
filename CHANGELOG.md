@@ -29,6 +29,22 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### The report deploys from a job of its own, after the job that uploaded it, 2026-11-19
+
+**Why.** Four of the case repository's publishes failed on 2026-11-19 at the
+deploy, which ran in the job that uploaded the site and found no Pages
+artifact listed for the run. This repository's gate deployed the same way.
+
+**What changed.** `gate-on-change.yml` uploads the report in `publish` and
+deploys it in a new `deploy` job that needs it and alone holds the Pages
+permissions. `report_publication_gaps` reports a generating job that deploys
+itself or uploads no Pages artifact, one no deploying job needs, and a
+deploying job without the permissions or, beside gates, without
+`continue-on-error`. It moved to `cmn/report_publication.py`, and its three
+cases to `tests/cmn/mqc_uni_report_publication.py`. `harness_ci_pipeline.md`
+section 7.4.6, `MQC_REQ_HAR_CMN_0219` extended, case `420011`; inventory 567.
+README: 1189 test cases.
+
 ### The consumer regression reads no code out of a case name, 2026-11-19
 
 **Why.** Run 44597017556's summary gave `QC_EVL_EVAL` as the code of 26

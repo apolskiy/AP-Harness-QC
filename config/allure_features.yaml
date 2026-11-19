@@ -152,6 +152,7 @@ modules:
   # subject. Its module is mapped here like any other, because the check
   # that every module declares a capability has to hold for it too.
   tests/cmn/mqc_uni_grouping.py: The readiness view
+  tests/cmn/mqc_uni_report_publication.py: The readiness view
 
   # That every claim, identifier and citation resolves to something.
   tests/cmn/mqc_uni_case_coverage.py: Governance and traceability

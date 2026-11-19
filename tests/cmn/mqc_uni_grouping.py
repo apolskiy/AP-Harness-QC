@@ -3,7 +3,7 @@
 """Unit preconditions for the grouping tree a readiness view is read from.
 
 Created: 2026-10-24
-Last updated: 2026-11-09
+Last updated: 2026-11-19
 
 The cases here check ``cmn/grouping.py``, the hooks that read it and the two
 other trees a report groups by. Three run against a planted repository and
@@ -12,9 +12,8 @@ vocabulary, an entry naming no module and an epic that is not the
 distribution's name are each reported. Two run one of this repository's own
 modules under a real Allure reporter and assert that every result carries
 exactly one epic, one capability and one scenario, a declared story standing in
-place of the derived one. Two read the workflows: one asserts the report is
-generated and published from a job of its own, and one that a workflow
-deploying the site never cancels a run in progress on main. One asserts that a suite root is
+place of the derived one. The cases reading how the report is published moved
+to ``mqc_uni_report_publication.py`` on 2026-11-19. One asserts that a suite root is
 the band a graded case carries and the preconditions root otherwise, and one
 that every registered failure code reaches exactly one category and that the
 classification is written where a report reads it.
@@ -26,8 +25,7 @@ classification is written where a report reads it.
 model finding**, so the module carries no priority marker, per
 ``framework-rules.md`` section 3.3.
 
-Specified by ``docs/design/harness_test_taxonomy.md`` section 16 and
-``docs/design/harness_ci_pipeline.md`` section 7.4.
+Specified by ``docs/design/harness_test_taxonomy.md`` section 16.
 """
 
 # ------------------------------------------------------------- cases in here
@@ -40,9 +38,6 @@ Specified by ``docs/design/harness_test_taxonomy.md`` section 16 and
 # TestMQCGroupingLabels
 #   420003  a_real_reporter_writes_all_three_grouping_labels
 #   420004  a_declared_story_is_kept_and_not_duplicated
-# TestMQCGroupingPublication
-#   420005  the_gate_publishes_the_report_from_a_job_of_its_own
-#   420010  a_pages_deploy_on_main_is_never_cancelled_midway
 # TestMQCGroupingWithoutReporter
 #   420006  the_suite_runs_where_no_reporter_is_installed
 #   420007  no_module_outside_the_boundary_imports_the_reporter
@@ -56,7 +51,6 @@ from pathlib import Path
 from typing import Final
 
 import pytest
-import yaml
 
 from cmn.case_steps import step
 from cmn.grouping import (
@@ -81,7 +75,6 @@ from cmn.report_categories import (
     report_categories,
     write_categories,
 )
-from cmn.workflow_standards import report_publication_gaps
 
 from tests.cmn.grouping_support import (
     BandItem,
@@ -93,10 +86,6 @@ from tests.cmn.grouping_support import (
 pytestmark = pytest.mark.unit
 
 _ROOT: Final[Path] = Path(__file__).resolve().parents[2]
-
-# THE ONE CANCELLING CONDITION A DEPLOYING WORKFLOW MAY CARRY: true on every
-# other ref and false on main. Design `harness_ci_pipeline.md` section 3.4.
-_NOT_MAIN: Final[str] = "github.ref != 'refs/heads/main'"
 
 # THE MODULE THE REPORTER PROBE RUNS. Three cases in one class, no subprocess
 # and no fixture of its own, so the probe measures the labelling rather than
@@ -341,226 +330,6 @@ class TestMQCGroupingLabels:
         assert story_for("TestMQCBandSummary") not in published, (
             f"a derived scenario reached a case that names its own, so the override "
             f"in section 16.2.1 is not in force: {published}"
-        )
-
-
-class TestMQCGroupingPublication:
-    """The report is rendered and published, not only uploaded raw."""
-
-    def MQC_CMN_UNI_420005_the_gate_publishes_the_report_from_a_job_of_its_own(
-        self, tmp_path: Path
-    ) -> None:
-        """This repository publishes the report, and a job missing a property is named.
-
-        Each property is one a reader would otherwise discover by opening the
-        site and finding it absent, stale, showing a pull request's results, or
-        showing only the engines that happened to pass.
-
-        Design: ``harness_ci_pipeline.md`` section 7.4.
-
-        Args:
-            tmp_path (Path): pytest's temporary directory.
-
-        Returns:
-            None
-        """
-        step(1, "read this repository's workflows")
-        assert not report_publication_gaps(_ROOT), (
-            "the report is not published as section 7.4 states: "
-            + "; ".join(report_publication_gaps(_ROOT))
-        )
-
-        step(2, "plant a workflow that renders a report and publishes nothing")
-        workflows = tmp_path / "half" / ".github" / "workflows"
-        workflows.mkdir(parents=True)
-        (workflows / "gate-on-change.yml").write_text(
-            "\n".join([
-                "name: gate-on-change",
-                "on:",
-                "  push:",
-                "jobs:",
-                "  publish:",
-                "    runs-on: ubuntu-26.04",
-                "    steps:",
-                "      - name: Generate the report",
-                "        run: allure generate reports/allure-results -o allure-report",
-            ]) + "\n",
-            encoding="utf-8",
-        )
-        gaps = report_publication_gaps(tmp_path / "half")
-        assert any("deploy-pages" in gap for gap in gaps), (
-            f"a job that renders a report and deploys nothing was accepted, so the "
-            f"site would never change: {gaps}"
-        )
-
-        step(3, "and the same job is reported for the permissions and the trend")
-        assert any("permission" in gap for gap in gaps) and any(
-            "history" in gap for gap in gaps
-        ), (
-            f"a publishing job with no deployment permission and no trend was "
-            f"accepted: {gaps}"
-        )
-
-        step(4, "a publisher a pull request can reach and does not guard is reported")
-        guarded = tmp_path / "open" / ".github" / "workflows"
-        guarded.mkdir(parents=True)
-        (guarded / "gate-on-change.yml").write_text(
-            "\n".join([
-                "name: gate-on-change",
-                "on:",
-                "  push:",
-                "  pull_request:",
-                "jobs:",
-                "  publish:",
-                "    runs-on: ubuntu-26.04",
-                "    permissions:",
-                "      pages: write",
-                "      id-token: write",
-                "    steps:",
-                "      - name: Generate the report",
-                "        run: |",
-                "          mkdir -p reports/allure-results/history",
-                "          allure generate reports/allure-results -o allure-report",
-                "      - uses: actions/deploy-pages@v4",
-            ]) + "\n",
-            encoding="utf-8",
-        )
-        assert any(
-            "names no event condition" in gap
-            for gap in report_publication_gaps(tmp_path / "open")
-        ), (
-            "a publishing job reachable from a pull request and guarded by nothing "
-            "was accepted, so a proposal could overwrite the branch's report"
-        )
-
-        step(5, "a publisher beside a gate that fails hard is reported")
-        shared = tmp_path / "shared" / ".github" / "workflows"
-        shared.mkdir(parents=True)
-        (shared / "gate-on-change.yml").write_text(
-            "\n".join([
-                "name: gate-on-change",
-                "on:",
-                "  push:",
-                "jobs:",
-                "  unit:",
-                "    runs-on: ubuntu-26.04",
-                "    steps:",
-                "      - run: pytest -m unit",
-                "  publish:",
-                "    needs: unit",
-                "    runs-on: ubuntu-26.04",
-                "    permissions:",
-                "      pages: write",
-                "      id-token: write",
-                "    steps:",
-                "      - name: Generate the report",
-                "        run: |",
-                "          mkdir -p reports/allure-results/history",
-                "          allure generate reports/allure-results -o allure-report",
-                "      - uses: actions/deploy-pages@v4",
-            ]) + "\n",
-            encoding="utf-8",
-        )
-        assert any(
-            "continue-on-error" in gap
-            for gap in report_publication_gaps(tmp_path / "shared")
-        ), (
-            "a publisher sharing a workflow with a gate and failing hard was "
-            "accepted, so a rendering failure would conclude the run failure and "
-            "every consumer pinning the commit would refuse it"
-        )
-
-        step(6, "a repository rendering nothing at all is reported")
-        bare = tmp_path / "bare" / ".github" / "workflows"
-        bare.mkdir(parents=True)
-        (bare / "gate-on-change.yml").write_text(
-            "name: gate-on-change\non:\n  push:\njobs: {}\n", encoding="utf-8"
-        )
-        assert any(
-            "allure generate" in gap for gap in report_publication_gaps(tmp_path / "bare")
-        ), "a repository that renders no report at all was accepted"
-
-        step(7, "a publisher deciding what to publish from a conclusion is reported")
-        conditioned = tmp_path / "conclusion" / ".github" / "workflows"
-        conditioned.mkdir(parents=True)
-        (conditioned / "publish-report-on-merge.yml").write_text(
-            "\n".join([
-                "name: publish-report-on-merge",
-                "on:",
-                "  workflow_run:",
-                "    workflows: [gate-claude]",
-                "    types: [completed]",
-                "    branches: [main]",
-                "jobs:",
-                "  publish:",
-                "    if: github.event.workflow_run.conclusion == 'success'",
-                "    runs-on: ubuntu-26.04",
-                "    permissions:",
-                "      pages: write",
-                "      id-token: write",
-                "    steps:",
-                "      - name: Generate the report",
-                "        run: |",
-                "          mkdir -p reports/allure-results/history",
-                "          allure generate reports/allure-results -o allure-report",
-                "      - uses: actions/deploy-pages@v4",
-            ]) + "\n",
-            encoding="utf-8",
-        )
-        assert any(
-            "conclusion" in gap
-            for gap in report_publication_gaps(tmp_path / "conclusion")
-        ), (
-            "a publisher conditioned on a run's conclusion was accepted, so an "
-            "engine carrying findings would publish nothing and the site would "
-            "read as though everything passed"
-        )
-
-    def MQC_CMN_UNI_420010_a_pages_deploy_on_main_is_never_cancelled_midway(
-        self,
-    ) -> None:
-        """A workflow that deploys the site never cancels a run in progress on main.
-
-        **A run cancelled midway on main costs two things.** A Pages deployment
-        cancelled while syncing left the next deploy waiting at
-        ``syncing_files`` until it timed out, three of four publishes in the
-        case repository on 2026-11-09, and a cancelled gate run concludes
-        ``cancelled``, so the commit it measured is never green to the case
-        repository's pairing resolver. Superseded runs on other refs still
-        cancel: they deploy nothing and nothing pins them.
-
-        A workflow's ``cancel-in-progress`` is accepted as ``false``, or as the
-        expression ``github.ref != 'refs/heads/main'``, which is false on main.
-
-        Design: ``harness_ci_pipeline.md`` section 3.4.
-
-        Returns:
-            None
-        """
-        allowed = (False, f"${{{{ {_NOT_MAIN} }}}}")
-        cancelling = []
-        for path in sorted((_ROOT / ".github" / "workflows").glob("*.yml")):
-            definition = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-            deploying = [
-                job or {} for job in (definition.get("jobs") or {}).values()
-                if any("actions/deploy-pages" in str((each or {}).get("uses", ""))
-                       for each in (job or {}).get("steps") or [])
-            ]
-            levels = [definition.get("concurrency")] + [
-                job.get("concurrency") for job in deploying
-            ]
-            if deploying and any(
-                isinstance(level, dict)
-                and level.get("cancel-in-progress", False) not in allowed
-                for level in levels
-            ):
-                cancelling.append(path.name)
-
-        step(1, "find no workflow that deploys the site and cancels a run in progress on main")
-        assert not cancelling, (
-            f"these workflows deploy the site and can cancel a run in progress on "
-            f"main, so a deploy stopped midway stalls the next and a cancelled "
-            f"run leaves its commit never green: {cancelling}"
         )
 
 

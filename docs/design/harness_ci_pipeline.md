@@ -1541,8 +1541,10 @@ conclusion to poison and declares nothing. `MQC_CMN_UNI_420005` checks the
 first and does not require the second.
 
 **Least privilege, on that job alone.** `pages: write` and `id-token: write`
-are declared on the publishing job rather than at the workflow level, so no
-step that runs a test can reach the deployment credential.
+are declared on the deploying job rather than at the workflow level, so no
+step that runs a test can reach the deployment credential. Since 2026-11-19
+the deploy is a job of its own after the generating job (section 7.4.6), and
+`continue-on-error` applies to both.
 
 #### 7.4.4 One prerequisite is a repository setting rather than a change here
 
@@ -1587,11 +1589,40 @@ resembled. `workflow_run` with `branches: [main]` cannot be reached by a pull
 request at all, so section 7.4.3's concern about a proposal overwriting the
 branch picture is already answered by the trigger.
 
-`cmn.workflow_standards.report_publication_gaps` reports a publishing job that
+`cmn.report_publication.report_publication_gaps` reports a publishing job that
 reads a conclusion, in its condition or in its scripts.
 `MQC_CMN_UNI_420005` plants one, and `MQC_CAS_UNI_430002` reads the shipped
 workflows and failed against them before the fix. The case repository's
 `consumer_ci.md` section 4.22.2.1 carries the decision from its own side.
+
+#### 7.4.6 The deploy runs in a job of its own, after the job that uploaded
+
+Added 2026-11-19. **Four of the case repository's publishes failed that day**,
+among them runs 44610248807 and 44610130885, each at the deploy:
+`Found 0 artifact(s)`, then `No artifacts named "github-pages" were found for
+this workflow run`. The deploy ran in the job that uploaded the site, a second
+after the upload, and the artifact was not yet listed for the run.
+
+**An artifact a job uploads is listed for the run reliably once that job has
+ended**, so the deploy goes in a second job taking `needs:` on the first.
+That is the arrangement GitHub documents for the two Pages actions.
+
+| Job | Holds | Declares |
+|---|---|---|
+| The generating job | `allure generate`, the trend, then `actions/upload-pages-artifact` | The event guard where a pull request can reach it (section 7.4.1), and `continue-on-error` beside gates (7.4.3) |
+| The deploying job | `actions/deploy-pages` alone, with `needs:` naming the generating job | `pages: write` and `id-token: write`, the `github-pages` environment, and `continue-on-error` beside gates |
+
+**The permissions move to the deploying job**, which is the only one that
+writes the site, so the generating job no longer holds them. A generating job
+that is skipped skips its deployer through `needs:`, so the event guard stays
+on the generating job alone.
+
+`cmn.report_publication.report_publication_gaps`, split from
+`workflow_standards.py` the same day, reports a generating job that
+deploys itself, one that uploads no Pages artifact, and one no deploying job
+needs, and checks the permissions and soft failure of the deploying job.
+`MQC_CMN_UNI_420011` plants each, and `420005` and the case repository's
+`MQC_CAS_UNI_430002` read the shipped workflows.
 
 ---
 

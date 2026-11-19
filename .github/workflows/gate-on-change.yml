@@ -153,14 +153,6 @@ jobs:
     # Pages setting nobody had enabled refused four model gates with
     # QC_HARNESS_UPSTREAM_UNVERIFIED. Design section 7.4.3.
     continue-on-error: true
-    # ON THE JOB AND NOT THE WORKFLOW, so no step that runs a test can reach
-    # the credential that writes the site.
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -207,6 +199,25 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: allure-report
+
+  # THE DEPLOY IS A JOB OF ITS OWN, after the job that uploaded. Deployed in
+  # that job, it looked for the Pages artifact before the run listed it and
+  # found none, four times in the case repository on 2026-11-19. Design
+  # section 7.4.6; MQC_CMN_UNI_420011.
+  deploy:
+    name: deploy the report
+    needs: publish
+    runs-on: ubuntu-26.04
+    continue-on-error: true
+    # ON THE JOB AND NOT THE WORKFLOW, so no step that runs a test can reach
+    # the credential that writes the site.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy it
         id: deployment
         uses: actions/deploy-pages@v5

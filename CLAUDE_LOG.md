@@ -17164,3 +17164,61 @@ case gained the file name, and allowing a lowercase letter. A class guarding
 more than a case could reach was replaced by `\b`, which states the rule
 directly; dropping it and breaking the code pattern were both caught, each
 against a passing control.
+
+## 2026-11-19: Fixed the Pages deploy racing the upload in its own job
+
+**A) What was wrong.** Four case repository publishes failed today, among them
+runs 44610248807 and 44610130885, at the deploy: `Found 0 artifact(s)`, then
+`No artifacts named "github-pages" were found for this workflow run`. The
+harness gate deployed the same way and had not yet failed.
+
+**B) Why.** `actions/deploy-pages` ran in the job that ran
+`actions/upload-pages-artifact`, a second after it, and the artifact was not
+yet listed for the run. An artifact is listed reliably once its job has ended.
+
+**The fix.** The deploy is a job of its own that needs the generating job, and
+alone holds `pages: write`, `id-token: write` and the environment, in
+`gate-on-change.yml` here and `publish-report-on-merge.yml` there. Section
+7.4.6; `MQC_REQ_HAR_CMN_0219` extended; case `420011` N.
+`report_publication_gaps` now reads the workflow's jobs together: a generating
+job deploying itself, uploading no Pages artifact, or needed by no deploying
+job is reported, and the permissions and `continue-on-error` are checked of
+the deployer. Soft failure is required only where a job other than the two
+shares the workflow, so the case repository's publisher needs none.
+
+**Failing first.** `420011` failed its control before the check changed, and
+`420005` failed on the unsplit gate after it. Seven injections into the check,
+each against a passing control and restored, were caught: the self-deploy
+check, the upload check, the `needs:` match, the deployer's permissions, the
+deployer's soft failure, and soft failure demanded of a two-job publisher. In
+the case repository, dropping `needs: publish` turned `430002` red.
+
+**Two modules split by subject.** The deploy split took
+`cmn/workflow_standards.py` to 943 lines, so the publication check and its
+constants moved to `cmn/report_publication.py`; the case repository's
+`430002` imports it from there, so the two repositories land together. The
+three publication cases moved out of `mqc_uni_grouping.py` to
+`mqc_uni_report_publication.py` with the planted-workflow lines in
+`publication_support.py`.
+
+**A fixture defect found by the control.** The planted generating job made
+the history directory and fetched nothing, which `_HISTORY` (a fetch path)
+rightly does not accept; the fixture now fetches as the shipped workflow does.
+
+**A field that lost its space.** The note added to `MQC_REQ_HAR_CMN_0219`
+ended in a space, which the edit tool stripped, so the RTM read
+`run.Every`. Found while staging; corrected here.
+
+## 2026-11-19: Commit 0d44843 carries the wrong message
+
+**What it says.** "A named test selection now runs its cases without their
+foundations", which is `cabed5c`'s message, repeated.
+
+**What it contains.** The consumer regression skipping its comparison when
+the replay on the harness before the change executed no case:
+`tools/consumer_regression.py` `baseline_not_run`, case `112544`, section
+3B.3.4, `MQC_REQ_HAR_CMN_0251` extended. Its intended message is the one
+under "A consumer replay that executed no case on the harness before a change
+skips the comparison" in `CHANGELOG.md`.
+
+The commit is pushed to `main` and left as it is; this entry is the record.

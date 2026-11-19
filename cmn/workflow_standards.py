@@ -3,7 +3,7 @@
 """Workflow standards checks, what the CI definitions must hold, checked before a push.
 
 Created: 2026-10-04
-Last updated: 2026-11-14
+Last updated: 2026-11-19
 
 This file contains ``uncapped_spending_steps``, which reports a workflow step
 that can spend on a provider and names no ``--max-spend`` ceiling above zero,
@@ -11,19 +11,18 @@ in the workflow or through a local composite action it calls;
 ``pylint_invocations`` and ``disagreeing_pylint_invocations``, which report a
 pylint command differing from its copies; ``duplicate_yaml_keys``;
 ``engine_list_gaps``, a workflow engine list disagreeing with the roster;
-``unoffered_credentials``, a live-capable workflow missing a credential; and
-``report_publication_gaps``, which reports a repository that renders no report
-or renders one from a job that could publish a proposal's results.
+and ``unoffered_credentials``, a live-capable workflow missing a credential.
 
 Precondition cases in both repositories call these with their own root, so a
 workflow defect fails the unit layer locally instead of surfacing in CI.
 
-**Two subjects are next door rather than here**, both because this module
-reached its nine-hundred-line runway as each was written (``code-style.md``
+**Three subjects are next door rather than here**, each because this module
+reached its nine-hundred-line runway as it was written (``code-style.md``
 section 5.1). ``ungated_graded_jobs`` and ``unearned_run_conclusions`` are in
-``ci_gating.py``, which reads what stands in front of a job, and
+``ci_gating.py``, which reads what stands in front of a job,
 ``unpinned_runner_images`` is in ``runner_images.py``, which reads where a job
-runs. These read what a definition says.
+runs, and ``report_publication_gaps`` is in ``report_publication.py``, which
+reads how the report reaches Pages. These read what a definition says.
 
 Specified by ``docs/design/harness_ci_pipeline.md`` sections 8.2, 8.3, 8.5 and
 8.5.4.
@@ -90,58 +89,6 @@ _EVERY_BRANCH: Final[str] = "**"
 # which is what makes it a debug workflow (harness_ci_pipeline.md section 2).
 _ON_DEMAND_SUFFIX: Final[str] = "-on-demand.yml"
 _UPLOAD_ACTION: Final[str] = "actions/upload-artifact"
-
-# THE PUBLISHING JOB, by what it does rather than by its name. A job is the
-# publisher when it generates the report; everything else is checked of that
-# job, so a renamed job is still found (`harness_ci_pipeline.md` 7.4).
-_GENERATE_COMMAND: Final[str] = "allure generate"
-_DEPLOY_ACTION: Final[str] = "actions/deploy-pages"
-
-# WHAT THE DEPLOYMENT NEEDS AND NOTHING ELSE MAY HAVE. Declared on the job
-# rather than the workflow, so no step that runs a test can reach the
-# credential that writes the site.
-_DEPLOY_PERMISSIONS: Final[tuple[str, ...]] = ("pages", "id-token")
-
-# WHAT KEEPS A RENDERING FAILURE OFF THE RUN'S CONCLUSION. A consumer's
-# pairing resolver reads the conclusion of a workflow run, not of a job, so a
-# publisher sharing a workflow with the gates has to fail softly or it refuses
-# every consumer pinning the commit (`harness_ci_pipeline.md` 7.4.3).
-_SOFT_FAILURE: Final[str] = "continue-on-error"
-
-# A PULL REQUEST NEVER PUBLISHES. A fork's run cannot hold the credential, and
-# a run that could would overwrite the branch's picture with a proposal's. The
-# rule is about reachability rather than about one guard: a workflow a pull
-# request cannot trigger needs no condition, and one it can needs the job to
-# name the event.
-_PULL_REQUEST: Final[str] = "pull_request"
-_EVENT_GUARD: Final[str] = "github.event_name"
-
-# THE TREND, WHICH ALLURE CARRIES BY READING THE PREVIOUS REPORT. A job that
-# generates without fetching it publishes a report whose history starts again
-# every run, which reads as a project with no past.
-#
-# A PATH AND NOT THE BARE WORD, so a job mentioning history in a comment does
-# not satisfy it. **What this establishes is that the trend is fetched, not
-# where it lands**: the destination is a directory name the job chooses, and
-# one repository renders a report per engine into a directory of its own.
-# The destination rule is stated in `harness_ci_pipeline.md` section 7.4.2
-# and is not checked here.
-_HISTORY: Final[str] = "/history/"
-
-# A PUBLISHER DECIDING FROM A RUN'S CONCLUSION, in the job's condition or in
-# the step that selects which runs to download. `harness_ci_pipeline.md`
-# section 7.4 makes the report a readiness view, and a readiness view that
-# drops the engines carrying findings reads as though everything passed; the
-# case repository's `consumer_ci.md` section 4.22.2 decides inclusion by head
-# commit and says nothing about conclusion.
-#
-# **Both spellings, because the two surfaces differ.** A job condition reads
-# `github.event.workflow_run.conclusion`, and the artifact lookup filters a
-# `gh run list` with a `.conclusion` field. Matching only the first left the
-# second in place for a week.
-_CONCLUSION: Final[re.Pattern] = re.compile(
-    r"workflow_run\.conclusion|\.conclusion\s*==|--status[ =]+success"
-)
 
 # A run withholding the judge, written literally, and the input value a debug
 # workflow offers to ask for one (tier3_evaluation.md section 5A.5.3).
@@ -546,136 +493,6 @@ def collectable_debug_uploads(root: Path) -> list[str]:
                         f"{workflow.name} job {job_name} uploads {name!r}, which does not "
                         f"start with {DEBUG_PREFIX!r}"
                     )
-    return problems
-
-
-def report_publication_gaps(root: Path) -> list[str]:
-    """Report what stops this repository publishing a readable report.
-
-    One job generates the report and deploys it. Four properties are checked
-    of it: that it exists, that it deploys what it generated, that it declares
-    the deployment permissions itself, and that it carries the trend forward.
-    A fifth is checked of its reachability: a job in a workflow a pull request
-    can trigger names the event, and a job in a workflow a pull request cannot
-    reach needs no condition.
-
-    **Keyed on the command rather than on a job name**, so renaming the job
-    does not silence the check, which is the same reasoning
-    :func:`artifact_mandate_gaps` uses about the artifact flags.
-
-    Design: ``harness_ci_pipeline.md`` section 7.4.
-
-    Args:
-        root (Path): The repository root.
-
-    Returns:
-        list[str]: One entry per gap, empty where the report is published as
-        the design states.
-    """
-    publishers = _publishing_jobs(root)
-    if not publishers:
-        return [
-            f"no workflow runs {_GENERATE_COMMAND!r}, so the raw results are published "
-            f"and nothing renders them"
-        ]
-
-    problems: list[str] = []
-    for name, job_name, job, reachable, shares in publishers:
-        problems.extend(
-            _publisher_problems(f"{name} job {job_name}", job, reachable, shares)
-        )
-    return problems
-
-
-def _publishing_jobs(
-    root: Path,
-) -> list[tuple[str, str, dict[str, Any], bool, bool]]:
-    """Return every job that generates a report, with what its workflow exposes it to.
-
-    Args:
-        root (Path): The repository root.
-
-    Returns:
-        list: The workflow's filename, the job's name, the job, whether its
-        workflow can be triggered by a pull request, and whether other jobs
-        share that workflow.
-    """
-    publishers: list[tuple[str, str, dict[str, Any], bool, bool]] = []
-    for workflow in sorted((root / ".github" / "workflows").glob("*.yml")):
-        definition = yaml.safe_load(workflow.read_text(encoding="utf-8")) or {}
-        # `on:` IS READ AS A BOOLEAN BY A YAML 1.1 LOADER, which is why the
-        # true key is tried first and the word second.
-        triggers = definition.get(True, definition.get("on", {})) or {}
-        reachable = _PULL_REQUEST in set(triggers)
-        for job_name, job in (definition.get("jobs") or {}).items():
-            scripts = " ".join(
-                str((step or {}).get("run") or "") for step in (job or {}).get("steps") or []
-            )
-            if _GENERATE_COMMAND in scripts:
-                publishers.append((
-                    workflow.name, str(job_name), job or {}, reachable,
-                    len(definition.get("jobs") or {}) > 1,
-                ))
-    return publishers
-
-
-def _publisher_problems(
-    where: str, job: dict[str, Any], reachable: bool, shares: bool
-) -> list[str]:
-    """Report what one publishing job is missing.
-
-    Args:
-        where (str): The workflow and job, for the message.
-        job (dict): The job definition.
-        reachable (bool): Whether a pull request can trigger its workflow.
-        shares (bool): Whether other jobs share its workflow, which decides
-            whether its failure can reach the run's conclusion.
-
-    Returns:
-        list[str]: One entry per missing property, empty where it publishes as
-        section 7.4 states.
-    """
-    problems: list[str] = []
-    steps = [step or {} for step in job.get("steps") or []]
-    uses = " ".join(str(step.get("uses") or "") for step in steps)
-    scripts = " ".join(str(step.get("run") or "") for step in steps)
-    granted = set((job.get("permissions") or {}))
-
-    if _DEPLOY_ACTION not in uses:
-        problems.append(
-            f"{where} generates the report and does not use {_DEPLOY_ACTION}, so "
-            f"nothing publishes what it rendered"
-        )
-    missing = [one for one in _DEPLOY_PERMISSIONS if one not in granted]
-    if missing:
-        problems.append(
-            f"{where} publishes and declares no {', '.join(missing)} permission of "
-            f"its own, so the deploy fails or depends on a workflow-wide grant"
-        )
-    if reachable and _EVENT_GUARD not in str(job.get("if") or ""):
-        problems.append(
-            f"{where} publishes from a workflow a pull request can trigger and "
-            f"names no event condition, so a proposal could overwrite the default "
-            f"branch's report with its own results"
-        )
-    if _HISTORY not in scripts:
-        problems.append(
-            f"{where} generates no history, so each published report starts the "
-            f"trend again"
-        )
-    conditioned = _CONCLUSION.search(str(job.get("if") or "")) or _CONCLUSION.search(scripts)
-    if conditioned:
-        problems.append(
-            f"{where} decides what to publish from a run's conclusion, so an "
-            f"engine carrying findings publishes nothing and the site reads as "
-            f"though everything passed. Inclusion is by head commit"
-        )
-    if shares and not job.get(_SOFT_FAILURE):
-        problems.append(
-            f"{where} publishes beside other jobs and declares no "
-            f"{_SOFT_FAILURE}, so a rendering failure concludes the whole run "
-            f"failure and every consumer pinning the commit refuses it"
-        )
     return problems
 
 
