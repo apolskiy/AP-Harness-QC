@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A judge timeout carries the judge's code, and skips whatever the assertions found, 2026-11-18
+
+**Why.** A judge that timed out was recorded under the candidate's timeout
+code, because the judge channel maps a provider failure with the adapter's own
+map, the candidate path's. `judge_timeout_outcome` existed to name the judge's
+code and nothing called it. Its precedence, a failed assertion dominating a
+judge timeout, is also reversed: an inconclusive observation is rerun rather
+than graded, and a skip already counts as not passed at every floor.
+
+**What changed.** The pipeline calls `judge_timeout_outcome` where the
+judge's error carries `QC_HARNESS_CANDIDATE_TIMEOUT`, and records
+`QC_HARNESS_JUDGE_TIMEOUT` with `judgement_unavailable`, keeping the assertion
+results and their codes, whatever the assertions found.
+`tier3_evaluation.md` section 6.5.2 and `harness_test_taxonomy.md` section 9.4
+hold the design. Requirement `MQC_REQ_HAR_EVL_0014` was amended; case `114410`
+was retired and `114422` to `114424` were added. README: 1179 test cases.
+
 ### Carried outcomes from another served model skip the cases resting on them, 2026-11-18
 
 **Why.** A carried foundation is a measurement of one served model, and the

@@ -2436,7 +2436,7 @@ On a timeout, `duration` records how long the harness waited before giving up, n
 
 Both skip and both count toward the skip budget, since in neither case was a measurement obtained. The codes stay distinct because repeated judge timeouts mean the evaluation path is unreliable while repeated candidate timeouts mean something about the model or its provider.
 
-**Precedence:** an assertion failure dominates a judge timeout. If assertions failed the case has already failed; a judge timeout only produces a skip when the assertions passed and the measurement was therefore incomplete rather than negative.
+**Precedence, ruled 2026-11-18 by the project owner: an unavailable judge skips the observation whatever its assertions found.** It read until then that an assertion failure dominates a judge timeout. The judge confirms a failure or a reviewer investigates it, and an inconclusive observation is rerun rather than graded: "Case is not a fail because run is inconclusive." A skip weighs the same as a fail against every floor, so nothing is let through, and the assertion results travel with the skip, so a deterministic failure is still reviewed. `tier3_evaluation.md` section 6.5.2.
 
 
 ### 9.5 The normative list had three copies and nothing reconciled them

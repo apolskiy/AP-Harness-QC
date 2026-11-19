@@ -221,7 +221,7 @@ once and has no space to look either of them up.
 | `MQC_REQ_HAR_EVL_0011` | Aggregation declares a scale, and scores of differing scales are not combined | Tier 3 section 8 |
 | `MQC_REQ_HAR_EVL_0012` | Calibration runs on the schedule and never on a pull request, and the spread across a case's repeat observations is reported, undefined below two observations | Tier 3 section 9 |
 | `MQC_REQ_HAR_EVL_0013` | The dual pass produces both a programmatic and a judged result | Tier 3 section 4 |
-| `MQC_REQ_HAR_EVL_0014` | A judge timeout is attributed to the judge and never to the candidate, and an assertion failure dominates it | Taxonomy section 9.4 |
+| `MQC_REQ_HAR_EVL_0014` | A judge timeout is recorded under QC_HARNESS_JUDGE_TIMEOUT and never under the candidate's code, and an unavailable judge skips the observation as judgement_unavailable whatever its assertions found, keeping the assertion results and their codes | Taxonomy section 9.4, tier3_evaluation.md section 6.5.2 |
 | `MQC_REQ_HAR_EVL_0015` | A judge engine not declaring structured output is rejected | Tier 3 section 10 |
 | `MQC_REQ_HAR_EVL_0016` | Every value the harness did not author is isolated from judge instruction text | Tier 3 section 3.1.1 |
 | `MQC_REQ_HAR_EVL_0017` | A case declaring adversarial content is graded by assertion and invokes no judge | Tier 3 section 3.2.1 |

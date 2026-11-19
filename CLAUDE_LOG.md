@@ -16921,3 +16921,49 @@ with `served_digest` and `112474` found nothing on the config. Removing
 model, and the published record carried no digest. Restored.
 
 **Digressions the user spotted, and the fix.** None this commit.
+
+## 2026-11-18: A Judge Timeout Carries The Judge's Code, And Skips
+
+**Why.** The owner's rulings on an unreachable judge, verbatim:
+
+1. Assertions failed and the judge unavailable: "we need judge to confirm
+   fail or we need to investigate, regardless we investigate. If judge is
+   unavailable, case is usually skipped, same for eval engine. There is no
+   point in wasting tokens in an inconclusive case. We need to rerun it skip
+   weighs the same against passing floor as fail. Case is not a fail because
+   run is inconclusive. Deterministic failures still need to be reviewed in a
+   skip or a fail. I say stick with skip."
+2. Assertions passed and the judge unavailable: "Skip. Partial pass is not a
+   pass."
+3. "If judge is unavailable. Tests involving judge should skip." Its own
+   commit, next.
+4. `judge_timeout_outcome`: "wire it in".
+
+**What was wrong, found while preparing ruling 4.** A judge timeout was
+recorded under `QC_HARNESS_CANDIDATE_TIMEOUT`. The judge channel maps a
+provider failure with the adapter's `map_error`, the candidate path's, and
+every adapter maps its client's timeout to the candidate code. Taxonomy
+section 9.4 splits the two codes, and `judge_timeout_outcome` existed to name
+the judge's, but only its four cases called it.
+
+**What changed.** `_judge_and_aggregate` calls `judge_timeout_outcome` where
+the judge's error carries `QC_HARNESS_CANDIDATE_TIMEOUT`; the function now
+returns `QC_HARNESS_JUDGE_TIMEOUT` whatever the assertions found, and logs
+which. The observation is `judgement_unavailable` with its assertion results
+and codes kept, so a deterministic failure is still reviewed. Rulings 1 and 2
+otherwise held already: an unavailable judgement was unmeasured in both cases,
+and the case repository's measured-population rule skips a partial pass.
+Since 2026-11-02 a violation failure reaches the judge by default, so ruling 1
+covers the ordinary path. Design `tier3_evaluation.md` section 6.5.2,
+taxonomy section 9.4's precedence paragraph replaced; requirement
+`MQC_REQ_HAR_EVL_0014` amended; `114410` retired, `114422` to `114424` added.
+README 1179 test cases.
+
+**Injection.** Before the change `114422` got `None`, and `114423` and
+`114424` found `QC_HARNESS_CANDIDATE_TIMEOUT` on the observation. Making the
+pipeline never call the function failed `114423` and `114424`; restoring the
+old precedence failed `114422` and `114424`. Restored.
+
+**Digressions the user spotted, and the fix.** I recommended ruling 1 as a
+fail, which the design then said. The owner ruled skip, for the reason above,
+and the design is corrected to it.

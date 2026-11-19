@@ -3,7 +3,7 @@
 """Checks an LLM judge's reply and turns it into per-criterion scores.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-18
 
 This file contains ``validate_judge_reply``, which checks a reply against the
 reply schema and the rubric's scale, requires a score for every criterion, and
@@ -346,26 +346,24 @@ def _require_in_scale(entry: dict[str, Any], criterion: Any, case_id: str) -> fl
     return score
 
 
-def judge_timeout_outcome(case_id: str, *, assertions_passed_first: bool) -> Optional[str]:
-    """Return the code a judge timeout records, given the assertion result.
+def judge_timeout_outcome(case_id: str, *, assertions_passed_first: bool) -> str:
+    """Return the code a judge timeout records, whatever the assertions found.
 
-    **Precedence: an assertion failure dominates a judge timeout.** If the
-    assertions failed the case has already failed, and a timeout only produces a
-    skip when the assertions passed and the measurement was therefore incomplete
-    rather than negative.
+    The observation skips either way, its assertion results kept for review;
+    which way it went is logged. Design: ``tier3_evaluation.md`` section 6.5.2.
 
     Args:
         case_id (str): Which case timed out.
         assertions_passed_first (bool): Whether the assertions had passed.
 
     Returns:
-        Optional[str]: ``QC_HARNESS_JUDGE_TIMEOUT`` when the case is a skip, or
-        ``None`` when the case has already failed on its assertions. **Never a
-        candidate code**: the judge is not under test, and the candidate may
-        have produced a good response that could not be scored.
+        str: ``QC_HARNESS_JUDGE_TIMEOUT``. **Never a candidate code**: the judge
+        is not under test, and the candidate may have produced a good response
+        that could not be scored.
     """
-    if not assertions_passed_first:
-        logger.info("%s judge timed out after assertions had already failed", case_id)
-        return None
-    logger.warning("QC_HARNESS_JUDGE_TIMEOUT %s judged nothing; recording a skip", case_id)
+    after = "passing" if assertions_passed_first else "failed"
+    logger.warning(
+        "QC_HARNESS_JUDGE_TIMEOUT %s judged nothing after %s assertions; recording a skip",
+        case_id, after,
+    )
     return "QC_HARNESS_JUDGE_TIMEOUT"

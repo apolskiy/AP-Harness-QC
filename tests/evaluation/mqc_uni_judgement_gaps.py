@@ -3,16 +3,18 @@
 """Unit cases for evaluating a response whose judgement could not be obtained.
 
 Created: 2026-10-06
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 Its cases check :func:`evaluation.pipeline.evaluate_observation` when the judge
 raises ``FixtureMissing`` or ``FixtureStale``, or the provider could not answer.
 The case is skipped as unavailable and keeps its assertion results, rather than
 failing, and a judgement the store cannot find or read carries
-``QC_HARNESS_ARTIFACT_MISSING`` and the missing artifact.
+``QC_HARNESS_ARTIFACT_MISSING`` and the missing artifact. A judge that timed
+out is recorded under ``QC_HARNESS_JUDGE_TIMEOUT`` and skips whatever the
+assertions found.
 
-Specified by `tier3_evaluation.md` section 6.5 and `tier2_execution.md`
-section 7.6.2.
+Specified by `tier3_evaluation.md` sections 6.5 and 6.5.2 and
+`tier2_execution.md` section 7.6.2.
 
 **Split from `mqc_uni_pipeline.py` on 2026-10-06**, which stood at 895 lines
 and would have passed the 1000-line ceiling with this case in it. The runway
@@ -32,6 +34,8 @@ failures, that a `QC_HARNESS_*` event is a skip and never a failure.
 #   114115  an_unavailable_judgement_skips_and_keeps_its_assertions
 #   114117  a_judge_the_provider_could_not_answer_is_unavailable
 #   114146  an_unreplayable_judgement_carries_the_missing_artifact
+#   114423  a_timed_out_judge_is_recorded_under_the_judge_code
+#   114424  a_judge_timeout_keeps_a_failed_assertion_and_skips
 # ------------------------------------------------------------ end of cases
 
 from pathlib import Path
@@ -55,6 +59,11 @@ from tests.evaluation.mqc_uni_pipeline import (  # pylint: disable=unused-import
 from tests.evaluation.pipeline_support import observation_context
 
 pytestmark = pytest.mark.unit
+
+# THE CODE THE JUDGE'S ADAPTER MAPS A TIMEOUT TO, and the one it is recorded
+# under. Section 6.5.2.
+_CANDIDATE_TIMEOUT = "QC_HARNESS_CANDIDATE_TIMEOUT"
+_JUDGE_TIMEOUT = "QC_HARNESS_JUDGE_TIMEOUT"
 
 
 class TestMQCJudgementAvailability:
@@ -204,3 +213,61 @@ class TestMQCJudgementAvailability:
             and ARTIFACT_MISSING in garbled.taxonomy_codes
             and "QC_HARNESS_PARSER_ERROR" not in garbled.taxonomy_codes
         ), (garbled.judge_skipped_reason, garbled.taxonomy_codes)
+
+    def MQC_EVL_UNI_114423_a_timed_out_judge_is_recorded_under_the_judge_code(
+        self,
+        rules: GoldenRuleSet,
+    ) -> None:
+        """A judge timing out after passing assertions is unavailable under the judge's code.
+
+        Design: ``tier3_evaluation.md`` section 6.5.2.
+
+        Args:
+            rules (GoldenRuleSet): The rule set.
+
+        Returns:
+            None
+        """
+        result = evaluate_observation(
+            observation_context(rules, "It requires five years of Python.", produced_output=True),
+            refusing_judge(ValueError(f"{_CANDIDATE_TIMEOUT}: the judge could not be reached")),
+        )
+
+        step(1, "find the observation unavailable under the judge's timeout code alone")
+        assert (
+            result.judge_skipped_reason == "judgement_unavailable"
+            and _JUDGE_TIMEOUT in result.taxonomy_codes
+            and _CANDIDATE_TIMEOUT not in result.taxonomy_codes
+        ), (result.judge_skipped_reason, result.taxonomy_codes)
+
+    def MQC_EVL_UNI_114424_a_judge_timeout_keeps_a_failed_assertion_and_skips(
+        self,
+        rules: GoldenRuleSet,
+    ) -> None:
+        """A judge timing out after a failed assertion skips, the failure and its code kept.
+
+        Design: ``tier3_evaluation.md`` section 6.5.2.
+
+        Args:
+            rules (GoldenRuleSet): The rule set.
+
+        Returns:
+            None
+        """
+        result = evaluate_observation(
+            observation_context(rules, "It requires some experience.", produced_output=True),
+            refusing_judge(ValueError(f"{_CANDIDATE_TIMEOUT}: the judge could not be reached")),
+        )
+        failed = [entry for entry in result.assertion_results if not entry.passed]
+
+        step(1, "find the observation unavailable under the judge's timeout code")
+        assert (
+            result.judge_skipped_reason == "judgement_unavailable"
+            and _JUDGE_TIMEOUT in result.taxonomy_codes
+            and _CANDIDATE_TIMEOUT not in result.taxonomy_codes
+        ), (result.judge_skipped_reason, result.taxonomy_codes)
+
+        step(2, "find the failed assertion and its model code kept for review")
+        assert failed and any(
+            str(code).startswith("QC_LLM_") for code in result.taxonomy_codes
+        ), (result.assertion_results, result.taxonomy_codes)

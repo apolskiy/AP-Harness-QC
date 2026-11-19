@@ -3,7 +3,7 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-11-17
+Last updated: 2026-11-18
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
@@ -74,6 +74,7 @@ from evaluation.judge import (
     JudgeBinding,
     JudgeHijackSuspected,
     JudgeReply,
+    judge_timeout_outcome,
     validate_judge_reply,
 )
 from evaluation.screening import ScreenDecision, screen_response
@@ -741,6 +742,13 @@ def _judge_and_aggregate(
         # never reached, which is unavailable and a skip, not a reply we could
         # not use (design section 6.5.1).
         carried = str(error).split(":", 1)[0].strip()
+        if carried == "QC_HARNESS_CANDIDATE_TIMEOUT":
+            # THE JUDGE'S ADAPTER MAPS ITS TIMEOUT WITH THE CANDIDATE PATH'S
+            # MAP, so the judge's own code is named here, whatever the
+            # assertions found (section 6.5.2).
+            carried = judge_timeout_outcome(
+                context.case_id, assertions_passed_first=assertions_passed(progress.results),
+            )
         if carried.startswith("QC_HARNESS_") and carried != "QC_HARNESS_PARSER_ERROR":
             logger.warning("%s judge unreachable: %s", context.case_id, carried)
             return EvaluationResult(

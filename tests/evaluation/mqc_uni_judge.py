@@ -3,7 +3,7 @@
 """Unit cases for checking a judge's reply before its scores are believed.
 
 Created: 2026-09-26
-Last updated: 2026-10-21
+Last updated: 2026-11-18
 
 Its cases check :mod:`evaluation.judge`. :func:`validate_judge_reply` yields one
 score per criterion from a valid reply and raises ``JudgeHijackSuspected`` on
@@ -56,13 +56,14 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCJudgeTimeout
 #   114408  judge_timeout_maps_to_judge_code_not_candidate
 #   114409  judge_timeout_with_passing_assertions_is_a_skip
-#   114410  assertion_failure_dominates_judge_timeout
+#   114422  a_judge_timeout_after_failed_assertions_is_a_skip
 #   114411  judge_timeout_never_attributed_to_the_candidate
 # ------------------------------------------------------------ end of cases
 
 from typing import Any
 import pytest
 
+from cmn.case_steps import step
 from evaluation.judge import (
     JudgeBinding,
     JudgeHijackSuspected,
@@ -425,17 +426,18 @@ class TestMQCJudgeTimeout:
         """
         assert judge_timeout_outcome(_CASE_ID, assertions_passed_first=True) is not None
 
-    def MQC_EVL_UNI_114410_assertion_failure_dominates_judge_timeout(self) -> None:
-        """Precedence: the case has already failed, so nothing is skipped.
+    def MQC_EVL_UNI_114422_a_judge_timeout_after_failed_assertions_is_a_skip(self) -> None:
+        """Failed assertions do not dominate: the judge's code is returned, so the case skips.
 
-        Recording a skip here would replace a real failure with an absence, and
-        a reviewer would see a case that never reported rather than one that
-        failed.
+        Design: ``tier3_evaluation.md`` section 6.5.2.
 
         Returns:
             None
         """
-        assert judge_timeout_outcome(_CASE_ID, assertions_passed_first=False) is None
+        step(1, "ask what a judge timeout after failed assertions records")
+        assert judge_timeout_outcome(
+            _CASE_ID, assertions_passed_first=False
+        ) == "QC_HARNESS_JUDGE_TIMEOUT"
 
     def MQC_EVL_UNI_114411_judge_timeout_never_attributed_to_the_candidate(self) -> None:
         """The judge is not under test.

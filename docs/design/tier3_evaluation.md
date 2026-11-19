@@ -2548,6 +2548,50 @@ failure and the ratio became a finding.
 adapter mapped; the pipeline discarded it. `MQC_EVL_UNI_114117` asserts both
 rows.
 
+#### 6.5.2 A judge timeout carries the judge's code, and skips whatever the assertions found
+
+Added 2026-11-18 at the project owner's rulings: an unavailable judge skips
+the observation even where its assertions failed, "Partial pass is not a
+pass", and `judge_timeout_outcome` is "wire it in" rather than removed.
+
+**What was wrong.** A judge that timed out was recorded under
+`QC_HARNESS_CANDIDATE_TIMEOUT`. The judge channel maps a provider failure
+through the adapter's own `map_error`, the candidate path's, and every adapter
+maps its client's timeout to the candidate code. `harness_test_taxonomy.md`
+section 9.4 splits the two codes because they mean different things, and
+`judge_timeout_outcome` existed to name the judge's, but nothing called it: its
+four cases called it directly and the pipeline never did.
+
+**The precedence it encoded is ruled the other way.** It returned nothing
+where the assertions had failed, so the case would have failed on them. Since
+2026-11-02 a `violation` failure reaches the judge by default (section 4.2),
+so this is the ordinary path. The owner's ruling: the judge confirms a
+failure, or it is investigated; an inconclusive observation is rerun, and a
+skip weighs the same as a fail against the floor (`harness_test_taxonomy.md`
+section 9.4).
+
+| The judge | Assertions | Recorded |
+|---|---|---|
+| Timed out | Passed or failed | `judgement_unavailable`, `QC_HARNESS_JUDGE_TIMEOUT`, the assertion results and their codes kept |
+| Unavailable with another provider code | Passed or failed | `judgement_unavailable`, that code, as section 6.5.1 states |
+
+**`judge_timeout_outcome` is called by `_judge_and_aggregate`** where the
+channel's code is `QC_HARNESS_CANDIDATE_TIMEOUT`, and returns
+`QC_HARNESS_JUDGE_TIMEOUT` in both cases, logging which. It is evaluation code
+called on the evaluation side, because `execution/` does not import
+`evaluation/` (`tier2_execution.md` section 7.7.3).
+
+**A case whose observations were partly judged is not a pass.** The case
+repository's measured-population rule already skips a case passing on part of
+its observations and keeps a measured failure; this section does not change
+it.
+
+| Case | Asserts |
+|---|---|
+| `114422` | `judge_timeout_outcome` returns `QC_HARNESS_JUDGE_TIMEOUT` after failed assertions too. Replaces `114410` |
+| `114423` | A judge timing out after passing assertions is recorded `judgement_unavailable` with `QC_HARNESS_JUDGE_TIMEOUT` and never the candidate's code |
+| `114424` | A judge timing out after a failed assertion is recorded the same, the failed assertion and its code kept |
+
 ## 6A. More Than One Judge, Withdrawn
 
 **Withdrawn 2026-09-26 by A3.2.** This section specified a judge panel: a primary deciding the verdict and additional judges recording signed divergence.
@@ -3364,8 +3408,11 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `114507` | P | `judge_on_failure_flag_recorded_in_metadata` (4.2.0) |
 | `114408` | N | `judge_timeout_maps_to_judge_code_not_candidate` |
 | `114409` | N | `judge_timeout_with_passing_assertions_is_a_skip` |
-| `114410` | N | `assertion_failure_dominates_judge_timeout` |
+| ~~`114410`~~ | | ~~`assertion_failure_dominates_judge_timeout`~~. **Retired 2026-11-18** with the precedence it asserted, at the owner's ruling (6.5.2). `114422` replaces it |
 | `114411` | N | `judge_timeout_never_attributed_to_the_candidate` |
+| `114422` | N | `a_judge_timeout_after_failed_assertions_is_a_skip` (6.5.2) |
+| `114423` | N | `a_timed_out_judge_is_recorded_under_the_judge_code` (6.5.2) |
+| `114424` | N | `a_judge_timeout_keeps_a_failed_assertion_and_skips` (6.5.2) |
 | `114306` | P | `task_instruction_is_isolated_into_a_data_field` |
 | `114307` | P | `context_documents_are_isolated_into_a_data_field` |
 | `114314` | P | `system_instruction_is_isolated_into_a_data_field` |
@@ -3487,7 +3534,7 @@ Ungraded preconditions, no priority. Categories: **P** positive, **N** negative,
 | `124002` | N | `judge_engine_without_structured_output_is_rejected` |
 | `124003` | P | `calibration_runs_on_schedule_not_on_pull_request` |
 
-**Inventory: 251 cases, 114 negative, 89 positive, 48 boundary.**
+**Inventory: 253 cases, 116 negative, 89 positive, 48 boundary.**
 
 `114313` to `114315` were added on 2026-11-05 with section 3.1.2: the judge is
 shown the system instruction, isolated like every other field the case author
