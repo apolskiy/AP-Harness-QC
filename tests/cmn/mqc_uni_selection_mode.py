@@ -3,7 +3,7 @@
 """Unit tests for which case selections yield a verdict, and when a run is gated.
 
 Created: 2026-10-16
-Last updated: 2026-10-21
+Last updated: 2026-11-19
 
 Its cases check ``build_invocation`` and ``manual_selector_flags`` in
 ``cmn/options.py``. No filter yields ``selection_mode`` full, a change-scoped
@@ -37,6 +37,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112157  a_family_filter_yields_no_verdict
 #   112158  a_module_filter_yields_no_verdict
 #   112159  an_observations_override_yields_no_verdict
+#   112911  an_escalation_target_yields_no_verdict
 #   112161  a_requirement_filter_yields_no_verdict
 #   112162  a_tag_filter_yields_no_verdict
 #   112163  a_tests_filter_yields_no_verdict
@@ -115,6 +116,16 @@ class TestMQCSelectionMode:
             None
         """
         self._filter_yields_no_verdict("observations")
+
+    def MQC_CMN_UNI_112911_an_escalation_target_yields_no_verdict(self) -> None:
+        """A run setting ``--escalate-to`` yields no verdict.
+
+        Design: ``cmn_verdict_and_cli.md`` section 4.9.2.3.
+
+        Returns:
+            None
+        """
+        self._filter_yields_no_verdict("escalate-to")
 
     def MQC_CMN_UNI_112161_a_requirement_filter_yields_no_verdict(self) -> None:
         """A run filtered by ``--requirement`` yields no verdict.

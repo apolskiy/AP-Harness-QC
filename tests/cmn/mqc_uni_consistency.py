@@ -3,7 +3,7 @@
 """Unit preconditions for repeat observations that disagree, and what a run does about it.
 
 Created: 2026-10-01
-Last updated: 2026-11-06
+Last updated: 2026-11-19
 
 The cases here check ``cmn.verdict`` and ``cmn.observations``:
 ``inconsistent_cases`` reports a case whose observations disagree,
@@ -36,6 +36,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112034  inconsistency_at_the_ceiling_unsounds_the_run
 #   112035  a_score_moving_inside_the_band_is_recorded_not_gated
 #   112036  any_failure_earns_two_further_observations
+#   112912  an_escalation_target_sets_the_total_a_failure_earns
 #   112335  a_case_whose_recordings_disagree_on_the_request_is_reported
 #   112436  a_judgement_scoring_a_replaced_response_is_reported
 #   112437  a_judgement_with_no_recording_is_reported_an_old_one_is_not
@@ -49,6 +50,7 @@ from pathlib import Path
 
 import pytest
 
+from cmn.case_steps import step
 from cmn.observations import Observation, further_observations
 from cmn.replay_audit import divergent_recordings, stale_judgements
 from cmn.verdict import (
@@ -322,6 +324,34 @@ class TestMQCObservationConsistency:
         assert further_observations([True, None, False]) == 2, (
             "a measured failure beside an unmeasured observation earned nothing"
         )
+
+    def MQC_CMN_UNI_112912_an_escalation_target_sets_the_total_a_failure_earns(
+        self,
+    ) -> None:
+        """A failure is taken to the target in all; agreement still stops at three.
+
+        Design: ``cmn_verdict_and_cli.md`` section 4.9.2.3.
+
+        Returns:
+            None
+        """
+        step(1, "a failure among three, with a target of 17")
+        assert further_observations([True, False, True], escalate_to=17) == 14
+
+        step(2, "three passes, with a target of 17")
+        assert further_observations([True, True, True], escalate_to=17) == 0
+
+        step(3, "a failure already at the target")
+        assert further_observations([True, False] + [True] * 15, escalate_to=17) == 0
+
+        step(4, "a failure already past the target")
+        assert further_observations([False] * 20, escalate_to=17) == 0
+
+        step(5, "nothing measured, with a target of 17")
+        assert further_observations([None, None, None], escalate_to=17) == 0
+
+        step(6, "a failure with no target, which is the default rule")
+        assert further_observations([True, False, True]) == 2
 
 
     def MQC_CMN_UNI_112335_a_case_whose_recordings_disagree_on_the_request_is_reported(

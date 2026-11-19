@@ -1004,6 +1004,47 @@ one, and it does not disagree with anything.
 `None` for an unmeasured observation (`AP-Model-QC` `consumer_ci.md` section
 6.4.5).
 
+#### 4.9.2.3 A debug run may set the total a failure escalates to
+
+Decided 2026-11-19 by the project owner, for rerunning grok's `154202`, which
+failed one observation in five in a regression run.
+
+**`--escalate-to <N>` sets the total observations a case escalates to once one
+fails.** The first observations are taken as before, three by default, and a
+case they all pass stops there. A failing case is taken to *N* observations in
+all, rather than to five.
+
+| Outcomes after three | Default | `--escalate-to 17` |
+|---|---|---|
+| All passed | 3 observations | 3 observations |
+| Any measured failure | 5 observations | **17 observations** |
+| Nothing measured | 3 observations | 3 observations |
+
+**A total, not an increment.** It reads as `--observations` reads, and the
+figure a reader weighs ("4 of 17") is the number typed. Without the flag the
+target is five, which is section 4.9.2.2's rule unchanged.
+
+**It is the same single escalation, taken further.** The rule is still asked
+once, after the first observations; what changes is how far it goes. A case
+already at or above the target earns nothing, so `--observations 20` with
+`--escalate-to 17` takes 20.
+
+**Why a target and not repetition.** A case cannot run twice in one pytest
+session, and repeating a case that keeps passing buys a more precise zero
+(section 4.9.2.1). A target spends observations only on a case that has already
+failed, which is where a rate is worth measuring. **A run whose first
+observations all pass is rerun by hand**, the failure being rare enough to miss.
+
+**It yields no verdict.** A run sampling differently from the configured
+standard is a manual selection, as `--observations` is (section 7.1.1). The
+debug workflow is where it is used, and that workflow is ungated anyway.
+
+`MQC_CMN_UNI_112911` asserts the flag makes the selection manual, `112912` the
+rule's arithmetic either side of the target, and `112913` that the step record
+lists every escalation step up to the target, taken or not run
+(`harness_test_taxonomy.md` section 8.2.2). The consumer's loop reads the flag
+(`AP-Model-QC` `consumer_ci.md` section 6.5.2).
+
 #### 4.9.3 Consistency compares verdicts, never responses to each other
 
 Corrected 2026-09-26. **An earlier version of this section claimed the spread of
@@ -2070,6 +2111,7 @@ Troubleshooting and hotfix verification need a single case run from a terminal, 
 |---|---|
 | `--tests <ID>[,<ID>]` | Select cases by identifier, or `@file` for a list (§7.8). **Replaced `--case`, retired 2026-10-03** |
 | `--observations <N>` | Override the configured observation count |
+| `--escalate-to <N>` | The total observations a failing case escalates to, five by default (section 4.9.2.3) |
 | `--log-level <LEVEL>` | Raise verbosity for the run. **pytest's own flag** rather than one of ours, so the registry does not hold it (section 7.1.0.4) |
 | `--out-dir <PATH>` | Write artifacts somewhere a real run will not be overwritten |
 
@@ -2275,7 +2317,7 @@ correct outcome rather than a capability lost**.
 
 | Selector | Owner | What it narrows | In the derivation |
 |---|---|---|---|
-| `--tests`, `--tests-file`, `--family`, `--requirement`, `--module`, `--tag`, `--observations` | The harness | A chosen subset | `manual`, unchanged |
+| `--tests`, `--tests-file`, `--family`, `--requirement`, `--module`, `--tag`, `--observations`, `--escalate-to` | The harness | A chosen subset | `manual`, unchanged |
 | `--priority` alone | The harness | To one band | `band`, the section above |
 | `-k` | pytest | A chosen subset | **`manual`** |
 | A typed path or node identifier | pytest | A chosen subset | **`manual`** |
@@ -3918,6 +3960,9 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `112908` | N | `a_named_step_without_a_verification_fails` (taxonomy 8.2.4) |
 | `112909` | N | `a_step_declaring_the_wrong_number_fails` (taxonomy 8.2.4) |
 | `112910` | N | `a_subprocess_inheriting_standard_input_is_reported` (taxonomy 14.5) |
+| `112911` | N | `an_escalation_target_yields_no_verdict` (4.9.2.3) |
+| `112912` | B | `an_escalation_target_sets_the_total_a_failure_earns` (4.9.2.3) |
+| `112913` | P | `escalation_steps_follow_the_escalation_target` (4.9.2.3, taxonomy 8.2.2) |
 | `400000` | N | `a_flag_a_document_names_and_nothing_declares_is_reported` (7.1.0.4) |
 | `400001` | P | `a_flag_declared_outside_this_repository_is_not_reported` (7.1.0.4) |
 | `400002` | P | `this_repository_names_no_undeclared_flag` (7.1.0.4) |
@@ -3955,7 +4000,7 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
 
-**Inventory: 558 cases, 334 negative, 167 positive, 57 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 561 cases, 335 negative, 168 positive, 58 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

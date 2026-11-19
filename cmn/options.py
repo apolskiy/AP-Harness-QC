@@ -3,7 +3,7 @@
 """The option registry, every command line flag a run accepts, declared once.
 
 Created: 2026-09-24
-Last updated: 2026-11-17
+Last updated: 2026-11-19
 
 This file contains ``Option``, one declared flag; ``registered_options``,
 ``option`` and ``defaults``, which read the registry; ``validate_value``, which
@@ -261,6 +261,16 @@ _OPTIONS: Final[tuple[Option, ...]] = (
         default=0,
         help_text="Override the configured observation count, a diagnostic selection",
     ),
+    # A TOTAL, AS --observations IS. Zero keeps the default escalation to five.
+    # Design section 4.9.2.3.
+    Option(
+        name="escalate-to",
+        default=0,
+        help_text=(
+            "Total observations a failing case escalates to, five when unset, "
+            "a diagnostic selection"
+        ),
+    ),
     Option(
         name="out-dir",
         default="",
@@ -343,7 +353,10 @@ _OPTIONS: Final[tuple[Option, ...]] = (
 # and selects nothing itself, so a run supplying it and no selector is a full
 # run. Design section 7.7.1.
 _MANUAL_SELECTORS: Final[frozenset[str]] = frozenset(
-    {"observations", "tests", "tests-file", "family", "requirement", "module", "tag"}
+    {
+        "observations", "escalate-to", "tests", "tests-file", "family",
+        "requirement", "module", "tag",
+    }
 )
 
 

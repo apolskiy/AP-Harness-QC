@@ -29,6 +29,23 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A run can set the total a failing case escalates to, 2026-11-19
+
+**Why.** A finding's rate needs more observations than the five a failing
+case escalates to, and the only other way to get them, `--observations`,
+spends them on every case, including those that pass. A case cannot be listed
+twice to run twice, since a selection collects each case once.
+
+**What changed.** `--escalate-to <N>` sets the total observations a failing
+case is taken to. A case whose first observations all pass still stops there,
+a case at or past the target earns nothing, and without the flag the target
+stays five. `cmn.observations.further_observations` and
+`cmn.steps.case_steps` take the target; the flag is a manual selector, so a
+run setting it yields no verdict. `cmn_verdict_and_cli.md` section 4.9.2.3,
+`harness_test_taxonomy.md` section 8.2.2, `MQC_REQ_HAR_CMN_0266`, cases
+`112911` to `112913`; inventory 561. README: 1183 test cases and 449
+requirements traced.
+
 ### Every subprocess passes its standard input, and a case checks both repositories, 2026-11-19
 
 **Why.** A child process that inherits standard input under pytest's capture

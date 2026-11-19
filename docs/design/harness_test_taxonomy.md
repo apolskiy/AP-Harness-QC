@@ -2044,8 +2044,8 @@ times and "STEP_05" named a pipeline phase rather than a dispatch.
 | Step | ACTION | VERIFY | Runs |
 |---|---|---|---|
 | 1 to *k* | Dispatch observation *n*: form, send and ingest | Observation *n* met the rule: screen, assertions and judgement | Always; *k* is the configured count, 3 by default |
-| *k*+1 to *k*+2 | Dispatch the escalation observation | It met the rule | **Only when one of steps 1 to *k* failed**, by `cmn.observations.further_observations`. Otherwise recorded as not run, the first *k* having agreed |
-| *k*+3 | Compare every observation taken | They agree | Always, as the last step |
+| *k*+1 to *t* | Dispatch the escalation observation | It met the rule | **Only when one of steps 1 to *k* failed**, by `cmn.observations.further_observations`. Otherwise recorded as not run, the first *k* having agreed. *t* is the escalation target, 5 by default and set by `--escalate-to` (`cmn_verdict_and_cli.md` section 4.9.2.3) |
+| *t*+1 | Compare every observation taken | They agree | Always, as the last step |
 
 **One verification per step, against one request.** An observation's step
 verifies that observation alone; the comparison is a step of its own and

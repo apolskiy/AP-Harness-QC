@@ -3,7 +3,7 @@
 """Case steps, the record of what a graded case did and where it stopped.
 
 Created: 2026-10-07
-Last updated: 2026-11-02
+Last updated: 2026-11-19
 
 This file contains ``ledger``, which reads one observation's dispatch outcome
 and evaluation result into the ``StepOutcome`` of each pipeline phase;
@@ -422,7 +422,10 @@ def consistency_step(number: int, outcomes: Sequence[Optional[bool]]) -> CaseSte
 
 
 def case_steps(
-    observations: Sequence[tuple[Any, Any]], *, configured: int
+    observations: Sequence[tuple[Any, Any]],
+    *,
+    configured: int,
+    escalate_to: Optional[int] = None,
 ) -> list[CaseStep]:
     """Return every step of a graded case, in order.
 
@@ -431,6 +434,9 @@ def case_steps(
             evaluation result, in the order taken.
         configured (int): How many observations the run takes before any
             escalation, *k* in section 8.2.2.
+        escalate_to (Optional[int]): The total a failing case is taken to,
+            from ``--escalate-to``. ``None`` keeps two escalation steps
+            (``cmn_verdict_and_cli.md`` section 4.9.2.3).
 
     Returns:
         list[CaseStep]: Steps 1 to *k*, the escalation steps, then the
@@ -443,14 +449,16 @@ def case_steps(
         for number, (outcome, result) in enumerate(observations, start=1)
     ]
     earned = further_observations(
-        [step.verification.outcome == _REACHED for step in steps[:configured]]
+        [step.verification.outcome == _REACHED for step in steps[:configured]],
+        escalate_to=escalate_to,
     )
     reason = (
         f"{earned} further observation(s) earned and not dispatched"
         if earned
         else f"not earned, the first {configured} observation(s) having agreed"
     )
-    missing = escalation_size() - max(0, len(steps) - configured)
+    size = escalation_size() if escalate_to is None else max(0, escalate_to - configured)
+    missing = size - max(0, len(steps) - configured)
     for _ in range(max(0, missing)):
         number = len(steps) + 1
         steps.append(CaseStep(

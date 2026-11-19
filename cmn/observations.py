@@ -3,7 +3,7 @@
 """The observation record, one measured execution of one case, and the run's fields.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-19
 
 This file contains ``Observation``, what one execution of a case produced as the
 verdict reads it; ``RunContext``, the run-scoped fields every result repeats;
@@ -461,11 +461,17 @@ def escalation_size() -> int:
     return _ESCALATION
 
 
-def further_observations(outcomes: list[Optional[bool]]) -> int:
+def further_observations(
+    outcomes: list[Optional[bool]], *, escalate_to: Optional[int] = None
+) -> int:
     """Return how many more observations a pattern of outcomes earns.
 
     **Any failure earns two more, and agreement earns none.** Three runs to
     pass; five once one has failed. Design section 4.9.2.1 carries the decision.
+
+    **A target replaces the five.** With ``escalate_to`` a failing case is
+    taken to that many observations in all, and one already at or past it
+    earns nothing (design section 4.9.2.3).
 
     **It does not change the verdict.** The case is inconsistent either way, by
     the binary rule in section 4.9.1 which a majority would undo. What the two
@@ -489,6 +495,8 @@ def further_observations(outcomes: list[Optional[bool]]) -> int:
             measured. **Outcomes only**, because the rule reads agreement and
             nothing else about a result. An unmeasured observation is not a
             failure, so it earns nothing (design section 4.9.2.2.1).
+        escalate_to (Optional[int]): The total a failing case is taken to,
+            from ``--escalate-to``. ``None`` keeps the default rule.
 
     Returns:
         int: How many further observations to dispatch. **Zero for fewer than
@@ -508,6 +516,9 @@ def further_observations(outcomes: list[Optional[bool]]) -> int:
     failures = sum(1 for outcome in outcomes if outcome is False)
     if not failures:
         return 0
+    # A TARGET IS A TOTAL, as --observations is (section 4.9.2.3).
+    if escalate_to is not None:
+        return max(0, escalate_to - len(outcomes))
     # ONCE ONLY. Reached five, the rule has said what it has to say.
     if len(outcomes) >= 2 + _ESCALATION + 1:
         return 0

@@ -3,7 +3,7 @@
 """Unit tests for the step ledger that reports where a graded case stopped.
 
 Created: 2026-10-07
-Last updated: 2026-11-02
+Last updated: 2026-11-19
 
 Its cases check ``cmn/steps.py`` through ``ledger``, ``case_steps``,
 ``observation_step``, ``stopped_at``, ``stopped_line``, ``step_lines`` and
@@ -45,6 +45,7 @@ A failure here is **not a model finding**, so the module carries no priority mar
 # TestMQCCaseSteps
 #   112388  an_observation_step_verifies_one_request
 #   112389  escalation_steps_not_taken_are_recorded_as_not_run
+#   112913  escalation_steps_follow_the_escalation_target
 #   112390  the_last_step_verifies_only_the_agreement
 # TestMQCCaseAnnouncement
 #   112347  a_case_announces_its_node_identifier_before_running
@@ -56,6 +57,7 @@ import logging
 
 import pytest
 
+from cmn.case_steps import step as declare_step
 from cmn.observations import escalation_size
 from cmn.pytest_support import announce_test
 from cmn.steps import (
@@ -469,6 +471,41 @@ class TestMQCCaseSteps:
         assert short[3].action.outcome == "not run", short[3].action
         assert "agreed" not in short[3].action.detail, short[3].action
         assert "not dispatched" in short[3].action.detail, short[3].action
+
+    def MQC_CMN_UNI_112913_escalation_steps_follow_the_escalation_target(
+        self,
+    ) -> None:
+        """Steps k+1 to the target appear, taken or not run, then the comparison.
+
+        Design: ``cmn_verdict_and_cli.md`` section 4.9.2.3 and
+        ``harness_test_taxonomy.md`` section 8.2.2.
+
+        Returns:
+            None
+        """
+        declare_step(1, "three agreeing observations under a target of 7")
+        agreed = case_steps([(dispatched(), evaluated())] * 3, configured=3, escalate_to=7)
+        assert [
+            (each.number, each.action.outcome) for each in agreed[:7]
+        ] == [(1, "ok"), (2, "ok"), (3, "ok")] + [
+            (number, "not run") for number in range(4, 8)
+        ], [(each.number, each.action.outcome) for each in agreed]
+
+        declare_step(2, "seven observations, one failing, under a target of 7")
+        escalated = case_steps(
+            mixed_observations() + [(dispatched(), evaluated())] * 2,
+            configured=3, escalate_to=7,
+        )
+        assert [each.action.outcome for each in escalated] == ["ok"] * 8, (
+            [each.action.outcome for each in escalated]
+        )
+
+        declare_step(3, "three observations, one failing, under a target of 7")
+        short = case_steps(mixed_observations()[:3], configured=3, escalate_to=7)
+        assert [
+            "4 further observation(s) earned and not dispatched" in each.action.detail
+            for each in short[3:7]
+        ] == [True] * 4, [each.action.detail for each in short]
 
     def MQC_CMN_UNI_112390_the_last_step_verifies_only_the_agreement(self) -> None:
         """The comparison fails on disagreement alone and touches no request.

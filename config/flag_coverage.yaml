@@ -67,6 +67,9 @@ flags:
   # earns escalation, which keeps a named count meaning what a configured one
   # means. Design `consumer_ci.md` section 4.13.1.
   "--observations": {owner: consumer}
+  # The consumer's loop reads it, so its case is the consumer's: design
+  # cmn_verdict_and_cli.md section 4.9.2.3, consumer_ci.md section 6.5.2.
+  "--escalate-to": {owner: consumer}
   "--golden-rules": {owner: harness}
   # CLOSED 2026-10-02 by MQC_CAS_UNI_115406, AND IT WAS A DEFECT. The gap said
   # nothing covered the flag reaching the resolution, which was accurate and

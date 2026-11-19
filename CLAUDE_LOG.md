@@ -17006,3 +17006,39 @@ well; restored.
 **Digressions the user spotted, and the fix.** I first left `WinError 6` as a
 local-only quirk outside the change, because CI passed. The owner ruled it our
 defect, fatal, and a finding in its own right; this entry is that fix.
+
+## 2026-11-19: A Run Sets The Total A Failing Case Escalates To
+
+**Why.** Grok failed `154202` one observation in five, and the vendor ticket
+needs a rate it can weigh. I proposed one debug run at `observations=20`.
+The owner: "who needs that many?" and asked why `154202` could not be listed
+four times. It cannot: `_entry_identifiers` keys the list by identifier and a
+selection collects each case once, so four entries run one case. I proposed
+refusing duplicates everywhere; the owner: "This is debug, why refuse
+duplicates?", then the simpler idea: "allow to customize the number of
+requests in case of failure or inconsistent responses instead of 5 up to say
+20". A case whose first three pass stops there and is rerun by hand. The
+target is a total, "it will give us a clearer picture".
+
+**What changed.** `--escalate-to <N>`, a manual selector. With it,
+`further_observations` returns `N` minus what was taken once a measured
+failure is seen, and nothing at or past `N`; without it the rule is unchanged.
+`case_steps` records steps *k*+1 to the target, taken or not run. Design
+`cmn_verdict_and_cli.md` section 4.9.2.3 and `harness_test_taxonomy.md`
+section 8.2.2; requirement `MQC_REQ_HAR_CMN_0266`; cases `112911` (the flag
+yields no verdict), `112912` (the arithmetic either side of the target) and
+`112913` (the step record); `flag_coverage.yaml` names the case repository as
+the flag's owner, its loop being what reads it. Inventory 561; README 1183
+test cases and 449 requirements, and `DESIGN.md`'s two figures.
+
+**Failing first.** Before the implementation, `112912` and `112913` broke on
+the unknown keyword and `112911` failed reading `full`.
+
+**Injection.** Dropping the flag from the manual selectors failed `112911`
+(`'full' == 'manual'`). Ignoring the target failed `112912` (`2 == 14`).
+Keeping two escalation steps whatever the target failed `112913`. Each
+restored.
+
+**Digressions the user spotted, and the fix.** I told the owner
+`observations=20` gives 20, or 22 if any fails. It gives exactly 20, since the
+rule earns nothing at five or more; I corrected it before building this.
