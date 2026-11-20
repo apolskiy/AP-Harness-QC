@@ -32,10 +32,9 @@ becomes a question.
 
 ## In progress
 
-Nothing. The last item closed on 2026-11-01, when `stale_judgements` began
-reporting a judgement that scores a response its own recording no longer
-holds, and `MQC_CAS_UNI_115799` began calling it against the shipped
-fixtures.
+| Item | Done when |
+|---|---|
+| The wire capture and the runner fingerprint, `tier2_execution.md` section 7.15 and `cmn_verdict_and_cli.md` section 5.6.5 | The 20 inventoried cases fail first, each is verified by injection, the implementation makes them pass, the unit suite exits 0, and the README and CHANGELOG state the new counts |
 
 
 ## Waiting

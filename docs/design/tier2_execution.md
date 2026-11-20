@@ -1692,6 +1692,171 @@ engine's judgements alone.
 corpus asks; a response and its score worth keeping as evidence are copied out
 before a re-record, which is the procedure the case repository follows.
 
+### 7.15 Every HTTP attempt is recorded, with its credentials removed
+
+Added 2026-11-20 at the project owner's instruction, after grok called a
+forbidden tool in two observations of ten sent from `windows-latest` runners
+and in none of twenty four sent from ubuntu.
+
+**The recorded request is the body we composed, and nothing else about the
+call.** The body hashed the same on both runners in every run, so whatever
+differed was not in it. Three things that reach the provider were recorded
+nowhere:
+
+| Not recorded before | Why it can differ by runner |
+|---|---|
+| The request headers | Each SDK sends platform headers of its own, such as the operating system, architecture and runtime it is running on |
+| Every attempt after the first | Each SDK retries twice by default, inside one dispatch, on top of the retry section 7.11 makes |
+| The response headers | They are where a provider says which deployment served the call |
+
+**So every attempt is recorded, on every engine, for the candidate and the
+judge alike, in every run.** A failure that happens once in a scheduled run
+carries its own wire record; a capture switched on only for debug runs would
+have missed both failures that prompted this.
+
+#### 7.15.1 Captured by the transport, after the SDK has built the request
+
+**Each adapter gives its SDK a recording transport**, which wraps the transport
+that sends and sees every request once the SDK has assembled the headers and
+serialized the body. It records the request, sends it, and records the status
+line and headers that came back, or the error raised where none did. Both are
+what went over the wire, rather than what an adapter believes it asked for.
+
+**A transport, not event hooks and not a client of our own.** An event hook
+sees no request that raised before a response, which is the attempt most
+worth having. A client of our own would replace each SDK's defaults: a bare
+`httpx.Client` times out after five seconds, where the SDKs allow ten minutes,
+so a long judgement would fail on a timeout we introduced. Handing over only
+the transport keeps every default the SDK sets:
+
+| SDK | Takes the transport through |
+|---|---|
+| openai, for grok and openai | `openai.OpenAI(http_client=openai.DefaultHttpxClient(transport=...))` |
+| anthropic, for claude | `anthropic.Anthropic(http_client=anthropic.DefaultHttpxClient(transport=...))` |
+| google-genai, for gemini | `genai.Client(http_options=HttpOptions(client_args={"transport": ...}))`, which keeps the library's version headers |
+
+**A redirect the SDK follows is a further attempt**, being a further request
+through the same transport, which is what section 8.5.5 needs to see.
+
+**The recorder belongs to the adapter, the client to the case.** Section 7.7
+releases the client after each case and section 7.11 builds a new one for a
+retry, so attempts are appended to a recorder the adapter holds across
+clients. The dispatcher takes and clears them after each dispatch, and the
+judge channel after each judgement.
+
+**One entry per attempt**, each holding:
+
+| Field | Holds |
+|---|---|
+| `attempt_index` | Its position among the dispatch's attempts, from zero |
+| `method`, `url` | The URL **without its query string**, where a credential could be carried |
+| `request_headers` | Redacted, section 7.15.2 |
+| `body_sha256` | The SHA-256 of the body bytes sent, on every attempt |
+| `body` | The body as sent, **in a debug run only** (`run_context` `ci_debug`), section 7.15.3 |
+| `status`, `response_headers` | As received, the headers redacted. Both empty where no response arrived |
+| `error` | The transport error's class where the attempt raised before a response |
+| `elapsed_ms` | From the request hook to the response hook |
+
+**The attempts travel on `DispatchOutcome` as `wire_attempts`**, beside the
+request section 7.12 puts there, and on the judge's result under the same name,
+so the exchange report carries them for each observation and for its judgement
+(`cmn_verdict_and_cli.md` section 5.5). **Not `attempts`**, which
+`DispatchOutcome` already carries as the count of the harness's own attempts
+(section 7.11): one harness attempt makes one or more wire attempts, the SDK's
+retries being the difference, and one word for both would hide exactly that.
+
+**The judge's attempts reach Tier 3 through the binding.** The channel exposes
+`take_wire_attempts`, `JudgeBinding` carries it as an optional
+`wire_attempts` callable beside `invoke`, and the pipeline calls it once the
+judge has been invoked, whether the judgement returned, raised or was skipped,
+storing the result as `EvaluationResult.judge_wire_attempts`. A binding
+without it records none, so a consumer that has not yet passed it loses the
+record and nothing else. The case repository's graded binding passes
+`channel.take_wire_attempts`.
+
+#### 7.15.2 Headers are redacted by name and by value, independently
+
+**The redaction every other record uses would have leaked every key.**
+`cmn.config.redact` replaces a field whose name, lower-cased with hyphens read
+as underscores, is exactly one of `FORBIDDEN_KEYS`. No engine's credential
+header is:
+
+| Engine | Credential header | Read as | Matched |
+|---|---|---|---|
+| grok, openai | `Authorization` | `authorization` | No |
+| claude | `x-api-key` | `x_api_key` | No |
+| gemini | `x-goog-api-key` | `x_goog_api_key` | No |
+
+**So headers take a redaction of their own, with two mechanisms**, either of
+which removes the value alone:
+
+| Mechanism | Replaces |
+|---|---|
+| **By name** | `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, and any name containing `api-key` or `api_key` |
+| **By value** | Any header value containing the value of an environment variable whose name `cmn.credentials.credential_shaped_name` reports, whatever the header is called |
+
+**The name is kept and the value replaced**, so a record still shows that a
+credential was sent and under which header. **Two mechanisms because each
+fails alone in a way the other covers**: a provider adopting a header name the
+list does not hold is caught by its value, and a key the environment does not
+hold, such as one a client read from a file, is caught by its name.
+
+**Applied in the transport, before an attempt is stored**, so an unredacted
+header never exists outside the request being sent, and every record of an attempt is
+redacted by construction rather than by a step applied on the way out.
+
+#### 7.15.3 The body is hashed on every attempt and stored in debug runs only
+
+**The composed request is not necessarily the body sent.** An SDK may add
+fields of its own while serializing, so the fixture's request (section 7.13)
+proves what was composed and nothing about the bytes. The hash of the bytes is
+small enough to record on every attempt, and identical hashes across runners
+show the bytes were identical.
+
+**The body itself is stored only in a debug run**, where a case is being
+investigated and its size is wanted. Elsewhere the exchange already holds the
+composed request, and the hash says whether the bytes matched it.
+
+#### 7.15.4 What the capture changes nothing about
+
+| Not changed | Because |
+|---|---|
+| The request hash and the fixture key | Headers change on every attempt, a retry count among them, so hashing them would make every live call a new request |
+| The replay fixture store | A replay sends nothing, so there is no attempt to record; a replayed exchange carries no attempts |
+| The SDKs' own retries | Recording them is this section. Whether the harness should own every retry, by setting the SDK's retry count to zero, is a change of behaviour decided once the records show how often they happen |
+
+#### 7.15.5 No credential reaches the log
+
+Added 2026-11-20 at the project owner's instruction: "make sure no keys are
+printed in the log."
+
+**The capture writes no attempt to the log.** Attempts reach the artifacts
+only, already redacted. **The log has two paths of its own that the capture
+does not govern**:
+
+| Path | What it can print |
+|---|---|
+| `httpx` and `httpcore` | Every request's URL at INFO, query string included, and connection detail at DEBUG |
+| An SDK's debug logging | Request options and headers, where a variable such as `OPENAI_LOG` turns it on |
+
+**So every log record is scrubbed when it is created**, by a log record
+factory the harness installs at configuration, before any handler sees it. The
+factory renders the message, replaces any substring equal to the value of a
+credential-shaped environment variable, the by-value mechanism of section
+7.15.2, and removes the query string of any URL it finds. **By value, because
+a log message has no field names to match.**
+
+**A factory rather than a filter on the handlers.** pytest attaches its
+capture and reporting handlers to the root logger for each phase of each case,
+after configuration, so a filter installed on the handlers present at
+configuration would miss every handler a run actually writes through. A
+record factory runs for every logger and every handler, whenever either was
+added.
+
+**Installed by the harness, not by a consumer**, so a case repository that
+forgets nothing still cannot print a key, and asserted with the SDKs' and
+httpx's own loggers at DEBUG against a credential planted in the environment.
+
 ## 8. Rate Limiting
 
 The objective is evaluation, never load-testing a provider. On a free tier, pacing decides whether a run completes at all (A7.3).
@@ -2712,6 +2877,22 @@ the twenty-first check and any fifth engine are in the partition
 | `440001` | P | `gemini_reports_what_its_provider_serves` (5.2) |
 | `440002` | P | `grok_reports_what_its_provider_serves` (5.2) |
 | `440003` | P | `openai_reports_what_its_provider_serves` (5.2) |
+| `460000` | P | `every_attempt_records_its_headers_status_and_body_hash` (7.15.1) |
+| `460001` | N | `a_url_query_string_never_reaches_the_record` (7.15.1) |
+| `460002` | P | `an_sdk_retry_is_a_second_attempt_of_one_dispatch` (7.15.1) |
+| `460003` | N | `an_attempt_raising_before_a_response_records_its_error_class` (7.15.1) |
+| `460004` | N | `the_authorization_header_value_never_reaches_the_record` (7.15.2) |
+| `460005` | N | `the_x_api_key_header_value_never_reaches_the_record` (7.15.2) |
+| `460006` | N | `the_x_goog_api_key_header_value_never_reaches_the_record` (7.15.2) |
+| `460007` | N | `a_cookie_and_set_cookie_value_never_reach_the_record` (7.15.2) |
+| `460008` | N | `a_credential_value_under_an_unlisted_header_name_is_replaced` (7.15.2) |
+| `460009` | B | `the_body_is_stored_in_a_debug_run_and_only_hashed_otherwise` (7.15.3) |
+| `460010` | P | `each_adapter_hands_its_sdk_the_recording_transport` (7.15.1) |
+| `460011` | P | `the_outcome_carries_the_attempts_and_clears_the_recorder` (7.15.1) |
+| `460012` | P | `a_judgement_carries_the_attempts_its_judge_made` (7.15.1) |
+| `460013` | N | `a_replayed_exchange_carries_no_attempts` (7.15.4) |
+| `460014` | N | `no_credential_reaches_the_log_with_sdks_at_debug` (7.15.5) |
+| `460015` | N | `a_log_record_with_a_credential_or_query_is_scrubbed` (7.15.5) |
 
 #### 10.1.0 The twenty-first conformance check, and why it is not in `1138xx`
 
@@ -2728,6 +2909,19 @@ carries the ruling and the arithmetic.
 **`113513` is not part of that**, and belongs with the probe's own cases in
 `1135xx`: it is about `execution/preflight.py` having a command line to be
 called from, not about an adapter's contract.
+
+##### 10.1.0.1 The wire capture, and why each redaction mechanism is tested alone
+
+Added 2026-11-20 with section 7.15, in partition `460000`-`469999`.
+
+**The cases run the real SDKs against `httpx.MockTransport`**, so the headers
+asserted are the ones each SDK builds, and nothing leaves the process.
+
+**`460004` to `460007` hold no credential in the environment**, and `460008`
+holds one under a header name the list does not carry. Section 7.15.2 makes
+either mechanism sufficient alone, so a case giving both a chance would pass
+with one of them deleted, and the injection that verifies it would report
+nothing. Each case leaves exactly one mechanism able to catch it.
 
 #### 10.1.1 The version probe
 
@@ -2798,7 +2992,7 @@ called from, not about an adapter's contract.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 242 cases, 112 negative, 119 positive, 11 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 258 cases, 122 negative, 124 positive, 12 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

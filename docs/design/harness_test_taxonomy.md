@@ -437,6 +437,7 @@ starts and another ends."
 | `430000`-`439999` | `CAS`/`UNI`, the same subject in the case repository (section 16.5) | Nothing. `1157xx` held 83 of 100 and two categories were free, and a subject beginning now takes a partition | 2026-10-24 |
 | `440000`-`449999` | `EXE`/`UNI`, adapter conformance across the registered engines (`tier2_execution.md` section 10.1) | `1138xx`, which cannot hold the subject in both its dimensions | 2026-10-29 |
 | `450000`-`459999` | `CMN`/`UNI`, what a run records about the model it measured against (`cmn_verdict_and_cli.md` section 5.6) | Nothing. A subject beginning now takes a partition | 2026-10-29 |
+| `460000`-`469999` | `EXE`/`UNI`, the HTTP attempts a dispatch made and their redaction (`tier2_execution.md` section 7.15) | Nothing. A subject beginning now takes a partition | 2026-11-20 |
 
 **The fifth partition is the first allocated to a subject that was already
 running**, and the reason is the one the row states: `1138xx` holds a case per

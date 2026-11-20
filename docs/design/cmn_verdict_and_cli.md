@@ -1615,6 +1615,35 @@ describes the current state.
 `MQC_CMN_UNI_450007` and `450008`, `MQC_REQ_HAR_CMN_0250`. The split by role is
 `tier2_execution.md` section 7.7.3.
 
+#### 5.6.5 A run states the runner it ran on
+
+Added 2026-11-20 at the project owner's instruction, after grok's forbidden
+tool calls appeared only in runs on `windows-latest`. **The two runners could
+not be compared on what they had installed**, because dependencies install
+quietly against version ranges and nothing recorded what was resolved.
+
+**Recorded once per run, at configuration, with the provenance**, since one
+job runs on one runner and installs once. The fields join the provenance
+mapping and so reach both artifacts by the path section 5.6.2 already uses:
+
+| Field | Holds |
+|---|---|
+| `runner_os` | `platform.system()`, such as `Windows` or `Linux` |
+| `runner_os_release` | `platform.release()` |
+| `runner_machine` | `platform.machine()` |
+| `python_version` | `platform.python_version()` |
+| `package_openai`, `package_anthropic`, `package_google_genai`, `package_httpx`, `package_httpcore` | Each version as installed, read with `importlib.metadata` |
+
+**A package that is not installed reads `absent`**, never an empty value,
+for the reason section 5.6.1 gives `unrecorded`: an empty field reads as a
+record that failed rather than a fact.
+
+**What each call sent is recorded per attempt instead**, with each exchange
+(`tier2_execution.md` section 7.15), and this section is the context those
+attempts are read in.
+
+`MQC_CMN_UNI_450009` to `450011`, `MQC_REQ_HAR_CMN_0268`.
+
 ---
 
 ## 6. RTM Integrity
@@ -4026,8 +4055,12 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450006` | N | `a_run_writing_no_allure_results_writes_no_file` (5.6.3) |
 | `450007` | B | `the_spend_fields_carry_each_role_whatever_the_run_priced` (5.6.4) |
 | `450008` | P | `the_spend_reaches_both_artifacts_beside_the_provenance` (5.6.4) |
+| `450009` | P | `the_runner_fingerprint_names_the_os_python_and_sdk_versions` (5.6.5) |
+| `450010` | B | `a_package_not_installed_reads_absent_not_empty` (5.6.5) |
+| `450011` | P | `the_fingerprint_reaches_both_artifacts_beside_the_provenance` (5.6.5) |
+| `400008` | P | `the_exchange_report_carries_every_attempt` (5.5, tier2 7.15) |
 
-**Inventory: 567 cases, 339 negative, 169 positive, 59 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 571 cases, 339 negative, 172 positive, 60 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

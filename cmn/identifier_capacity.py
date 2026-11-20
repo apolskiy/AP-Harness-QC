@@ -3,7 +3,7 @@
 """The identifier space: what a six-digit number means, and how much is spent.
 
 Created: 2026-10-18
-Last updated: 2026-11-11
+Last updated: 2026-11-20
 
 This file contains ``PARTITIONS`` and ``partition_of``, the ranges declared
 with a start and an end rather than derived from digit positions;
@@ -159,6 +159,15 @@ PARTITIONS: Final[tuple[Partition, ...]] = (
         subject="what a run records about the model it measured against",
         continues="nothing, a subject beginning now takes a partition",
         allocated="2026-10-29",
+    ),
+    Partition(
+        start=460000,
+        end=469999,
+        layer="UNI",
+        module="EXE",
+        subject="the HTTP attempts a dispatch made and their redaction",
+        continues="nothing, a subject beginning now takes a partition",
+        allocated="2026-11-20",
     ),
 )
 
