@@ -3,7 +3,7 @@
 """Unit cases for what a run records about the model it measured against.
 
 Created: 2026-10-29
-Last updated: 2026-11-05
+Last updated: 2026-11-20
 
 Its cases check :mod:`cmn.provenance` and the two functions in
 :mod:`cmn.pytest_support` that drive it. ``provenance_fields`` carries every
@@ -40,11 +40,17 @@ marker, per ``framework-rules.md`` section 3.3.
 # TestMQCProvenanceAdoption
 #   450005  a_run_that_is_not_live_asks_no_provider
 #   450006  a_run_writing_no_allure_results_writes_no_file
+# TestMQCRunnerFingerprint
+#   450009  the_runner_fingerprint_names_the_os_python_and_sdk_versions
+#   450010  a_package_not_installed_reads_absent_not_empty
+#   450011  the_fingerprint_reaches_both_artifacts_beside_the_provenance
 # TestMQCRunSpend
 #   450007  the_spend_fields_carry_each_role_whatever_the_run_priced
 #   450008  the_spend_reaches_both_artifacts_beside_the_provenance
 # ------------------------------------------------------------ end of cases
 
+import platform
+from importlib import metadata
 from pathlib import Path
 
 import pytest
@@ -53,6 +59,7 @@ from cmn.provenance import (
     PROVENANCE_FILE,
     PROVENANCE_PREFIX,
     provenance_fields,
+    runner_fingerprint,
     testsuite_properties,
     write_provenance,
 )
@@ -69,6 +76,11 @@ pytestmark = pytest.mark.unit
 # again and pylint reports the pair as duplicated.
 _FIELDS: tuple[str, ...] = tuple(
     "engine mode requested_model served_version served_digest".split()
+)
+
+_RUNNER_FIELDS: tuple[str, ...] = tuple(
+    ("runner_os runner_os_release runner_machine python_version package_openai "
+     "package_anthropic package_google_genai package_httpx package_httpcore").split()
 )
 
 _SPEND_FIELDS: tuple[str, ...] = tuple(
@@ -268,7 +280,78 @@ class TestMQCProvenanceAdoption:
             Config(engine="gemini", mode="replay", allure_report_dir=None),
         ):
             fields = adopt_provenance(config, Reader({}))
-            assert tuple(fields) == _FIELDS
+            assert tuple(fields) == _FIELDS + _RUNNER_FIELDS
+
+
+class TestMQCRunnerFingerprint:
+    """The runner a run ran on, recorded once beside its provenance."""
+
+    def MQC_CMN_UNI_450009_the_runner_fingerprint_names_the_os_python_and_sdk_versions(
+        self,
+    ) -> None:
+        """The fields two runners are compared on, read from this interpreter.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.6.5.
+
+        Returns:
+            None
+        """
+        fingerprint = runner_fingerprint()
+        assert tuple(fingerprint) == _RUNNER_FIELDS, tuple(fingerprint)
+        assert fingerprint["runner_os"] == platform.system(), fingerprint
+        assert fingerprint["python_version"] == platform.python_version(), fingerprint
+        assert fingerprint["package_httpx"] == metadata.version("httpx"), fingerprint
+        assert fingerprint["package_openai"] == metadata.version("openai"), fingerprint
+
+    def MQC_CMN_UNI_450010_a_package_not_installed_reads_absent_not_empty(
+        self,
+    ) -> None:
+        """A package the runner lacks is a fact, not a record that failed.
+
+        Returns:
+            None
+        """
+
+        def missing(name: str) -> str:
+            """Report every package as not installed.
+
+            Args:
+                name (str): The distribution asked for.
+
+            Returns:
+                str: Never returns.
+
+            Raises:
+                metadata.PackageNotFoundError: Always.
+            """
+            raise metadata.PackageNotFoundError(name)
+
+        fingerprint = runner_fingerprint(version_of=missing)
+        packages = {name: value for name, value in fingerprint.items()
+                    if name.startswith("package_")}
+        assert set(packages.values()) == {"absent"}, packages
+        assert all(fingerprint.values()), fingerprint
+
+    def MQC_CMN_UNI_450011_the_fingerprint_reaches_both_artifacts_beside_the_provenance(
+        self, tmp_path: Path,
+    ) -> None:
+        """The properties file and the JUnit properties both carry the runner.
+
+        Args:
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        results = tmp_path / "allure-results"
+        fields = adopt_provenance(
+            Config(engine="gemini", mode="replay", allure_report_dir=str(results)), Reader({})
+        )
+        assert fields["runner_os"] == platform.system(), fields
+        written = (results / PROVENANCE_FILE).read_text(encoding="utf-8").splitlines()
+        assert f"runner_os={platform.system()}" in written, written
+        names = [name for name, _ in testsuite_properties(fields)]
+        assert f"{PROVENANCE_PREFIX}package_openai" in names, names
 
 
 class TestMQCRunSpend:

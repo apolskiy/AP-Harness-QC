@@ -3,7 +3,7 @@
 """Unit preconditions for what a run publishes to Allure, and what a failing case attaches.
 
 Created: 2026-10-04
-Last updated: 2026-10-24
+Last updated: 2026-11-20
 
 The cases here check ``cmn.emission`` and ``cmn.reporting``: that a recorded
 observation publishes its fields, that a skipped case publishes and files
@@ -42,9 +42,11 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   112253  the_published_fields_reach_a_real_allure_result
 # TestMQCExchanges
 #   112419  an_exchange_report_holds_each_observation_and_judge_prompt
+#   400008  the_exchange_report_carries_every_attempt
 #   112420  every_case_that_dispatched_attaches_its_exchanges
 # ------------------------------------------------------------ end of cases
 
+import dataclasses
 import json
 import sys
 from pathlib import Path
@@ -209,6 +211,31 @@ class _Outcome:
         self.response = _Response(resolved, text)
         self.request = request or {"prompt": "Summarise"}
         self.taxonomy_code = None
+        self.wire_attempts: tuple[Any, ...] = ()
+
+
+class _Attempt:
+    """A recorded wire attempt, as the exchange report reads one."""
+
+    def __init__(self, status: int, url: str) -> None:
+        """Hold the two facts a case tells attempts apart by.
+
+        Args:
+            status (int): The status received.
+            url (str): Where it was sent.
+
+        Returns:
+            None
+        """
+        self._mapping = {"attempt_index": 0, "method": "POST", "url": url, "status": status}
+
+    def as_mapping(self) -> dict[str, Any]:
+        """Return the attempt as the report carries it.
+
+        Returns:
+            dict[str, Any]: The fields.
+        """
+        return dict(self._mapping)
 
 
 def _observation(index: int, *, outcome: str = "pass", **overrides: Any) -> Observation:
@@ -598,6 +625,25 @@ class TestMQCExchanges:
             "aborts": True, "matches": [{"vector": "instruction_override", "excerpt": MATCHED}]
         }, stopped["screen"]
         assert stopped["judge"] == {"not_judged": "screen_abort"} and stopped["passed"] is False
+
+    def MQC_CMN_UNI_400008_the_exchange_report_carries_every_attempt(self) -> None:
+        """Each observation's wire attempts and its judgement's, as recorded.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.5 and ``tier2_execution.md``
+        section 7.15.1.
+
+        Returns:
+            None
+        """
+        candidate = _Attempt(200, "https://api.x.ai/v1/chat/completions")
+        judge = _Attempt(503, "https://generativelanguage.googleapis.com/v1beta/x")
+        outcome = _Outcome(0)
+        outcome.wire_attempts = (candidate,)
+        result = dataclasses.replace(judged_result(), judge_wire_attempts=(judge,))
+        entry = exchange_report("MQC_EVL_SEC_154100_x", [outcome], [result], [True])[
+            "exchanges"][0]
+        assert entry["wire_attempts"] == [candidate.as_mapping()], entry
+        assert entry["judge"]["wire_attempts"] == [judge.as_mapping()], entry["judge"]
 
     def MQC_CMN_UNI_112420_every_case_that_dispatched_attaches_its_exchanges(
         self, monkeypatch: pytest.MonkeyPatch
