@@ -3,7 +3,7 @@
 """The adapter that sends cases to Anthropic's Claude models and reads their replies.
 
 Created: 2026-09-24
-Last updated: 2026-11-06
+Last updated: 2026-11-20
 
 This file contains :class:`ClaudeAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Anthropic Messages API. It composes
@@ -39,7 +39,6 @@ from execution.adapters.base import (
     Capabilities,
     ConfiguredAdapter,
     ProviderFacts,
-    declared_properties,
     require_json_object,
 )
 from execution.normalize import NormalizedResponse, ToolCall
@@ -253,8 +252,22 @@ class ClaudeAdapter(ConfiguredAdapter):
             Any: The provider response object, which stops at this adapter.
         """
         if self._client is None:
-            self._client = anthropic.Anthropic()
+            self._client = self.build_client()
         return self._client.messages.create(**request)
+
+    def build_client(self) -> Any:
+        """Return the Anthropic client, sending through the adapter's recorder.
+
+        **Only the transport is ours**: ``DefaultHttpxClient`` keeps the SDK's
+        own timeout and connection limits (``tier2_execution.md`` section
+        7.15.1).
+
+        Returns:
+            Any: An ``anthropic.Anthropic`` client.
+        """
+        return anthropic.Anthropic(
+            http_client=anthropic.DefaultHttpxClient(transport=self.wire.transport())
+        )
 
     def served_metadata(self) -> dict[str, Any]:
         """Return what the Anthropic models endpoint declares about this model.
@@ -268,9 +281,7 @@ class ClaudeAdapter(ConfiguredAdapter):
             dict[str, Any]: The declared properties, empty where the endpoint
             returned nothing usable.
         """
-        if self._client is None:
-            self._client = anthropic.Anthropic()
-        return declared_properties(self._client.models.retrieve(self.requested_model))
+        return self.read_declared(lambda client: client.models.retrieve(self.requested_model))
 
     def normalize_response(self, response: Any, case_id: str) -> NormalizedResponse:
         """Convert an Anthropic response into the canonical shape.

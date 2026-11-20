@@ -3,7 +3,7 @@
 """The interface every model provider adapter implements, and the code they share.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-20
 
 This file contains :class:`ProviderAdapter`, the abstract interface an adapter
 fills in, composing a request from a case, dispatching it once, normalizing
@@ -37,13 +37,16 @@ threatens owns its own defence (A5c).
 
 import json
 import logging
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Final, Optional
+from typing import Any, Callable, Final, Optional
 
+from cmn.observations import detected_run_context
 from cmn.tokens import TokenUsage
 from cmn.registries import is_adapter_error_code, taxonomy_for_status
 from execution.normalize import NormalizedResponse, ToolCall
+from execution.wire import WireAttempt, WireRecorder
 
 logger = logging.getLogger(__name__)
 
@@ -436,6 +439,29 @@ class ConfiguredAdapter(ProviderAdapter):
         """
         self._model = model or self.DEFAULT_MODEL
         self._client: Any = None
+        # ONE RECORDER ACROSS EVERY CLIENT THIS ADAPTER BUILDS, since a client
+        # is released after each case and rebuilt for a retry (design section
+        # 7.15.1). The body is kept in a debug run only (section 7.15.3).
+        self._wire = WireRecorder(keep_body=detected_run_context(os.environ) == "ci_debug")
+
+    @property
+    def wire(self) -> WireRecorder:
+        """Return the recorder this adapter's SDK sends through.
+
+        Returns:
+            WireRecorder: Held for the adapter's lifetime.
+        """
+        return self._wire
+
+    def take_wire_attempts(self) -> tuple[WireAttempt, ...]:
+        """Return the HTTP attempts made since the last take, and forget them.
+
+        Design: ``tier2_execution.md`` section 7.15.1.
+
+        Returns:
+            tuple[WireAttempt, ...]: In the order they were sent.
+        """
+        return self._wire.take()
 
     @property
     def connected(self) -> bool:
@@ -593,6 +619,40 @@ class ConfiguredAdapter(ProviderAdapter):
             provider reports nothing useful is not forced to invent a shape.
         """
         return TokenUsage()
+
+    def build_client(self) -> Any:
+        """Return this engine's SDK client, sending through the adapter's recorder.
+
+        Design: ``tier2_execution.md`` section 7.15.1.
+
+        Returns:
+            Any: The client. Every adapter that dispatches live overrides this.
+
+        Raises:
+            NotImplementedError: In an adapter that builds no client.
+        """
+        raise NotImplementedError(f"{type(self).__name__} builds no provider client")
+
+    def read_declared(self, fetch: Callable[[Any], Any]) -> dict[str, Any]:
+        """Return what a models endpoint declares, read through this adapter's client.
+
+        The attempts the read makes are dropped: they belong to no dispatch,
+        so they are not left for the next dispatch to take (section 7.15.1).
+
+        Args:
+            fetch (Callable): Given the client, returns the endpoint's payload.
+
+        Returns:
+            dict[str, Any]: The declared properties, empty where the endpoint
+            returned nothing usable.
+        """
+        if self._client is None:
+            self._client = self.build_client()
+        try:
+            return declared_properties(fetch(self._client))
+        finally:
+            self._wire.take()
+
     def release(self) -> None:
         """Drop the provider client, closing its connection pool.
 

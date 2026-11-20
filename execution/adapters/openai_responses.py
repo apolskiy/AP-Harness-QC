@@ -3,7 +3,7 @@
 """The shared adapter for an engine that serves OpenAI's Responses API.
 
 Created: 2026-11-06
-Last updated: 2026-11-06
+Last updated: 2026-11-20
 
 This file contains :class:`OpenAIResponsesAdapter`, which implements the
 interface in :mod:`execution.adapters.base` against the Responses API shape.
@@ -28,8 +28,6 @@ Specified by ``docs/design/tier2_execution.md`` section 3.5.4.
 
 import logging
 from typing import Any, Final
-
-import openai
 
 from cmn.tokens import TokenUsage
 from execution.adapters.base import ProviderFacts, require_json_object
@@ -136,7 +134,7 @@ class OpenAIResponsesAdapter(OpenAICompatibleAdapter):
             Any: The provider response object, which stops at this adapter.
         """
         if self._client is None:
-            self._client = openai.OpenAI(**self.client_options())
+            self._client = self.build_client()
         return self._client.responses.create(**request)
 
     def normalize_response(self, response: Any, case_id: str) -> NormalizedResponse:

@@ -29,6 +29,29 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### Every HTTP attempt is recorded with its credentials removed, and a run names its runner, 2026-11-20
+
+**Why.** Grok's forbidden-tool failures appear only on windows-latest, and a
+run recorded nothing that could separate the two runners: not the headers the
+SDK sent, not its own hidden retries, not the response headers, and not the
+installed SDK versions. The request bodies already hashed identically, so the
+difference, if it is in the request, is below what was recorded.
+
+**What changed.** `execution/wire.py` hands each SDK a recording transport, so
+every attempt (the SDK's own retries and a judge's calls included) carries its
+method, URL without query, headers, body hash, status, response headers, error
+and elapsed time on `DispatchOutcome.wire_attempts` and
+`EvaluationResult.judge_wire_attempts`, and the exchange report carries both.
+The body itself is kept in a debug run only. A credential header is redacted by
+name and by value, each sufficient alone. `cmn/log_scrubbing.py` scrubs
+credential values and URL query strings from every log record when it is
+created. `runner_fingerprint` adds the runner's OS, Python and five package
+versions to the provenance both reports carry. `tier2_execution.md` section
+7.15, `cmn_verdict_and_cli.md` section 5.6.5, `MQC_REQ_HAR_EXE_0151` to `0154`,
+`MQC_REQ_HAR_CMN_0268` and `0269`, cases `460000` to `460015`, `450009` to
+`450011` and `400008`; partition 460000-469999. README: 1209 test cases, 456
+requirements.
+
 ### The report deploys from a job of its own, after the job that uploaded it, 2026-11-19
 
 **Why.** Four of the case repository's publishes failed on 2026-11-19 at the

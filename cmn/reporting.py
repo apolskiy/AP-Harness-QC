@@ -3,7 +3,7 @@
 """Report builders, what a run publishes about each observation and a failing case.
 
 Created: 2026-10-02
-Last updated: 2026-10-21
+Last updated: 2026-11-20
 
 This file contains ``observation_parameters``, which turns an observation and
 its run context into one report parameter per required result field;
@@ -170,10 +170,27 @@ def exchange_report(
             "request": getattr(call, "request", None),
             "response": response.as_mapping() if hasattr(response, "as_mapping") else None,
         }
+        # THE HTTP ATTEMPTS, carried only where some were made, so a replayed
+        # exchange reads as it always did (`tier2_execution.md` section 7.15).
+        attempts = _attempt_mappings(getattr(call, "wire_attempts", ()))
+        if attempts:
+            entry["wire_attempts"] = attempts
         if result is not None:
             entry.update(_evaluation_fields(result))
         exchanges.append(entry)
     return redact({"case_id": case_id, "exchanges": exchanges})
+
+
+def _attempt_mappings(attempts: Any) -> list[dict[str, Any]]:
+    """Return each recorded attempt as the report carries it.
+
+    Args:
+        attempts (Any): Objects offering ``as_mapping``, or nothing.
+
+    Returns:
+        list[dict]: One mapping per attempt, in the order sent.
+    """
+    return [attempt.as_mapping() for attempt in attempts or () if hasattr(attempt, "as_mapping")]
 
 
 def _evaluation_fields(result: Any) -> dict[str, Any]:
@@ -194,6 +211,9 @@ def _evaluation_fields(result: Any) -> dict[str, Any]:
         if prompt else
         {"not_judged": str(getattr(result, "judge_skipped_reason", "") or "no judge request")}
     )
+    attempts = _attempt_mappings(getattr(result, "judge_wire_attempts", ()))
+    if attempts:
+        judge["wire_attempts"] = attempts
     return {
         "screen": {
             "aborts": bool(getattr(screen, "aborts", False)),

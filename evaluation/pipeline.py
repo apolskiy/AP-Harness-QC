@@ -3,7 +3,7 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-11-18
+Last updated: 2026-11-20
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
@@ -208,6 +208,10 @@ class EvaluationResult:
         missing_artifact (Optional[MissingArtifact]): The judgement replay
             could not find or read, where that is why the judgement is
             unavailable (section 6.5). Never emitted.
+        judge_wire_attempts (tuple): The HTTP attempts the judge made for
+            this observation, as the binding's ``wire_attempts`` returned
+            them; empty where it sent nothing (``tier2_execution.md`` section
+            7.15.1).
     """
 
     case_id: str
@@ -226,6 +230,7 @@ class EvaluationResult:
     judge_reply: dict[str, Any] = field(default_factory=dict)
     answer_route: str = ""
     missing_artifact: Optional[MissingArtifact] = None
+    judge_wire_attempts: tuple[Any, ...] = ()
 
     @property
     def judged(self) -> bool:
@@ -593,13 +598,14 @@ def evaluate_observation(
             checks_ran=declared, rubric_authored=rubric_authored, answer_route=route,
         )
 
-    return replace(
-        _judge_and_aggregate(
-            context, bound, progress, judge_on_failure=judge_on_failure,
-            at_pass_mark=at_pass_mark,
-        ),
-        answer_route=route,
+    judged = _judge_and_aggregate(
+        context, bound, progress, judge_on_failure=judge_on_failure,
+        at_pass_mark=at_pass_mark,
     )
+    # THE JUDGE'S HTTP ATTEMPTS, taken once it has been asked, whether it
+    # returned, raised or was skipped (`tier2_execution.md` section 7.15.1).
+    taken = tuple(bound.wire_attempts()) if bound.wire_attempts is not None else ()
+    return replace(judged, answer_route=route, judge_wire_attempts=taken)
 
 
 def _judge_skip_reason(

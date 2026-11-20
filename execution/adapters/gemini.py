@@ -3,7 +3,7 @@
 """The adapter that sends cases to Google's Gemini models and reads their replies.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-20
 
 This file contains :class:`GeminiAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Google Gen AI API. It composes and
@@ -38,6 +38,7 @@ from typing import Any, Final
 
 import httpx
 from google import genai
+from google.genai import types as genai_types
 
 from cmn.tokens import TokenUsage
 from execution.adapters.base import (
@@ -45,7 +46,6 @@ from execution.adapters.base import (
     Capabilities,
     ConfiguredAdapter,
     ProviderFacts,
-    declared_properties,
     require_json_object,
 )
 from execution.normalize import NormalizedResponse, ToolCall
@@ -210,8 +210,22 @@ class GeminiAdapter(ConfiguredAdapter):
             Any: The provider response object, which stops at this adapter.
         """
         if self._client is None:
-            self._client = genai.Client()
+            self._client = self.build_client()
         return self._client.models.generate_content(**request)
+
+    def build_client(self) -> Any:
+        """Return the Gen AI client, sending through the adapter's recorder.
+
+        **Only the transport is ours**, passed as a client argument, so the
+        library builds its own client around it and keeps its version headers
+        (``tier2_execution.md`` section 7.15.1).
+
+        Returns:
+            Any: A ``genai.Client``.
+        """
+        return genai.Client(
+            http_options=genai_types.HttpOptions(client_args={"transport": self.wire.transport()})
+        )
 
     def served_metadata(self) -> dict[str, Any]:
         """Return what the Gen AI models endpoint declares about this model.
@@ -224,9 +238,7 @@ class GeminiAdapter(ConfiguredAdapter):
             dict[str, Any]: The declared properties, empty where the endpoint
             returned nothing usable.
         """
-        if self._client is None:
-            self._client = genai.Client()
-        return declared_properties(self._client.models.get(model=self.requested_model))
+        return self.read_declared(lambda client: client.models.get(model=self.requested_model))
 
     def normalize_response(self, response: Any, case_id: str) -> NormalizedResponse:
         """Convert a Gen AI response into the canonical shape.

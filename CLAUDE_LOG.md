@@ -17258,3 +17258,86 @@ ended in a tool error, against 144.
 **A second slip, in the same review.** One later command ended by running a
 scratchpad script that does not exist, its error discarded. It did nothing,
 which is the filler the rule against filler commands exists to stop.
+
+## 2026-11-20: Designed the wire capture and the runner fingerprint
+
+**A) What was missing.** grok called a forbidden tool in 2 of 10 observations
+sent from `windows-latest` (`154202` in run 44464185951, `154108` in run
+44675326378) and in 0 of 24 sent from ubuntu. The request bodies hashed the
+same on every runner, the served model and token counts matched, and the
+harness has no platform branch. What could differ was recorded nowhere: the
+request headers the SDKs add, the SDKs' own retries, the response headers, and
+the package versions each runner installed, which go in quietly against
+ranges. Two failures against none is not conclusive on its own: with one
+shared rate, both landing on Windows happens about 8% of the time.
+
+**B) What was designed.** At the owner's ruling, nothing is filed while the
+pattern is Windows-only, and the root cause is found first.
+
+- **`tier2_execution.md` section 7.15:** every HTTP attempt, for every engine and
+  for the judge, in every run, through a recording transport handed to each
+  SDK. Event hooks were the first design and were dropped: they see no
+  request that raised before a response, and a client of our own would have
+  replaced the SDKs' ten-minute timeout with httpx's five seconds. Attempts travel as `wire_attempts`, because
+  `DispatchOutcome.attempts` already counts the harness's own attempts.
+- **Section 7.15.5:** a log filter keeps any credential value, and any URL query
+  string, out of the log. It was added on the owner's instruction that no
+  key be printed.
+- **`cmn_verdict_and_cli.md` section 5.6.5:** the OS, Python and SDK versions,
+  once per run, in the provenance.
+
+**Found while designing.** `cmn.config.redact` matches exact key names, and
+`Authorization`, `x-api-key` and `x-goog-api-key` are none of them, so
+recording headers through it would have published every engine's key. Header
+redaction therefore works by name and by value, each sufficient alone, and
+each is tested with the other unable to help.
+
+Requirements `MQC_REQ_HAR_EXE_0151` to `0154`, `MQC_REQ_HAR_CMN_0268` and
+`0269`. Partition `460000`-`469999`. 20 cases inventoried and not yet
+written, so `112313`, `112325` and `112312` fail until they are.
+
+## 2026-11-20: Implemented the wire capture and the runner fingerprint
+
+**What was built.**
+- `execution/wire.py` holds the recording transport, and `cmn/log_scrubbing.py` the
+  scrubbing. The scrubbing lives in `cmn` because `cmn` must not import `execution`.
+- The log scrubbing is a record factory, not a handler filter: pytest attaches
+  its handlers per phase, after configuration.
+- Each adapter builds its SDK client through `build_client` with the recorder's
+  transport. A models-endpoint read goes through `read_declared`, which drops
+  its own attempts so the next dispatch does not take them.
+- The 20 cases pass offline.
+
+**Digressions the user spotted, and the fix.** None this entry. One defect was
+found by the cases themselves, recorded next.
+
+**A unit case reached the network.** The first fail-first run, before the
+transport was wired, let the grok and claude SDKs fall back to their own
+transports. They sent the planted, fake credential to `api.x.ai` and
+`api.anthropic.com`, which rejected it. No real key was sent and nothing was
+billed. The cases now carry an autouse fixture that makes
+`httpx.HTTPTransport.handle_request` raise, so a broken wiring fails offline.
+
+**Injections, each applied alone and restored byte for byte:** 10 of 10 caught.
+
+| Injected | Failed as expected | Still passed |
+|---|---|---|
+| Name rule removed | 460004 to 460007 | 460008 |
+| Value rule removed | 460008 | 460004 to 460007 |
+| Query string kept in the URL | 460001 | 460000 |
+| Body kept outside a debug run | 460009 | 460000 |
+| Transport error not recorded | 460003 | 460000 |
+| Log scrubbing not installed | 460014, 460015 | 460000 |
+| Log scrubbing does nothing | 460015 | 460000 |
+| Outcome carries no attempts | 460011 | 460000 |
+| Judge attempts not taken | 460012 | 460000 |
+| Report omits attempts | 400008 | 112419 |
+
+**460014 does not catch "scrubbing does nothing", measured by a separate run of
+that injection: 460014 passed and 460015 failed.** No SDK logged the planted key
+at debug level in this environment, so 460014 guards that the scrubbing is
+installed and 460015 guards that it scrubs.
+
+Verified after the last change: Gate 1 lint exit 0. Unit exit 0: 1181 total,
+1181 executed, 1181 passed, 0 failed, 0 skipped. System replay exit 0: 24
+total, 24 executed, 24 passed, 0 failed, 0 skipped.

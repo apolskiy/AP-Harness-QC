@@ -3,13 +3,15 @@
 """What a run says it measured against, rendered for each artifact that carries it.
 
 Created: 2026-10-29
-Last updated: 2026-10-29
+Last updated: 2026-11-20
 
 This file contains ``PROVENANCE_FILE`` and ``PROVENANCE_PREFIX``, the names a
 report reads and a property carries; ``provenance_fields``, which builds the
 mapping from a run's engine, mode, requested model and whatever the provider
-declared; ``write_provenance``, which lands that mapping beside the raw results
-as the file an Allure environment block is built from; and
+declared; ``runner_fingerprint`` and ``RUNNER_FIELDS``, the runner's OS,
+Python and SDK versions appended to it; ``write_provenance``, which lands that
+mapping beside the raw results as the file an Allure environment block is
+built from; and
 ``testsuite_properties``, the same mapping rendered as the name and value pairs
 a JUnit report carries.
 
@@ -28,8 +30,10 @@ Specified by ``docs/design/cmn_verdict_and_cli.md`` section 5.6.
 """
 
 import logging
+import platform
+from importlib import metadata
 from pathlib import Path
-from typing import Final
+from typing import Callable, Final
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +63,23 @@ _FIELD_ORDER: Final[tuple[str, ...]] = (
 # an empty value from a field nobody wrote, and the whole purpose here is that
 # a report states what it knows and what it does not.
 _UNRECORDED: Final[str] = "unrecorded"
+
+# THE RUNNER A RUN RAN ON, after what it measured (design section 5.6.5). The
+# packages are the ones a request passes through on its way to a provider.
+_PACKAGES: Final[tuple[tuple[str, str], ...]] = (
+    ("package_openai", "openai"),
+    ("package_anthropic", "anthropic"),
+    ("package_google_genai", "google-genai"),
+    ("package_httpx", "httpx"),
+    ("package_httpcore", "httpcore"),
+)
+RUNNER_FIELDS: Final[tuple[str, ...]] = (
+    "runner_os", "runner_os_release", "runner_machine", "python_version",
+    *(field_name for field_name, _ in _PACKAGES),
+)
+
+# A PACKAGE THE RUNNER LACKS. A fact, unlike an empty value.
+_ABSENT: Final[str] = "absent"
 
 
 def provenance_fields(
@@ -119,6 +140,37 @@ def write_provenance(results_dir: Path, fields: dict[str, str]) -> Path:
     destination.write_text(body, encoding=_ENCODING, newline="\n")
     logger.info("Run provenance written to %s", destination)
     return destination
+
+
+def runner_fingerprint(
+    *, version_of: Callable[[str], str] = metadata.version
+) -> dict[str, str]:
+    """Return the runner this process runs on: its OS, Python and SDK versions.
+
+    Design: ``cmn_verdict_and_cli.md`` section 5.6.5. Read once per run, at
+    configuration, and appended to the provenance so both artifacts carry it.
+
+    Args:
+        version_of (Callable): Returns an installed distribution's version,
+            raising ``PackageNotFoundError`` for one not installed. Injected
+            so the absent case is testable.
+
+    Returns:
+        dict[str, str]: Every field in ``RUNNER_FIELDS``, never empty. A
+        package not installed reads ``absent``.
+    """
+    fingerprint = {
+        "runner_os": platform.system(),
+        "runner_os_release": platform.release(),
+        "runner_machine": platform.machine(),
+        "python_version": platform.python_version(),
+    }
+    for field_name, distribution in _PACKAGES:
+        try:
+            fingerprint[field_name] = str(version_of(distribution)) or _ABSENT
+        except metadata.PackageNotFoundError:
+            fingerprint[field_name] = _ABSENT
+    return {name: fingerprint[name] or _UNRECORDED for name in RUNNER_FIELDS}
 
 
 def testsuite_properties(fields: dict[str, str]) -> list[tuple[str, str]]:

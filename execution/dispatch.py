@@ -3,7 +3,7 @@
 """Sends one case to one engine, live or from a recorded fixture, and returns what came back.
 
 Created: 2026-09-26
-Last updated: 2026-11-17
+Last updated: 2026-11-20
 
 This file contains ``dispatch_case``, which composes the request for a case,
 replays the recorded observation or issues the request live, and returns a
@@ -55,6 +55,7 @@ from execution.replay import (
     record_fixture,
 )
 from execution.run_spend import RunSpend
+from execution.wire import WireAttempt
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,9 @@ class DispatchOutcome:
         missing_artifact (Optional[MissingArtifact]): The recording a replay
             could not load, where that is why it skipped, so a caller skipping
             the case can name the file (design section 7.6.2). Never emitted.
+        wire_attempts (tuple): Every HTTP request the SDK sent for this
+            outcome, its own retries included, redacted. Empty in replay,
+            which sends nothing (design section 7.15).
     """
 
     case_id: str
@@ -161,6 +165,7 @@ class DispatchOutcome:
     taxonomy_code: Optional[str] = None
     request: Optional[dict[str, Any]] = None
     missing_artifact: Optional[MissingArtifact] = None
+    wire_attempts: tuple[WireAttempt, ...] = ()
 
     def __post_init__(self) -> None:
         """Refuse an outcome that is both a measurement and a skip, or neither.
@@ -756,6 +761,7 @@ def _measured(
         rate_limit_encounters=tally.rate_limits,
         response=response,
         request=context.request,
+        wire_attempts=context.adapter.take_wire_attempts(),
     )
 
 
@@ -790,6 +796,7 @@ def _skip(
         rate_limit_encounters=tally.rate_limits,
         taxonomy_code=attributed_refusal(context.case, session, tally.code),
         request=context.request,
+        wire_attempts=context.adapter.take_wire_attempts(),
     )
 
 

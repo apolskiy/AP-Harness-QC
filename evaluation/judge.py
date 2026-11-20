@@ -3,7 +3,7 @@
 """Checks an LLM judge's reply and turns it into per-criterion scores.
 
 Created: 2026-09-26
-Last updated: 2026-11-18
+Last updated: 2026-11-20
 
 This file contains ``validate_judge_reply``, which checks a reply against the
 reply schema and the rubric's scale, requires a score for every criterion, and
@@ -86,12 +86,17 @@ class JudgeBinding:
         withheld (bool): The run asked for no judge, ``--judge-mode off``, so
             a rubric-bearing observation is skipped ``unjudged`` rather than
             judged (``tier3_evaluation.md`` section 5A.5.3).
+        wire_attempts (Optional[Callable]): Returns the HTTP attempts the
+            judge made since it was last asked, as the channel's
+            ``take_wire_attempts`` does. Absent means none are recorded
+            (``tier2_execution.md`` section 7.15.1).
     """
 
     invoke: Optional[Callable[[Any], Any]] = None
     judge_engine: str = ""
     candidate_engine: str = ""
     withheld: bool = False
+    wire_attempts: Optional[Callable[[], tuple[Any, ...]]] = None
 
     @property
     def available(self) -> bool:

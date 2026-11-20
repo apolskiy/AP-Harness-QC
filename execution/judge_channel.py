@@ -3,7 +3,7 @@
 """The connection the LLM judge is called through, kept apart from the model under test.
 
 Created: 2026-09-26
-Last updated: 2026-11-11
+Last updated: 2026-11-20
 
 This file contains :class:`JudgeChannel`, which owns one judge engine's
 adapter and connection, paces its own requests, and through ``invoke`` returns
@@ -65,6 +65,7 @@ from execution.adapters.registry import (
     engines_for_role,
 )
 from execution.dispatch import BUDGET_STOP, DispatchSession, is_retryable
+from execution.wire import WireAttempt
 from execution.replay import (
     FixtureMissing,
     FixtureStale,
@@ -201,6 +202,9 @@ class JudgeChannel:
         # judgements add nothing, which is correct: a stored reply was paid for
         # when it was recorded, not when it is read.
         self._usage = TokenUsage()
+        # THE HTTP ATTEMPTS OF THE LAST LIVE JUDGEMENT, until the pipeline
+        # takes them through the binding (design section 7.15.1).
+        self._wire_attempts: tuple[WireAttempt, ...] = ()
         self._plan = plan or JudgementPlan()
         self._budget = self._plan.budget
         # THE CODE THE JUDGE STOPPED ON, held for the run (design section
@@ -391,6 +395,9 @@ class JudgeChannel:
             ) from error
         finally:
             self._session.last_request_at = self._session.monotonic()
+            # TAKEN WHETHER THE JUDGEMENT RETURNED OR RAISED: a judge that
+            # could not be reached is the attempt most worth reading.
+            self._wire_attempts = self._wire_attempts + self._adapter.take_wire_attempts()
             if not self._keep_connection:
                 self._adapter.release()
 
@@ -412,6 +419,20 @@ class JudgeChannel:
                 self._adapter.requested_model, reply, prompt=request.rendered(),
             )
         return reply
+
+    def take_wire_attempts(self) -> tuple[WireAttempt, ...]:
+        """Return the HTTP attempts of the judgements since the last take, and forget them.
+
+        A binding carries this as its ``wire_attempts`` callable (design
+        section 7.15.1). A replayed or stored judgement sent nothing, so it
+        adds none.
+
+        Returns:
+            tuple[WireAttempt, ...]: In the order they were sent.
+        """
+        taken = self._wire_attempts
+        self._wire_attempts = ()
+        return taken
 
     def _served_model(self, raw: Any) -> str:
         """Return the model a judge reply reports serving, or the one requested.

@@ -3,7 +3,7 @@
 """Shared pytest hook bodies, which each repository's ``conftest.py`` delegates to.
 
 Created: 2026-09-23
-Last updated: 2026-11-18
+Last updated: 2026-11-20
 
 This file contains ``add_mqc_options``, which registers the execution flags
 from the shared option registry; ``configure_invocation``, which records what
@@ -74,7 +74,10 @@ from cmn.environments import is_precondition
 from cmn.grouping import load_grouping, story_for
 from cmn.missing_artifact import declared_missing_artifact
 from cmn.options import Option, build_invocation, registered_options
-from cmn.provenance import provenance_fields, testsuite_properties, write_provenance
+from cmn.log_scrubbing import install_log_scrubbing
+from cmn.provenance import (
+    provenance_fields, runner_fingerprint, testsuite_properties, write_provenance,
+)
 from cmn.report_categories import write_categories
 
 logger = logging.getLogger(__name__)
@@ -373,6 +376,9 @@ def adopt_provenance(config: Any, reader: Any) -> dict[str, str]:
         requested_model=model,
         served=served,
     )
+    # THE RUNNER, after what was measured, so two runs on different runners
+    # can be compared on what each had installed (design section 5.6.5).
+    fields.update(runner_fingerprint())
     _write_provenance_beside_results(config, fields)
     return fields
 
@@ -479,6 +485,9 @@ def configure_invocation(config: Any) -> None:
     Returns:
         None
     """
+    # NO KEY REACHES THE LOG, from here on and from any logger, installed
+    # before anything a run does can log one (`tier2_execution.md` 7.15.5).
+    install_log_scrubbing()
     named = _flags_named(config)
     supplied = {
         declared.metadata_key: config.getoption(declared.metadata_key)
