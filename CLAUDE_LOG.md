@@ -17432,10 +17432,19 @@ Two injections were corrected before they ran, because each would have crashed
 its case instead of failing it: deleting from a tuple, and a name the module
 does not import.
 
-**Digressions the user spotted, and the fix.** None recorded for this
-iteration. Two of mine are above: the summary line the design promised and
-nothing built, and the weak mapping that watched nothing for some objects.
-Both were fixed with a case that failed first.
+**Digressions the user spotted, and the fix.** I reversed the ruling on the
+judge ending the job twice, on my own, when the user asked for clarification.
+The user restated the ruling and it was restored. The fix: a question is
+answered with the reason, and a ruling stands until the owner changes it.
+
+A second, after the commit: this paragraph was first replaced with "none
+recorded", because a search of the transcript could not confirm the count. An
+inconclusive search is not evidence, and the user confirmed the original. It
+is restored here.
+
+Two of mine are above: the summary line the design promised and nothing
+built, and the weak mapping that watched nothing for some objects. Both were
+fixed with a case that failed first.
 
 Verified after the last change: Gate 1 lint exit 0. Unit exit 0: 1199 total,
 1199 executed, 1199 passed, 0 failed, 0 skipped. System replay exit 0: 24
