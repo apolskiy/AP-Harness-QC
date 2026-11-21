@@ -352,24 +352,39 @@ That is a stronger consequence than a P0 failure, which fails a run that did
 measure something.
 
 
-### 6.1 A skip is not a failure, and the code says whose problem it is
+### 6.1 A skip is not a failure, and the code says where to look first
 
 Every `QC_HARNESS_*` code is a **skip**, never a red case. That is the rule and
-it is load-bearing: a harness event means our infrastructure produced no
-measurement, so recording it as a failure would assert something about a model
-nobody asked.
+it is load-bearing: no measurement was produced, so recording it as a failure
+would assert something about a model nobody asked.
 
-**The code tells you whose defect it is and what to do.** This table is what a
-reader of a skipped case actually needs:
+**A failed HTTP call names no party.** It could be the harness, the model or
+its provider, a proxy or an edge, and the status alone does not say which.
+**Read the provider's message**, which the skip reason and the wire record
+carry (`tier2_execution.md` section 7.15.6), and the request identifier, which
+the provider can trace.
 
-| Code | Whose | Retried | What to do |
+**A candidate failure that repeats ends the job**: the same code on three
+consecutive cases, or five consecutive failures of any code. Every case after
+it skips naming that failure, the job exits 3, and the job's summary leads with
+the failure, which is where you start (`tier2_execution.md` section 8.3.4).
+
+**A stopped judge ends the job too.** The cases with no rubric could still
+run, but the judged ones are already skips, so the run is a known failure and
+each further case only costs. Everything after the stop skips, the job exits 3,
+and the summary leads with the judge's failure. Rerun against another judge,
+or once this one answers again.
+
+**This table is where an investigation starts**, not its conclusion:
+
+| Code | Look first at | Retried | What to do |
 |---|---|---|---|
-| `QC_HARNESS_REQUEST_REJECTED` | Ours | No | The provider refused what we composed. A corpus or adapter defect |
-| `QC_HARNESS_AUTH_ERROR` | Ours | No | The credential is missing, wrong or lacks the grant |
-| `QC_HARNESS_VERSION_UNAVAILABLE` | Ours | No | The configured model is not callable. **See below** |
-| `QC_HARNESS_RATE_LIMIT` | Nobody's | Yes | You asked too often, or the quota is spent. **See below** |
-| `QC_HARNESS_PROVIDER_UNAVAILABLE` | Theirs | Yes | The service said it is busy. Wait |
-| `QC_HARNESS_GATEWAY_FAILURE` | **The path** | Yes | A proxy, CDN or egress rule failed. **Not the provider** |
+| `QC_HARNESS_REQUEST_REJECTED` | The provider's message, then the request as composed | No | The provider rejected the request. **Anthropic sends an empty credit balance as this**, so read the message before the corpus or the adapter |
+| `QC_HARNESS_AUTH_ERROR` | The credential | No | The credential is missing, wrong or lacks the grant |
+| `QC_HARNESS_VERSION_UNAVAILABLE` | The model name | No | The configured model is not callable. **See below** |
+| `QC_HARNESS_RATE_LIMIT` | The provider's message | Yes | You asked too often, or the quota is spent. **See below** |
+| `QC_HARNESS_PROVIDER_UNAVAILABLE` | The provider's status page, then the edge | Yes | The service said it is busy. Wait |
+| `QC_HARNESS_GATEWAY_FAILURE` | **The path** | Yes | A proxy, CDN or egress rule failed, which may not be the provider |
 | `QC_HARNESS_ENGINE_UNREACHABLE` | **The path** | No | A redirect or connection failure. Check proxy, DNS, VPN |
 | `QC_HARNESS_ARTIFACT_MISSING` | Ours | No | A file the case reads is absent or unreadable; the message names its kind and path. A `recording` or `judgement`: record it, or run live. `QC_HARNESS_FIXTURE_MISSING` until 2026-11-17 |
 | `QC_HARNESS_FIXTURE_STALE` | Ours | No | The question or the instrument moved. Re-record |
@@ -388,7 +403,7 @@ shaped that way**, and a remedy always acts at one level:
 
 | Level | What you change | Codes |
 |---|---|---|
-| Ours | The request we compose | `QC_HARNESS_REQUEST_REJECTED` |
+| Request | The request as composed, or what the provider's message names, an empty credit balance among them | `QC_HARNESS_REQUEST_REJECTED` |
 | Connection | The socket. The harness already reconnects per retry | (transport, before a status) |
 | Path | Proxy, DNS, egress, endpoint | `QC_HARNESS_GATEWAY_FAILURE`, `QC_HARNESS_ENGINE_UNREACHABLE` |
 | Service | Nothing. Wait | `QC_HARNESS_PROVIDER_UNAVAILABLE` |

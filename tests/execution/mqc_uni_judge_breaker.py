@@ -3,13 +3,14 @@
 """Unit cases for when a judge channel stops asking a judge that will not answer.
 
 Created: 2026-11-06
-Last updated: 2026-11-06
+Last updated: 2026-11-21
 
-This file contains ``TestMQCJudgeBreaker``, two cases on
+This file contains ``TestMQCJudgeBreaker``, three cases on
 :class:`execution.judge_channel.JudgeChannel`. They check that a judge failure
 whose code is not retryable stops the channel at once, that retryable failures
-stop it at the breaker's threshold with a reply resetting the count, and that a
-stopped channel sends nothing and reports the code it stopped on.
+stop it at the breaker's threshold with a reply resetting the count, that a
+stopped channel sends nothing and reports the code it stopped on, and that the
+stop ends the run's job, so no later case is dispatched and the run exits 3.
 
 **The channel sits between evaluation and the judge provider.** A consumer
 reads what it reports before dispatching a candidate whose rule the judge must
@@ -18,7 +19,7 @@ score, so a stopped judge stops the run buying responses nobody can score.
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
 
-Specified by ``docs/design/tier2_execution.md`` section 8.3.3.
+Specified by ``docs/design/tier2_execution.md`` sections 8.3.3 and 8.3.4.
 """
 
 # ------------------------------------------------------------- cases in here
@@ -27,10 +28,15 @@ Specified by ``docs/design/tier2_execution.md`` section 8.3.3.
 # TestMQCJudgeBreaker
 #   113306  a_judge_rejecting_the_request_is_not_asked_again
 #   113307  a_judge_failing_transiently_stops_at_the_breaker_threshold
+#   113312  a_judge_stopped_on_a_non_retryable_code_ends_the_job
 # ------------------------------------------------------------ end of cases
+
+from pathlib import Path
 
 import pytest
 
+from execution.dispatch import DispatchPlan, DispatchSession, dispatch_case
+from ingestion.schemas import EvaluationCase
 from tests.execution.judge_breaker_doubles import (
     AWARDED,
     JudgeRequestDouble,
@@ -117,3 +123,34 @@ class TestMQCJudgeBreaker:
         with pytest.raises(ValueError, match="QC_HARNESS_PROVIDER_UNAVAILABLE"):
             channel.invoke(JudgeRequestDouble())
         assert provider.sent == sent, "a stopped judge was sent another request"
+
+    def MQC_EXE_UNI_113312_a_judge_stopped_on_a_non_retryable_code_ends_the_job(
+        self, monkeypatch: pytest.MonkeyPatch, minimal_case: EvaluationCase, tmp_path: Path,
+    ) -> None:
+        """The judge's stop ends the run's job, so a case with no rubric is not dispatched either.
+
+        Design: ``tier2_execution.md`` section 8.3.4.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+            minimal_case (EvaluationCase): A candidate case, dispatched after the stop.
+            tmp_path (Path): The fixture root, holding no recording.
+
+        Returns:
+            None
+        """
+        session = DispatchSession()
+        channel = scripted_channel(monkeypatch, ScriptedJudge([rejected()]), session)
+        with pytest.raises(ValueError, match="QC_HARNESS_REQUEST_REJECTED"):
+            channel.invoke(JudgeRequestDouble())
+
+        ended = getattr(session, "job_end", None)
+        assert ended is not None, "the judge stopped and the job ran on"
+        assert (ended.role, ended.code) == ("judge", "QC_HARNESS_REQUEST_REJECTED"), ended
+
+        # A REPLAY WITH NO RECORDING would skip as a missing artifact; ended, it
+        # names the judge's failure and reads nothing.
+        after = dispatch_case(minimal_case, "claude",
+                              DispatchPlan(mode="replay", fixture_root=tmp_path), session)
+        assert after.taxonomy_code == "QC_HARNESS_REQUEST_REJECTED", after
+        assert session.exit_status(0) == 3

@@ -3,7 +3,7 @@
 """The connection the LLM judge is called through, kept apart from the model under test.
 
 Created: 2026-09-26
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 This file contains :class:`JudgeChannel`, which owns one judge engine's
 adapter and connection, paces its own requests, and through ``invoke`` returns
@@ -16,9 +16,9 @@ judge engine the roster configures.
 to evaluation**, which calls it at the judging step for every response that
 clears the screen and the assertions. A judgement missing in replay raises,
 and the run records a skip rather than calling the judge live. A judge that
-will not answer stops the channel for the rest of the run, and ``stopped``
-names the code, so a consumer can skip a judged case before buying its
-response.
+will not answer stops the channel for the rest of the run and ends the run's
+job, and ``stopped`` names the code and ``stopped_detail`` what the provider
+said, so a consumer skips every later case before buying its response.
 
 Specified by ``docs/design/tier2_execution.md`` sections 7.7.3 and 8.3.3.
 
@@ -65,6 +65,7 @@ from execution.adapters.registry import (
     engines_for_role,
 )
 from execution.dispatch import BUDGET_STOP, DispatchSession, is_retryable
+from execution.job_end import failure_detail
 from execution.wire import WireAttempt
 from execution.replay import (
     FixtureMissing,
@@ -211,6 +212,7 @@ class JudgeChannel:
         # 8.3.3). The count of consecutive failures lives on the session,
         # beside the threshold the candidate breaker reads.
         self._stopped: Optional[str] = None
+        self._stopped_detail = ""
 
     @property
     def engine(self) -> str:
@@ -259,6 +261,18 @@ class JudgeChannel:
         """
         return self._stopped
 
+    @property
+    def stopped_detail(self) -> str:
+        """Return the failure the judge stopped on, with its status, request id and message.
+
+        Design: ``tier2_execution.md`` section 7.15.6.
+
+        Returns:
+            str: As :func:`execution.job_end.failure_detail` states it, or
+            empty while the judge answers.
+        """
+        return self._stopped_detail
+
     def invoke(self, request: Any) -> dict[str, Any]:
         """Issue one judge request, paced on the judge's own interval.
 
@@ -289,8 +303,8 @@ class JudgeChannel:
         """
         if self._stopped is not None:
             raise ValueError(
-                f"{self._stopped}: the judge stopped answering earlier in this "
-                f"run, so {request.case_id} was not sent"
+                f"{self._stopped_detail or self._stopped}; the judge stopped answering "
+                f"earlier in this run, so {request.case_id} was not sent"
             )
         composed = self._adapter.compose_judgement(
             request.rendered(), request.reply_schema
@@ -386,18 +400,19 @@ class JudgeChannel:
             # judge path is a skip with a code, as it is everywhere else
             # (tier3 section 6.5.1).
             code = self._adapter.map_error(error)
-            logger.warning(
-                "%s judging %s: %s", code, request.case_id, type(error).__name__
-            )
-            self._count_failure(code)
+            attempts = self._take_attempts()
+            self._charge_failed(attempts)
+            detail = failure_detail(code, "judge", self.engine, attempts)
+            logger.warning("%s; judging %s", detail, request.case_id)
+            self._count_failure(code, detail)
             raise ValueError(
-                f"{code}: the judge could not be reached for {request.case_id}"
+                f"{detail}; the judge could not be reached for {request.case_id}"
             ) from error
         finally:
             self._session.last_request_at = self._session.monotonic()
             # TAKEN WHETHER THE JUDGEMENT RETURNED OR RAISED: a judge that
             # could not be reached is the attempt most worth reading.
-            self._wire_attempts = self._wire_attempts + self._adapter.take_wire_attempts()
+            self._take_attempts()
             if not self._keep_connection:
                 self._adapter.release()
 
@@ -434,6 +449,39 @@ class JudgeChannel:
         self._wire_attempts = ()
         return taken
 
+    def _take_attempts(self) -> tuple[WireAttempt, ...]:
+        """Take the adapter's attempts, keep them for the binding, and count the failed ones.
+
+        Returns:
+            tuple[WireAttempt, ...]: The attempts taken by this call.
+        """
+        attempts = self._adapter.take_wire_attempts()
+        self._wire_attempts = self._wire_attempts + attempts
+        if self._budget is not None:
+            self._budget.count_failed_attempts("judge", attempts)
+        return attempts
+
+    def _charge_failed(self, attempts: tuple[WireAttempt, ...]) -> None:
+        """Charge the usage a failed judgement's error bodies report, to the judge.
+
+        **A failed call is not assumed free**: where the provider reports
+        tokens, they are the judge's, and they reach the run's spend as its
+        share (design section 7.7.3).
+
+        Args:
+            attempts (tuple[WireAttempt, ...]): The failed judgement's attempts.
+
+        Returns:
+            None
+        """
+        for attempt in attempts:
+            billed = attempt.reported_usage()
+            if billed == TokenUsage():
+                continue
+            self._usage = self._usage + billed
+            if self._budget is not None:
+                self._budget.charge_judgement(billed, str(self._adapter.requested_model))
+
     def _served_model(self, raw: Any) -> str:
         """Return the model a judge reply reports serving, or the one requested.
 
@@ -451,15 +499,18 @@ class JudgeChannel:
         except ValueError:
             return str(self._adapter.requested_model)
 
-    def _count_failure(self, code: str) -> None:
-        """Stop the channel on a failure that will repeat, or at the threshold.
+    def _count_failure(self, code: str, detail: str) -> None:
+        """Stop the channel on a failure that will repeat, or at the threshold, ending the job.
 
         A code outside the retryable set stops it at once; a retryable code
         stops it at the session's breaker threshold of consecutive failures.
-        Design: ``tier2_execution.md`` section 8.3.3.
+        **A stop ends the run's job** where the plan carries the run's
+        session, cases with no rubric included. Design: ``tier2_execution.md``
+        sections 8.3.3 and 8.3.4.
 
         Args:
             code (str): The harness code the failure mapped to.
+            detail (str): The failure, as :func:`failure_detail` states it.
 
         Returns:
             None
@@ -468,10 +519,15 @@ class JudgeChannel:
         if (not is_retryable(code)
                 or self._session.consecutive_failures >= self._session.breaker_threshold):
             self._stopped = code
+            self._stopped_detail = detail
             logger.warning(
-                "%s: the judge is stopped for the rest of this run after %d "
+                "%s: the judge is stopped, and the job ended, after %d "
                 "consecutive failures", code, self._session.consecutive_failures,
             )
+            if self._budget is not None:
+                self._budget.end_job(
+                    "judge", code, self._session.consecutive_failures, detail
+                )
 
     def _stored_reply(self, key: JudgementKey, request_hash: str) -> dict[str, Any]:
         """Return a recorded judgement, refusing a stale one.

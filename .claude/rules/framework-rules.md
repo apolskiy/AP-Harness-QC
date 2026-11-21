@@ -114,7 +114,7 @@ Every failure carries a code, attached to the assertion message and to the Allur
 | Family | Asserts | Outcome |
 |---|---|---|
 | `QC_LLM_*` | The model under test performed poorly | Fail |
-| `QC_HARNESS_*` | Our code or infrastructure broke | Skip or broken, never fail |
+| `QC_HARNESS_*` | No measurement was produced: our code or infrastructure broke, or a call failed. **A failed HTTP call names no party**, being the harness, the model or provider, a proxy or an edge until investigated | Skip or broken, never fail. A candidate failure that repeats ends the job, and so does a stopped judge (`tier2_execution.md` section 8.3.4) |
 | `QC_DATA_*` | An ingestion event, carrying its own severity | Info, warning or error |
 | `QC_SEC_*` | A security finding, neither quality nor harness | Fail, some blocking |
 

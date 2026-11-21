@@ -3,13 +3,15 @@
 """Provider replies at the HTTP level, for driving the real SDKs through a mock transport.
 
 Created: 2026-11-20
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 This file contains ``WIRE_ENGINES``, which maps each registered engine to the
 environment variable its SDK reads, a minimal request its adapter dispatches,
 the header its SDK sends the credential under, and the JSON body a successful
 reply carries; ``reply_handler``, which builds a ``MockTransport`` handler
 answering every request with one engine's reply after any scripted failures;
+``provider_error``, an error response carrying a provider's message and trace
+headers;
 ``PLANTED_KEY``, the credential every case plants; and ``serve_mock``,
 ``mock_recorder``, ``send_through`` and ``dispatch_minimal``, which send
 through a recorder or a real adapter with the mock in place of the network.
@@ -40,6 +42,13 @@ PLANTED_KEY: Final[str] = "mqc-planted-credential-6c1f0e9a7b"
 # WHERE A REQUEST SENT THROUGH A BARE RECORDER GOES. A reserved top-level
 # domain, so it resolves nowhere even if a mock were bypassed.
 ECHO_URL: Final[str] = "https://wire.test/v1/echo"
+
+# THE TRACE HEADERS AN ERROR RESPONSE CARRIES, which a failure's detail names
+# (design section 7.15.6).
+ERROR_TRACE: Final[tuple[tuple[str, str], ...]] = (
+    ("x-request-id", "req_wire_400"), ("date", "Sat, 21 Nov 2026 05:01:45 GMT"),
+)
+CREDIT_MESSAGE: Final[str] = "Your credit balance is too low to access the API."
 
 _CHAT_REPLY: Final[dict[str, Any]] = {
     "id": "chatcmpl-wire", "object": "chat.completion", "created": 0, "model": "grok-wire",
@@ -124,9 +133,10 @@ def reply_handler(
 
     Args:
         reply (dict): The JSON body of the successful reply.
-        failures (tuple): Each either an ``int`` status answered with an empty
-            JSON body and ``retry-after-ms: 0``, so an SDK retries at once, or
-            an exception instance, which the handler raises.
+        failures (tuple): Each an ``int`` status answered with an empty JSON
+            body and ``retry-after-ms: 0``, so an SDK retries at once; an
+            ``httpx.Response``, answered as given; or an exception instance,
+            which the handler raises.
         headers (tuple): Response headers the successful reply carries.
         sent (list): Where every request received is appended, when given.
 
@@ -154,12 +164,58 @@ def reply_handler(
             failure = pending.pop(0)
             if isinstance(failure, Exception):
                 raise failure
+            if isinstance(failure, httpx.Response):
+                return failure
             return httpx.Response(
                 int(failure), headers={"retry-after-ms": "0"}, json={"error": {}}
             )
         return httpx.Response(200, headers=dict(headers), content=json.dumps(reply).encode())
 
     return handle
+
+
+def provider_error(
+    status: int, message: str, *, usage: Optional[dict[str, int]] = None
+) -> httpx.Response:
+    """Return an error response shaped as the providers send one, with its trace headers.
+
+    Args:
+        status (int): The status.
+        message (str): The provider's message, under ``error.message``.
+        usage (Optional[dict]): A usage block the body carries, where given.
+
+    Returns:
+        httpx.Response: The response, carrying ``x-request-id`` and ``date``.
+    """
+    body: dict[str, Any] = {"error": {"type": "invalid_request_error", "message": message}}
+    if usage is not None:
+        body["usage"] = usage
+    return httpx.Response(status, headers=dict(ERROR_TRACE), content=json.dumps(body).encode())
+
+
+class WatchedStream(httpx.SyncByteStream):
+    """A response body that notes whether anything read it.
+
+    Attributes:
+        read_from (bool): True once the body has been iterated.
+    """
+
+    def __init__(self) -> None:
+        """Start unread.
+
+        Returns:
+            None
+        """
+        self.read_from = False
+
+    def __iter__(self) -> Any:
+        """Yield the body, noting that it was read.
+
+        Returns:
+            Any: An iterator over the body's one chunk.
+        """
+        self.read_from = True
+        return iter([b"{}"])
 
 
 def serve_mock(monkeypatch: pytest.MonkeyPatch, handler: Any) -> None:

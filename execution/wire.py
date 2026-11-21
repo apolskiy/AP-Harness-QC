@@ -3,9 +3,10 @@
 """The HTTP attempts a dispatch makes, recorded with their credentials removed.
 
 Created: 2026-11-20
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
-This file contains ``WireAttempt``, one HTTP request and what came back;
+This file contains ``WireAttempt``, one HTTP request and what came back,
+including a failed attempt's body or error message;
 ``WireRecorder``, which hands an SDK a recording transport and holds the
 attempts it records until they are taken; ``redact_headers``, which replaces a
 credential's value by the header's name and by the value itself; and
@@ -28,6 +29,7 @@ Specified by ``docs/design/tier2_execution.md`` section 7.15.
 """
 
 import hashlib
+import json
 import os
 import time
 from dataclasses import dataclass, field
@@ -36,6 +38,7 @@ from typing import Any, Final, Iterable, Mapping, Optional
 import httpx
 
 from cmn.log_scrubbing import REDACTED, credential_values, scrub_text
+from cmn.tokens import TokenUsage
 
 __all__ = ("REDACTED", "WireAttempt", "WireRecorder", "base_transport", "redact_headers")
 
@@ -46,6 +49,33 @@ _CREDENTIAL_HEADERS: Final[frozenset[str]] = frozenset(
     {"authorization", "proxy-authorization", "cookie", "set-cookie"}
 )
 _CREDENTIAL_FRAGMENTS: Final[tuple[str, ...]] = ("api-key", "api_key")
+
+# HOW MUCH OF AN ERROR BODY IS KEPT, in characters (section 7.15.6). A
+# provider's error is a few hundred; a gateway's HTML page is not.
+_ERROR_BODY_LIMIT: Final[int] = 4096
+
+
+def _error_body(response: Optional[httpx.Response], environ: Mapping[str, str]) -> str:
+    """Return a non-2xx response's body, scrubbed and cut to the limit.
+
+    **A 2xx is never read here**, so a streamed reply streams as before. A
+    non-2xx is read whole, which httpx caches, so the SDK reads it again
+    unchanged.
+
+    Args:
+        response (Optional[httpx.Response]): What came back, if anything did.
+        environ (Mapping): The environment the credential values are read from.
+
+    Returns:
+        str: The body, or empty for a 2xx or no response.
+    """
+    if response is None or 200 <= response.status_code < 300:
+        return ""
+    try:
+        raw = response.read()
+    except httpx.HTTPError as error:
+        return scrub_text(f"<body unreadable: {type(error).__name__}>", environ)
+    return scrub_text(raw.decode("utf-8", errors="replace"), environ)[:_ERROR_BODY_LIMIT]
 
 
 @dataclass(frozen=True)
@@ -63,6 +93,10 @@ class WireAttempt:
         response_headers (dict): The headers received, redacted.
         error (str): The transport error's class where no response arrived.
         elapsed_ms (int): From sending to the response headers arriving.
+        error_body (str): A non-2xx response's body, scrubbed and cut to
+            4096 characters; empty for a 2xx or no response.
+        error_message (str): The transport error's message, scrubbed; empty
+            where a response arrived.
     """
 
     attempt_index: int
@@ -75,6 +109,8 @@ class WireAttempt:
     response_headers: dict[str, str] = field(default_factory=dict)
     error: str = ""
     elapsed_ms: int = 0
+    error_body: str = ""
+    error_message: str = ""
 
     def as_mapping(self) -> dict[str, Any]:
         """Return the attempt as a report carries it.
@@ -93,7 +129,51 @@ class WireAttempt:
             "response_headers": dict(self.response_headers),
             "error": self.error,
             "elapsed_ms": self.elapsed_ms,
+            "error_body": self.error_body,
+            "error_message": self.error_message,
         }
+
+    def reported_usage(self) -> TokenUsage:
+        """Return the tokens a failed attempt's error body reports, if it reports any.
+
+        Reads the usage block under each provider's names: ``usage`` with
+        ``prompt_tokens`` or ``input_tokens``, and ``usageMetadata`` with
+        ``promptTokenCount``. Design: ``tier2_execution.md`` section 7.7.3.
+
+        Returns:
+            TokenUsage: What the body reports, all zero where it reports
+            nothing or is not JSON.
+        """
+        try:
+            parsed: Any = json.loads(self.error_body) if self.error_body else None
+        except ValueError:
+            return TokenUsage()
+        if not isinstance(parsed, dict):
+            return TokenUsage()
+        block = parsed.get("usage") or parsed.get("usageMetadata")
+        if not isinstance(block, dict):
+            return TokenUsage()
+
+        def count(*names: str) -> int:
+            """Return the first of the named counts the block carries as a number.
+
+            Args:
+                *names (str): The names, in order.
+
+            Returns:
+                int: The count, or zero.
+            """
+            for name in names:
+                value = block.get(name)
+                if isinstance(value, int) and not isinstance(value, bool):
+                    return value
+            return 0
+
+        return TokenUsage(
+            input_tokens=count("prompt_tokens", "input_tokens", "promptTokenCount"),
+            output_tokens=count("completion_tokens", "output_tokens", "candidatesTokenCount"),
+            thinking_tokens=count("thoughtsTokenCount"),
+        )
 
 
 def base_transport() -> httpx.BaseTransport:
@@ -267,6 +347,8 @@ class WireRecorder:
             ),
             error="" if error is None else type(error).__name__,
             elapsed_ms=int((time.monotonic() - started) * 1000),
+            error_body=_error_body(response, environ),
+            error_message="" if error is None else scrub_text(str(error), environ),
         ))
 
     def take(self) -> tuple[WireAttempt, ...]:

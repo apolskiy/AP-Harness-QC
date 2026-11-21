@@ -29,6 +29,34 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A repeated HTTP failure or a stopped judge ends the job, and every skip says what the provider said, 2026-11-21
+
+**Why.** A run that met a provider error recorded only the harness code. The
+status, the request id and the provider's own message were gone, so an
+exhausted credit and a malformed request were indistinguishable. A candidate
+failing the same way case after case kept sending requests of unknown cost
+until five had failed, and a stopped judge left the run buying responses toward
+a result already red. A failed call was also read as free.
+
+**What changed.**
+- `execution/wire.py` keeps a non-2xx response's body, scrubbed and cut to
+  4096 characters, and a transport error's message, in every run context.
+- The new `execution/job_end.py` states each failure as its code, role and
+  engine, then the status, request id, date and the provider's message.
+  - It ends the job when the candidate returns one code three cases running,
+    fails five cases running, or meets an auth error.
+  - The judge channel ends the job when the judge stops.
+  - After the end, every case skips without being sent, naming the failure.
+  - The new `cmn/ended_job.py` makes such a run exit 3 whatever else passed,
+    and gives the line the run's summary leads with.
+- The judge channel charges usage reported in an error body to the judge.
+- The run's spend fields gain `candidate_failed_attempts` and
+  `judge_failed_attempts`, counting every attempt that came back non-2xx or
+  raised.
+- The circuit breaker cases moved to `tests/execution/mqc_uni_circuit_breaker.py`
+  when `mqc_uni_dispatch.py` passed its 900-line runway.
+- **Figures that moved:** 1209 to 1227 cases, and 456 to 461 requirements.
+
 ### Every HTTP attempt is recorded with its credentials removed, and a run names its runner, 2026-11-20
 
 **Why.** Grok's forbidden-tool failures appear only on windows-latest, and a

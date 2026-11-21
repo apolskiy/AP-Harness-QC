@@ -1109,6 +1109,29 @@ code, as it does any `QC_HARNESS_*` event on the judge path. A replayed or
 already recorded judgement is returned before the ceiling is consulted, since
 it spends nothing.
 
+##### A failed call is not assumed free
+
+Added 2026-11-21 at the project owner's instruction: "we don't know if they
+are charging tokens for requests that generate http error responses. best not
+to assume".
+
+**What was assumed.** Both roles charge the run after a response returns and is
+read for usage, so an attempt that failed adds nothing to `spent`. That is
+correct only if a provider bills nothing for a failed request, which no
+provider has been measured to do. Where one does, `spent` understates the run
+and the ceiling admits more than it states.
+
+| Part | Rule |
+|---|---|
+| An error response reporting usage | Charged as a reply would be, to the role that made it |
+| An error response reporting none | **Not charged, and not counted as free**: it is a failed attempt of unknown cost |
+| The spend line | States the failed wire attempts per role beside `spent`, so the figure can be reconciled against the provider's console |
+| The bound on unknown cost | The breaker (section 8.3), which ends the job on a repeated failure rather than spending further attempts on it |
+
+**Counted from the wire record**, which holds every attempt including the
+SDKs' own retries (section 7.15.1): an attempt whose status is not 2xx, or
+which raised before a response, is a failed attempt.
+
 **A channel whose plan carries no `budget` is unchanged**, which is every replay run
 and every caller that sets no ceiling. `MQC_EXE_UNI_113309` asserts that a
 judge at the ceiling is not asked, and `MQC_EXE_UNI_113310` that a live
@@ -1755,6 +1778,8 @@ judge channel after each judgement.
 | `body` | The body as sent, **in a debug run only** (`run_context` `ci_debug`), section 7.15.3 |
 | `status`, `response_headers` | As received, the headers redacted. Both empty where no response arrived |
 | `error` | The transport error's class where the attempt raised before a response |
+| `error_message` | That error's message, scrubbed by value (section 7.15.5). Empty where a response arrived |
+| `error_body` | For a response whose status is not 2xx, its body as received, scrubbed by value and cut to its first 4096 characters, **in every run** (section 7.15.6). Empty for a 2xx |
 | `elapsed_ms` | From the request hook to the response hook |
 
 **The attempts travel on `DispatchOutcome` as `wire_attempts`**, beside the
@@ -1857,6 +1882,67 @@ added.
 forgets nothing still cannot print a key, and asserted with the SDKs' and
 httpx's own loggers at DEBUG against a credential planted in the environment.
 
+#### 7.15.6 The provider's error is recorded, because it is the only account of the failure
+
+Added 2026-11-21 at the project owner's instruction, "yes capture the error
+message", after gemini run 44866727298.
+
+**What was wrong.** The claude judge answered the judge call for `134503` with
+status 400 at 05:01:45 GMT. The attempt recorded the status and the headers,
+and the run reported the skips that followed as "cause not described here".
+**The cause was exhausted credit on the judge's account**, which the provider
+states in the body of its response, and nothing kept the body:
+
+| Where the reason could have been | What it held |
+|---|---|
+| The wire attempt | Status and headers. The body was never read |
+| `error` | Empty, correctly: a response arrived |
+| The channel's warning | The exception's class name, `BadRequestError` |
+| The code | `QC_HARNESS_REQUEST_REJECTED`, chosen by the status alone |
+
+**`harness_running_jobs.md` section 6.2 tells the operator to "read the
+provider's message"**, and no artifact held one. The capture of section 7.15.1
+recorded every attempt as designed; it recorded too little of a failed one.
+
+**So a failed attempt keeps what the provider said, on every run.** Section
+7.15.3 keeps the request body to debug runs because the exchange already holds
+the composed request. **Nothing else holds the provider's error**, and the
+failure worth reading is the one in a scheduled run, so `error_body` and
+`error_message` are kept whatever the run context.
+
+| Decision | Because |
+|---|---|
+| Read by the recording transport, for a status that is not 2xx only | The SDK reads an error body in full to raise its exception, so reading it first changes nothing the SDK sees. A 2xx body is never read here, so a streamed reply streams as before |
+| Scrubbed by value | A provider may echo part of the request in its error, and the by-value mechanism catches a credential whatever field carries it |
+| Cut at 4096 characters | A provider's error is a few hundred characters. A gateway answering with an HTML page is not, and the start of it says whose page it is |
+
+**The message reaches the reader, not only the artifact.** The dispatcher and
+the judge channel each map the failure to a code and then dropped the
+exception. Both now carry the provider's message into the skip reason and into
+their warning, after the code and the status:
+
+```
+QC_HARNESS_REQUEST_REJECTED: judge claude, status 400, request-id req_...,
+date Sat, 21 Nov 2026 05:01:45 GMT: <the provider's message>
+```
+
+The request identifier is the provider's own header (`request-id`,
+`x-request-id`), which the provider can trace. The message is the JSON error's
+`message` where the body carries one, and the first 500 characters of the body
+otherwise. The log record factory scrubs the line on its way out, as it does
+every record.
+
+**An HTTP failure names no party.** The project owner, 2026-11-21: "could be
+harness, could be model, could be a proxy or an edge failure. http error, is
+just that." The status and the provider's message are where an investigation
+starts, and the record carries what each possibility is read from:
+
+| Could be | Read first |
+|---|---|
+| The harness | The request as composed, its body hash, the request headers |
+| The model, or the provider's service or account | The provider's message and request identifier |
+| A proxy or an edge | Whether the response carries the provider's headers at all, and the edge identifier such as `cf-ray` |
+
 ## 8. Rate Limiting
 
 The objective is evaluation, never load-testing a provider. On a free tier, pacing decides whether a run completes at all (A7.3).
@@ -1866,7 +1952,7 @@ The objective is evaluation, never load-testing a provider. On a free tier, paci
 | Request spacing | Per engine, from `config/engines.yaml` |
 | Retry | Bounded backoff on `QC_HARNESS_CANDIDATE_TIMEOUT`, and on `QC_HARNESS_RATE_LIMIT` **unless the provider named an exhausted quota period** (section 8.6.4) |
 | Exhausted backoff | Skip the case, attach the code, continue |
-| Circuit breaker | N consecutive failures, or any auth error, aborts the run |
+| Circuit breaker | The candidate's same code on 3 consecutive cases, 5 consecutive failures of any code, or any auth error, ends the job, and so does a stopped judge (sections 8.3.3 and 8.3.4) |
 | Diagnostics | Rate-limit encounters counted and reported, never absorbed silently by retry |
 
 **Interaction with A4:** three observations per case triples request volume against the same ceiling. Spacing and observation count are configured together, not independently.
@@ -2034,6 +2120,72 @@ first failure and nothing further is sent, and `MQC_EXE_UNI_113307` that
 retryable codes stop it at the threshold and a reply in between resets the
 count.
 
+**Amended by section 8.3.4**: the stop ends the job, so it lasts the run.
+
+#### 8.3.4 A repeated failure ends the job, for investigation
+
+Added 2026-11-21 at the project owner's ruling: "skip works, if eval engine
+reports an error. if same error is reported say 2-3 times, might as well skip
+everything and terminate the job and investigate, especially if it's an
+outage."
+
+**What was wrong.** In gemini run 44866727298 the judge's 400 stopped the
+channel as section 8.3.3 requires, and every later judged case was skipped on
+its own, 44 of them, with "the judge stopped answering earlier in this run".
+The one failure that explained all 44 was one line among them, and it carried
+no status, request identifier or message. The candidate breaker waited for
+five consecutive failures of any code before it acted, however often one
+code repeated.
+
+**One failure skips its case, as before.** A failed call that does not repeat
+says nothing about the cases after it.
+
+**A failure that repeats ends the job:**
+
+| What fails | The job |
+|---|---|
+| The judge, a non-retryable code once or a retryable one at the threshold | **Ends.** The judge stops (section 8.3.3), and with it the job, cases carrying no rubric included |
+| The candidate, a non-retryable code, once | Skips that case only. Each case composes its own request, so a 400 or a 404 can belong to one case alone, and section 8.6.7 already ends a 403 at its case |
+| The candidate, the same code on 3 consecutive cases, retryable or not | **Ends** |
+| The candidate, 5 consecutive failures of any code | **Ends**, the existing threshold kept as the backstop for an outage that answers with a different status each time |
+| The candidate, `QC_HARNESS_AUTH_ERROR` | Ends at once, as before |
+| A budget stop, a missing or stale fixture, a refusal in a run that has measured | Neither counts nor ends it (sections 8.3.1, 8.3.2, 8.6.7) |
+
+**A stopped judge ends the job too, although the deterministic cases could
+run.** The project owner's ruling, 2026-11-21: "judge error, while judge may
+not be available, we can still do non-judged deterministic cases, on the other
+hand that carries extra cost. with known failing results, so that makes
+sense." A case carrying no rubric needs no judge, and its result would stand.
+The run's outcome is already known, though: every judged case after the stop
+is a skip, a skip counts against the pass rate and never toward it
+(`harness_test_taxonomy.md` section 7.4.1.0), so a P0 or P1 band holding one
+is red, and the run did not measure its selection. Each deterministic case run
+after that buys a candidate request toward a result already failing, at a cost section 7.7.3 does not assume
+to be zero. **The rerun need not wait for that judge**: "if there is a judge
+outage we can rerun against another judge", the owner added the same day. The
+rerun measures the whole selection. In run 44866727298, 26 cases with no rubric ran after the
+judge stopped and passed, and the run was red regardless.
+
+**Ending the job skips everything after it**, and the job exits 3: what it
+measured is not the selection it was asked to run. Each case not run is
+skipped naming the code it stopped on, and the job's summary leads with the
+failure that ended it, with the role, the code, how many times it repeated,
+the status, the provider's request identifier and its message (section
+7.15.6). **That line is where the investigation starts**, and it names no
+party: the failure could be the harness, the model or the provider, a proxy,
+or an edge.
+
+**Where it is built.** `execution/job_end.py` holds the record of the failure
+that ended the job, the same-code streak and `failure_detail`, which
+`DispatchSession` and the judge channel both use. `cmn/ended_job.py` holds the
+consumer's side: `watch_job` notes the run's session, `ended_job_lines` gives
+the summary's leading line, and `refuse_ended_job` raises the exit status.
+
+**Three, not five, for the same code.** The owner's figure is two to three. A
+failure that repeats three times on consecutive cases has outlasted the
+retries inside each (section 7.11) and is not one case's own request, so a
+fourth case would meet it again, and each attempt is one of unknown cost.
+
 ---
 
 ### 8.5 A busy provider is not a parser error
@@ -2097,22 +2249,31 @@ the same treatment, and **400 was the one still falling through**.
 Every status is mapped to the operator response it calls for, because that is
 the only thing the reader of an artifact actually needs from it:
 
-| Status | Code | Whose defect | Retry | What to do |
+| Status | Code | Look first at | Retry | What to do |
 |---|---|---|---|---|
-| `400` | `QC_HARNESS_REQUEST_REJECTED` | **Ours** | No | Fix how the request is composed |
-| `401` | `QC_HARNESS_AUTH_ERROR` | Ours | No | Fix the credential |
-| `402` | `QC_HARNESS_CREDIT_EXHAUSTED` | **Environmental** | No | Add credit. **The credential is valid**, which is why this is not the auth code |
-| `403` | `QC_HARNESS_REQUEST_REFUSED` | **The model's**, when the run answered other requests (section 8.6.7) | No | Ends the case, never the run |
-| `404` | `QC_HARNESS_VERSION_UNAVAILABLE` | Ours | No | Fix the model name (A3.1) |
-| `429` | `QC_HARNESS_RATE_LIMIT` | **Neither** | **Conditional** | Widen `spacing_sec` for a per-minute rate; wait for the reset where the period is spent (section 8.6.4) |
-| `5xx` | `QC_HARNESS_PROVIDER_UNAVAILABLE` | **Theirs** | Yes | Wait |
+| `400` | `QC_HARNESS_REQUEST_REJECTED` | **The provider's message**, then the request as composed | No | Read the message. Exhausted credit arrives here from Anthropic (section 8.6.5) |
+| `401` | `QC_HARNESS_AUTH_ERROR` | The credential | No | Fix the credential |
+| `402` | `QC_HARNESS_CREDIT_EXHAUSTED` | The account's balance | No | Add credit. **The credential is valid**, which is why this is not the auth code |
+| `403` | `QC_HARNESS_REQUEST_REFUSED` | The task, when the run answered other requests (section 8.6.7) | No | Ends the case, never the run |
+| `404` | `QC_HARNESS_VERSION_UNAVAILABLE` | The model name (A3.1) | No | Fix the model name |
+| `429` | `QC_HARNESS_RATE_LIMIT` | The provider's message, which names the period | **Conditional** | Widen `spacing_sec` for a per-minute rate; wait for the reset where the period is spent (section 8.6.4) |
+| `5xx` | `QC_HARNESS_PROVIDER_UNAVAILABLE` | The provider's status page, then the edge | Yes | Wait |
+
+**Amended 2026-11-21: the column said whose defect each status is, and a
+status does not say that.** It named a party for every row, and run 44866727298
+proved the `400` row wrong: its cause was the judge's account, not the request.
+The project owner's ruling: "could be harness, could be model, could be a
+proxy or an edge failure. http error, is just that." A proxy or an edge can
+answer with any status in the table. **The column now names where an
+investigation starts**, and the provider's message, which section 7.15.6
+records, is what finishes it.
 
 **400 gets its own code rather than the catch-all.** Mapping it to
 `QC_HARNESS_PARSER_ERROR` would have been one line and would have destroyed
 the property that code exists for: it means *nobody anticipated this*, and an
 artifact carrying it should send a reader looking for something new. A
-malformed request is anticipated, diagnosable and entirely ours, so folding it
-in would make every genuinely unknown failure harder to find.
+rejected request is anticipated and diagnosable from the provider's message,
+so folding it in would make every genuinely unknown failure harder to find.
 
 **It is not retryable**, for the reason the retry set already gives: the same
 malformed request gets the same answer, and spending quota to confirm that is
@@ -2286,11 +2447,15 @@ A failure lives at exactly one level, and the level is what a remedy acts on:
 
 | Level | Codes | What a remedy changes | Retry |
 |---|---|---|---|
-| **Ours** | `QC_HARNESS_REQUEST_REJECTED` | The request we compose | No |
+| **Request** | `QC_HARNESS_REQUEST_REJECTED` | The request as composed, or what the provider's message names, an account's credit among them (section 8.6.5) | No |
 | **Connection** | (transport failures, before a status) | The socket. **Reconnect** | Per attempt |
 | **Path** | `QC_HARNESS_GATEWAY_FAILURE`, `QC_HARNESS_ENGINE_UNREACHABLE` | Proxy, DNS, egress, endpoint | Gateway yes, redirect no |
 | **Service** | `QC_HARNESS_PROVIDER_UNAVAILABLE` | Nothing on our side. Wait | Yes |
 | **Environmental** | `QC_HARNESS_RATE_LIMIT`, `QC_HARNESS_AUTH_ERROR`, `QC_HARNESS_VERSION_UNAVAILABLE` | The account, the credential, the configuration | Rate limit **only where the period is not spent** (section 8.6.4), the others no |
+
+**The first level was named "Ours" until 2026-11-21**, and renamed by section
+8.5.3's amendment: a level names where a remedy acts, and a rejected request
+can be the account's, as run 44866727298's was.
 
 #### 8.6.1 The level is why reconnecting is not a general remedy
 
@@ -2344,9 +2509,11 @@ than to one pair at a time.
 
 The codes are registered in `harness_test_taxonomy.md` section 6 and the operator
 response for each is in `harness_running_jobs.md` section 6.1, which this section
-organises rather than restates. **`QC_HARNESS_*` remains a skip at every
-level**: a harness event says our infrastructure produced no measurement, and
-no level of it is a finding about a model.
+organises rather than restates. **A failed call skips its case at every
+level**: no measurement was produced, and the failure names no party, the
+harness, the model or provider, a proxy and an edge being equally possible
+until the recorded attempt is read (section 7.15.6). A failure that repeats
+ends the job (section 8.3.4).
 
 
 #### 8.6.4 A rate limit carries a period, and the period decides whether to retry
@@ -2435,7 +2602,7 @@ parse something.
 |---|---|---|
 | The credential | Rejected | **Valid** |
 | The remedy | A new key | **Money** |
-| Level | Ours | Environmental |
+| Level | Environmental, as section 8.6 places it | Environmental |
 | Retryable | No | No |
 
 **Not folded into the auth code**, because the remedies do not overlap and the
@@ -2445,6 +2612,26 @@ distinction in prose, and this makes it a code.
 
 **Environmental, like the no-credit variant of 429** (section 8.6), so nothing
 retries it: no wait a run can afford produces funds.
+
+##### Exhausted credit also arrives as 400
+
+Added 2026-11-21, from gemini run 44866727298. **This section assumed an empty
+balance returns 402, and Anthropic's does not.** Its API answers an exhausted
+credit balance with status 400 and `invalid_request_error`, so the claude
+judge's empty balance was coded `QC_HARNESS_REQUEST_REJECTED`, and the run
+reported the cause as not described.
+
+| Provider | An empty balance returns |
+|---|---|
+| Gemini | 402, this section |
+| Anthropic | **400**, `invalid_request_error`, its message naming the credit balance |
+| openai, grok | Not yet observed |
+
+**The code is still chosen by the status.** Telling the two apart would mean
+matching a sentence written for a human, which section 8.6.7 declines because
+a provider changes it without notice. **What tells a reader is the message,
+which section 7.15.6 now records** and puts on the skip reason and the summary
+line.
 
 
 #### 8.6.6 The session reports the models it served
@@ -2684,6 +2871,11 @@ the twenty-first check and any fifth engine are in the partition
 | `113204` | N | `auth_error_aborts_immediately` |
 | `113221` | N | `a_budget_stop_does_not_trip_the_breaker` (section 8.3.1) |
 | `113222` | N | `a_replay_without_a_fixture_does_not_trip_the_breaker` (section 8.3.2) |
+| `113223` | B | `the_same_code_ends_the_job_at_three_cases_not_two` (section 8.3.4) |
+| `113224` | N | `a_candidate_non_retryable_code_once_skips_only_its_case` (section 8.3.4) |
+| `113225` | B | `five_consecutive_failures_of_different_codes_end_the_job` (section 8.3.4) |
+| `113226` | P | `an_ended_job_skips_the_rest_naming_the_failure_and_exits_3` (section 8.3.4) |
+| `113227` | P | `the_summary_leads_with_the_failure_that_ended_the_job` (section 8.3.4) |
 | `113205` | P | `rate_limit_encounters_are_counted_and_reported` |
 | `113206` | N | `adapter_performs_no_scoring_or_interpretation` |
 | `113207` | N | `candidate_timeout_maps_to_candidate_code_not_generic` |
@@ -2864,6 +3056,9 @@ the twenty-first check and any fifth engine are in the partition
 | `113309` | N | `a_judge_at_the_run_ceiling_is_not_asked` (7.7.3) |
 | `113310` | P | `a_live_judgement_spends_against_the_run_ceiling` (7.7.3) |
 | `113311` | P | `a_live_judgement_is_counted_as_the_judge_share` (7.7.3) |
+| `113312` | P | `a_judge_stopped_on_a_non_retryable_code_ends_the_job` (8.3.4) |
+| `113313` | P | `an_error_response_reporting_usage_is_charged_to_its_role` (7.7.3) |
+| `113314` | N | `a_failed_attempt_reporting_no_usage_is_counted_not_free` (7.7.3) |
 | `113022` | P | `a_claude_refusal_is_recorded_as_a_block` |
 | `113217` | P | `an_outcome_carries_the_request_that_produced_it` |
 | ~~`113218`~~ | | ~~`a_recorded_fixture_stores_the_request_it_sent`~~. **Retired 2026-10-11 before implementation**, allocated from the dispatch neighbourhood for a fixture-store case. `113612` states it |
@@ -2893,6 +3088,14 @@ the twenty-first check and any fifth engine are in the partition
 | `460013` | N | `a_replayed_exchange_carries_no_attempts` (7.15.4) |
 | `460014` | N | `no_credential_reaches_the_log_with_sdks_at_debug` (7.15.5) |
 | `460015` | N | `a_log_record_with_a_credential_or_query_is_scrubbed` (7.15.5) |
+| `460016` | N | `an_error_status_records_the_provider_body_scrubbed` (7.15.6) |
+| `460017` | N | `an_attempt_raising_before_a_response_records_its_message` (7.15.6) |
+| `460018` | B | `an_error_body_is_kept_at_4096_characters_and_cut_above` (7.15.6) |
+| `460019` | N | `a_success_body_is_not_read_by_the_transport` (7.15.6) |
+| `460020` | N | `a_credential_echoed_in_an_error_body_is_replaced` (7.15.6) |
+| `460021` | P | `the_error_body_is_kept_in_every_run_context` (7.15.6) |
+| `460022` | P | `a_candidate_skip_carries_status_request_id_and_message` (7.15.6) |
+| `460023` | P | `a_judge_failure_carries_status_request_id_and_message` (7.15.6) |
 
 #### 10.1.0 The twenty-first conformance check, and why it is not in `1138xx`
 
@@ -2992,7 +3195,7 @@ nothing. Each case leaves exactly one mechanism able to catch it.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 258 cases, 122 negative, 124 positive, 12 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 274 cases, 128 negative, 131 positive, 15 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

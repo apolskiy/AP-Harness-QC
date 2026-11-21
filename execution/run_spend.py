@@ -3,14 +3,16 @@
 """What a run has spent, against its ceiling, by role.
 
 Created: 2026-11-11
-Last updated: 2026-11-11
+Last updated: 2026-11-21
 
 This file contains ``RunSpend``, the spending half of a run's
 ``DispatchSession``: the ceiling, what the run has been billed and how much
-of it the judge spent, the candidate's tokens, the price table and the models
-it could not price. ``ceiling_reached`` is asked before each request of either
-role, ``record_spend`` takes a candidate response, ``charge_judgement`` a live
-judgement, and ``spend_summary`` renders the split for the run's artifacts.
+of it the judge spent, the candidate's tokens, the price table, the models
+it could not price, and each role's failed HTTP attempts. ``ceiling_reached``
+is asked before each request of either role, ``record_spend`` takes a
+candidate response, ``charge_judgement`` a live judgement,
+``count_failed_attempts`` the attempts of either, and ``spend_summary``
+renders the split for the run's artifacts.
 
 **Extracted from ``execution/dispatch.py`` on 2026-11-11**, when the judge's
 share would have taken that module past its 900-line runway
@@ -23,10 +25,12 @@ Specified by ``docs/design/tier2_execution.md`` sections 7.7.3 and 8, and
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
+from typing import Iterable, Optional
 
 from cmn.pricing import PriceTable, cost_of, spend_fields
 from cmn.tokens import TokenUsage
+from execution.job_end import failed_attempts
+from execution.wire import WireAttempt
 
 
 @dataclass
@@ -54,6 +58,9 @@ class RunSpend:
             **A ceiling cannot be honoured against these**, so their presence
             stops a budgeted run rather than being noted: a cap that cannot be
             enforced must not look enforced.
+        failed_attempt_counts (dict): HTTP attempts each role sent that came back
+            non-2xx or raised, SDK retries included. **Counted, not priced**:
+            a failed call reporting no usage is not known to be free.
     """
 
     max_spend: float = 0.0
@@ -63,6 +70,25 @@ class RunSpend:
     prices: Optional[PriceTable] = None
     priced_on: Optional[date] = None
     unpriced: set[str] = field(default_factory=set)
+    failed_attempt_counts: dict[str, int] = field(
+        default_factory=lambda: {"candidate": 0, "judge": 0}
+    )
+
+    def count_failed_attempts(self, role: str, attempts: Iterable[WireAttempt]) -> None:
+        """Add the attempts that came back non-2xx or raised to a role's count.
+
+        Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            role (str): ``candidate`` or ``judge``.
+            attempts (Iterable[WireAttempt]): The attempts one dispatch or
+                judgement made.
+
+        Returns:
+            None
+        """
+        failed = len(failed_attempts(attempts))
+        self.failed_attempt_counts[role] = self.failed_attempt_counts.get(role, 0) + failed
 
     def ceiling_reached(self) -> bool:
         """Report whether the run has already spent its ceiling.
@@ -160,13 +186,17 @@ class RunSpend:
 
         Returns:
             dict[str, str]: The candidate, judge and total spend, the ceiling
-            and any unpriced model; the candidate and judge figures sum to
-            ``spent``.
+            and any unpriced model, the candidate and judge figures summing to
+            ``spent``; then each role's failed attempts, ``0`` where none.
         """
-        return spend_fields(
-            candidate=self.spent - self.judge_spent,
-            judge=self.judge_spent,
-            max_spend=self.max_spend,
-            priced=self.prices is not None and self.priced_on is not None,
-            unpriced=set(self.unpriced),
-        )
+        return {
+            **spend_fields(
+                candidate=self.spent - self.judge_spent,
+                judge=self.judge_spent,
+                max_spend=self.max_spend,
+                priced=self.prices is not None and self.priced_on is not None,
+                unpriced=set(self.unpriced),
+            ),
+            "candidate_failed_attempts": str(self.failed_attempt_counts.get("candidate", 0)),
+            "judge_failed_attempts": str(self.failed_attempt_counts.get("judge", 0)),
+        }

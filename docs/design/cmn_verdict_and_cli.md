@@ -1612,6 +1612,31 @@ which pytest runs before the JUnit report is written.
 belong to one run, and a committed total would be history in a file that
 describes the current state.
 
+##### Failed attempts are counted beside the spend, never priced as free
+
+Added 2026-11-21 at the project owner's instruction: "we don't know if they
+are charging tokens for requests that generate http error responses. best not
+to assume".
+
+**The spend fields price answered calls only**, since a failed attempt usually
+reports no usage (`tier2_execution.md` section 7.7.3). A provider billing a
+failed request would make `total_spend_usd` an understatement, and nothing in
+the artifact said how large it could be. **Two fields join the five**, counted
+from the wire record of section 7.15:
+
+| Field | Holds |
+|---|---|
+| `candidate_failed_attempts` | The candidate's wire attempts whose status was not 2xx or which raised before a response, the SDKs' own retries included |
+| `judge_failed_attempts` | The same, for the judge |
+
+**A count, not a price.** Pricing them would assume a rate nobody has
+measured; the count is what a reader reconciles against the provider's
+console, and zero means none happened rather than that they were free.
+
+`MQC_CMN_UNI_450012` asserts both counts reach both artifacts with the SDKs'
+retries counted, and `450013` that a run with no failed attempt publishes 0
+for each rather than `none`.
+
 `MQC_CMN_UNI_450007` and `450008`, `MQC_REQ_HAR_CMN_0250`. The split by role is
 `tier2_execution.md` section 7.7.3.
 
@@ -4058,9 +4083,11 @@ Categories: **P** positive, **N** negative, **B** boundary.
 | `450009` | P | `the_runner_fingerprint_names_the_os_python_and_sdk_versions` (5.6.5) |
 | `450010` | B | `a_package_not_installed_reads_absent_not_empty` (5.6.5) |
 | `450011` | P | `the_fingerprint_reaches_both_artifacts_beside_the_provenance` (5.6.5) |
+| `450012` | P | `failed_attempts_reach_both_artifacts_per_role_with_retries` (5.6.4) |
+| `450013` | N | `a_run_with_no_failed_attempt_publishes_zero_not_none` (5.6.4) |
 | `400008` | P | `the_exchange_report_carries_every_attempt` (5.5, tier2 7.15) |
 
-**Inventory: 571 cases, 339 negative, 172 positive, 60 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
+**Inventory: 573 cases, 340 negative, 173 positive, 60 boundary.** A retired identifier is listed struck through rather than removed, with its date and the reason in its own row, so a reader of stored history can resolve it; the rows are not counted here, because a count restated apart from the rows went stale (it said eight on 2026-11-09, against 27 struck-through rows). The total covers both tables: the `UNI` cases in section 10 and the three `SYS` cases in section 11, as tier 2 carries its two tables under one figure.
 
 **The code excerpt guards moved to `AP-Model-QC` on 2026-09-23.** They read files the case repository owns, so a harness check asserting against them was a cross-boundary dependency that only became visible when the boundary became real. `DESIGN.md` section 5.1 records what that cost to find.
 

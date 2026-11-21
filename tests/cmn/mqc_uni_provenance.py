@@ -3,7 +3,7 @@
 """Unit cases for what a run records about the model it measured against.
 
 Created: 2026-10-29
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 Its cases check :mod:`cmn.provenance` and the two functions in
 :mod:`cmn.pytest_support` that drive it. ``provenance_fields`` carries every
@@ -47,14 +47,20 @@ marker, per ``framework-rules.md`` section 3.3.
 # TestMQCRunSpend
 #   450007  the_spend_fields_carry_each_role_whatever_the_run_priced
 #   450008  the_spend_reaches_both_artifacts_beside_the_provenance
+#   450012  failed_attempts_reach_both_artifacts_per_role_with_retries
+#   450013  a_run_with_no_failed_attempt_publishes_zero_not_none
 # ------------------------------------------------------------ end of cases
 
+import json
 import platform
 from importlib import metadata
 from pathlib import Path
 
 import pytest
 
+from execution.dispatch import DispatchPlan, DispatchSession, dispatch_case
+from execution.judge_channel import JudgeChannel, JudgementPlan
+from ingestion.schemas import EvaluationCase
 from cmn.provenance import (
     PROVENANCE_FILE,
     PROVENANCE_PREFIX,
@@ -66,6 +72,8 @@ from cmn.provenance import (
 from cmn.pricing import spend_fields
 from cmn.pytest_support import adopt_provenance, asks_the_provider, publish_run_spend
 from tests.cmn.provenance_support import Config, Reader
+from tests.execution.judge_breaker_doubles import AWARDED, JudgeRequestDouble
+from tests.execution.wire_doubles import PLANTED_KEY, WIRE_ENGINES, reply_handler, serve_mock
 
 pytestmark = pytest.mark.unit
 
@@ -86,6 +94,8 @@ _RUNNER_FIELDS: tuple[str, ...] = tuple(
 _SPEND_FIELDS: tuple[str, ...] = tuple(
     "candidate_spend_usd judge_spend_usd total_spend_usd max_spend_usd unpriced_models".split()
 )
+
+_FAILED_FIELDS: tuple[str, ...] = ("candidate_failed_attempts", "judge_failed_attempts")
 
 _SERVED: dict[str, str] = {
     "served_version": "3.0",
@@ -418,3 +428,58 @@ class TestMQCRunSpend:
         publish_run_spend(lambda name, value: unwritten.append((name, value)),
                           Config(allure_report_dir=""), provenance, spend)
         assert unwritten == recorded
+
+    def MQC_CMN_UNI_450012_failed_attempts_reach_both_artifacts_per_role_with_retries(
+        self, monkeypatch: pytest.MonkeyPatch, minimal_case: EvaluationCase, tmp_path: Path,
+    ) -> None:
+        """An SDK retry after a 500 counts one failed attempt for each role, in both artifacts.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.6.4.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+            minimal_case (EvaluationCase): The candidate case.
+            tmp_path (Path): pytest's temporary directory.
+
+        Returns:
+            None
+        """
+        monkeypatch.setenv("XAI_API_KEY", PLANTED_KEY)
+        session = DispatchSession(delay=lambda _seconds: None)
+        serve_mock(monkeypatch, reply_handler(WIRE_ENGINES["grok"].reply, failures=(500,)))
+        answered = dispatch_case(minimal_case, "grok",
+                                 DispatchPlan(mode="live", fixture_root=tmp_path), session, 0)
+        assert answered.measured and len(answered.wire_attempts) == 2, answered
+
+        judged = json.loads(json.dumps(WIRE_ENGINES["grok"].reply))
+        judged["choices"][0]["message"]["content"] = json.dumps(AWARDED)
+        serve_mock(monkeypatch, reply_handler(judged, failures=(500,)))
+        channel = JudgeChannel("grok", model="grok-wire", plan=JudgementPlan(budget=session))
+        assert channel.invoke(JudgeRequestDouble()) == AWARDED
+
+        spend = session.spend_summary()
+        counts = (spend.get("candidate_failed_attempts"), spend.get("judge_failed_attempts"))
+        assert counts == ("1", "1"), spend
+        recorded: list[tuple[str, str]] = []
+        publish_run_spend(lambda name, value: recorded.append((name, value)),
+                          Config(allure_report_dir=str(tmp_path / "allure-results")),
+                          provenance_fields(engine="grok", mode="live",
+                                            requested_model="grok-wire", served={}),
+                          spend)
+        assert (f"{PROVENANCE_PREFIX}judge_failed_attempts", "1") in recorded, recorded
+        written = (tmp_path / "allure-results" / PROVENANCE_FILE).read_text(encoding="utf-8")
+        assert "candidate_failed_attempts=1" in written.splitlines(), written
+
+    def MQC_CMN_UNI_450013_a_run_with_no_failed_attempt_publishes_zero_not_none(
+        self,
+    ) -> None:
+        """A run that failed nothing states zero for each role, and the fields follow the spend.
+
+        Design: ``cmn_verdict_and_cli.md`` section 5.6.4.
+
+        Returns:
+            None
+        """
+        spend = DispatchSession().spend_summary()
+        assert tuple(spend) == (*_SPEND_FIELDS, *_FAILED_FIELDS), tuple(spend)
+        assert [spend[name] for name in _FAILED_FIELDS] == ["0", "0"], spend

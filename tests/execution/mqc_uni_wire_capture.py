@@ -3,7 +3,7 @@
 """Unit cases for the HTTP attempts a dispatch records, their redaction, and the log.
 
 Created: 2026-11-20
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 This file contains ``TestMQCWireCapture``, which checks that every HTTP
 attempt a live dispatch or judgement makes is recorded with its method, URL,
@@ -11,8 +11,11 @@ headers, body hash, status and timing, that an SDK's own retry is a further
 attempt of the same dispatch, and that the attempts travel on the dispatch
 outcome and the judge's result; ``TestMQCWireRedaction``, which checks that no
 credential reaches a recorded header, by name and by value, each mechanism
-tested with the other unable to help; and ``TestMQCLogScrubbing``, which checks
-that no credential or query string reaches the log.
+tested with the other unable to help; ``TestMQCProviderError``, which checks
+that a failed attempt keeps the provider's body or error message, scrubbed and
+capped, in every run, and that a skipped dispatch and a failed judgement carry
+its status, request identifier and message; and ``TestMQCLogScrubbing``, which
+checks that no credential or query string reaches the log.
 
 The cases drive the real SDKs through ``httpx.MockTransport``, so the headers
 asserted are the ones each SDK builds, and nothing leaves the process.
@@ -20,7 +23,7 @@ asserted are the ones each SDK builds, and nothing leaves the process.
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
 
-Specified by ``docs/design/tier2_execution.md`` section 7.15.
+Specified by ``docs/design/tier2_execution.md`` sections 7.15 and 7.15.6.
 """
 
 # ------------------------------------------------------------- cases in here
@@ -42,6 +45,15 @@ Specified by ``docs/design/tier2_execution.md`` section 7.15.
 #   460006  the_x_goog_api_key_header_value_never_reaches_the_record
 #   460007  a_cookie_and_set_cookie_value_never_reach_the_record
 #   460008  a_credential_value_under_an_unlisted_header_name_is_replaced
+# TestMQCProviderError
+#   460016  an_error_status_records_the_provider_body_scrubbed
+#   460017  an_attempt_raising_before_a_response_records_its_message
+#   460018  an_error_body_is_kept_at_4096_characters_and_cut_above
+#   460019  a_success_body_is_not_read_by_the_transport
+#   460020  a_credential_echoed_in_an_error_body_is_replaced
+#   460021  the_error_body_is_kept_in_every_run_context
+#   460022  a_candidate_skip_carries_status_request_id_and_message
+#   460023  a_judge_failure_carries_status_request_id_and_message
 # TestMQCLogScrubbing
 #   460014  no_credential_reaches_the_log_with_sdks_at_debug
 #   460015  a_log_record_with_a_credential_or_query_is_scrubbed
@@ -55,6 +67,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import httpx
+import openai
 import pytest
 
 from cmn import log_scrubbing
@@ -72,13 +85,19 @@ from tests.evaluation.pipeline_support import (
 from tests.execution.dispatch_support import FakeClock
 from tests.execution.judge_breaker_doubles import AWARDED, JudgeRequestDouble
 from tests.execution.wire_doubles import (
-    ECHO_URL, PLANTED_KEY, WIRE_ENGINES, dispatch_minimal, mock_recorder, reply_handler,
-    send_through, serve_mock,
+    CREDIT_MESSAGE, ECHO_URL, ERROR_TRACE, PLANTED_KEY, WIRE_ENGINES, WatchedStream,
+    dispatch_minimal, mock_recorder, provider_error, reply_handler, send_through, serve_mock,
 )
 
 pytestmark = pytest.mark.unit
 
 _ENGINES = tuple(sorted(WIRE_ENGINES))
+
+# WHAT A FAILURE'S DETAIL CARRIES after its code and role (design section 7.15.6).
+_TRACED: tuple[str, ...] = (
+    "status 400", f"request-id {ERROR_TRACE[0][1]}", f"date {ERROR_TRACE[1][1]}",
+    CREDIT_MESSAGE,
+)
 
 
 @pytest.fixture(name="offline", autouse=True)
@@ -445,6 +464,184 @@ class TestMQCWireRedaction:
                                 environ={"VENDOR_SESSION_TOKEN": PLANTED_KEY})
         assert record["request_headers"]["x-vendor-session"] == wire.REDACTED, record
         assert PLANTED_KEY not in json.dumps(record), record
+
+
+class TestMQCProviderError:
+    """A failed attempt keeps what the provider said, and the failure's reader sees it."""
+
+    def MQC_EXE_UNI_460016_an_error_status_records_the_provider_body_scrubbed(
+        self,
+    ) -> None:
+        """A 400 records its body as received, and no error message.
+
+        Returns:
+            None
+        """
+        recorder = mock_recorder(reply_handler({}, failures=(provider_error(400, CREDIT_MESSAGE),)))
+        send_through(recorder)
+        record = recorder.take()[0].as_mapping()
+        assert record["status"] == 400, record
+        assert CREDIT_MESSAGE in str(record.get("error_body")), record
+        assert record.get("error_message") == "", record
+
+    def MQC_EXE_UNI_460017_an_attempt_raising_before_a_response_records_its_message(
+        self,
+    ) -> None:
+        """A transport error keeps its class and its message, and has no body.
+
+        Returns:
+            None
+        """
+        recorder = mock_recorder(reply_handler(
+            {}, failures=(httpx.ConnectError("connection refused by wire.test"),)
+        ))
+        with pytest.raises(httpx.ConnectError):
+            send_through(recorder)
+        record = recorder.take()[0].as_mapping()
+        assert record["error"] == "ConnectError", record
+        assert record.get("error_message") == "connection refused by wire.test", record
+        assert record.get("error_body") == "", record
+
+    def MQC_EXE_UNI_460018_an_error_body_is_kept_at_4096_characters_and_cut_above(
+        self,
+    ) -> None:
+        """A body of exactly the limit is kept whole; one character more is cut to it.
+
+        Returns:
+            None
+        """
+        for length, kept in ((4096, 4096), (4097, 4096)):
+            page = "g" * length
+            recorder = mock_recorder(reply_handler(
+                {}, failures=(httpx.Response(502, content=page.encode()),)
+            ))
+            send_through(recorder)
+            record = recorder.take()[0].as_mapping()
+            assert record.get("error_body") == page[:kept], (length, len(str(record)))
+
+    def MQC_EXE_UNI_460019_a_success_body_is_not_read_by_the_transport(self) -> None:
+        """A 2xx passes through unread, so a streamed reply streams as before.
+
+        Returns:
+            None
+        """
+        stream = WatchedStream()
+        recorder = mock_recorder(lambda _request: httpx.Response(200, stream=stream))
+        recorder.transport().handle_request(httpx.Request("POST", ECHO_URL))
+        assert not stream.read_from, "the recording transport read a success body"
+        record = recorder.take()[0].as_mapping()
+        assert record.get("error_body") == "" and record.get("error_message") == "", record
+
+    def MQC_EXE_UNI_460020_a_credential_echoed_in_an_error_body_is_replaced(
+        self,
+    ) -> None:
+        """A credential the provider echoes, in a body or an error message, is replaced.
+
+        Returns:
+            None
+        """
+        environ = {"VENDOR_SESSION_TOKEN": PLANTED_KEY}
+        echoed = f"echoed request: key={PLANTED_KEY}"
+        recorder = mock_recorder(
+            reply_handler({}, failures=(provider_error(400, echoed),)), environ=environ
+        )
+        send_through(recorder)
+        record = recorder.take()[0].as_mapping()
+        assert "echoed request" in str(record.get("error_body")), record
+        assert PLANTED_KEY not in json.dumps(record), record
+
+        raising = mock_recorder(reply_handler(
+            {}, failures=(httpx.ConnectError(f"refused for {PLANTED_KEY}"),)
+        ), environ=environ)
+        with pytest.raises(httpx.ConnectError):
+            send_through(raising)
+        refused = raising.take()[0].as_mapping()
+        assert "refused for" in str(refused.get("error_message")), refused
+        assert PLANTED_KEY not in json.dumps(refused), refused
+
+    def MQC_EXE_UNI_460021_the_error_body_is_kept_in_every_run_context(
+        self, planted: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A scheduled run keeps the provider's error, as a debug run does.
+
+        Args:
+            planted (str): The planted credential.
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+
+        Returns:
+            None
+        """
+        assert planted
+        monkeypatch.setenv("GITHUB_ACTIONS", "true")
+        for workflow in ("evaluate-engine.yml", "debug-cases-on-demand.yml"):
+            monkeypatch.setenv("GITHUB_WORKFLOW_REF", f"o/r/.github/workflows/{workflow}@x")
+            serve_mock(monkeypatch, reply_handler(
+                {}, failures=(provider_error(400, CREDIT_MESSAGE),)
+            ))
+            adapter = adapter_for("grok")()
+            with pytest.raises(openai.BadRequestError):
+                adapter.dispatch(dict(WIRE_ENGINES["grok"].request))
+            adapter.release()
+            record = adapter.take_wire_attempts()[0].as_mapping()
+            assert CREDIT_MESSAGE in str(record.get("error_body")), (workflow, record)
+
+    def MQC_EXE_UNI_460022_a_candidate_skip_carries_status_request_id_and_message(
+        self, planted: str, monkeypatch: pytest.MonkeyPatch, minimal_case: EvaluationCase,
+        tmp_path: Path,
+    ) -> None:
+        """A skipped dispatch says what the provider said, after its code and status.
+
+        Args:
+            planted (str): The planted credential.
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+            minimal_case (EvaluationCase): The case to dispatch.
+            tmp_path (Path): The fixture root.
+
+        Returns:
+            None
+        """
+        assert planted
+        serve_mock(monkeypatch, reply_handler(
+            {}, failures=(provider_error(400, CREDIT_MESSAGE),)
+        ))
+        clock = FakeClock()
+        outcome = dispatch_case(
+            minimal_case, "grok", DispatchPlan(mode="live", fixture_root=tmp_path),
+            DispatchSession(monotonic=clock.monotonic, delay=clock.sleep), 0,
+        )
+        assert outcome.taxonomy_code == "QC_HARNESS_REQUEST_REJECTED", outcome
+        detail = str(getattr(outcome, "failure_detail", ""))
+        assert detail.startswith("QC_HARNESS_REQUEST_REJECTED: candidate grok"), detail
+        for part in _TRACED:
+            assert part in detail, (part, detail)
+
+    def MQC_EXE_UNI_460023_a_judge_failure_carries_status_request_id_and_message(
+        self, planted: str, monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """A judge that could not be reached says what the provider said, raised and logged.
+
+        Args:
+            planted (str): The planted credential.
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+            caplog (pytest.LogCaptureFixture): pytest's log capture.
+
+        Returns:
+            None
+        """
+        assert planted
+        serve_mock(monkeypatch, reply_handler(
+            {}, failures=(provider_error(400, CREDIT_MESSAGE),)
+        ))
+        caplog.set_level(logging.WARNING, logger="execution.judge_channel")
+        channel = JudgeChannel("grok", model="grok-wire", plan=JudgementPlan())
+        with pytest.raises(ValueError) as raised:
+            channel.invoke(JudgeRequestDouble())
+        message = str(raised.value)
+        assert message.startswith("QC_HARNESS_REQUEST_REJECTED: judge grok"), message
+        for part in _TRACED:
+            assert part in message, (part, message)
+            assert part in caplog.text, (part, caplog.text)
 
 
 class TestMQCLogScrubbing:

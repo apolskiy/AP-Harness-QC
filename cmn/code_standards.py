@@ -3,7 +3,7 @@
 """Code standards checks, the style rules pylint cannot express, run over a source tree.
 
 Created: 2026-09-23
-Last updated: 2026-11-17
+Last updated: 2026-11-21
 
 This file contains ``annotation_gaps`` and ``future_annotation_imports`` for the
 annotation rules; ``header_problems`` and ``markup_header_problems`` for SPDX
@@ -636,13 +636,14 @@ def flag_coverage_problems(
     return problems
 
 
-# THE RECORDS THAT ACCUMULATE, and are therefore mutable on purpose. Four of
-# eighty-two, each one a tally a caller adds to as a run proceeds rather than a
+# THE RECORDS THAT ACCUMULATE, and are therefore mutable on purpose. Five of
+# the production records, each one a tally a caller adds to as a run proceeds rather than a
 # value somebody computed once. Named here with a reason, which is what makes
 # the rule checkable instead of a matter of review.
 _MUTABLE_BY_DESIGN: Final[dict[str, str]] = {
     "DispatchSession": "accumulates the outcomes a run measured, per engine",
     "RunSpend": "accumulates what a run spent, by role, against its ceiling",
+    "JobState": "accumulates the candidate's same-code streak and the failure ending the job",
     "_AttemptTally": "counts attempts and failures as dispatch proceeds",
     "_Progress": "counts cases as the evaluation pipeline advances",
 }

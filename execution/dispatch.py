@@ -3,7 +3,7 @@
 """Sends one case to one engine, live or from a recorded fixture, and returns what came back.
 
 Created: 2026-09-26
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 
 This file contains ``dispatch_case``, which composes the request for a case,
 replays the recorded observation or issues the request live, and returns a
@@ -54,6 +54,7 @@ from execution.replay import (
     load_fixture,
     record_fixture,
 )
+from execution.job_end import SAME_CODE_THRESHOLD, JobState, failure_detail
 from execution.run_spend import RunSpend
 from execution.wire import WireAttempt
 
@@ -152,6 +153,10 @@ class DispatchOutcome:
         wire_attempts (tuple): Every HTTP request the SDK sent for this
             outcome, its own retries included, redacted. Empty in replay,
             which sends nothing (design section 7.15).
+        failure_detail (str): A live skip's code, role and engine, then the
+            status, request identifier, date and provider's message of its
+            last failed attempt; an ended job's skip carries the failure that
+            ended it. Empty on a measurement (design section 7.15.6).
     """
 
     case_id: str
@@ -166,6 +171,7 @@ class DispatchOutcome:
     request: Optional[dict[str, Any]] = None
     missing_artifact: Optional[MissingArtifact] = None
     wire_attempts: tuple[WireAttempt, ...] = ()
+    failure_detail: str = ""
 
     def __post_init__(self) -> None:
         """Refuse an outcome that is both a measurement and a skip, or neither.
@@ -290,13 +296,14 @@ def attributed_refusal(case: Any, session: Any, code: str) -> str:
 
 
 @dataclass
-class DispatchSession(RunSpend):
+class DispatchSession(RunSpend, JobState):
     """Run-level pacing state, which no single case can hold.
 
     Spacing is an interval **between** requests and the circuit breaker counts a
     streak **across** cases, so both need somewhere to live that outlasts one
     dispatch. The spending half, the ceiling and what each role spent, is
-    inherited from :class:`execution.run_spend.RunSpend`.
+    inherited from :class:`execution.run_spend.RunSpend`, and whether the job
+    has ended from :class:`execution.job_end.JobState`.
 
     Attributes:
         spacing_sec (float): Minimum interval between live requests, per engine
@@ -362,8 +369,10 @@ class DispatchSession(RunSpend):
             None
 
         Raises:
-            CircuitBreakerTripped: On an auth error immediately, or once the
-                consecutive-failure streak reaches its threshold.
+            CircuitBreakerTripped: On an auth error immediately, on one code
+                three cases running, or once the consecutive-failure streak
+                reaches its threshold. Each ends the job first (design
+                section 8.3.4).
         """
         # WHAT THIS RUN RAN AGAINST, recorded here because every outcome
         # reaches this in either mode. `record_spend` was the wrong hook: a
@@ -378,14 +387,17 @@ class DispatchSession(RunSpend):
         self.rate_limit_encounters += outcome.rate_limit_encounters
         if outcome.measured:
             self.consecutive_failures = 0
+            self.reset_streak()
             # COUNTED, BECAUSE IT IS THE CONTROL FOR A REFUSAL. One 403 while
             # other requests on the same key and model succeeded cannot be an
             # entitlement the account never had (design section 8.6.7).
             self.measured_outcomes += 1
             return
 
-        if outcome.taxonomy_code == "QC_HARNESS_AUTH_ERROR":
+        code = str(outcome.taxonomy_code)
+        if code == "QC_HARNESS_AUTH_ERROR":
             logger.error("QC_HARNESS_AUTH_ERROR aborting the run at %s", outcome.case_id)
+            self.end_job("candidate", code, 1, outcome.failure_detail)
             raise CircuitBreakerTripped(
                 f"QC_HARNESS_AUTH_ERROR: {outcome.engine} rejected our credentials at "
                 f"{outcome.case_id}, so every remaining case would fail identically"
@@ -397,8 +409,9 @@ class DispatchSession(RunSpend):
         # counts (design section 8.6.7).
         # The code is already attributed here, so a benign task's refusal
         # arrives as the model's over-refusal and an attack's as ours.
-        if outcome.taxonomy_code in _REFUSALS and self.measured_outcomes:
+        if code in _REFUSALS and self.measured_outcomes:
             self.consecutive_failures = 0
+            self.reset_streak()
             return
 
         # A CEILING THE OPERATOR SET IS NOT AN ENGINE THAT STOPPED ANSWERING.
@@ -407,21 +420,38 @@ class DispatchSession(RunSpend):
         # either. Counting it aborted a run whose remaining cases were never
         # going to be dispatched, and took 61 measured cases with it on
         # 2026-10-30 (design section 8.3.1).
-        if outcome.taxonomy_code == BUDGET_STOP:
+        if code == BUDGET_STOP:
             return
 
         # A REPLAY WITH NOTHING TO REPLAY ASKED NO ENGINE ANYTHING, and spent
         # nothing, so it neither extends the streak nor resets it. Counting it
         # turned stale fixtures into broken cases blaming the engine (design
         # section 8.3.2).
-        if outcome.taxonomy_code in _FIXTURE_ABSENT:
+        if code in _FIXTURE_ABSENT:
             return
 
         self.consecutive_failures += 1
+        repeats = self.note_streak(code)
+        # ONE CODE THREE CASES RUNNING ENDS THE JOB, whatever the threshold
+        # for mixed codes: the same answer a third time is not news (design
+        # section 8.3.4).
+        if repeats >= SAME_CODE_THRESHOLD:
+            logger.error(
+                "%s on %d consecutive cases on %s ends the job",
+                code, repeats, outcome.engine,
+            )
+            self.end_job("candidate", code, repeats, outcome.failure_detail)
+            raise CircuitBreakerTripped(
+                f"{code}: {outcome.engine} failed {repeats} cases consecutively on the "
+                f"same code, so the job ends rather than spending quota to confirm it"
+            )
         if self.consecutive_failures >= self.breaker_threshold:
             logger.error(
                 "Circuit breaker tripped after %d consecutive failures on %s",
                 self.consecutive_failures, outcome.engine,
+            )
+            self.end_job(
+                "candidate", code, self.consecutive_failures, outcome.failure_detail
             )
             raise CircuitBreakerTripped(
                 f"{outcome.engine} failed {self.consecutive_failures} cases consecutively, "
@@ -505,6 +535,16 @@ def dispatch_case(
         CircuitBreakerTripped: Propagated from the session, on an auth error or
             once the consecutive-failure streak reaches its threshold.
     """
+    # AN ENDED JOB SENDS NOTHING AND READS NOTHING. Each later case skips
+    # naming the failure that ended it, in either mode (design section 8.3.4).
+    if session.job_end is not None:
+        return DispatchOutcome(
+            case_id=case.case_id, engine=engine, mode=plan.mode, duration_ms=0,
+            duration_kind="measured", attempts=0, rate_limit_encounters=0,
+            taxonomy_code=session.job_end.code,
+            failure_detail=session.job_end.detail or session.job_end.code,
+        )
+
     adapter = adapter_for(engine)(plan.model)
     context = _CaseContext(
         adapter=adapter,
@@ -751,6 +791,8 @@ def _measured(
             response.as_mapping(), response.resolved_model, context.request,
         )
 
+    attempts = context.adapter.take_wire_attempts()
+    session.count_failed_attempts("candidate", attempts)
     return DispatchOutcome(
         case_id=context.case.case_id,
         engine=context.adapter.engine_name,
@@ -761,7 +803,7 @@ def _measured(
         rate_limit_encounters=tally.rate_limits,
         response=response,
         request=context.request,
-        wire_attempts=context.adapter.take_wire_attempts(),
+        wire_attempts=attempts,
     )
 
 
@@ -786,17 +828,22 @@ def _skip(
         patience (``harness_test_taxonomy.md`` section 9.3).
     """
     truncated = tally.code == "QC_HARNESS_CANDIDATE_TIMEOUT"
+    code = attributed_refusal(context.case, session, tally.code)
+    engine = context.adapter.engine_name
+    attempts = context.adapter.take_wire_attempts()
+    session.count_failed_attempts("candidate", attempts)
     return DispatchOutcome(
         case_id=context.case.case_id,
-        engine=context.adapter.engine_name,
+        engine=engine,
         mode="live",
         duration_ms=int((session.monotonic() - started) * 1000),
         duration_kind="truncated" if truncated else "measured",
         attempts=tally.attempts,
         rate_limit_encounters=tally.rate_limits,
-        taxonomy_code=attributed_refusal(context.case, session, tally.code),
+        taxonomy_code=code,
         request=context.request,
-        wire_attempts=context.adapter.take_wire_attempts(),
+        wire_attempts=attempts,
+        failure_detail=failure_detail(code, "candidate", engine, attempts),
     )
 
 

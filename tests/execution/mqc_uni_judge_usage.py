@@ -3,16 +3,18 @@
 """Unit cases for what a judge channel reports and spends for each live judgement.
 
 Created: 2026-11-10
-Last updated: 2026-11-11
+Last updated: 2026-11-21
 
-This file contains ``TestMQCJudgeUsage``, three cases on
+This file contains ``TestMQCJudgeUsage``, four cases on
 :class:`execution.judge_channel.JudgeChannel`. The first checks that a live
 judgement that returns logs one line naming the judge engine, the model, the
 case, the observation and the token counts read for that call, and that a call
-that raised logs none. The other two check the channel against the run's
+that raised logs none. The others check the channel against the run's
 ``--max-spend`` ceiling: a judge at the ceiling is not asked, and a live
-judgement's cost reaches the run's spend while the run's token usage stays the
-candidate's.
+judgement's cost reaches the run's spend as the judge's share while the run's
+token usage stays the candidate's. ``TestMQCFailedJudgementCost`` checks that a
+failed judge call reporting usage is charged to the judge, and that one
+reporting none is counted as a failed attempt rather than read as free.
 
 **The line is what a run's log says the judge cost**, call by call, and the
 ceiling is what stops a run spending more than it was given, the judge
@@ -32,14 +34,23 @@ Specified by ``docs/design/tier2_execution.md`` section 7.7.3.
 #   113309  a_judge_at_the_run_ceiling_is_not_asked
 #   113310  a_live_judgement_spends_against_the_run_ceiling
 #   113311  a_live_judgement_is_counted_as_the_judge_share
+# TestMQCFailedJudgementCost
+#   113313  an_error_response_reporting_usage_is_charged_to_its_role
+#   113314  a_failed_attempt_reporting_no_usage_is_counted_not_free
 # ------------------------------------------------------------ end of cases
 
 import logging
+from typing import Optional
 
 import pytest
 
 from cmn.pricing import cost_of, load_price_table
 from cmn.tokens import TokenUsage
+from execution.dispatch import DispatchSession
+from execution.judge_channel import JudgeChannel, JudgementPlan
+from tests.execution.wire_doubles import (
+    CREDIT_MESSAGE, PLANTED_KEY, provider_error, reply_handler, serve_mock,
+)
 from tests.execution.judge_breaker_doubles import (
     AWARDED,
     MODEL,
@@ -215,3 +226,68 @@ class TestMQCJudgeUsage:
         assert float(summary["judge_spend_usd"]) == pytest.approx(judged, abs=5e-5)
         assert float(summary["candidate_spend_usd"]) == pytest.approx(answered, abs=5e-5)
         assert float(summary["total_spend_usd"]) == pytest.approx(budget.spent, abs=5e-5)
+
+
+class TestMQCFailedJudgementCost:
+    """A failed judge call is charged where it reports usage, and counted where it does not."""
+
+    @staticmethod
+    def _rejected_judgement(
+        monkeypatch: pytest.MonkeyPatch, usage: Optional[dict[str, int]]
+    ) -> tuple[JudgeChannel, DispatchSession]:
+        """Send one grok judgement through its real SDK, answered 400.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+            usage (Optional[dict]): The usage block the error body carries, if any.
+
+        Returns:
+            tuple: The channel and the run session it charged.
+        """
+        monkeypatch.setenv("XAI_API_KEY", PLANTED_KEY)
+        serve_mock(monkeypatch, reply_handler(
+            {}, failures=(provider_error(400, CREDIT_MESSAGE, usage=usage),)
+        ))
+        budget = DispatchSession()
+        channel = JudgeChannel("grok", model="grok-wire", plan=JudgementPlan(budget=budget))
+        with pytest.raises(ValueError, match="QC_HARNESS_REQUEST_REJECTED"):
+            channel.invoke(JudgeRequestDouble())
+        return channel, budget
+
+    def MQC_EXE_UNI_113313_an_error_response_reporting_usage_is_charged_to_its_role(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A 400 carrying usage adds its tokens to the judge, and none to the candidate.
+
+        Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+
+        Returns:
+            None
+        """
+        channel, budget = self._rejected_judgement(
+            monkeypatch, {"prompt_tokens": 7, "completion_tokens": 0, "total_tokens": 7}
+        )
+        assert channel.usage.input_tokens == 7, channel.usage
+        assert budget.usage.input_tokens == 0, "the judge's failed call reached the candidate"
+
+    def MQC_EXE_UNI_113314_a_failed_attempt_reporting_no_usage_is_counted_not_free(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A 400 carrying no usage charges nothing and is counted as a failed attempt.
+
+        Design: ``tier2_execution.md`` section 7.7.3.
+
+        Args:
+            monkeypatch (pytest.MonkeyPatch): pytest's patcher.
+
+        Returns:
+            None
+        """
+        channel, budget = self._rejected_judgement(monkeypatch, None)
+        assert channel.usage.input_tokens == 0, channel.usage
+        summary = budget.spend_summary()
+        assert summary.get("judge_failed_attempts") == "1", summary
+        assert summary.get("candidate_failed_attempts") == "0", summary

@@ -3,21 +3,22 @@
 """Unit cases for how requests to a provider are paced, retried and stopped.
 
 Created: 2026-09-26
-Last updated: 2026-11-17
+Last updated: 2026-11-21
 
 Its cases check :func:`execution.dispatch.dispatch_case` and
 ``DispatchSession``. Live requests are spaced at the configured interval and
 replay is not, rate limits are retried until backoff or the quota period is
-spent, timeouts carry the candidate code, and the circuit breaker aborts after
-consecutive failures or at once on an auth error. They also check that dispatch
+spent, and timeouts carry the candidate code. They also check that dispatch
 does not interpret output, and that a connection belongs to one case and is
 never borrowed by the judge.
 
 **This is the first file of the dispatch cases.** What a dispatch records is the
 second subject and sits in ``mqc_uni_dispatch_recording.py``, which it moved to
-on 2026-10-30 when this file reached the thousand-line hard limit
-(``code-style.md`` section 5.1). The clock and the plan builder both files use
-are in ``dispatch_support.py``.
+on 2026-10-30 when this file reached the thousand-line hard limit; when the
+circuit breaker ends the job is the third, in ``mqc_uni_circuit_breaker.py``
+since 2026-11-21, when this file passed its 900-line runway (``code-style.md``
+section 5.1). The clock, the dispatch script and the plan builder the files
+share are in ``dispatch_support.py``.
 
 Specified by ``docs/design/tier2_execution.md`` section 10.1.
 
@@ -46,11 +47,6 @@ A failure here is **not a model finding**, so the module carries no priority mar
 #   113216  a_rate_limit_of_unknown_period_keeps_its_retries
 #   113207  candidate_timeout_maps_to_candidate_code_not_generic
 #   113208  timeout_records_duration_kind_truncated
-# TestMQCCircuitBreaker
-#   113203  circuit_breaker_aborts_after_consecutive_failures
-#   113204  auth_error_aborts_immediately
-#   113221  a_budget_stop_does_not_trip_the_breaker
-#   113222  a_replay_without_a_fixture_does_not_trip_the_breaker
 # TestMQCDispatcherRestraint
 #   113206  adapter_performs_no_scoring_or_interpretation
 #   113209  an_unregistered_mode_is_rejected_before_any_adapter
@@ -68,15 +64,10 @@ import pytest
 from execution.adapters.claude import ClaudeAdapter
 from execution.adapters.registry import registered_adapters
 from execution.judge_channel import JudgeChannel
-from execution.dispatch import (
-    CircuitBreakerTripped,
-    DispatchPlan,
-    DispatchSession,
-    dispatch_case,
-)
+from execution.dispatch import DispatchPlan, DispatchSession, dispatch_case
 from execution.normalize import NormalizedResponse
 from execution.replay import FixtureKey, hash_request, record_fixture
-from tests.execution.dispatch_support import FakeClock, plan_for
+from tests.execution.dispatch_support import FakeClock, plan_for, scripted_claude
 from tests.execution.provider_doubles import claude_response, claude_error
 from ingestion.schemas import EvaluationCase
 
@@ -109,10 +100,7 @@ def fixture_session(clock: FakeClock) -> DispatchSession:
 
 @pytest.fixture(name="scripted")
 def fixture_scripted(monkeypatch: Any) -> Iterator[Any]:
-    """Return a helper that scripts what one adapter's dispatch does.
-
-    Patching the adapter rather than registering a test double keeps the
-    registry, and therefore the conformance battery, exactly as it ships.
+    """Return a helper that scripts what the claude adapter's dispatch does.
 
     Args:
         monkeypatch (Any): pytest's patcher.
@@ -120,31 +108,7 @@ def fixture_scripted(monkeypatch: Any) -> Iterator[Any]:
     Yields:
         Any: A callable taking the sequence of results or exceptions to serve.
     """
-    calls: list[Any] = []
-
-    def script(*results: Any) -> list[Any]:
-        """Install a scripted dispatch and return its call log.
-
-        Args:
-            *results (Any): Responses to return or exceptions to raise, in
-                order. The last is repeated once exhausted.
-
-        Returns:
-            list: Every request the adapter was asked to dispatch.
-        """
-        remaining = list(results)
-
-        def fake_dispatch(_self: Any, request: Any) -> Any:
-            calls.append(request)
-            outcome = remaining.pop(0) if len(remaining) > 1 else remaining[0]
-            if isinstance(outcome, BaseException):
-                raise outcome
-            return outcome
-
-        monkeypatch.setattr(ClaudeAdapter, "dispatch", fake_dispatch)
-        return calls
-
-    yield script
+    yield scripted_claude(monkeypatch)
 
 
 class TestMQCRequestSpacing:
@@ -400,176 +364,6 @@ class TestMQCRetryAndBackoff:
         scripted(claude_response())
         measured = dispatch_case(minimal_case, "claude", plan_for(tmp_path), session)
         assert measured.duration_kind == "measured"
-
-
-class TestMQCCircuitBreaker:
-    """When the run stops rather than spending quota to confirm a failure."""
-
-    def MQC_EXE_UNI_113203_circuit_breaker_aborts_after_consecutive_failures(
-        self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
-    ) -> None:
-        """Consecutive, not cumulative.
-
-        A long run against a flaky provider legitimately accumulates scattered
-        failures while still producing a usable measurement. A streak means the
-        provider stopped answering, and a success resets it.
-
-        Args:
-            minimal_case (Any): The case to dispatch.
-            session (DispatchSession): The paced session.
-            tmp_path (Any): pytest's temporary directory.
-            scripted (Any): Dispatch scripting helper.
-
-        Returns:
-            None
-        """
-        session.max_attempts = 1
-        session.breaker_threshold = 3
-        plan = plan_for(tmp_path)
-
-        scripted(claude_error("rate_limit"))
-        dispatch_case(minimal_case, "claude", plan, session)
-        dispatch_case(minimal_case, "claude", plan, session)
-        assert session.consecutive_failures == 2
-
-        scripted(claude_response())
-        dispatch_case(minimal_case, "claude", plan, session)
-        assert session.consecutive_failures == 0
-
-        scripted(claude_error("rate_limit"))
-        dispatch_case(minimal_case, "claude", plan, session)
-        dispatch_case(minimal_case, "claude", plan, session)
-        with pytest.raises(CircuitBreakerTripped, match="consecutively"):
-            dispatch_case(minimal_case, "claude", plan, session)
-
-    def MQC_EXE_UNI_113204_auth_error_aborts_immediately(
-        self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
-    ) -> None:
-        """An auth failure will not resolve by waiting, so the streak is irrelevant.
-
-        Every subsequent case fails identically, so accumulating a streak would
-        issue requests that were all going to fail.
-
-        Args:
-            minimal_case (Any): The case to dispatch.
-            session (DispatchSession): The paced session.
-            tmp_path (Any): pytest's temporary directory.
-            scripted (Any): Dispatch scripting helper.
-
-        Returns:
-            None
-        """
-        session.breaker_threshold = 99
-        scripted(claude_error("auth"))
-        with pytest.raises(CircuitBreakerTripped, match="QC_HARNESS_AUTH_ERROR"):
-            dispatch_case(minimal_case, "claude", plan_for(tmp_path), session)
-        assert session.consecutive_failures == 0
-
-    def MQC_EXE_UNI_113221_a_budget_stop_does_not_trip_the_breaker(
-        self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path, scripted: Any
-    ) -> None:
-        """A ceiling the operator set is not a provider that stopped answering.
-
-        The breaker exists to stop spending quota to confirm an engine has
-        stopped answering. A case the ceiling prevented spent nothing and asked
-        the engine nothing, so counting it as that engine's failure aborts a run
-        whose only remaining cases were never going to be dispatched, and
-        discards what the run did measure.
-
-        Design: ``tier2_execution.md`` section 8.3.1.
-
-        Args:
-            minimal_case (Any): The case to dispatch.
-            session (DispatchSession): The paced session.
-            tmp_path (Any): pytest's temporary directory.
-            scripted (Any): Dispatch scripting helper.
-
-        Returns:
-            None
-        """
-        session.max_attempts = 1
-        session.breaker_threshold = 3
-        plan = plan_for(tmp_path)
-
-        # THE CEILING IS ALREADY REACHED, so nothing below is dispatched and no
-        # script is consulted.
-        session.max_spend = 1.0
-        session.spent = 1.0
-
-        outcome = dispatch_case(minimal_case, "claude", plan, session)
-        assert outcome.taxonomy_code == "QC_HARNESS_BUDGET_EXHAUSTED", (
-            f"a case the ceiling prevented did not name that cause: "
-            f"{outcome.taxonomy_code}"
-        )
-        assert not outcome.measured, "a case that was never dispatched reported a measurement"
-        assert session.consecutive_failures == 0, (
-            "a budget stop counted toward the breaker's streak, so a run that "
-            "reached a ceiling an operator set reports an engine that stopped "
-            "answering"
-        )
-
-        # PAST THE THRESHOLD, and still no abort. The claude re-record of
-        # 2026-10-30 took 19 undispatched cases this way and lost 61 measured
-        # ones to the trip.
-        for _ in range(session.breaker_threshold + 2):
-            dispatch_case(minimal_case, "claude", plan, session)
-        assert session.consecutive_failures == 0
-
-        # THE CONTROL, and this case is vacuous without it. A genuine failure
-        # still counts, so the exclusion is of one code rather than of the
-        # streak itself.
-        session.max_spend = 0.0
-        scripted(claude_error("rate_limit"))
-        dispatch_case(minimal_case, "claude", plan, session)
-        assert session.consecutive_failures == 1, (
-            "excluding a budget stop also stopped a real failure counting"
-        )
-
-    def MQC_EXE_UNI_113222_a_replay_without_a_fixture_does_not_trip_the_breaker(
-        self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path
-    ) -> None:
-        """A missing or stale fixture is a skip naming its cause, not an engine failure.
-
-        Each is replayed past the breaker's threshold, so a streak that counted
-        them would abort the run.
-
-        Design: ``tier2_execution.md`` section 8.3.2.
-
-        Args:
-            minimal_case (Any): The case to replay.
-            session (DispatchSession): The paced session.
-            tmp_path (Any): pytest's temporary directory.
-
-        Returns:
-            None
-        """
-        session.breaker_threshold = 3
-        plan = plan_for(tmp_path, mode="replay")
-
-        for _ in range(4):
-            missing = dispatch_case(minimal_case, "claude", plan, session)
-            assert missing.taxonomy_code == "QC_HARNESS_ARTIFACT_MISSING", missing.taxonomy_code
-        assert session.consecutive_failures == 0, (
-            "a missing fixture counted toward the breaker's streak, so a replay "
-            "reports an engine that stopped answering"
-        )
-
-        stored = ClaudeAdapter().normalize_response(claude_response(), minimal_case.case_id)
-        record_fixture(
-            tmp_path,
-            FixtureKey(minimal_case.case_id, "claude", 0),
-            hash_request({"model": "a model no longer configured"}),
-            stored.as_mapping(),
-            stored.resolved_model,
-        )
-        for _ in range(4):
-            stale = dispatch_case(minimal_case, "claude", plan, session)
-            assert stale.taxonomy_code == "QC_HARNESS_FIXTURE_STALE", stale.taxonomy_code
-            assert not stale.measured, "a stale fixture reported a measurement"
-        assert session.consecutive_failures == 0, (
-            "a stale fixture counted toward the breaker's streak, so a replay "
-            "reports an engine that stopped answering"
-        )
 
 
 class TestMQCDispatcherRestraint:

@@ -17341,3 +17341,103 @@ installed and 460015 guards that it scrubs.
 Verified after the last change: Gate 1 lint exit 0. Unit exit 0: 1181 total,
 1181 executed, 1181 passed, 0 failed, 0 skipped. System replay exit 0: 24
 total, 24 executed, 24 passed, 0 failed, 0 skipped.
+
+## 2026-11-21: A repeated HTTP failure or a stopped judge ends the job, and every failure says what the provider said
+
+**A) What was wrong.** In gemini run 44866727298 the judge's 400 stopped the
+channel, and 44 judged cases each skipped on their own. The one failure that
+explained them carried no status, request id or message, because nothing kept
+the body of a non-2xx response. The candidate breaker waited for five failures
+of any code, however often one code repeated. A stopped judge left no-rubric
+cases buying candidate requests toward a run already red. A failed call
+reporting usage was charged nowhere, and one reporting none was read as free.
+
+**B) Why it happened.** `execution/wire.py` recorded the status and headers and
+never read an error body. `DispatchSession.note_outcome` had one rule, the
+consecutive count. The judge channel's stop was local to the channel. Nothing
+counted a failed attempt.
+
+**Owner rulings, 2026-11-21, verbatim:**
+- "eval engine has same error repeat two three times, skip everything
+  terminate the job."
+- "judge error, while judge may not be available, we can still do non-judged
+  deterministic cases, on the other hand that carries extra cost. with known
+  failing results, so that makes sense."
+- "yeah, because if there is a judge outage we can rerun against another
+  judge."
+- On who an HTTP error belongs to: "could be harness, could be model, could be
+  a proxy or an edge failure. http error, is just that."
+- On cost: "best not to assume".
+
+**What changed.**
+
+| Change | Where |
+|---|---|
+| A non-2xx body is kept, scrubbed and cut to 4096 characters; a transport error's message is kept, scrubbed; a 2xx is never read | `execution/wire.py` |
+| `failure_detail` states a failure: code, role and engine, then status, request id, date and the provider's message | `execution/job_end.py` (new) |
+| `JobState` holds the job's end and the same-code streak; `exit_status` returns 3 for 0 or 1 once ended | Same |
+| The candidate ends the job on one code three cases running, five failures running, or an auth error | `execution/dispatch.py` |
+| An ended session skips each later dispatch without sending, naming the failure | Same |
+| The judge channel's stop ends the run's job, and its message and warning carry the detail | `execution/judge_channel.py` |
+| Usage in an error body is charged to the judge; each role's failed attempts are counted and published | `execution/judge_channel.py`, `execution/run_spend.py` |
+| `watch_job`, `ended_job_lines` and `refuse_ended_job` for the consumer | `cmn/ended_job.py` (new) |
+| `JobState` declared mutable by design | `cmn/code_standards.py` |
+
+**Two splits at the 900-line runway, by subject.** The breaker cases took
+`tests/execution/mqc_uni_dispatch.py` to 907 lines and moved to
+`mqc_uni_circuit_breaker.py`. The shared dispatch script moved to
+`dispatch_support.py`.
+
+**A gap found during implementation.** Section 8.3.4 said the summary leads
+with the failure that ended the job, and nothing did. Case 113227 was added to
+the design inventory and the EXE_0157 row, and was written before
+`ended_job_lines` existed.
+
+**A defect found by the first control run of 113227.** `watch_job` used a weak
+mapping, and an object that cannot be weakly referenced was watched by nothing,
+so its run would have exited 0 after its job ended. The registry now keys on
+identity and holds the configuration.
+
+**Injections, each applied alone and restored byte for byte: 26 of 26 caught,
+every control passing uninjected first.**
+
+| Injected | Failed as expected |
+|---|---|
+| Error body never kept | 460016, 460018, 460020 to 460023 |
+| Error message never kept | 460017 |
+| Success body read | 460019 |
+| Body not cut at 4096 | 460018 |
+| Body not scrubbed | 460020 |
+| No same-code rule | 113223 |
+| Same code ends at two | 113223 |
+| Any-code breaker ends no job | 113225 |
+| Ended job still dispatches | 113226, 113312 |
+| Ended job keeps exit 0 | 113226 |
+| Candidate skip without detail | 460022 |
+| Judge failure without detail | 460023 |
+| Judge stop ends no job | 113312 |
+| Error-body usage not charged | 113313 |
+| Error-body usage charged to the candidate | 113313 |
+| Failed attempts not counted | 113314, 450012 |
+| Failed fields not published | 450013 |
+| Summary line drops the detail | 113227 |
+| Summary line for a running job | 113227 |
+| No-rubric exemption restored (Model Repository) | 115907 |
+| Judge skip without the message (Model Repository) | 115908 |
+| Candidate skip without the message (Model Repository) | 115908 |
+| Run session not watched (Model Repository) | 115909 |
+| Ended job not refused at finish | 115909 |
+
+Two injections were corrected before they ran, because each would have crashed
+its case instead of failing it: deleting from a tuple, and a name the module
+does not import.
+
+**Digressions the user spotted, and the fix.** None recorded for this
+iteration. Two of mine are above: the summary line the design promised and
+nothing built, and the weak mapping that watched nothing for some objects.
+Both were fixed with a case that failed first.
+
+Verified after the last change: Gate 1 lint exit 0. Unit exit 0: 1199 total,
+1199 executed, 1199 passed, 0 failed, 0 skipped. System replay exit 0: 24
+total, 24 executed, 24 passed, 0 failed, 0 skipped. No P0, P1, P2-P4 or audit
+rows: the harness has no graded cases, and no audited module changed.

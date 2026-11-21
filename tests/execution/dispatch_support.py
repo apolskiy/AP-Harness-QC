@@ -1,14 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Aleksandr Polskiy
 # SPDX-License-Identifier: Apache-2.0
-"""Support the dispatch cases share: a clock that never waits, and a plan builder.
+"""Support the dispatch cases share: a clock that never waits, a script, and a plan builder.
 
 Created: 2026-10-30
-Last updated: 2026-10-30
+Last updated: 2026-11-21
 
 This file contains ``FakeClock``, a monotonic clock that advances only when a
-case tells it to, and ``plan_for``, which builds a :class:`DispatchPlan` rooted
-in a temporary fixture store. Both are used by every collected module that
-dispatches a case, which is why they sit here rather than in one of them.
+case tells it to; ``scripted_claude``, which scripts what the claude adapter's
+dispatch returns or raises; and ``plan_for``, which builds a
+:class:`DispatchPlan` rooted in a temporary fixture store. Each is used by more
+than one collected module that dispatches a case, which is why they sit here
+rather than in one of them.
 
 **It carries no case and no fixture.** A ``@pytest.fixture`` is discovered in the
 module that declares it, so each collected module keeps its own two-line wiring
@@ -19,8 +21,9 @@ and calls these. Support defined inside a collected case module is reported by
 Specified by ``docs/design/harness_test_taxonomy.md`` section 13.
 """
 
-from typing import Any
+from typing import Any, Callable
 
+from execution.adapters.claude import ClaudeAdapter
 from execution.dispatch import DispatchPlan
 
 
@@ -62,6 +65,46 @@ class FakeClock:
         """
         self.slept.append(seconds)
         self.now += seconds
+
+
+def scripted_claude(monkeypatch: Any) -> Callable[..., list[Any]]:
+    """Return a helper that scripts what the claude adapter's dispatch does.
+
+    Patching the adapter rather than registering a test double keeps the
+    registry, and therefore the conformance battery, exactly as it ships.
+
+    Args:
+        monkeypatch (Any): pytest's patcher.
+
+    Returns:
+        Callable: Takes the responses to return or exceptions to raise, in
+        order, the last repeated once exhausted, and returns the log of every
+        request dispatched, shared across calls.
+    """
+    calls: list[Any] = []
+
+    def script(*results: Any) -> list[Any]:
+        """Install a scripted dispatch and return its call log.
+
+        Args:
+            *results (Any): Responses to return or exceptions to raise.
+
+        Returns:
+            list: Every request the adapter was asked to dispatch.
+        """
+        remaining = list(results)
+
+        def fake_dispatch(_self: Any, request: Any) -> Any:
+            calls.append(request)
+            outcome = remaining.pop(0) if len(remaining) > 1 else remaining[0]
+            if isinstance(outcome, BaseException):
+                raise outcome
+            return outcome
+
+        monkeypatch.setattr(ClaudeAdapter, "dispatch", fake_dispatch)
+        return calls
+
+    return script
 
 
 def plan_for(tmp_path: Any, mode: str = "live", record: bool = False) -> DispatchPlan:
