@@ -3,7 +3,7 @@
 """Unit cases for when the candidate's failures end the job.
 
 Created: 2026-11-21
-Last updated: 2026-11-21
+Last updated: 2026-11-26
 
 This file contains ``TestMQCCircuitBreaker``, cases on
 :func:`execution.dispatch.dispatch_case` and ``DispatchSession``. They check
@@ -40,6 +40,7 @@ Specified by ``docs/design/tier2_execution.md`` sections 8.3, 8.3.1, 8.3.2 and
 #   113221  a_budget_stop_does_not_trip_the_breaker
 #   113222  a_replay_without_a_fixture_does_not_trip_the_breaker
 #   113227  the_summary_leads_with_the_failure_that_ended_the_job
+#   113228  spent_credit_ends_the_job_at_once
 # ------------------------------------------------------------ end of cases
 
 import json
@@ -416,3 +417,33 @@ class TestMQCCircuitBreaker:
         for part in ("candidate", "QC_HARNESS_REQUEST_REJECTED", "3 cases running",
                      "status 400", f"request-id {ERROR_TRACE[0][1]}", CREDIT_MESSAGE):
             assert part in lines[0], (part, lines[0])
+
+    def MQC_EXE_UNI_113228_spent_credit_ends_the_job_at_once(
+        self, minimal_case: EvaluationCase, session: DispatchSession, tmp_path: Path,
+        scripted: Any, monkeypatch: Any,
+    ) -> None:
+        """A 429 the adapter reads as spent credit ends the job on its first case.
+
+        Design: ``tier2_execution.md`` sections 8.3.4 and 8.6.5.
+
+        Args:
+            minimal_case (Any): The case to dispatch.
+            session (DispatchSession): The paced session.
+            tmp_path (Any): pytest's temporary directory.
+            scripted (Any): Dispatch scripting helper.
+            monkeypatch (Any): pytest's patcher, making the adapter read the
+                rate limit as spent credit.
+
+        Returns:
+            None
+        """
+        session.breaker_threshold = 99
+        monkeypatch.setattr(
+            ClaudeAdapter, "spend_exhausted", lambda _self, _error: True, raising=False
+        )
+        scripted(claude_error("rate_limit"))
+        with pytest.raises(CircuitBreakerTripped, match="QC_HARNESS_CREDIT_EXHAUSTED"):
+            dispatch_case(minimal_case, "claude", plan_for(tmp_path), session)
+        assert session.job_end is not None, "spent credit left the job running"
+        assert session.job_end.code == "QC_HARNESS_CREDIT_EXHAUSTED", session.job_end.code
+        assert session.job_end.repeats == 1, session.job_end.repeats

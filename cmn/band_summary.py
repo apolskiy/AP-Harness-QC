@@ -3,7 +3,7 @@
 """Band result summary, what one priority band's run established, in its own terms.
 
 Created: 2026-10-06
-Last updated: 2026-11-17
+Last updated: 2026-11-26
 
 This file contains ``result_lines``, which renders a band's result as a header and one
 labelled fact per line, under a ``Heading`` naming the band and the engine, with
@@ -94,7 +94,7 @@ _SKIP_CAUSES: Final[dict[str, str]] = {
         "an artifact this case reads is missing or unreadable, so it was not executed"
     ),
     "QC_HARNESS_BUDGET_EXHAUSTED": "the run reached its spending ceiling",
-    "QC_HARNESS_CREDIT_EXHAUSTED": "the account has no credit left",
+    "QC_HARNESS_CREDIT_EXHAUSTED": "the account's credit or spending cap is spent",
     "QC_HARNESS_ENGINE_UNREACHABLE": "the provider could not be reached",
     "QC_HARNESS_PROVIDER_UNAVAILABLE": "the provider declined to serve the request",
     "QC_HARNESS_RATE_LIMIT": "the provider rate limited the run",

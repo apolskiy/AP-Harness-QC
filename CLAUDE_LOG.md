@@ -17554,3 +17554,56 @@ Verified after the last change: Gate 1 lint exit 0. Unit exit 0: 1202 total,
 1202 executed, 1202 passed, 0 failed, 0 skipped. System replay exit 0: 24
 total, 24 executed, 24 passed, 0 failed, 0 skipped. No P0, P1, P2-P4 or audit
 rows: the harness has no graded cases, and no audited module changed.
+
+## 2026-11-26: A 429 naming spent credit is coded as spent credit and ends the job at once
+
+**What was wrong.** Gemini's monthly spending cap stopped three regression
+runs on 2026-11-26: as judge on claude run 45741203009 and grok run
+45741266912, and as candidate on gemini run 45740990163. It arrives as 429
+`RESOURCE_EXHAUSTED` with no quota id, so section 8.6.5 coded it
+`QC_HARNESS_RATE_LIMIT` by its status, retried it, and ended each job only after
+three cases. Every later case skipped as a rate limit, and grok's P2-P4 band
+read 45 of 70. The next grok run, 45857114093, with the cap raised and nothing
+else changed, read 68 of 70 with no skips. The owner's ruling: "we need to fix
+it, if it can be fixed. It's a big deal", since the harness has to say when an
+engine, judge or candidate, is out of spend, so a skip is not read as a model
+finding.
+
+**The design, at the owner's ruling.** Two steps: the status decides the kind
+of failure, then the provider's words narrow a 429 to spent credit. Suspending
+on every 429 was considered and rejected, because a per-minute limit is
+already paced and retried and would then end jobs that recover. A 429 whose
+words the adapter does not recognise stays a rate limit, so a reworded
+provider message falls back to the earlier behaviour rather than to a wrong
+code. Section 8.6.5 was amended, and 8.3.4 now ends the candidate's job at
+once on spent credit, as an auth error does.
+
+**Implementation.** `ProviderAdapter.spend_exhausted` returns False by
+default. `map_error` narrows a rate limit to `QC_HARNESS_CREDIT_EXHAUSTED`
+where it returns True. Gemini matches "spending cap" or "spend cap", and the
+OpenAI protocol, which grok shares, matches the error code
+`insufficient_quota`. Claude recognises nothing new: its credit-balance
+message was already coded before this change (`CREDIT_MESSAGE` in
+`tests/execution/wire_doubles.py`). `Dispatcher.note_outcome` ends the job on the first
+spent-credit outcome. The skip cause reads "the account's credit or spending
+cap is spent". Doubles `gemini_exhausted`, `openai_quota_error` and the
+verbatim `SPENDING_CAP_MESSAGE` live in `tests/execution/provider_doubles.py`,
+since the module-contents check refused them inside a case module.
+
+**Cases.** `113038`, `113039` (the fail-safe boundary), `113040`, `113228`,
+requirement `MQC_REQ_HAR_EXE_0159`. Before the implementation `113038`,
+`113040` and `113228` failed for the intended reason and `113039` passed, which
+is what a boundary guarding the old behaviour should do.
+
+**Injections**, each against its guarding cases: no provider words recognised,
+`113038` and `113040` failed, CAUGHT. Every 429 read as spent credit, `113039`
+failed, CAUGHT. Spent credit not ending the job, `113228` failed, CAUGHT.
+Uninjected control: 4 of 4.
+
+**The Model Repository's half** is the band floor: a band the environment's
+skips took below its floor reads as not measured (its CLAUDE_LOG, same date).
+
+Verified after the last change: Gate 1 lint exit 0. Unit exit 0: 1206 total,
+1206 executed, 1206 passed, 0 failed, 0 skipped. System replay exit 0: 24
+total, 24 executed, 24 passed, 0 failed, 0 skipped. No P0, P1, P2-P4 or audit
+rows: the harness has no graded cases, and no audited module changed.

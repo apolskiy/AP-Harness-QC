@@ -2149,6 +2149,7 @@ says nothing about the cases after it.
 | The candidate, the same code on 3 consecutive cases, retryable or not | **Ends** |
 | The candidate, 5 consecutive failures of any code | **Ends**, the existing threshold kept as the backstop for an outage that answers with a different status each time |
 | The candidate, `QC_HARNESS_AUTH_ERROR` | Ends at once, as before |
+| The candidate, `QC_HARNESS_CREDIT_EXHAUSTED` | **Ends at once**, since 2026-11-26: no wait produces funds, so every later case would fail identically (section 8.6.5) |
 | A budget stop, a missing or stale fixture, a refusal in a run that has measured | Neither counts nor ends it (sections 8.3.1, 8.3.2, 8.6.7) |
 
 **A stopped judge ends the job too, although the deterministic cases could
@@ -2631,7 +2632,64 @@ reported the cause as not described.
 matching a sentence written for a human, which section 8.6.7 declines because
 a provider changes it without notice. **What tells a reader is the message,
 which section 7.15.6 now records** and puts on the skip reason and the summary
-line.
+line. **Amended 2026-11-26 for a 429 only**, by the subsection below: the
+status still chooses the kind of failure, and a recognised word from the
+provider can only narrow a rate limit to spent credit.
+
+##### A spending cap arrives as 429, and the status, then the provider's words, decide
+
+Added 2026-11-26 at the project owner's ruling, from runs 45740990163,
+45741203009 and 45741266912. **Gemini answers a project past its monthly
+spending cap with 429 `RESOURCE_EXHAUSTED`**, the status and the status name a
+per-minute rate limit carries, and with no quota id:
+
+```
+{"error": {"code": 429, "status": "RESOURCE_EXHAUSTED",
+  "message": "Your project has exceeded its monthly spending cap. Please go to
+  AI Studio at https://ai.studio/spend to manage your project spend cap. ..."}}
+```
+
+**So it was coded `QC_HARNESS_RATE_LIMIT`**, retried as though it would clear,
+and ended each job only after three cases running. Every case after it skipped
+as "the provider rate limited the run", which names pacing as the remedy, and
+the remedy was budget. The job's own summary line quoted the provider's
+message, so the cause was on record and the code contradicted it.
+
+**Two steps, in this order:**
+
+| Step | Reads | Decides |
+|---|---|---|
+| 1 | The status, from the one table (section 8.5.6) | The kind of failure. A 429 is a limit |
+| 2 | The provider's own words, asked of the adapter by `spend_exhausted` | Whether that limit is spent credit, coded `QC_HARNESS_CREDIT_EXHAUSTED` |
+
+**Step 2 only narrows a rate limit**, and only to spent credit: it never turns
+any other status into anything. What each adapter recognises:
+
+| Engine | Recognised | Kind of evidence |
+|---|---|---|
+| gemini | A message naming a spending cap or a spend cap | The provider's sentence, measured 2026-11-26 |
+| openai, grok | The error code `insufficient_quota` | A field of the error body, not a sentence |
+| claude | Nothing yet | No 429 for spent credit observed; an empty balance arrives as 400 (above) |
+
+**A word the adapter does not recognise is a rate limit, so a reworded message
+fails safe.** The cap then takes the path it took before this subsection: the
+period check of section 8.6.4, the retry, and the end of the job at three cases
+running, with the provider's message on the summary line. What a reworded
+message costs is two cases, never a wrong code on a measurement.
+
+**Spent credit ends the job at once** (section 8.3.4), as an auth error does:
+nothing a run can wait for produces funds, so every later case would ask the
+same question and get the same answer. The judge channel already stops on the
+first non-retryable code, and `QC_HARNESS_CREDIT_EXHAUSTED` is one.
+
+**Suspending on every 429 was rejected.** A per-minute rate clears in seconds
+and is the commonest 429 this project has recorded, so ending on the first one
+would end runs that would finish. A 429 that persists ends the job at three
+cases running already.
+
+**Designed for the consumer's band check too**: a band whose skips were caused
+by the environment is not reported as below its floor, because it was not
+measured (`AP-Model-QC` `consumer_ci.md` section 3.12.2).
 
 
 #### 8.6.6 The session reports the models it served
@@ -2876,6 +2934,7 @@ the twenty-first check and any fifth engine are in the partition
 | `113225` | B | `five_consecutive_failures_of_different_codes_end_the_job` (section 8.3.4) |
 | `113226` | P | `an_ended_job_skips_the_rest_naming_the_failure_and_exits_3` (section 8.3.4) |
 | `113227` | P | `the_summary_leads_with_the_failure_that_ended_the_job` (section 8.3.4) |
+| `113228` | N | `spent_credit_ends_the_job_at_once` (sections 8.3.4 and 8.6.5) |
 | `113205` | P | `rate_limit_encounters_are_counted_and_reported` |
 | `113206` | N | `adapter_performs_no_scoring_or_interpretation` |
 | `113207` | N | `candidate_timeout_maps_to_candidate_code_not_generic` |
@@ -3039,6 +3098,9 @@ the twenty-first check and any fifth engine are in the partition
 | `113215` | N | `a_spent_quota_period_abandons_its_remaining_attempts` |
 | `113216` | B | `a_rate_limit_of_unknown_period_keeps_its_retries` |
 | `113016` | P | `gemini_reads_the_spent_period_from_the_quota_id` |
+| `113038` | N | `gemini_codes_a_spending_cap_as_spent_credit` (8.6.5) |
+| `113039` | B | `a_429_naming_no_spent_credit_stays_a_rate_limit` (8.6.5) |
+| `113040` | N | `openai_codes_insufficient_quota_as_spent_credit` (8.6.5) |
 | `113017` | P | `every_adapter_reports_the_four_token_counts` |
 | `113018` | B | `thinking_is_counted_only_where_reported_separately` |
 | `113019` | B | `a_response_carrying_no_usage_reports_zero_not_an_error` |
@@ -3195,7 +3257,7 @@ nothing. Each case leaves exactly one mechanism able to catch it.
 
 Its failure means the canonical shape does not hold across adapters, so every downstream evaluator result would be comparing responses that were never made comparable. Dependents do not execute.
 
-**Inventory: 274 cases, 128 negative, 131 positive, 15 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
+**Inventory: 278 cases, 131 negative, 131 positive, 16 boundary.** Positive cases outnumber negative here, unlike Tier 1, because most of this module's work is transformation rather than rejection. The rejections that matter are concentrated in replay integrity and error mapping.
 
 ## 11. Traceability
 

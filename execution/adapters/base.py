@@ -3,7 +3,7 @@
 """The interface every model provider adapter implements, and the code they share.
 
 Created: 2026-09-26
-Last updated: 2026-11-20
+Last updated: 2026-11-26
 
 This file contains :class:`ProviderAdapter`, the abstract interface an adapter
 fills in, composing a request from a case, dispatching it once, normalizing
@@ -507,6 +507,11 @@ class ConfiguredAdapter(ProviderAdapter):
         mapped = taxonomy_for_status(
             getattr(error, "status_code", getattr(error, "code", None))
         )
+        # THE STATUS DECIDES THE KIND, THE PROVIDER'S WORDS NARROW IT. A 429 the
+        # adapter reads as spent credit takes the credit code, and anything it
+        # does not recognise stays a rate limit (design section 8.6.5).
+        if mapped == "QC_HARNESS_RATE_LIMIT" and self.spend_exhausted(error):
+            return "QC_HARNESS_CREDIT_EXHAUSTED"
         if mapped is not None:
             return mapped
 
@@ -548,6 +553,23 @@ class ConfiguredAdapter(ProviderAdapter):
             **False by default, including where the answer is unknown**, so an
             adapter that cannot tell keeps the retry it has today rather than
             silently losing it.
+        """
+        return False
+
+    def spend_exhausted(self, error: Exception) -> bool:  # pylint: disable=unused-argument
+        """Report whether a rate limit is the provider saying the account's money is spent.
+
+        Asked by :meth:`map_error` of a failure whose status already made it
+        ``QC_HARNESS_RATE_LIMIT``, which is the only code it can narrow
+        (design section 8.6.5).
+
+        Args:
+            error (Exception): The provider failure.
+
+        Returns:
+            bool: ``True`` where the provider names its credit or spending cap
+            as spent. **False by default, including where the answer is
+            unknown**, so an unrecognised 429 stays a rate limit.
         """
         return False
 

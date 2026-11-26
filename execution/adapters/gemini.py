@@ -3,7 +3,7 @@
 """The adapter that sends cases to Google's Gemini models and reads their replies.
 
 Created: 2026-09-26
-Last updated: 2026-11-20
+Last updated: 2026-11-26
 
 This file contains :class:`GeminiAdapter`, which implements the interface in
 :mod:`execution.adapters.base` against the Google Gen AI API. It composes and
@@ -152,6 +152,25 @@ class GeminiAdapter(ConfiguredAdapter):
         """
         body = str(error)
         return any(period in body for period in self._SPENT_PERIODS)
+
+    # THE WORDS GEMINI USES FOR A SPENT SPENDING CAP, measured 2026-11-26: a 429
+    # RESOURCE_EXHAUSTED carrying no quota id, so the message is the only
+    # evidence (design section 8.6.5).
+    _SPENT_CAP_WORDS: Final[tuple[str, ...]] = ("spending cap", "spend cap")
+
+    def spend_exhausted(self, error: Exception) -> bool:
+        """Report whether a 429 names the project's spending cap as reached.
+
+        Args:
+            error (Exception): The provider failure.
+
+        Returns:
+            bool: ``True`` where the message names a spending cap or a spend
+            cap. A reworded message reads ``False``, so the 429 stays a rate
+            limit.
+        """
+        body = str(error).lower()
+        return any(words in body for words in self._SPENT_CAP_WORDS)
 
     def compose_request(self, case: Any) -> dict[str, Any]:
         """Build a Gen AI request from an evaluation case.

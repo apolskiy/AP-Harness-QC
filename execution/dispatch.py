@@ -3,7 +3,7 @@
 """Sends one case to one engine, live or from a recorded fixture, and returns what came back.
 
 Created: 2026-09-26
-Last updated: 2026-11-21
+Last updated: 2026-11-26
 
 This file contains ``dispatch_case``, which composes the request for a case,
 replays the recorded observation or issues the request live, and returns a
@@ -401,6 +401,16 @@ class DispatchSession(RunSpend, JobState):
             raise CircuitBreakerTripped(
                 f"QC_HARNESS_AUTH_ERROR: {outcome.engine} rejected our credentials at "
                 f"{outcome.case_id}, so every remaining case would fail identically"
+            )
+        # SPENT CREDIT ENDS THE JOB AT ONCE, as an auth error does: no wait a
+        # run can afford produces funds (design sections 8.3.4 and 8.6.5).
+        if code == "QC_HARNESS_CREDIT_EXHAUSTED":
+            logger.error("QC_HARNESS_CREDIT_EXHAUSTED aborting the run at %s", outcome.case_id)
+            self.end_job("candidate", code, 1, outcome.failure_detail)
+            raise CircuitBreakerTripped(
+                f"QC_HARNESS_CREDIT_EXHAUSTED: {outcome.engine} reported the account's "
+                f"credit or spending cap spent at {outcome.case_id}, so every remaining "
+                f"case would fail identically"
             )
 
         # A REFUSAL IN A RUN THAT HAS ANSWERED IS AN ANSWER about one request,

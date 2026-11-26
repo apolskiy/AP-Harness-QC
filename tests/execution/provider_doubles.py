@@ -7,7 +7,8 @@ Last updated: 2026-11-06
 
 This file contains builders for each provider's response, error and judgement,
 such as :func:`claude_response`, :func:`openai_error` and
-:func:`gemini_judgement`, plus :func:`gemini_blocked_prompt`. ``ADAPTER_DOUBLES``
+:func:`gemini_judgement`, plus :func:`gemini_blocked_prompt` and the two 429s
+naming spent credit, :func:`gemini_exhausted` and :func:`openai_quota_error`. ``ADAPTER_DOUBLES``
 maps each registered engine to its builders, and ``ERROR_CLASS_CODES`` gives
 the harness code each error kind must map to. The ``openai`` engine's response
 and judgement builders live in :mod:`tests.execution.responses_doubles`, its
@@ -673,6 +674,49 @@ def gemini_error(kind: str) -> Exception:
     return genai_errors.ClientError(
         code=status,
         response_json={"error": {"code": status, "message": f"provider says {kind}"}},
+    )
+
+
+# GEMINI'S 429 FOR A PROJECT PAST ITS MONTHLY SPENDING CAP, verbatim from the
+# wire capture of run 45741203009 on 2026-11-26. It carries no quota id
+# (``tier2_execution.md`` section 8.6.5).
+SPENDING_CAP_MESSAGE: Final[str] = (
+    "Your project has exceeded its monthly spending cap. Please go to AI Studio "
+    "at https://ai.studio/spend to manage your project spend cap. Learn more at "
+    "https://ai.google.dev/gemini-api/docs/billing#project-spend-caps. "
+)
+
+
+def gemini_exhausted(message: str) -> Exception:
+    """Build gemini's 429 ``RESOURCE_EXHAUSTED`` carrying the given message.
+
+    Args:
+        message (str): The provider's message.
+
+    Returns:
+        Exception: The SDK's own client error.
+    """
+    return genai_errors.ClientError(
+        code=429,
+        response_json={
+            "error": {"code": 429, "message": message, "status": "RESOURCE_EXHAUSTED"}
+        },
+    )
+
+
+def openai_quota_error(code: str) -> Exception:
+    """Build openai's 429 carrying the given error code in its body.
+
+    Args:
+        code (str): The ``code`` field of the error body.
+
+    Returns:
+        Exception: The SDK's own rate-limit error.
+    """
+    return openai.RateLimitError(
+        "Error code: 429",
+        response=_http_response(429),
+        body={"message": "You exceeded your current quota.", "type": code, "code": code},
     )
 
 

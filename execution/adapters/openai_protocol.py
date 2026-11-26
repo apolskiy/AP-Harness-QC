@@ -3,7 +3,7 @@
 """The shared adapter for every provider that serves the OpenAI Chat Completions API.
 
 Created: 2026-09-25
-Last updated: 2026-11-20
+Last updated: 2026-11-26
 
 This file contains :class:`OpenAICompatibleAdapter`, which implements the
 interface in :mod:`execution.adapters.base` against the Chat Completions API
@@ -197,6 +197,21 @@ class OpenAICompatibleAdapter(ConfiguredAdapter):
         return options
 
     ERROR_CLASSES = _ERROR_CLASSES
+
+    def spend_exhausted(self, error: Exception) -> bool:
+        """Report whether a 429 carries the error code for a spent quota.
+
+        **A field, not a sentence**: the SDK reads ``code`` from the error body,
+        and ``insufficient_quota`` is the code for an account whose credit is
+        spent (design section 8.6.5).
+
+        Args:
+            error (Exception): The provider failure.
+
+        Returns:
+            bool: ``True`` where the error's code is ``insufficient_quota``.
+        """
+        return getattr(error, "code", None) == "insufficient_quota"
 
     def compose_request(self, case: Any) -> dict[str, Any]:
         """Build a Chat Completions request from an evaluation case.

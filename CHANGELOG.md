@@ -29,6 +29,30 @@ Versioning begins at the first release a case repository can pin. Until then
 changes accumulate here rather than under a version number, because nothing has
 been released to carry one.
 
+### A 429 naming spent credit is coded as spent credit and ends the job at once, 2026-11-26
+
+**Why.** Gemini's monthly spending cap stopped three regression runs on
+2026-11-26, as judge on two and as candidate on one. It arrived as 429
+`RESOURCE_EXHAUSTED` with no quota id, the status a per-minute rate limit
+carries, so it was coded `QC_HARNESS_RATE_LIMIT`, retried, and ended each job
+only at three cases running. Every later case skipped as "the provider rate
+limited the run", which names pacing as the remedy, and the remedy was budget.
+
+**What changed.**
+- The status decides the kind of failure, then the adapter's
+  `spend_exhausted` reads the provider's own words: a 429 gemini says reached a
+  spending cap, or openai or grok marks `insufficient_quota`, is coded
+  `QC_HARNESS_CREDIT_EXHAUSTED`. A 429 the adapter does not recognise stays a
+  rate limit, so a reworded message falls back to the earlier path.
+- Spent credit ends the candidate's job at once, as an auth error does; the
+  judge already stopped on it.
+- The skip cause for spent credit reads "the account's credit or spending cap
+  is spent".
+- Cases `113038`, `113039`, `113040` and `113228`, requirement
+  `MQC_REQ_HAR_EXE_0159`, `tier2_execution.md` sections 8.3.4 and 8.6.5. The
+  requirements traced move from 465 to 466, and the instrument suite from 1230
+  cases to 1234.
+
 ### The screen records and never stops an answer to a rule judged on its answer alone, and `it` is a function word, 2026-11-24
 
 **Why.** Gemini run 45074815599 stopped two answers to the consumer's no-quote
