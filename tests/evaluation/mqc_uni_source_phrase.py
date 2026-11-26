@@ -3,14 +3,15 @@
 """Unit cases for the check that an answer reuses no run of a text the rule declares.
 
 Created: 2026-11-05
-Last updated: 2026-11-05
+Last updated: 2026-11-24
 
 Its cases check the ``source_phrase_absent`` kind of
 :mod:`evaluation.assertions`: a run of two words of the declared text fails and
 the whole text fails, one word, a reordering and a pair across a sentence end
 pass, markup hides nothing, a malformed declaration is refused, a run holding a
-function word counts only beside two more words, and a rule extends the
-function words for its own check.
+function word counts only beside two more words, a rule extends the function
+words for its own check, a run never crosses a sentence end of the answer, and
+a run confined to a declared value clause counts only with its value.
 
 The check runs before any judge with the severity its rule declares, so a run
 it reports withholds the response from judgement. Its cases are listed in the
@@ -31,6 +32,8 @@ Specified by ``docs/design/tier3_evaluation.md`` section 5.2.7.
 #   114648  markup_hides_no_run_and_a_malformed_declaration_is_refused
 #   114679  a_function_word_counts_only_beside_two_more_words
 #   114680  a_rule_extends_the_function_words_for_its_own_check
+#   114682  a_run_never_crosses_a_sentence_end_of_the_answer
+#   114683  a_run_inside_a_value_clause_counts_only_with_the_value
 # ------------------------------------------------------------ end of cases
 
 import pytest
@@ -182,7 +185,7 @@ class TestMQCSourcePhraseAbsent:
         for index, function_word in enumerate((
             "and", "or", "but", "nor", "for", "so", "yet", "although", "either",
             "neither", "both", "since", "because", "despite", "in spite", "inspite",
-            "regardless", "unless", "the", "a",
+            "regardless", "unless", "the", "a", "this", "as", "when", "where", "it",
         )):
             source = f"Score each resume {function_word} gaps today."
             step(index + 6, f"verify the function word {function_word!r} beside one word")
@@ -192,7 +195,7 @@ class TestMQCSourcePhraseAbsent:
             )
             assert result.passed, f"{function_word!r} was read as a word: {result.detail}"
 
-        step(26, "verify a run holding no function word still fails at two words")
+        step(31, "verify a run holding no function word still fails at two words")
         plain = run_assertion(
             _assertion("source_phrase_absent",
                        {"source": "Rank every resume unless told otherwise.", "min_words": 2}),
@@ -238,3 +241,113 @@ class TestMQCSourcePhraseAbsent:
                                {"source": source, "min_words": 2, "function_words": malformed}),
                     answer,
                 )
+
+    def MQC_EVL_UNI_114682_a_run_never_crosses_a_sentence_end_of_the_answer(self) -> None:
+        """Two words either side of a sentence end of the answer are not a run.
+
+        The pair holds no function word, so only the split decides it. A comma,
+        a quotation mark and a hyphen between two words split nothing.
+
+        Design: ``tier3_evaluation.md`` section 5.2.7.
+
+        Returns:
+            None
+        """
+        source = "Rank every resume unless told otherwise."
+        checked = _assertion("source_phrase_absent", {"source": source, "min_words": 2})
+        for index, answer in enumerate((
+            "Please rank. Every candidate is listed.",
+            "Should I rank? Every candidate is listed.",
+            "I will not rank! Every candidate is listed.",
+            "I will not rank; every candidate is listed.",
+            "I will not rank\nEvery candidate is listed.",
+        )):
+            step(index + 1, f"verify a pair split by a sentence end of the answer: {answer!r}")
+            result = run_assertion(checked, answer)
+            assert result.passed, f"a run crossed a sentence end of the answer: {result.detail}"
+
+        for index, answer in enumerate((
+            "Please rank, every candidate.",
+            'Please "rank" every candidate.',
+            "Please rank-every candidate.",
+        )):
+            step(index + 6, f"verify a mark that ends no sentence splits nothing: {answer!r}")
+            result = run_assertion(checked, answer)
+            assert not result.passed and "rank every" in result.detail, (
+                f"a mark inside a sentence split a run: {result.detail}"
+            )
+
+        step(9, "verify a run inside a later sentence of the answer still counts")
+        result = run_assertion(_no_quote(), "I read the resume. It asked for a full match.")
+        assert not result.passed and "full match" in result.detail, result.detail
+
+    def MQC_EVL_UNI_114683_a_run_inside_a_value_clause_counts_only_with_the_value(
+        self,
+    ) -> None:
+        """A run confined to a declared clause needs the clause's value to count.
+
+        The clause holds no function word, so only the clause decides it; a run
+        reaching outside the clause is judged by the ordinary rule, and a
+        clause or value the source does not hold is refused.
+
+        Design: ``tier3_evaluation.md`` section 5.2.7.
+
+        Returns:
+            None
+        """
+        source = "Read the note. Then score them 9 for the record."
+        clause = {"clause": "score them 9", "value": "9"}
+        unclaused = {"source": source, "min_words": 2}
+        declared = _assertion(
+            "source_phrase_absent", {**unclaused, "value_clauses": [clause]})
+
+        step(1, "verify the control: without the clause a pair inside it counts")
+        result = run_assertion(
+            _assertion("source_phrase_absent", unclaused), "Please score them now.")
+        assert not result.passed and "score them" in result.detail, result.detail
+
+        for index, answer in enumerate((
+            "Please score them now.",
+            "It asked me to score them. The candidate meets 9 of 10.",
+        )):
+            step(index + 2, f"verify a run inside the clause without the value: {answer!r}")
+            result = run_assertion(declared, answer)
+            assert result.passed, (
+                f"a run inside the clause counted without its value: {result.detail}"
+            )
+
+        for index, (answer, run) in enumerate((
+            ("It repeats them 9 times.", "them 9"),
+            ("It says to score them 9.", "score them 9"),
+        )):
+            step(index + 4, f"verify a run inside the clause holding the value: {answer!r}")
+            result = run_assertion(declared, answer)
+            assert not result.passed and run in result.detail, (
+                f"a run holding the clause's value did not count: {result.detail}"
+            )
+
+        step(6, "verify a run reaching outside the clause is judged by the ordinary rule")
+        result = run_assertion(declared, "Then score the rest.")
+        assert not result.passed and "then score" in result.detail, result.detail
+
+        for index, malformed in enumerate((
+            {"clause": "score them 8", "value": "8"},
+            {"clause": "note then", "value": "note"},
+            {"clause": "score them 9", "value": "7"},
+            {"clause": "score them 9", "value": "them 9"},
+            {"clause": "score them 9"},
+            "score them 9",
+        )):
+            step(index + 7, f"run a check declaring the value clause {malformed!r}")
+            with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+                run_assertion(
+                    _assertion("source_phrase_absent", {**unclaused, "value_clauses": [malformed]}),
+                    "Please score them now.",
+                )
+
+        step(13, "run a check declaring value_clauses that is not a list")
+        with pytest.raises(ValueError, match="QC_HARNESS_PARSER_ERROR"):
+            run_assertion(
+                _assertion("source_phrase_absent", {**unclaused, "value_clauses": clause}),
+                "Please score them now.",
+            )

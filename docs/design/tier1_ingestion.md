@@ -123,6 +123,7 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 | `vectors` | `dict[str, bool]` | | `{}` | Attack vectors the payload carries, set and unset. Security rules only |
 | `primary` | `Optional[str]` | | `None` | Which declared vector the case is about |
 | `judge_response_only` | `bool` | | `False` | A declared adversarial case judged on its answer alone once the answer screens clean (`tier3_evaluation.md` section 4C.4). Requires a rubric. See G8 |
+| `relay_forbidden` | `bool` | | `False` | The prompt forbade reproducing the injected text, so the rule tests the reproduction (`tier3_evaluation.md` sections 4C.4.1 and 4C.4.2). See G13 |
 | `answer_list` | `Optional[AnswerList]` | | `None` | The list the prompt asked for: `style`, `count` or `max_count`, and `clarification_rubric` (`tier3_evaluation.md` section 5.5). See G12 |
 
 **Invariant G1:** at least one of `assertions`, `rubric`, `tool_expectation` must be present. A rule set that judges nothing is a silent no-op reporting green.
@@ -134,6 +135,8 @@ Stored in canonical form. Gemini, OpenAI and Claude express tool definitions dif
 **Invariant G10, added 2026-10-19:** a rubric declaring `planted_score` belongs to a rule with `judge_response_only` true. Only that rule's judge reads an answer to the attack, so a planted score anywhere else names a fingerprint no judgement can carry (`tier3_evaluation.md` section 4C.5). `MQC_ING_UNI_111354` holds it.
 
 **Invariant G12, added 2026-11-04:** an `answer_list` declares `style` as `numbered` or `bulleted`, and exactly one of `count` and `max_count`, each an integer of one or more; a numbered list declares `count`, since order is checked only where the numbers are. It carries a `clarification_rubric`, built and checked as any rubric is, because a request for clarification is one of the two answers the declaration admits and is judged. And no assertion of the rule scopes to a `list_item` beyond the declared `count`, which would read an item the declaration says cannot exist. `MQC_ING_UNI_111357` to `111361` hold it.
+
+**Invariant G13, added 2026-11-24:** a rule declaring `relay_forbidden` true carries at least one `source_phrase_absent` assertion. Until that day the screen aborted an answer to such a rule on any registered vector, and since then it records the vector and lets the answer continue (`tier3_evaluation.md` section 4C.4.2), so the check on the passage's own words is what fails a reproduction the prompt forbade. A rule declaring the prohibition and carrying no such check would test nothing it declares. `MQC_ING_UNI_111362` holds it.
 
 **`vectors` is a mapping and not a list**, which is the project owner's shape and buys two things. A vector explicitly `false` records that somebody considered it, where absence from a list records nothing. And only the true entries need carrying into a log or an artifact, so the record is the size of what is true rather than the size of the registry. `AP-Model-QC` `model_evaluation_test_plan.md` section 9.10.3.1 carries the decision and what it cost to reach.
 
@@ -978,6 +981,7 @@ Categories are marked: **P** positive, **N** negative, **B** boundary.
 | `111359` | N | `both_bounds_neither_or_a_numbered_ceiling_is_refused` (3.5, G12) |
 | `111360` | N | `an_answer_list_without_a_clarification_rubric_is_refused` (3.5, G12) |
 | `111361` | B | `a_scope_beyond_the_declared_count_is_refused` (3.5, G12) |
+| `111362` | N | `a_forbidden_relay_without_a_passage_check_is_refused` (3.5, G13) |
 | `111331` | N | `a_rule_set_naming_an_unregistered_family_is_reported` |
 
 ### 13.2 `MQC_ING_SYS_`: integration
@@ -1049,7 +1053,7 @@ This is the inventory principle working in the direction it was written for: jus
 
 **Distribution note:** 51 precondition cases carrying no priority. The graded population (`MQC_EVAL_`, `MQC_TOOL_`, `MQC_SEC_`) is specified in the test plan and is where the 30-case floor and the 10/20/30% ceilings apply.
 
-**Inventory: 127 cases, 61 negative, 39 positive, 27 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
+**Inventory: 128 cases, 62 negative, 39 positive, 27 boundary.** Negative cases dominate deliberately: the value of a strict ingestion layer is what it refuses.
 
 **What this inventory does not cover.** These are diagnostics on the instrument. They do **not** exercise the CI verdict rules: the skip thresholds, the P0/P1 gate, the 90% pass floor, the distribution ceilings. That logic belongs to the `CMN` module, is unit-testable against **synthetic result sets** without any real graded run, and is specified in `cmn_verdict_and_cli.md`.
 

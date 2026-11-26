@@ -56,6 +56,7 @@ modules:
   tests/ingestion/mqc_uni_loaders.py: Case ingestion
   tests/ingestion/mqc_uni_planted_score.py: Case ingestion
   tests/ingestion/mqc_uni_answer_list_schema.py: Case ingestion
+  tests/ingestion/mqc_uni_relay_forbidden.py: Case ingestion
   tests/ingestion/mqc_uni_schemas.py: Case ingestion
 
   # Execution: one request per case, through an adapter, and what it returns.

@@ -3,7 +3,7 @@
 """The golden rule set record, which states how a model's response is judged.
 
 Created: 2026-10-18
-Last updated: 2026-11-05
+Last updated: 2026-11-24
 
 This file contains :class:`GoldenRuleSet`, which holds a rule's priority and
 the conditions justifying it, its programmatic assertions, its optional rubric
@@ -454,9 +454,38 @@ class GoldenRuleSet:
                 if payload.get("primary") is not None else None
             ),
             judge_response_only=cls._validate_response_only(payload, rubric, owner),
-            relay_forbidden=bool(payload.get("relay_forbidden", False)),
+            relay_forbidden=cls._validate_relay_forbidden(payload, assertions, owner),
             answer_list=answer_list,
         )
+
+    @staticmethod
+    def _validate_relay_forbidden(
+        payload: dict[str, Any], assertions: list[Any], owner: str
+    ) -> bool:
+        """Apply invariant G13: a rule forbidding the relay carries a passage check.
+
+        Design: ``tier1_ingestion.md`` section 3.5.
+
+        Args:
+            payload (dict): The rule payload.
+            assertions (list): The built assertions.
+            owner (str): Rule set identifier, for the message.
+
+        Returns:
+            bool: The declared flag, False when absent.
+
+        Raises:
+            ValueError: With ``QC_DATA_INVARIANT_VIOLATION`` when the flag is set
+                and no ``source_phrase_absent`` assertion is declared.
+        """
+        declared = bool(payload.get("relay_forbidden", False))
+        if declared and not any(entry.kind == "source_phrase_absent" for entry in assertions):
+            raise ValueError(
+                f"QC_DATA_INVARIANT_VIOLATION: GoldenRuleSet {owner} declares "
+                f"relay_forbidden and carries no source_phrase_absent assertion, so "
+                f"nothing fails the reproduction it forbids"
+            )
+        return declared
 
     @staticmethod
     def _validate_response_only(payload: dict[str, Any], rubric: Any, owner: str) -> bool:

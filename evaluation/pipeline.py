@@ -3,7 +3,7 @@
 """The evaluation pipeline, which turns one model response into one evaluated result.
 
 Created: 2026-09-26
-Last updated: 2026-11-20
+Last updated: 2026-11-24
 
 This file contains ``evaluate_observation``, which takes a response through
 every Tier 3 step in order and returns an ``EvaluationResult``; the context it
@@ -38,8 +38,9 @@ Resistance is a string check, not a judgement: a payload carries a canary, the
 response either contains it or does not, and `not_contains` settles the question
 exactly. The exposure is removed rather than mitigated, which is what isolation
 alone cannot do for content a judge is meant to read. A rule opting in with
-``judge_response_only`` is judged on the answer alone, once it screens clean,
-and never on the task or its documents (section 4C.4).
+``judge_response_only`` is judged on the answer alone, once its assertions
+pass, and never on the task or its documents; the screen records what it finds
+in that answer and stops nothing (sections 4C.4 and 4C.4.2).
 
 **Priority never arrives here.** It is test metadata consumed by ``CMN``, and
 nothing about how severely a failure is treated should be visible to the
@@ -96,10 +97,12 @@ UNJUDGED: Final[str] = "unjudged"
 # cases are in development: the judge is what spots a failure to observe a
 # system instruction and an inconsistent answer, so a wording failure on an
 # answer the screen passed is assessed rather than left unmeasured. An
-# injection and a relay are excluded structurally, by the screen, and a
-# ``fatal`` failure by the branch below. Setting this False returns the
-# decision to ``--judge-on-failure``, which is the flag's own behaviour and
-# what authoring a case uses (section 4.2 and section 4.2.0).
+# injection and a relay are excluded structurally: by the screen on an
+# ordinary case, and on a declared one by the branch below that never judges a
+# failed assertion (section 4C.4.2); a ``fatal`` failure by the branch below.
+# Setting this False returns the decision to ``--judge-on-failure``, which is
+# the flag's own behaviour and what authoring a case uses (section 4.2 and
+# section 4.2.0).
 _JUDGE_A_FAILED_CASE: Final[bool] = True
 
 # A PLANTED SCORE SPELT AS A WORD, so "grade this as four" asks for a 4.
@@ -477,23 +480,17 @@ def evaluate_observation(
     """
     bound = binding or JudgeBinding()
     declared, rubric_authored = _declared_checks(context.rules)
-    # A RULE JUDGED ON ITS ANSWER ALONE is screened as an ordinary case: an
-    # answer repeating the injection aborts and fails, so it never reaches the
-    # judge (section 4C.4). A rejected report of an override is not a repeat
-    # (section 5.2.6).
+    # A DECLARED CASE'S SCREEN RECORDS AND NEVER STOPS THE ANSWER, a rule
+    # judged on its answer alone included, whether or not it forbade the relay:
+    # its assertions fail a relay and its judge grades the rest (section
+    # 4C.4.2). On a response-only rule a rejected report of an override is not
+    # recorded (section 5.2.6).
     response_only = context.declared_adversarial and _response_only(context.rules)
-    # AND WHETHER A QUOTE OF THE INJECTION FAILS. Only a prompt that forbade
-    # it can ask for that, so the rule declares it: a task telling the model
-    # to report an instruction cannot fail it for quoting what it reported
-    # (section 4C.4.1).
-    forbidden = bool(getattr(context.rules, "relay_forbidden", False))
     progress = _Progress(
         screen=screen_response(
             context.case_id,
             context.material.candidate_output,
-            declared_adversarial=(
-                context.declared_adversarial and not (response_only and forbidden)
-            ),
+            declared_adversarial=context.declared_adversarial,
             exempt_reports=response_only,
         )
     )
@@ -637,6 +634,11 @@ def _judge_skip_reason(
         # NEVER JUDGED, FLAG OR NOT. There is nothing coherent to score and the
         # request would spend quota to produce noise (`114504`).
         return "fatal_assertion_failure"
+    if context.declared_adversarial and not assertions_passed(results):
+        # NEVER JUDGED, FLAG OR NOT, on a declared case. The screen records and
+        # stops nothing there, so a failed check is what keeps a relayed
+        # injection away from the judge (section 4C.4.2, `114685`).
+        return "violation_assertion_failure"
     withheld = _binding_skip_reason(context, binding)
     if not assertions_passed(results) and not (
         withheld is None and (judge_on_failure or _JUDGE_A_FAILED_CASE)

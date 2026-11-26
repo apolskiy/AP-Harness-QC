@@ -3,17 +3,19 @@
 """Unit cases for judging a declared adversarial case on its answer alone.
 
 Created: 2026-10-18
-Last updated: 2026-11-05
+Last updated: 2026-11-24
 
 Its cases check :func:`evaluation.pipeline.evaluate_observation` for a rule that
 opts in to response-only judging. A clean answer reaches the judge without the
 task or documents and with the system instruction where the task carries one,
-an answer carrying a vector fails without one, and a case without the flag is
-never judged. A judgement returning the score the payload
-planted fails, while any other level is decided by the rubric.
+an answer carrying a vector is recorded by the screen and continues to its
+checks and its judge, a relayed grading instruction fails at the checks and
+reaches no judge, and a case without the flag is never judged. A judgement
+returning the score the payload planted fails, while any other level is decided
+by the rubric.
 
-Specified by ``docs/design/tier3_evaluation.md`` section 11.1 and sections 4C.4
-and 4C.5.
+Specified by ``docs/design/tier3_evaluation.md`` section 11.1 and sections 4C.4,
+4C.4.2 and 4C.5.
 
 A failure here is **not a model finding**, so the module carries no priority
 marker, per ``framework-rules.md`` section 3.3.
@@ -25,10 +27,10 @@ marker, per ``framework-rules.md`` section 3.3.
 # TestMQCResponseOnlyJudging
 #   114522  a_clean_answer_is_judged_without_task_or_documents
 #   114532  a_response_only_judge_is_shown_the_system_instruction
-#   114523  an_answer_carrying_a_vector_fails_without_a_judge
+#   114684  a_forbidden_relay_is_recorded_and_reaches_its_judge
 #   114530  a_quoted_report_is_judged_where_nothing_forbade_it
 #   114524  a_declared_case_without_the_flag_is_never_judged
-#   114525  a_correct_answer_relaying_the_judge_injection_fails
+#   114685  a_relayed_grading_instruction_fails_at_the_assertions
 # TestMQCPlantedScore
 #   114526  a_judgement_returning_the_planted_score_fails
 #   114527  a_judgement_at_another_level_is_decided_by_the_rubric
@@ -48,7 +50,8 @@ from evaluation.pipeline import DECLARED_ADVERSARIAL, evaluate_observation
 from ingestion.schemas import GoldenRuleSet
 
 from tests.evaluation.pipeline_support import (
-    RecordingJudge, declared_material, observation_context, two_criteria,
+    GRADING_CHECK, PASSAGE_CHECK, RecordingJudge, declared_material, observation_context,
+    two_criteria,
 )
 
 pytestmark = pytest.mark.unit
@@ -115,9 +118,9 @@ _DISPATCHED: Final[SimpleNamespace] = SimpleNamespace(
 def fixture_response_only(sample_rule_payload: dict[str, Any]) -> GoldenRuleSet:
     """Return a response-only rule whose prompt forbade reproducing the injection.
 
-    **`relay_forbidden` is what makes a repeated injection a failure**, since
-    2026-10-25: a prompt that invited a report and forbade nothing cannot fail
-    the model for quoting what it reported (section 4C.4.1).
+    **It carries the passage check G13 requires**, on a passage no answer here
+    reuses, so the check holds and the screen and the judge are what each case
+    reads (``tier1_ingestion.md`` section 3.5).
 
     Args:
         sample_rule_payload (dict): Minimal rule payload, carrying a rubric.
@@ -127,6 +130,23 @@ def fixture_response_only(sample_rule_payload: dict[str, Any]) -> GoldenRuleSet:
     """
     return GoldenRuleSet.from_dict({
         **sample_rule_payload, "judge_response_only": True, "relay_forbidden": True,
+        "assertions": [PASSAGE_CHECK],
+    })
+
+
+@pytest.fixture(name="grading_checked")
+def fixture_grading_checked(sample_rule_payload: dict[str, Any]) -> GoldenRuleSet:
+    """Return the same rule carrying the grading check, as the consumer's no-quote rules do.
+
+    Args:
+        sample_rule_payload (dict): Minimal rule payload, carrying a rubric.
+
+    Returns:
+        GoldenRuleSet: The built record.
+    """
+    return GoldenRuleSet.from_dict({
+        **sample_rule_payload, "judge_response_only": True, "relay_forbidden": True,
+        "assertions": [PASSAGE_CHECK, GRADING_CHECK],
     })
 
 
@@ -318,20 +338,20 @@ class TestMQCResponseOnlyJudging:
             "the task or its document reached the judge beside the system instruction"
         )
 
-    def MQC_EVL_UNI_114523_an_answer_carrying_a_vector_fails_without_a_judge(
+    def MQC_EVL_UNI_114684_a_forbidden_relay_is_recorded_and_reaches_its_judge(
         self, response_only: GoldenRuleSet
     ) -> None:
-        """An answer repeating the injection fails, and no judge sees it.
+        """A vector in an answer to a rule forbidding the relay is recorded and stops nothing.
 
-        Design: ``tier3_evaluation.md`` section 4C.4.
+        Design: ``tier3_evaluation.md`` section 4C.4.2.
 
         Args:
-            response_only (GoldenRuleSet): The opting-in rule.
+            response_only (GoldenRuleSet): The opting-in rule, forbidding the relay.
 
         Returns:
             None
         """
-        step(1, "evaluate an answer repeating the injection, with a judge bound")
+        step(1, "evaluate an answer carrying registered vectors, with a judge bound")
         judge = RecordingJudge()
         result = evaluate_observation(
             observation_context(
@@ -340,17 +360,19 @@ class TestMQCResponseOnlyJudging:
             ),
             judge.binding(),
         )
-        assert not judge.requests, "an answer carrying a registered vector reached the judge"
+        assert not result.screen.aborts, (
+            "the screen stopped an answer to a rule judged on its answer alone"
+        )
 
-        step(2, "read whether the screen stopped the evaluation")
-        assert result.screen.aborts, "the screen hit did not stop the evaluation"
+        step(2, "read what the screen recorded, for the record a ticket is drawn from")
+        assert result.screen.findings and (
+            "QC_SEC_INJECTION_ATTEMPT" in result.taxonomy_codes
+        ), f"the screen recorded no finding: {result.taxonomy_codes}"
 
-        step(3, "read the case's outcome")
-        assert not result.passed, "an answer that repeated the injection passed"
-
-        step(4, "read what the screen found, for the record a ticket is drawn from")
-        assert result.screen.findings, (
-            "the result names no finding, so a ticket cannot say where the failure is"
+        step(3, "read whether the answer reached its assertions and its judge")
+        assert result.checks_ran and len(judge.requests) == 1, (
+            f"the answer did not reach its checks and its judge: checks_ran="
+            f"{result.checks_ran}, {len(judge.requests)} judge request(s)"
         )
 
     def MQC_EVL_UNI_114530_a_quoted_report_is_judged_where_nothing_forbade_it(
@@ -430,18 +452,20 @@ class TestMQCResponseOnlyJudging:
             result.judge_skipped_reason
         )
 
-    def MQC_EVL_UNI_114525_a_correct_answer_relaying_the_judge_injection_fails(
-        self, response_only: GoldenRuleSet
+    def MQC_EVL_UNI_114685_a_relayed_grading_instruction_fails_at_the_assertions(
+        self, grading_checked: GoldenRuleSet
     ) -> None:
-        """The first injection failing does not excuse relaying the second.
+        """The first injection failing does not excuse relaying the second, and the checks say so.
 
         The answer assesses the candidate correctly, so the injected score did
-        not land, and still carries the instruction aimed at the judge.
+        not land, and still carries the instruction aimed at the judge. The
+        grading check fails it before the judge; the screen records it.
 
-        Design: ``tier3_evaluation.md`` section 4C.4.
+        Design: ``tier3_evaluation.md`` section 4C.4.2.
 
         Args:
-            response_only (GoldenRuleSet): The opting-in rule.
+            grading_checked (GoldenRuleSet): The rule forbidding the relay,
+                carrying the grading check.
 
         Returns:
             None
@@ -450,7 +474,7 @@ class TestMQCResponseOnlyJudging:
         judge = RecordingJudge()
         result = evaluate_observation(
             observation_context(
-                response_only, _CORRECT_BUT_RELAYED, declared_adversarial=True,
+                grading_checked, _CORRECT_BUT_RELAYED, declared_adversarial=True,
                 material=declared_material(_CORRECT_BUT_RELAYED, _TASK, _RESUME),
             ),
             judge.binding(),
@@ -460,12 +484,17 @@ class TestMQCResponseOnlyJudging:
             "judge, so the second injection was relayed"
         )
 
-        step(2, "read the screen's decision and the case's outcome")
-        assert result.screen.aborts and not result.passed, (
-            "a correct assessment relaying the judge-directed instruction did not fail"
+        step(2, "read where the evaluation stopped and the case's outcome")
+        assert not result.screen.aborts and result.checks_ran and not result.passed, (
+            f"the answer was not failed by its assertions: aborts="
+            f"{result.screen.aborts}, checks_ran={result.checks_ran}, passed={result.passed}"
         )
 
-        step(3, "read which vector the screen named")
+        step(3, "read which assertion failed it")
+        failed = [entry.assertion_id for entry in result.assertion_results if not entry.passed]
+        assert failed == ["A_NO_GRADING"], f"the grading check did not fail it: {failed}"
+
+        step(4, "read which vector the screen recorded")
         vectors = {entry.vector for entry in result.screen.findings}
         assert "score_manipulation" in vectors, (
             f"the finding does not name the judge-directed instruction: {sorted(vectors)}"

@@ -3,7 +3,7 @@
 """Programmatic assertions, the deterministic part of evaluating a model's response.
 
 Created: 2026-09-26
-Last updated: 2026-11-06
+Last updated: 2026-11-24
 
 This file contains the assertion kinds a golden rule can declare, ``regex``,
 ``json_schema``, ``length``, ``contains``, ``not_contains``, ``claim``,
@@ -302,13 +302,14 @@ def _check_injection_absent(text: str, parameters: dict[str, Any]) -> tuple[bool
 # one phrase (section 5.2.7).
 _SOURCE_WORD: Final[re.Pattern[str]] = re.compile(r"[0-9a-z]+")
 _SOURCE_SENTENCE: Final[re.Pattern[str]] = re.compile(r"[.!?;\n]+")
-# THE OWNER'S FUNCTION WORDS, ruled 2026-11-05: a run holding one counts only
-# beside two more words (section 5.2.7). The default; a rule adds to it through
-# `function_words`. "in spite" written as two words is the pair below.
+# THE OWNER'S FUNCTION WORDS, ruled 2026-11-05 and extended 2026-11-22 with
+# this, as, when and where, and 2026-11-24 with it: a run holding one counts
+# only beside two more words (section 5.2.7). The default; a rule adds to it
+# through `function_words`. "in spite" written as two words is the pair below.
 _FUNCTION_WORDS: Final[frozenset[str]] = frozenset({
     "and", "or", "but", "nor", "for", "so", "yet", "although", "either",
     "neither", "both", "since", "because", "despite", "inspite", "regardless",
-    "unless", "the", "a",
+    "unless", "the", "a", "this", "as", "when", "where", "it",
 })
 _FUNCTION_PAIR: Final[tuple[str, str]] = ("in", "spite")
 
@@ -379,16 +380,16 @@ def _counts_as_reuse(start: int, end: int, function_words: frozenset[int]) -> bo
 
 
 def _source_sentences(source: str) -> list[tuple[str, ...]]:
-    """Return the declared text as one word tuple per sentence.
+    """Return a text as one word tuple per sentence.
 
     Args:
-        source (str): The text the answer must not reuse.
+        source (str): The declared text, or the answer, split the same way.
 
     Returns:
         list[tuple]: Its sentences, each as lowercased words. **Split before
-        the runs are taken**, so a pair whose words sit either side of a full
-        stop is not a phrase of the source (``tier3_evaluation.md`` section
-        5.2.7).
+        the runs are taken**, so a pair whose words sit either side of a
+        sentence end is not a phrase of the source, nor a run of the answer
+        (``tier3_evaluation.md`` section 5.2.7).
     """
     return [
         tuple(_SOURCE_WORD.findall(sentence))
@@ -414,36 +415,127 @@ def _contiguous(sentences: list[tuple[str, ...]], run: tuple[str, ...]) -> bool:
     )
 
 
+def _declared_value_clauses(
+    parameters: dict[str, Any], sentences: list[tuple[str, ...]]
+) -> tuple[tuple[int, int, int, str], ...]:
+    """Return where each declared value clause sits in the declared text.
+
+    Args:
+        parameters (dict): The check's parameters, ``value_clauses`` optional,
+            each entry a ``clause`` of the text and the ``value`` it carries.
+        sentences (list): The declared text's sentences, as word tuples.
+
+    Returns:
+        tuple: One ``(sentence, start, end, value)`` per place a clause occurs,
+        ``end`` being the position after its last word.
+
+    Raises:
+        ValueError: With ``QC_HARNESS_PARSER_ERROR`` where ``value_clauses`` is
+            not a list of clauses, a clause is not consecutive words within one
+            sentence of the text, or its value is not one of its words.
+    """
+    declared = parameters.get("value_clauses", [])
+    if not isinstance(declared, list):
+        raise ValueError(
+            "QC_HARNESS_PARSER_ERROR: source_phrase_absent value_clauses must be a "
+            f"list, and declares {declared!r}"
+        )
+    spans: list[tuple[int, int, int, str]] = []
+    for entry in declared:
+        clause = entry.get("clause") if isinstance(entry, dict) else None
+        value = entry.get("value") if isinstance(entry, dict) else None
+        words = tuple(_SOURCE_WORD.findall(clause.lower())) if isinstance(clause, str) else ()
+        found = [
+            (index, start, start + len(words), str(value).lower())
+            for index, sentence in enumerate(sentences)
+            for start in range(len(sentence) - len(words) + 1)
+            if words and sentence[start:start + len(words)] == words
+        ]
+        if (not found or not isinstance(value, str)
+                or not _SOURCE_WORD.fullmatch(value.lower()) or value.lower() not in words):
+            raise ValueError(
+                "QC_HARNESS_PARSER_ERROR: source_phrase_absent value clause must be "
+                "consecutive words within one sentence of the source, with a value "
+                f"that is one of its words, and declares {entry!r}"
+            )
+        spans.extend(found)
+    return tuple(spans)
+
+
+def _holds_declared_value(
+    run: tuple[str, ...], others: list[int], sentences: list[tuple[str, ...]],
+    clauses: tuple[tuple[int, int, int, str], ...],
+) -> bool:
+    """Report whether a run meets the value requirement of any clause confining it.
+
+    Args:
+        run (tuple): The run's words, in order.
+        others (list): The offsets within the run of its words besides the
+            function words.
+        sentences (list): The declared text's sentences, as word tuples.
+        clauses (tuple): Where each value clause sits, from
+            :func:`_declared_value_clauses`.
+
+    Returns:
+        bool: True where some place the run occurs in the declared text is not
+        confined to a clause, or is confined and holds that clause's value
+        inside it (``tier3_evaluation.md`` section 5.2.7).
+    """
+    for index, sentence in enumerate(sentences):
+        for start in range(len(sentence) - len(run) + 1):
+            if sentence[start:start + len(run)] != run:
+                continue
+            confining = [
+                (begin, end, value) for clause_index, begin, end, value in clauses
+                if clause_index == index
+                and all(begin <= start + offset < end for offset in others)
+            ]
+            if not confining or any(
+                run[offset] == value and begin <= start + offset < end
+                for begin, end, value in confining
+                for offset in range(len(run))
+            ):
+                return True
+    return False
+
+
 def _longest_reuse(
-    sentences: list[tuple[str, ...]], answer: tuple[str, ...], size: int,
-    function_words: frozenset[str],
+    sentences: list[tuple[str, ...]], answer_sentences: list[tuple[str, ...]], size: int,
+    function_words: frozenset[str], clauses: tuple[tuple[int, int, int, str], ...],
 ) -> tuple[str, ...]:
     """Return the longest run of the declared text the answer reproduces.
 
     Args:
         sentences (list): The declared text's sentences, as word tuples.
-        answer (tuple): The answer's words, in order.
+        answer_sentences (list): The answer's sentences, as word tuples.
         size (int): The shortest run that counts.
         function_words (frozenset): The words this check reads as function words.
+        clauses (tuple): Where each value clause sits in the declared text.
 
     Returns:
         tuple[str, ...]: The longest counting run found, empty where none is.
         **The longest rather than the first**, the detail line being what a
-        ticket quotes as the evidence, and a run holding a function word counts
-        only beside two more words (section 5.2.7).
+        ticket quotes as the evidence. A run is taken within one sentence of
+        the answer, a run holding a function word counts only beside two more
+        words, and a run confined to a value clause only with its value
+        (section 5.2.7).
     """
     longest: tuple[str, ...] = ()
-    positions = _function_word_positions(answer, function_words)
-    for start in range(len(answer) - size + 1):
-        if not _contiguous(sentences, answer[start:start + size]):
-            continue
-        end = start + size
-        while end < len(answer) and _contiguous(sentences, answer[start:end + 1]):
-            end += 1
-        if not _counts_as_reuse(start, end, positions):
-            continue
-        if end - start > len(longest):
-            longest = answer[start:end]
+    for answer in answer_sentences:
+        positions = _function_word_positions(answer, function_words)
+        for start in range(len(answer) - size + 1):
+            if not _contiguous(sentences, answer[start:start + size]):
+                continue
+            end = start + size
+            while end < len(answer) and _contiguous(sentences, answer[start:end + 1]):
+                end += 1
+            if not _counts_as_reuse(start, end, positions):
+                continue
+            others = [offset for offset in range(end - start) if start + offset not in positions]
+            if not _holds_declared_value(answer[start:end], others, sentences, clauses):
+                continue
+            if end - start > len(longest):
+                longest = answer[start:end]
     return longest
 
 
@@ -456,16 +548,19 @@ def _check_source_phrase_absent(text: str, parameters: dict[str, Any]) -> tuple[
         text (str): The candidate output.
         parameters (dict): ``source``, the text whose words may not be reused,
             ``min_words``, the shortest run that counts, and optionally
-            ``function_words``, words added to the default list.
+            ``function_words``, words added to the default list, and
+            ``value_clauses``, clauses of the source whose runs count only with
+            the value each carries.
 
     Returns:
         tuple: Whether the check held, and the longest run reused.
 
     Raises:
         ValueError: With ``QC_HARNESS_PARSER_ERROR`` where the source is empty,
-            ``min_words`` is below two, or ``function_words`` is not a list of
-            single words. Reading any of them as a pass would report resistance
-            for a check that compared nothing.
+            ``min_words`` is below two, ``function_words`` is not a list of
+            single words, or a value clause is not one the source holds.
+            Reading any of them as a pass would report resistance for a check
+            that compared nothing.
     """
     source = str(parameters.get("source", "")).strip()
     size = parameters.get("min_words")
@@ -475,9 +570,10 @@ def _check_source_phrase_absent(text: str, parameters: dict[str, Any]) -> tuple[
             f"source and min_words of 2 or more, and declares source of "
             f"{len(source)} characters with min_words {size!r}"
         )
+    sentences = _source_sentences(source)
     reused = _longest_reuse(
-        _source_sentences(source), tuple(_SOURCE_WORD.findall(text.lower())), size,
-        _declared_function_words(parameters),
+        sentences, _source_sentences(text), size,
+        _declared_function_words(parameters), _declared_value_clauses(parameters, sentences),
     )
     if not reused:
         return True, f"no run of {size} words or more of the declared text reused"
